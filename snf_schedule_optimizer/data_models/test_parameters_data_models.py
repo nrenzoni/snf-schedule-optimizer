@@ -1,0 +1,32 @@
+from dataclasses import dataclass
+import numpy as np
+from typing import *
+
+
+@dataclass(frozen=True)
+class FacilityParameters:
+    """Parameters that are STABLE ACROSS TIME but VARY ACROSS FACILITIES."""
+    # 1. Supply/Compliance Configuration
+    facility_id: str
+    shift_structure: Dict[str, Tuple[str, str]]  # e.g., {'Day': ('07:00', '15:00')}
+    base_cna_hprd_mandate: float = 2.5  # Minimum target HPRD for CNAs (CMS/State benchmark)
+    cna_base_wage: float = 18.00
+    agency_multiplier: float = 2.2  # Agency cost multiplier (220% of base)
+
+    # 2. Staffing Constraints
+    nurse_fatigue_rule: int = 10  # Max hours worked before mandatory rest
+    team_consistency_weight: float = 5.0  # Weight for minimizing team changes (soft constraint)
+
+
+@dataclass(frozen=True)
+class TimeSeriesStressTestParameters:
+    """Parameters that VARY OVER TIME (Stress/Demand Triggers)."""
+    # 1. Demand/Acuity Variability (Clinical Stress)
+    admission_surge_factor: float  # Multiplier for unexpected admissions (e.g., 1.0 to 1.5)
+    high_acuity_mix_increase: float  # Percentage increase in residents with high-NTA/high-GG scores
+    # staff_call_out_rate: float = 0.05  # Daily percentage of staff calling out (0.01 to 0.10)
+    staff_call_out_rate: float  # Daily percentage of staff calling out (0.01 to 0.10)
+
+    # 2. Financial/Operational Pressure
+    overtime_shift_count_increase: int  # How many more shifts require overtime in this scenario
+    budget_variance_max: float  # Max allowed variance before cost constraint is violated
