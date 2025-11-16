@@ -1,10 +1,14 @@
 import pendulum
+from collections import defaultdict
+from dataclasses import dataclass
 
 from snf_schedule_optimizer.baseline_schedule_generator import BaselineScheduleGenerator
 from snf_schedule_optimizer.data_models import *
+from snf_schedule_optimizer.nurse_shift_hours_tracking import NurseShiftHoursStateTracker
 from snf_schedule_optimizer.optimization_engine import (
     ScheduleOptimizer, PreferenceWeights, MlModelOutputs, Shift, Schedule
 )
+from snf_schedule_optimizer.overtime_calculation import BasicOvertimeCalculator, IOvertimeCalculator
 from snf_schedule_optimizer.robustness_tests.scenario_generator import (
     generate_simulated_acuity,
     generate_simulated_nurses,
@@ -16,6 +20,7 @@ NY_TZ = pendulum.Timezone("America/New_York")
 
 
 class TestRunner:
+
     def run_sensitivity_analysis(
             self,
             test_param_name: str,
@@ -74,16 +79,22 @@ class TestRunner:
                 target_total_hprd=3.5
             )
 
+            facility_config = FacilityConfig(
+                facility_id="TEST_FACILITY_001",
+                max_consecutive_shifts=6,
+                shifts_per_day=3,
+                overtime_threshold_hours_per_week=40,
+                start_of_work_week_day=pendulum.WeekDay.MONDAY,
+                start_of_work_day_time=pendulum.time(7, 0, 0)
+            )
+
             scenario_metrics = self.run_scenario(
+                f"SCENARIO_{test_param_name}_{value}",
                 shifts,
                 stress_params,
-                FacilityConfig(
-                    facility_id="TEST_FACILITY_001",
-                    max_consecutive_shifts=6,
-                    shifts_per_day=3
-                ),
+                facility_config,
                 min_mandates,
-                requirements
+                requirements,
             )
 
             # Tag with varied parameter value
@@ -95,13 +106,15 @@ class TestRunner:
         if test_param_name in df.columns:
             cols = [test_param_name] + [c for c in df.columns if c != test_param_name]
             df = df.select(cols)
+
         return df
 
     def run_scenario(
             self,
+            scenario_id: str,
             shifts: List[Shift],
             stress_params: StressTestParameters,
-            facility_params: FacilityConfig,
+            facility_config: FacilityConfig,
             min_mandates: MinMandates,
             shift_requirements: ShiftSpecificRequirements,
     ) -> Dict[str, Any]:
@@ -116,6 +129,8 @@ class TestRunner:
                 turnover_rate=0.3
             )
         )
+
+        nurses_per_id = {n.employee_id: n for n in nurses}
 
         stressed_residents: List[ResidentAcuity] = generate_simulated_acuity(stress_params)
 
@@ -137,7 +152,7 @@ class TestRunner:
             nurses,
             stressed_residents,
             shifts,
-            facility_params,
+            facility_config,
             min_mandates,
             user_scheduler_pref_weights,
             shift_requirements,
@@ -150,24 +165,20 @@ class TestRunner:
         optimal_schedule = optimized_schedule_res.optimal_schedule
         assert optimal_schedule is not None
 
-        # --- 3. BACKWARD-LOOKING: Simulate Baseline & Compare ---
+        overtime_calculator = BasicOvertimeCalculator(facility_config)
 
-        # a) Simulate Cost of Optimal Schedule (What you achieved)
-        optimal_cost: float = self._calculate_cost(optimal_schedule, nurses)
+        optimal_cost: float = self._calculate_cost(optimal_schedule, nurses_per_id, overtime_calculator)
 
-        # b) Simulate Cost of Baseline (What the facility usually does - heuristic/manual)
-        # baseline_schedule: Dict[Any, Any] = self._generate_baseline_schedule(stressed_residents)
         baseline_schedule = BaselineScheduleGenerator().generate_baseline_schedule(
+            shifts,
             stressed_residents,
-            nurses,
-            shifts
+            nurses
         )
 
-        baseline_cost: float = self._calculate_cost(baseline_schedule, nurses)
+        baseline_cost: float = self._calculate_cost(baseline_schedule, nurses_per_id, overtime_calculator)
 
-        # c) Simulate Operational Risk
-        optimal_risk_score: float = self._run_risk_simulation(optimal_schedule)
-        baseline_risk_score: float = self._run_risk_simulation(baseline_schedule)
+        optimal_risk_metrics = self._calc_risk_metrics(shifts, optimal_schedule, nurses, shift_requirements)
+        baseline_risk_metrics = self._calc_risk_metrics(shifts, baseline_schedule, nurses, shift_requirements)
 
         # Calculate savings
         cost_savings_percent: float = 0.0
@@ -175,14 +186,23 @@ class TestRunner:
             cost_savings_percent = (baseline_cost - optimal_cost) / baseline_cost * 100
 
         # Note: Return type is Dict[str, Any] as metrics can be floats, ints, or strings
-        return {
-            'Scenario_ID'         : f"Surge_{stress_params.admission_surge_factor}",
+        row_results = {
+            'Scenario_ID'         : scenario_id,
             'Baseline_Cost'       : baseline_cost,
             'Optimized_Cost'      : optimal_cost,
-            'Cost_Savings_Percent': cost_savings_percent,
-            'Baseline_Risk_Score' : baseline_risk_score,
-            'Optimized_Risk_Score': optimal_risk_score
+            'Cost_Savings_Percent': cost_savings_percent
         }
+
+        row_results.update(
+            {
+                'Baseline_Regulatory_Compliance_Score' : baseline_risk_metrics.regulatory_compliance_score,
+                'Optimized_Regulatory_Compliance_Score': optimal_risk_metrics.regulatory_compliance_score,
+                'Baseline_Staff_Wellbeing_Index'       : baseline_risk_metrics.staff_wellbeing_index,
+                'Optimized_Staff_Wellbeing_Index'      : optimal_risk_metrics.staff_wellbeing_index
+            }
+        )
+
+        return row_results
 
     @staticmethod
     def _generate_baseline_schedule(residents: Any) -> Dict[Any, Any]:
@@ -191,29 +211,118 @@ class TestRunner:
         return {}
 
     @staticmethod
-    def _calculate_cost(schedule: Schedule, nurses: List[NurseProfile]) -> float:
+    def _calculate_cost(
+            schedule: Schedule,
+            nurses: Dict[str, NurseProfile],
+            overtime_calculator: IOvertimeCalculator,
+    ) -> float:
         """
-        Calculates the total dollar cost based on assignments and pay rates.
-        MOCK: Returns a cost based on the number of nurses, simulating higher cost for baseline.
+        Calculates the total dollar total_cost based on assignments and pay rates.
         """
-        # A simple cost proxy for mocking purposes
-        total_cost: float = len(nurses) * 8_000.0 * (1.1 if not schedule else 1.0)
+        nurse_shift_hours_state_tracker_per_nurse: Dict[str, NurseShiftHoursStateTracker] = {}
 
-        # If this were the baseline, we'd mock a higher cost
-        if not schedule:  # Baseline is mocked as an empty schedule for simplicity
-            return total_cost * 1.5
+        shifts_per_nurse: Dict[NurseProfile, List[Shift]] = defaultdict(list)
+        for shift, assigned_nurse_ids in schedule.shift_assignments.items():
+            for nurse_id in assigned_nurse_ids:
+                nurse = nurses[nurse_id]
+                if nurse_id:
+                    shifts_per_nurse[nurse].append(shift)
+
+        total_cost = 0.0
+
+        for shift, assigned_nurse_ids in schedule.shift_assignments.items():
+            assigned_nurses = [n for n in nurses if n in assigned_nurse_ids]
+            for nurse_id in assigned_nurses:
+                nurse = nurses[nurse_id]
+                if not nurse_id in nurse_shift_hours_state_tracker_per_nurse:
+                    nurse_shift_hours_state_tracker_per_nurse[nurse_id] = NurseShiftHoursStateTracker(
+                        nurse,
+                        overtime_calculator
+                    )
+
+                nurse_shift_hr_tracker = nurse_shift_hours_state_tracker_per_nurse[nurse_id]
+
+                hour_components = nurse_shift_hr_tracker.record_shift_and_get_hour_components(shift)
+
+                for hour_component in hour_components:
+                    base_cost = hour_component.duration_hours * nurse.hourly_cost_base
+                    if hour_component.is_ot:
+                        base_cost *= nurse.ot_multiplier
+                    total_cost += base_cost
 
         return total_cost
 
-    @staticmethod
-    def _run_risk_simulation(schedule: Schedule) -> float:
-        """
-        Structural shell for the DES to quantify non-financial risk.
-        MOCK: Returns a high risk for the baseline schedule.
-        """
-        # MOCK: A simple risk proxy. Optimal schedule has lower risk score.
-        risk_score: float = 10.0
-        if not schedule:  # Baseline is mocked as an empty schedule for simplicity
-            return risk_score * 3.0  # Higher risk for the baseline/inefficient schedule
+    @dataclass(frozen=True)
+    class RiskMetrics:
+        regulatory_compliance_score: float  # 0 (worst) to 100 (best)
+        staff_wellbeing_index: float  # 0 (worst) to 100 (best)
+        # turnover_likelihood_score: float  # 0 (low risk) to 100 (high risk)
 
-        return risk_score
+    @staticmethod
+    def _calc_risk_metrics(
+            shifts: List[Shift],
+            schedule: Schedule,
+            nurses: List[NurseProfile],
+            shift_requirements: ShiftSpecificRequirements,
+    ) -> RiskMetrics:
+        """
+        quantify non-financial risk.
+        """
+
+        regulatory_compliance_score_agg = 100.0
+        staff_wellbeing_index_agg = 100.0
+
+        for shift in shifts:
+            assigned_nurse_ids = schedule.shift_assignments[shift]
+            assigned_nurses = [n for n in nurses if n.employee_id in assigned_nurse_ids]
+            rn_assigned = [n for n in assigned_nurses if n.role == NurseRole.RN]
+            lpn_assigned = [n for n in assigned_nurses if n.role == NurseRole.LPN]
+            cna_assigned = [n for n in assigned_nurses if n.role == NurseRole.CNA]
+            # total_assigned = len(assigned_nurses)
+
+            required_rn = shift_requirements.target_hprd_rn
+            required_lpn = shift_requirements.target_hprd_lpn
+            required_cna = shift_requirements.target_hprd_cna
+            # required_total = shift_requirements.target_total_hprd
+
+            rn_diff = len(rn_assigned) - required_rn
+            lpn_diff = len(lpn_assigned) - required_lpn
+            cna_diff = len(cna_assigned) - required_cna
+            # total_diff = total_assigned - required_total
+
+            regulatory_compliance_misses = 0.0
+
+            if rn_diff < 0:
+                regulatory_compliance_misses += rn_diff
+            if lpn_diff < 0:
+                regulatory_compliance_misses += lpn_diff
+            if cna_diff < 0:
+                regulatory_compliance_misses += cna_diff
+            # if total_diff < 0:
+            #     regulatory_compliance_misses += total_diff
+
+            staff_wellbeing_misses = 0
+
+            for nurse in assigned_nurses:
+                if nurse.custom_preferences is not None:
+                    for pref in nurse.custom_preferences:
+                        if pref.preference_type == PreferenceType.DAY_SHIFT_PREFERENCE:
+                            if not shift.day_shift:
+                                staff_wellbeing_misses -= 1
+                        if pref.preference_type == PreferenceType.NIGHT_SHIFT_PREFERENCE:
+                            if shift.day_shift:
+                                staff_wellbeing_misses -= 1
+                        if pref.preference_type == PreferenceType.SPECIFIC_DAY_OFF:
+                            if pref.specific_day == shift.day_of_week:
+                                staff_wellbeing_misses -= 1
+                        if pref.preference_type == PreferenceType.WEEKEND_OFF:
+                            if pref.specific_day in [DayOfWeek.SATURDAY, DayOfWeek.SUNDAY]:
+                                staff_wellbeing_misses -= 1
+
+            regulatory_compliance_score_agg -= regulatory_compliance_misses
+            staff_wellbeing_index_agg -= staff_wellbeing_misses
+
+        return TestRunner.RiskMetrics(
+            regulatory_compliance_score=max(0.0, regulatory_compliance_score_agg),
+            staff_wellbeing_index=max(0.0, staff_wellbeing_index_agg)
+        )

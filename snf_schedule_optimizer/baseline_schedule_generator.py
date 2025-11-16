@@ -11,18 +11,23 @@ class BaselineScheduleGenerator:
 
     def generate_baseline_schedule(
             self,
+            shifts: List[Shift],
             residents: List[ResidentAcuity],
             staff: List[NurseProfile],
-            shifts: List[Shift],
     ) -> Schedule:
         """
         Generates a baseline schedule using a simple heuristic approach.
         placeholder implementation
         """
-        # Placeholder logic: evenly distribute staff across shifts
-        assignments: Dict[str, List[int]] = {}
+        shift_assignments: Dict[Shift, List[str]] = {}
+
+        census = len(residents)
+
         staff_count = len(staff)
         for i, shift in enumerate(shifts):
-            assigned_staff = staff[i % staff_count]
-            assignments.setdefault(assigned_staff.employee_id, []).append(shift.shift_number)
-        return Schedule(assignments=assignments)
+            n_staff_to_assign = census
+            for j in range(n_staff_to_assign):
+                assigned_staff = staff[(i + j) % staff_count]
+                shift_assignments.setdefault(shift, []).append(assigned_staff.employee_id)
+
+        return Schedule(shift_assignments)

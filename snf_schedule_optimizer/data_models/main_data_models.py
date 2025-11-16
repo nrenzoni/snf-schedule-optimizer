@@ -1,10 +1,8 @@
-import enum
+from dataclasses import dataclass
+from enum import Enum
 from typing import *
 
 import pendulum
-from dataclasses import dataclass
-from enum import Enum
-import polars as pl
 
 
 # --- A. EHR / Acuity Data ---
@@ -70,6 +68,12 @@ class NurseProfile:
 
 
 @dataclass(frozen=True)
+class NurseShiftData:
+    """Represents data of single shift assignment for a nurse."""
+    is_ot: bool
+
+
+@dataclass(frozen=True)
 class MinMandates:
     """Immutable minimum staffing mandate from regulatory bodies."""
     min_rn_hprd: float  # Minimum HPRD for RNs
@@ -121,8 +125,26 @@ class FacilityConfig:
     facility_id: str
     max_consecutive_shifts: int
     shifts_per_day: int
+    overtime_threshold_hours_per_week: int
+    start_of_work_week_day: pendulum.WeekDay
+    start_of_work_day_time: pendulum.Time
+
+
+@dataclass(frozen=True)
+class Shift:
+    shift_id: str
+    shift_number: int
+    day_shift: bool
+    day_of_week: DayOfWeek
+    shift_start_time: pendulum.DateTime
+    shift_end_time: pendulum.DateTime
+    timezone: pendulum.Timezone
+
+    @property
+    def duration_hours(self) -> float:
+        return (self.shift_end_time - self.shift_start_time).total_hours()
 
 
 @dataclass(frozen=True)
 class Schedule:
-    assignments: Dict[str, List[int]]  # {employee_id: [shift_numbers]}
+    shift_assignments: Dict[Shift, List[str]]  # {Shift: [employee_ids]}

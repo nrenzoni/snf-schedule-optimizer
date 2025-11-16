@@ -1,4 +1,5 @@
 import abc
+from collections import defaultdict
 
 import numpy as np
 import pendulum
@@ -15,21 +16,6 @@ class PreferenceWeights:
     team_consistency_penalty: float = 300.0
     high_risk_shift_penalty: float = 2000.0
     custom_preference_penalty: float = 1500.0
-
-
-@dataclass(frozen=True)
-class Shift:
-    shift_id: str
-    shift_number: int
-    day_shift: bool
-    day_of_week: DayOfWeek
-    shift_start_time: pendulum.DateTime
-    shift_end_time: pendulum.DateTime
-    timezone: pendulum.Timezone
-
-    @property
-    def duration_hours(self) -> float:
-        return (self.shift_end_time - self.shift_start_time).total_hours()
 
 
 @dataclass(frozen=True)
@@ -206,6 +192,7 @@ class ScheduleOptimizationParams:
 class ScheduleOptimizationResults:
     success: bool
     optimal_schedule: Optional[Schedule]  # {variable_name: value}
+    constraint_slacks: Optional[Dict[str, float]]
 
 
 @dataclass(frozen=True)
@@ -220,7 +207,6 @@ class HprdShiftNurseRequirements:
         return float(self.values[shift_idx, role_idx])
 
 
-# 14 day optimization, i.e., 2 weeks ahead
 class ScheduleOptimizer:
     """Formulates and solves the Acuity-Driven Nurse Scheduling ILP."""
 
@@ -238,6 +224,9 @@ class ScheduleOptimizer:
         """
         Executes the solver and returns the optimized schedule.
         """
+
+        shifts_per_id = {shift.shift_id: shift for shift in shifts}
+
         problem = ScheduleOptimizer.build_problem()
         lp_vars_holder = LpNurseShiftVariableHolder()
         ScheduleOptimizer.add_lp_variable_per_nurse_shift(nurses, shifts, lp_vars_holder)
@@ -275,8 +264,10 @@ class ScheduleOptimizer:
 
         if pulp.LpStatus[problem.status] != "Optimal":
             print(f"Solver Status: {pulp.LpStatus[problem.status]}")
+
             return ScheduleOptimizationResults(
                 False,
+                None,
                 None
             )
 
@@ -287,22 +278,40 @@ class ScheduleOptimizer:
         # * how often did we violate preferences for high-risk nurses
         # how often schedule respected pairing preferences (1st need to collect this as input from nurses)
 
+        constraint_slacks = {
+            name: constraint.slack
+            for name, constraint in problem.constraints.items()
+            if constraint.slack is not None
+        }
+
+        schedule = ScheduleOptimizer._extract_optimized_schedule_from_lp(
+            problem,
+            shifts_per_id,
+            nurses
+        )
+
         return ScheduleOptimizationResults(
             True,
-            ScheduleOptimizer._extract_optimized_schedule_from_lp(problem)
+            schedule,
+            constraint_slacks
         )
 
     @staticmethod
-    def _extract_optimized_schedule_from_lp(lp_problem: LpProblem) -> Schedule:
-        assignments: Dict[str, List[int]] = {}
+    def _extract_optimized_schedule_from_lp(
+            lp_problem: LpProblem,
+            shifts: Dict[str, Shift],
+            nurses: List[NurseProfile],
+    ) -> Schedule:
+        assignments: Dict[Shift, List[str]] = defaultdict(list)
         for v in lp_problem.variables():
             if v.varValue > 0:  # Only consider assigned shifts
                 parts = v.name.split('_')
                 employee_id = parts[1]
-                shift_number = int(parts[2])
-                if employee_id not in assignments:
-                    assignments[employee_id] = []
-                assignments[employee_id].append(shift_number)
+                nurse = next((n for n in nurses if n.employee_id == employee_id), None)
+                shift_id = str(parts[2])
+                shift = shifts[shift_id]
+                assignments[shift].append(shift_id)
+
         return Schedule(assignments)
 
     @staticmethod
