@@ -8,10 +8,10 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class PreferenceWeights:
-    Night_Shift_Penalty_Weight: float = 500.0
-    OT_Avoidance_Penalty: float = 1000.0
-    Team_Consistency_Penalty: float = 300.0
-    High_Risk_Shift_Penalty: float = 2000.0
+    night_shift_penalty_weight: float = 500.0
+    ot_avoidance_penalty: float = 1000.0
+    team_consistency_penalty: float = 300.0
+    high_risk_shift_penalty: float = 2000.0
 
 
 @dataclass(frozen=True)
@@ -22,11 +22,11 @@ class Shift:
 
 
 @dataclass(frozen=True)
-class DynamicModelOutputs:
+class MlModelOutputs:
     """Stores the pre-calculated, dynamic inputs from ML models."""
     turnover_risk_scores: Dict[str, float]  # {employee_id: score}
     shift_call_out_forecast: Dict[str, float]  # {shift_id: predicted_rate}
-    resident_acuity_stress: Dict[str, float]  # {unit_id: stress_multiplier}
+    unit_acuity_stress: Dict[str, float]  # {unit_id: stress_multiplier}
     team_compatibility_scores: Dict[Tuple[str, str], float]  # {(nurse_A, nurse_B): score}
 
 
@@ -92,7 +92,7 @@ class IPreferencePenaltyCalculator(abc.ABC):
             self,
             nurse: NurseProfile,
             shift: Shift,
-            preference_weights: PreferenceWeights
+            preference_weights: PreferenceWeights,
     ) -> float:
         pass
 
@@ -102,7 +102,7 @@ class PreferencePenaltyCalculatorImpl(IPreferencePenaltyCalculator):
             self,
             nurse: NurseProfile,
             shift: Shift,
-            preference_weights: PreferenceWeights
+            preference_weights: PreferenceWeights,
     ) -> float:
         """
         Calculates the non-financial penalty cost if the assignment violates a soft preference.
@@ -117,11 +117,11 @@ class PreferencePenaltyCalculatorImpl(IPreferencePenaltyCalculator):
                     any(p for p in nurse.custom_preferences if p.preference_type.DAY_SHIFT_PREFERENCE)
             ):
                 # The 'weights' parameter controls the impact of this penalty on the solver
-                penalty += preference_weights.Night_Shift_Penalty_Weight
+                penalty += preference_weights.night_shift_penalty_weight
 
         # Penalize overtime assignment (if not agency, and deemed undesirable)
         if self._is_overtime_risk(nurse, shift.day_shift):
-            penalty += preference_weights.OT_Avoidance_Penalty * nurse.ot_multiplier
+            penalty += preference_weights.ot_avoidance_penalty * nurse.ot_multiplier
 
         # Future implementation: Incorporate penalties for breaking team consistency here
         # 
@@ -168,6 +168,17 @@ class ShiftCostCalculatorImpl(IShiftCostCalculator):
         return base_cost
 
 
+@dataclass(frozen=True)
+class ScheduleOptimizationParams:
+    pass
+
+
+@dataclass(frozen=True)
+class ScheduleOptimizationResults:
+    success: bool
+    optimal_schedule: Optional[Schedule]  # {variable_name: value}
+
+
 # 14 day optimization, i.e., 2 weeks ahead
 class ScheduleOptimizer:
     """Formulates and solves the Acuity-Driven Nurse Scheduling ILP."""
@@ -176,17 +187,20 @@ class ScheduleOptimizer:
     def solve(
             nurses: List[NurseProfile],
             residents: List[ResidentAcuity],
+            shifts: List[Shift],
             facility_params: FacilityConfig,
+            min_mandates: List[MinMandates],
             preference_weights: PreferenceWeights,
-            model_outputs: DynamicModelOutputs
-    ) -> Optional[
-        Dict[str, float]]:
-        """Executes the solver and returns the optimized schedule.
+            shift_requirements: ShiftSpecificRequirements,
+            model_outputs: MlModelOutputs,
+    ) -> ScheduleOptimizationResults:
+        """
+        Executes the solver and returns the optimized schedule.
         """
         problem = ScheduleOptimizer.build_problem()
         lp_vars_holder = LpNurseShiftVariableHolder()
         ScheduleOptimizer.add_lp_variables_nurse_constraints(nurses, lp_vars_holder)
-        acuity_hours = ScheduleOptimizer._calculate_acuity_hours(residents, facility_params)
+        acuity_hours = ScheduleOptimizer._calculate_acuity_hours(residents, facility_params, shift_requirements)
         ScheduleOptimizer.add_hard_constraints(acuity_hours, nurses, problem, lp_vars_holder, NurseCanCoverShiftImpl())
 
         problem = ScheduleOptimizer.set_objective_function(
@@ -196,7 +210,8 @@ class ScheduleOptimizer:
             problem,
             ShiftCostCalculatorImpl(),
             model_outputs,
-            PreferencePenaltyCalculatorImpl())
+            PreferencePenaltyCalculatorImpl()
+        )
 
         # Set up a time limit for solving to ensure fast responsiveness (e.g., 60 seconds)
         solver = pulp.PULP_CBC_CMD(timeLimit=60)
@@ -204,7 +219,10 @@ class ScheduleOptimizer:
 
         if pulp.LpStatus[problem.status] != "Optimal":
             print(f"Solver Status: {pulp.LpStatus[problem.status]}")
-            return None
+            return ScheduleOptimizationResults(
+                False,
+                None
+            )
 
         # in the future, output sum of penalization per different constraint groups
         # e.g., sum of penalties for preference violations, overtime,
@@ -213,11 +231,23 @@ class ScheduleOptimizer:
         # * how often did we violate preferences for high-risk nurses
         # how often schedule respected pairing preferences (1st need to collect this as input from nurses)
 
-        return {
-            v.name: v.varValue
-            for v in problem.variables()
-            if v.varValue > 0  # Only return assigned shifts (value is 1.0)
-        }
+        return ScheduleOptimizationResults(
+            True,
+            ScheduleOptimizer._extract_optimized_schedule_from_lp(problem)
+        )
+
+    @staticmethod
+    def _extract_optimized_schedule_from_lp(lp_problem: LpProblem) -> Schedule:
+        assignments: Dict[str, List[int]] = {}
+        for v in lp_problem.variables():
+            if v.varValue > 0:  # Only consider assigned shifts
+                parts = v.name.split('_')
+                employee_id = parts[1]
+                shift_number = int(parts[2])
+                if employee_id not in assignments:
+                    assignments[employee_id] = []
+                assignments[employee_id].append(shift_number)
+        return Schedule(assignments)
 
     @staticmethod
     def add_hard_constraints(
@@ -225,7 +255,7 @@ class ScheduleOptimizer:
             nurses: List[NurseProfile],
             problem: LpProblem,
             lp_variables_holder: LpNurseShiftVariableHolder,
-            check_nurse_can_cover_shift_func: INurseCanCoverShiftFunc
+            check_nurse_can_cover_shift_func: INurseCanCoverShiftFunc,
     ) -> None:
         """Mandatory constraints from FacilityConfig and staffing laws."""
         # 1. Acuity-Based HPRD Coverage (The Core Constraint)
@@ -256,8 +286,9 @@ class ScheduleOptimizer:
             preference_weights: PreferenceWeights,
             problem: LpProblem,
             shift_cost_calculator: IShiftCostCalculator,
-            model_outputs: DynamicModelOutputs,
-            calculate_preference_penalty: IPreferencePenaltyCalculator) -> LpProblem:
+            model_outputs: MlModelOutputs,
+            calculate_preference_penalty: IPreferencePenaltyCalculator,
+    ) -> LpProblem:
         """Sets the objective: Minimize cost while penalizing soft constraint violations.
         """
         total_cost_expression = []
@@ -282,7 +313,7 @@ class ScheduleOptimizer:
                 penalty_cost = calculate_preference_penalty(nurse, shift, preference_weights)
 
                 if turnover_risk > 0.0:
-                    penalty_cost += turnover_risk * preference_weights.High_Risk_Shift_Penalty
+                    penalty_cost += turnover_risk * preference_weights.high_risk_shift_penalty
 
                 total_cost_expression += (cost + penalty_cost) * var
 
@@ -300,7 +331,7 @@ class ScheduleOptimizer:
     @staticmethod
     def add_lp_variables_nurse_constraints(
             nurses: List[NurseProfile],
-            lp_variable_holder: LpNurseShiftVariableHolder
+            lp_variable_holder: LpNurseShiftVariableHolder,
     ) -> None:
         for nurse in nurses:
             for day_shift in range(1, N_FORECAST_AHEAD_DAYS):
@@ -313,7 +344,8 @@ class ScheduleOptimizer:
     @staticmethod
     def _calculate_acuity_hours(
             residents: List[ResidentAcuity],
-            config: FacilityConfig
+            config: FacilityConfig,
+            shift_requirements: ShiftSpecificRequirements,
     ) -> Dict[Tuple[str, Shift], float]:
         """
         Calculates the acuity-adjusted mandated nursing hours (HPRD) required
@@ -338,14 +370,17 @@ class ScheduleOptimizer:
             hours_per_shift = 8
 
             # Use FacilityConfig mandates
-            required_rn_hours = config.target_hprd_rn * total_census
-            required_cna_hours = config.base_cna_hprd_mandate * total_census
+            required_rn_hours = shift_requirements.target_hprd_rn * total_census
+            required_lpn_hours = shift_requirements.target_hprd_lpn * total_census
+            required_cna_hours = shift_requirements.target_hprd_cna * total_census
 
             # Convert HPRD (per resident day) to Hours per shift
             required_rn_shift_hours = required_rn_hours / config.shifts_per_day
+            required_lpn_shift_hours = required_lpn_hours / config.shifts_per_day
             required_cna_shift_hours = required_cna_hours / config.shifts_per_day
 
             required_hours[f"RN_{day_shift}", shift] = required_rn_shift_hours
+            required_hours[f"LPN_{day_shift}", shift] = required_lpn_shift_hours
             required_hours[f"CNA_{day_shift}", shift] = required_cna_shift_hours
 
         return required_hours

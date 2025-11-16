@@ -19,7 +19,7 @@ class FacilityParameters:
 
 
 @dataclass(frozen=True)
-class TimeSeriesStressTestParameters:
+class StressTestParameters:
     """Parameters that VARY OVER TIME (Stress/Demand Triggers)."""
     # 1. Demand/Acuity Variability (Clinical Stress)
     admission_surge_factor: float  # Multiplier for unexpected admissions (e.g., 1.0 to 1.5)

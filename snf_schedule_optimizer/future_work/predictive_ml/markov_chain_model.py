@@ -4,5 +4,6 @@ Facility Forecasting: Houses logic for long-term prediction (Chapter 2, Markov C
 
 from typing import *
 
+
 def forecast_acuity_mix(time_horizon: Any) -> None:
     pass

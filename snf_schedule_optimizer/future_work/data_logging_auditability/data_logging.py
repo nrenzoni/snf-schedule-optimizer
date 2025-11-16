@@ -8,6 +8,6 @@ def log_optimization_run(
         timestamp: pendulum.DateTime,
         inputs_hash: str,
         final_cost: float,
-        violations: dict[str, float]
+        violations: dict[str, float],
 ) -> None:
     pass

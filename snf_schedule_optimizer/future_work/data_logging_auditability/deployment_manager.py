@@ -5,6 +5,6 @@ Client Deployment & Versioning: Manages which version of your optimization model
 
 def deploy_model_version(
         facility_id: str,
-        model_version_id: int
+        model_version_id: int,
 ) -> None:
     pass

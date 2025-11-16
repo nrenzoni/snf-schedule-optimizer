@@ -4,5 +4,6 @@ Discrete Event Simulation (DES) Engine: Houses the logic (Chapter 3) to run "wha
 
 from typing import *
 
+
 def run_des_simulation(schedule: dict[str, int], patient_arrivals: List[None]) -> None:
     pass
