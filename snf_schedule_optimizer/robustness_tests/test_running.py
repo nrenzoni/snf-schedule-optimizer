@@ -1,3 +1,5 @@
+import abc
+
 import pendulum
 from collections import defaultdict
 from dataclasses import dataclass
@@ -15,8 +17,90 @@ from snf_schedule_optimizer.robustness_tests.scenario_generator import (
     SimulateFacilityScenarioParams)
 import polars as pl
 
-N_FORECAST_AHEAD_DAYS = 14
-NY_TZ = pendulum.Timezone("America/New_York")
+
+class ITestRunCaseGenerator(abc.ABC):
+    @abc.abstractmethod
+    def generate_test_cases(self) -> Generator[StressTestParameters, None, None]:
+        """Yields test cases for robustness testing."""
+        pass
+
+
+class SimpleSingleTestRunCaseGenerator(ITestRunCaseGenerator):
+    def __init__(self, test_case: StressTestParameters) -> None:
+        self.test_case = test_case
+
+    def generate_test_cases(self) -> Generator[StressTestParameters, None, None]:
+        yield self.test_case
+
+
+class SingleParamPermuteTestRunCaseGenerator(ITestRunCaseGenerator):
+    def __init__(
+            self,
+            param_name: StressTestParameterName,
+            test_values: List[Any],
+            default_params: dict[str, Any],
+    ) -> None:
+        self.param_name = param_name
+        self.test_values = test_values
+        self.default_params = default_params
+
+    def generate_test_cases(self) -> Generator[StressTestParameters, None, None]:
+        for value in self.test_values:
+            try:
+                params = self.default_params.copy()
+                params[self.param_name] = value
+                stress_params = StressTestParameters(**params)
+            except TypeError:
+                stress_params = StressTestParameters(**self.default_params)
+                if not hasattr(stress_params, self.param_name):
+                    raise ValueError(f"Unknown TimeSeriesParameters field: {self.param_name}")
+                setattr(stress_params, self.param_name, value)
+
+            yield stress_params
+
+
+class IShiftGenerator(abc.ABC):
+    @abc.abstractmethod
+    def generate_shifts(self) -> List[Shift]:
+        """Generates shifts for the forecast horizon."""
+        pass
+
+
+class DefaultShiftGenerator(IShiftGenerator):
+    def __init__(
+            self,
+            start_date: pendulum.DateTime,
+            n_forecast_days_ahead: int,
+            timezone: pendulum.Timezone,
+    ) -> None:
+        self.start_date = start_date
+        self.n_forecast_days_ahead = n_forecast_days_ahead
+        self.timezone = timezone
+
+    def generate_shifts(self) -> List[Shift]:
+        n_shifts_per_day = 3
+
+        sunday_of_current_week = self.start_date.start_of('week').add(days=6)
+
+        shifts = []
+
+        for i in range(1, self.n_forecast_days_ahead + 1):
+            for j in range(n_shifts_per_day):
+                shift_start_hour = 7 if j == 0 else (19 if j == 1 else 7)
+                shift_end_hour = 15 if j == 0 else (7 if j == 1 else 15)
+                shifts.append(
+                    Shift(
+                        shift_id=f"SHIFT_{(i - 1) * n_shifts_per_day + j + 1}",
+                        shift_number=(i - 1) * n_shifts_per_day + j + 1,
+                        day_shift=(j != 1),
+                        day_of_week=DayOfWeek((i - 1) % 7 + 1),  # 1=Mon, 7=Sun
+                        shift_start_time=sunday_of_current_week.add(days=i - 1).add(hours=shift_start_hour),
+                        shift_end_time=sunday_of_current_week.add(days=i - 1).add(hours=shift_end_hour),
+                        timezone=self.timezone
+                    )
+                )
+
+        return shifts
 
 
 class TestRunner:
@@ -24,30 +108,14 @@ class TestRunner:
     def run_sensitivity_analysis(
             self,
             test_param_name: str,
-            single_param_test_values: List[Any],
-            param_default_values: dict[str, Any],
+            shift_generator: IShiftGenerator,
+            test_run_case_generator: ITestRunCaseGenerator,
     ) -> pl.DataFrame:
         """
-        Varies a single TimeSeriesParameters field (param_name) across provided values and
         runs comparison scenarios. Returns a Polars DataFrame of aggregated metrics.
         """
-        if not single_param_test_values:
-            return pl.DataFrame([])
 
-        sunday_of_current_week = pendulum.now(NY_TZ).start_of('week').add(days=6)
-
-        shifts = [
-            Shift(
-                shift_id=f"SHIFT_{i}",
-                shift_number=i,
-                day_shift=(i % 3 != 0),
-                day_of_week=DayOfWeek((i - 1) % 7 + 1),  # 1=Mon, 7=Sun
-                shift_start_time=sunday_of_current_week.add(days=i - 1).add(hours=7 if (i % 3 != 0) else 19),
-                shift_end_time=sunday_of_current_week.add(days=i - 1).add(hours=15 if (i % 3 != 0) else 7),
-                timezone=NY_TZ
-            )
-            for i in range(1, N_FORECAST_AHEAD_DAYS + 1)
-        ]
+        shifts = shift_generator.generate_shifts()
 
         min_mandates = MinMandates(
             min_rn_hprd=0.7,
@@ -61,16 +129,8 @@ class TestRunner:
 
         results: List[Dict[str, Any]] = []
 
-        for value in single_param_test_values:
+        for test_case in test_run_case_generator.generate_test_cases():
             # Build TimeSeriesParameters with the varied field; rely on defaults for others.
-            try:
-                stress_params = StressTestParameters(**{test_param_name: value | param_default_values})
-            except TypeError:
-                # Fallback: instantiate default then setattr; raise if attribute invalid.
-                stress_params = StressTestParameters(**param_default_values)
-                if not hasattr(stress_params, test_param_name):
-                    raise ValueError(f"Unknown TimeSeriesParameters field: {test_param_name}")
-                setattr(stress_params, test_param_name, value)
 
             requirements = ShiftSpecificRequirements(
                 target_hprd_rn=1.0,
@@ -88,17 +148,26 @@ class TestRunner:
                 start_of_work_day_time=pendulum.time(7, 0, 0)
             )
 
+            nurses = generate_simulated_nurses(
+                SimulateFacilityScenarioParams(
+                    cna_base_wage=18.0,
+                    agency_multiplier=2.2,
+                    turnover_rate=0.3
+                )
+            )
+
             scenario_metrics = self.run_scenario(
-                f"SCENARIO_{test_param_name}_{value}",
+                str(test_case),
                 shifts,
-                stress_params,
+                nurses,
+                test_case,
                 facility_config,
                 min_mandates,
                 requirements,
             )
 
             # Tag with varied parameter value
-            scenario_metrics[test_param_name] = value
+            scenario_metrics[test_param_name] = str(test_case)
             results.append(scenario_metrics)
 
         # Order columns: parameter first, then metrics
@@ -113,6 +182,7 @@ class TestRunner:
             self,
             scenario_id: str,
             shifts: List[Shift],
+            nurses: List[NurseProfile],
             stress_params: StressTestParameters,
             facility_config: FacilityConfig,
             min_mandates: MinMandates,
@@ -121,14 +191,6 @@ class TestRunner:
         """
         Runs a single scenario to generate both forward- and backward-looking data.
         """
-
-        nurses = generate_simulated_nurses(
-            SimulateFacilityScenarioParams(
-                cna_base_wage=18.0,
-                agency_multiplier=2.2,
-                turnover_rate=0.3
-            )
-        )
 
         nurses_per_id = {n.employee_id: n for n in nurses}
 
@@ -181,16 +243,14 @@ class TestRunner:
         baseline_risk_metrics = self._calc_risk_metrics(shifts, baseline_schedule, nurses, shift_requirements)
 
         # Calculate savings
-        cost_savings_percent: float = 0.0
-        if baseline_cost > 0:
-            cost_savings_percent = (baseline_cost - optimal_cost) / baseline_cost * 100
+        cost_savings_pct = 1 - (optimal_cost / baseline_cost) * 100
 
         # Note: Return type is Dict[str, Any] as metrics can be floats, ints, or strings
         row_results = {
             'Scenario_ID'         : scenario_id,
             'Baseline_Cost'       : baseline_cost,
             'Optimized_Cost'      : optimal_cost,
-            'Cost_Savings_Percent': cost_savings_percent
+            'Cost_Savings_Percent': cost_savings_pct
         }
 
         row_results.update(
