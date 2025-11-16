@@ -1,3 +1,5 @@
+import pendulum
+
 from snf_schedule_optimizer.baseline_schedule_generator import BaselineScheduleGenerator
 from snf_schedule_optimizer.data_models import *
 from snf_schedule_optimizer.optimization_engine import (
@@ -10,6 +12,7 @@ from snf_schedule_optimizer.robustness_tests.scenario_generator import (
 import polars as pl
 
 N_FORECAST_AHEAD_DAYS = 14
+NY_TZ = pendulum.Timezone("America/New_York")
 
 
 class TestRunner:
@@ -26,26 +29,30 @@ class TestRunner:
         if not single_param_test_values:
             return pl.DataFrame([])
 
+        sunday_of_current_week = pendulum.now(NY_TZ).start_of('week').add(days=6)
+
         shifts = [
             Shift(
+                shift_id=f"SHIFT_{i}",
                 shift_number=i,
                 day_shift=(i % 3 != 0),
                 day_of_week=DayOfWeek((i - 1) % 7 + 1),  # 1=Mon, 7=Sun
+                shift_start_time=sunday_of_current_week.add(days=i - 1).add(hours=7 if (i % 3 != 0) else 19),
+                shift_end_time=sunday_of_current_week.add(days=i - 1).add(hours=15 if (i % 3 != 0) else 7),
+                timezone=NY_TZ
             )
             for i in range(1, N_FORECAST_AHEAD_DAYS + 1)
         ]
 
-        min_mandates = [
-            MinMandates(
-                min_rn_hprd=0.7,
-                min_lpn_hprd=0.75,
-                min_cna_hprd=2.5,
-                min_total_hprd=2.75,
-                min_staff_per_shift_rn=1,
-                min_staff_per_shift_lpn=1,
-                min_staff_per_shift_cna=2
-            )
-        ]
+        min_mandates = MinMandates(
+            min_rn_hprd=0.7,
+            min_lpn_hprd=0.75,
+            min_cna_hprd=2.5,
+            min_total_hprd=2.75,
+            min_staff_per_shift_rn=1,
+            min_staff_per_shift_lpn=1,
+            min_staff_per_shift_cna=2
+        )
 
         results: List[Dict[str, Any]] = []
 
@@ -95,7 +102,7 @@ class TestRunner:
             shifts: List[Shift],
             stress_params: StressTestParameters,
             facility_params: FacilityConfig,
-            min_mandates: List[MinMandates],
+            min_mandates: MinMandates,
             shift_requirements: ShiftSpecificRequirements,
     ) -> Dict[str, Any]:
         """
@@ -114,7 +121,6 @@ class TestRunner:
 
         # parameters prioritize cost savings
         user_scheduler_pref_weights: PreferenceWeights = PreferenceWeights(
-            night_shift_penalty_weight=500.0,
             ot_avoidance_penalty=10.0,
             team_consistency_penalty=1.0
         )

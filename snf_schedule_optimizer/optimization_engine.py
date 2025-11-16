@@ -1,5 +1,8 @@
 import abc
 
+import numpy as np
+import pendulum
+
 from snf_schedule_optimizer.data_models.main_data_models import *
 import pulp
 from pulp import LpProblem, LpMinimize, LpVariable, LpBinary
@@ -8,17 +11,25 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class PreferenceWeights:
-    night_shift_penalty_weight: float = 500.0
     ot_avoidance_penalty: float = 1000.0
     team_consistency_penalty: float = 300.0
     high_risk_shift_penalty: float = 2000.0
+    custom_preference_penalty: float = 1500.0
 
 
 @dataclass(frozen=True)
 class Shift:
+    shift_id: str
     shift_number: int
     day_shift: bool
     day_of_week: DayOfWeek
+    shift_start_time: pendulum.DateTime
+    shift_end_time: pendulum.DateTime
+    timezone: pendulum.Timezone
+
+    @property
+    def duration_hours(self) -> float:
+        return (self.shift_end_time - self.shift_start_time).total_hours()
 
 
 @dataclass(frozen=True)
@@ -37,14 +48,18 @@ class LpNurseShiftVariableHolder:
     def __init__(self) -> None:
         self.variables: Dict[str, LpVariable] = {}
 
-    def add_variable(self, employee_id: str, day_shift: int) -> LpVariable:
-        var_name = f"X_{employee_id}_{day_shift}"
+    def add_variable(
+            self,
+            employee_id: str,
+            shift_id: str,
+    ) -> LpVariable:
+        var_name = f"X_{employee_id}_{shift_id}"
         var = LpVariable(var_name, cat=LpBinary)
         self.variables[var_name] = var
         return var
 
-    def get_variable(self, employee_id: str, day_shift: int) -> LpVariable:
-        var_name = f"X_{employee_id}_{day_shift}"
+    def get_variable(self, employee_id: str, shift_id: str) -> LpVariable:
+        var_name = f"X_{employee_id}_{shift_id}"
         return self.variables[var_name]
 
 
@@ -117,7 +132,22 @@ class PreferencePenaltyCalculatorImpl(IPreferencePenaltyCalculator):
                     any(p for p in nurse.custom_preferences if p.preference_type.DAY_SHIFT_PREFERENCE)
             ):
                 # The 'weights' parameter controls the impact of this penalty on the solver
-                penalty += preference_weights.night_shift_penalty_weight
+                penalty += preference_weights.custom_preference_penalty
+
+        if shift.day_shift:
+            if (
+                    nurse.custom_preferences and
+                    any(p for p in nurse.custom_preferences if p.preference_type.NIGHT_SHIFT_PREFERENCE)
+            ):
+                penalty += preference_weights.custom_preference_penalty
+
+        if nurse.custom_preferences is not None:
+            if any(
+                    p.preference_type == PreferenceType.SPECIFIC_DAY_OFF and
+                    p.specific_day == shift.day_of_week
+                    for p in nurse.custom_preferences
+            ):
+                penalty += preference_weights.custom_preference_penalty
 
         # Penalize overtime assignment (if not agency, and deemed undesirable)
         if self._is_overtime_risk(nurse, shift.day_shift):
@@ -154,16 +184,15 @@ class ShiftCostCalculatorImpl(IShiftCostCalculator):
         to this specific shift.
         """
         # Simplification: Assume all shifts are 8 hours.
-        base_cost = nurse.hourly_cost_base * 8
-
-        # Logic to apply premium multipliers
-        if nurse.is_agency:
-            return base_cost * nurse.ot_multiplier  # Agency cost (e.g., 2.2x)
+        base_cost = nurse.hourly_cost_base * shift.duration_hours
 
         # Logic for mandatory overtime (e.g., beyond 40 hours/week or certain shifts)
         # For simplicity, we mock a premium for weekend shifts (shift 6, 7, 13, 14 are examples)
         if ScheduleOptimizer.is_weekend(shift.day_of_week):
             return base_cost * 1.25  # Mock 25% shift differential for weekends
+
+        if not shift.day_shift:
+            return base_cost * 1.15  # Mock 15% shift differential for night shifts
 
         return base_cost
 
@@ -179,6 +208,18 @@ class ScheduleOptimizationResults:
     optimal_schedule: Optional[Schedule]  # {variable_name: value}
 
 
+@dataclass(frozen=True)
+class HprdShiftNurseRequirements:
+    values: np.ndarray[Any, np.dtype[np.float64]]  # Shape: (n_shifts, n_roles)
+    shifts: List[Shift]
+    roles: List[NurseRole]
+
+    def __getitem__(self, key: Tuple[Shift, NurseRole]) -> float:
+        shift_idx = self.shifts.index(key[0])
+        role_idx = self.roles.index(key[1])
+        return float(self.values[shift_idx, role_idx])
+
+
 # 14 day optimization, i.e., 2 weeks ahead
 class ScheduleOptimizer:
     """Formulates and solves the Acuity-Driven Nurse Scheduling ILP."""
@@ -187,9 +228,9 @@ class ScheduleOptimizer:
     def solve(
             nurses: List[NurseProfile],
             residents: List[ResidentAcuity],
-            shifts: List[Shift],
+            shifts: List[Shift],  # shifts per day over all forecast days
             facility_params: FacilityConfig,
-            min_mandates: List[MinMandates],
+            min_mandate: MinMandates,
             preference_weights: PreferenceWeights,
             shift_requirements: ShiftSpecificRequirements,
             model_outputs: MlModelOutputs,
@@ -199,11 +240,26 @@ class ScheduleOptimizer:
         """
         problem = ScheduleOptimizer.build_problem()
         lp_vars_holder = LpNurseShiftVariableHolder()
-        ScheduleOptimizer.add_lp_variables_nurse_constraints(nurses, lp_vars_holder)
-        acuity_hours = ScheduleOptimizer._calculate_acuity_hours(residents, facility_params, shift_requirements)
-        ScheduleOptimizer.add_hard_constraints(acuity_hours, nurses, problem, lp_vars_holder, NurseCanCoverShiftImpl())
+        ScheduleOptimizer.add_lp_variable_per_nurse_shift(nurses, shifts, lp_vars_holder)
+        required_hprd_role_req_hours = ScheduleOptimizer._calculate_hprd_shift_role_req_hours(
+            residents,
+            shifts,
+            facility_params,
+            shift_requirements,
+            min_mandate
+        )
+        ScheduleOptimizer.add_hard_constraints(
+            required_hprd_role_req_hours,
+            shifts,
+            NURSE_ROLES,
+            nurses,
+            problem,
+            lp_vars_holder,
+            NurseCanCoverShiftImpl()
+        )
 
         problem = ScheduleOptimizer.set_objective_function(
+            shifts,
             nurses,
             lp_vars_holder,
             preference_weights,
@@ -251,36 +307,44 @@ class ScheduleOptimizer:
 
     @staticmethod
     def add_hard_constraints(
-            acuity_hours: Dict[Tuple[str, Shift], float],
+            required_nurse_hprd_count: HprdShiftNurseRequirements,
+            shifts: List[Shift],
+            nurse_roles: List[NurseRole],
             nurses: List[NurseProfile],
             problem: LpProblem,
             lp_variables_holder: LpNurseShiftVariableHolder,
             check_nurse_can_cover_shift_func: INurseCanCoverShiftFunc,
     ) -> None:
         """Mandatory constraints from FacilityConfig and staffing laws."""
-        # 1. Acuity-Based HPRD Coverage (The Core Constraint)
-        required_hours = acuity_hours
-        for (fac_unit, shift), required_h in required_hours.items():
-            total_staffed_hours = sum(
-                lp_variables_holder.get_variable(n.employee_id, shift.shift_number) * 8
-                for n in nurses
-                if check_nurse_can_cover_shift_func(n, shift)  # Check for skills/blocks
-            )
-            problem += total_staffed_hours >= required_h, f"HPRD_Min_{shift}"
+
+        # 1. HPRD Coverage (The Core Constraint)
+        for shift in shifts:
+            for nurse_role in nurse_roles:
+                required_count = required_nurse_hprd_count[shift, nurse_role]
+                if required_count > 0:
+                    total_staffed_nurses = sum(
+                        lp_variables_holder.get_variable(n.employee_id, shift.shift_id)
+                        for n in nurses
+                        if n.role == nurse_role and check_nurse_can_cover_shift_func(n, shift)
+                    )
+                    problem += total_staffed_nurses >= required_count, \
+                        f"HPRD_Min_Nurse_Count_{shift.shift_id}_{nurse_role}"
 
         # 2. Fatigue/Rest Constraint (Example)
         # Ensure no nurse works consecutive shifts without adequate rest.
         for nurse in nurses:
-            for day in range(1, N_FORECAST_AHEAD_DAYS):
-                # If they work shift 1, they cannot work shift 2 (simplified)
+            for i in range(len(shifts) - 1):
+                current_shift = shifts[i]
+                next_shift = shifts[i + 1]
                 problem += (
-                    lp_variables_holder.get_variable(nurse.employee_id, day)
-                    + lp_variables_holder.get_variable(nurse.employee_id, day + 1) <= 1,
-                    f"Fatigue_{nurse.employee_id}_{day}"
+                    lp_variables_holder.get_variable(nurse.employee_id, current_shift.shift_id)
+                    + lp_variables_holder.get_variable(nurse.employee_id, next_shift.shift_id) <= 1,
+                    f"Fatigue_{nurse.employee_id}_{current_shift.shift_id}"
                 )
 
     @staticmethod
     def set_objective_function(
+            shifts: List[Shift],
             nurses: List[NurseProfile],
             var_holder: LpNurseShiftVariableHolder,
             preference_weights: PreferenceWeights,
@@ -292,21 +356,14 @@ class ScheduleOptimizer:
         """Sets the objective: Minimize cost while penalizing soft constraint violations.
         """
         total_cost_expression = []
-        # assume every 3rd shift is night
-        shifts = [Shift(
-            shift_number=i,
-            day_shift=(i % 3 != 0),
-            day_of_week=DayOfWeek((i - 1) % 7 + 1),  # 1=Mon, 7=Sun
-        )
-            for i in range(1, N_FORECAST_AHEAD_DAYS + 1)
-        ]
+
         for nurse in nurses:
 
             turnover_risk = model_outputs.turnover_risk_scores.get(nurse.employee_id, 0.0)
 
             for shift in shifts:
 
-                var = var_holder.get_variable(nurse.employee_id, shift.shift_number)
+                var = var_holder.get_variable(nurse.employee_id, shift.shift_id)
                 cost = shift_cost_calculator(nurse, shift)  # Includes OT/Agency multipliers
 
                 # Add preference penalties as a weighted cost
@@ -329,45 +386,51 @@ class ScheduleOptimizer:
         return LpProblem("Optimal_Schedule", LpMinimize)
 
     @staticmethod
-    def add_lp_variables_nurse_constraints(
+    def add_lp_variable_per_nurse_shift(
             nurses: List[NurseProfile],
+            shifts: List[Shift],
             lp_variable_holder: LpNurseShiftVariableHolder,
     ) -> None:
         for nurse in nurses:
-            for day_shift in range(1, N_FORECAST_AHEAD_DAYS):
-                lp_variable_holder.add_variable(nurse.employee_id, day_shift)
+            for shift in shifts:
+                lp_variable_holder.add_variable(
+                    nurse.employee_id,
+                    shift.shift_id
+                )
 
     # =======================================================
     # ESSENTIAL HELPER METHODS
     # =======================================================
 
     @staticmethod
-    def _calculate_acuity_hours(
+    def _calculate_hprd_shift_role_req_hours(
             residents: List[ResidentAcuity],
+            shifts: List[Shift],
             config: FacilityConfig,
             shift_requirements: ShiftSpecificRequirements,
-    ) -> Dict[Tuple[str, Shift], float]:
+            min_mandate: MinMandates,
+    ) -> HprdShiftNurseRequirements:
         """
         Calculates the acuity-adjusted mandated nursing hours (HPRD) required
-        for each unit and shift across the 14-day schedule.
+        for each unit and shift across all shifts in the forecast horizon.
 
         # Output: {('Shift_1_RN', Shift(...)): 12.5, ('Shift_2_CNA', Shift(...)): 50.0, ...}
         """
-        required_hours: Dict[Tuple[str, Shift], float] = {}
         total_census = len(residents)
 
         # Placeholder for complex Acuity-to-HPRD conversion (Your core IP)
         # This function would call predictive_ml._calculate_required_minutes(resident)
         # for each resident and aggregate by unit/shift.
 
-        for day_shift in range(1, N_FORECAST_AHEAD_DAYS + 1):
-            shift = Shift(
-                shift_number=day_shift,
-                day_shift=True,  # Simplification: Assume all day shifts for this example
-                day_of_week=DayOfWeek((day_shift - 1) % 7 + 1),  # 1=Mon, 7=Sun
+        req_vals = np.zeros(
+            (
+                len(shifts),
+                len(NurseRole)
             )
-            # Simplified mock logic based on total census and facility mandated HPRD
-            hours_per_shift = 8
+        )
+
+        for shift_idx, shift in enumerate(shifts):
+            hours_in_shift = (shift.shift_end_time - shift.shift_start_time).total_hours()
 
             # Use FacilityConfig mandates
             required_rn_hours = shift_requirements.target_hprd_rn * total_census
@@ -375,15 +438,19 @@ class ScheduleOptimizer:
             required_cna_hours = shift_requirements.target_hprd_cna * total_census
 
             # Convert HPRD (per resident day) to Hours per shift
-            required_rn_shift_hours = required_rn_hours / config.shifts_per_day
-            required_lpn_shift_hours = required_lpn_hours / config.shifts_per_day
-            required_cna_shift_hours = required_cna_hours / config.shifts_per_day
+            required_rn_shift_hours = required_rn_hours / hours_in_shift
+            required_lpn_shift_hours = required_lpn_hours / hours_in_shift
+            required_cna_shift_hours = required_cna_hours / hours_in_shift
 
-            required_hours[f"RN_{day_shift}", shift] = required_rn_shift_hours
-            required_hours[f"LPN_{day_shift}", shift] = required_lpn_shift_hours
-            required_hours[f"CNA_{day_shift}", shift] = required_cna_shift_hours
+            req_vals[shift_idx, 0] = required_rn_shift_hours
+            req_vals[shift_idx, 1] = required_lpn_shift_hours
+            req_vals[shift_idx, 2] = required_cna_shift_hours
 
-        return required_hours
+        return HprdShiftNurseRequirements(
+            values=req_vals,
+            shifts=shifts,
+            roles=[NurseRole.RN, NurseRole.LPN, NurseRole.CNA]
+        )
 
     @staticmethod
     def is_weekend(day_of_week: DayOfWeek) -> bool:

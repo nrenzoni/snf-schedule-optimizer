@@ -42,7 +42,7 @@ class StaffPreference:
     employee_id: str
     preference_type: PreferenceType
     specific_day: Optional[DayOfWeek]  # For SPECIFIC_DAY_OFF
-    weight: float  # Used for LP penalty
+    penalty_weight: float
     is_hard_block: bool  # If True, becomes a mandatory LP constraint
 
 
@@ -52,13 +52,16 @@ class NurseRole(str, Enum):
     CNA = "CNA"
 
 
+NURSE_ROLES = [NurseRole.RN, NurseRole.LPN, NurseRole.CNA]
+
+
 # --- B. WFM / Staffing Data ---
 @dataclass(frozen=True)
 class NurseProfile:
     """Represents a single staff member's characteristics and constraints."""
     employee_id: str
     role: NurseRole
-    hourly_cost_base: float  # Base wage
+    hourly_cost_base: float  # Base wage, agency adjusted here
     ot_multiplier: float
     available_hours_weekly: int
     is_agency: bool
