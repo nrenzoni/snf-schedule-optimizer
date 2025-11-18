@@ -3,8 +3,7 @@ from typing import Dict, List
 
 import pendulum
 
-from snf_schedule_optimizer.data_models import FacilityConfig, NurseProfile, Shift
-from snf_schedule_optimizer.nurse_shift_hours_tracking import NurseShiftHourComponent
+from snf_schedule_optimizer.data_models import FacilityConfig, NurseProfile, NurseShiftHourComponent, Shift
 
 
 class IOvertimeCalculator(abc.ABC):
@@ -35,7 +34,7 @@ class BasicOvertimeCalculator(IOvertimeCalculator):
     ) -> float:
         total_hours_worked = 0.0
 
-        beginning_of_work_week_dt = current_shift.shift_start_time.start_of('week').add(
+        beginning_of_work_week_dt = current_shift.shift_start_dt.start_of('week').add(
             days=self.start_of_work_week_day - pendulum.WeekDay.MONDAY,
             hours=self.start_of_work_day_time.hour,
             minutes=self.start_of_work_day_time.minute,
@@ -43,7 +42,7 @@ class BasicOvertimeCalculator(IOvertimeCalculator):
         )
 
         for shift, components in nurse_shift_history.items():
-            if beginning_of_work_week_dt <= shift.shift_end_time <= current_shift.shift_start_time:
+            if beginning_of_work_week_dt <= shift.shift_end_dt <= current_shift.shift_start_dt:
                 for component in components:
                     if component.start_time >= beginning_of_work_week_dt:
                         total_hours_worked += component.duration_hours

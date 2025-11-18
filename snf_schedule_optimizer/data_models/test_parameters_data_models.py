@@ -19,13 +19,12 @@ class FacilityParameters:
 
 
 @dataclass(frozen=True)
-class StressTestParameters:
+class PerShiftStressTestParameters:
     """Parameters that VARY OVER TIME (Stress/Demand Triggers)."""
     # 1. Demand/Acuity Variability (Clinical Stress)
     admission_surge_factor: float  # Multiplier for unexpected admissions (e.g., 1.0 to 1.5)
     high_acuity_mix_increase: float  # Percentage increase in residents with high-NTA/high-GG scores
-    # staff_call_out_rate: float = 0.05  # Daily percentage of staff calling out (0.01 to 0.10)
-    staff_call_out_rate: float  # Daily percentage of staff calling out (0.01 to 0.10)
+    staff_call_out_rate: float  # Probability of staff calling out on a given shift
 
     # 2. Financial/Operational Pressure
     overtime_shift_count_increase: int  # How many more shifts require overtime in this scenario

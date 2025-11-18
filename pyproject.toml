@@ -22,7 +22,7 @@ dev = [
 
 [tool.mypy]
 # The paths MyPy should check. Use a list of your package/source directories.
-files = ["snf_schedule_optimizer/"]
+files = ["snf_schedule_optimizer/", "snf_schedule_optimizer_tests/"]
 # Alternatively, you can use the packages option:
 # packages = ["your_package_name"]
 

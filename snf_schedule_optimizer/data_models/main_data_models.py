@@ -24,22 +24,12 @@ class PreferenceType(str, Enum):
     DAY_SHIFT_PREFERENCE = "Day_Shift_Preference"
 
 
-class DayOfWeek(str, Enum):
-    MONDAY = "Monday"
-    TUESDAY = "Tuesday"
-    WEDNESDAY = "Wednesday"
-    THURSDAY = "Thursday"
-    FRIDAY = "Friday"
-    SATURDAY = "Saturday"
-    SUNDAY = "Sunday"
-
-
 @dataclass(frozen=True)
 class StaffPreference:
     """Represents a soft constraint derived from WFM self-service."""
-    employee_id: str
+    # employee_id: str
     preference_type: PreferenceType
-    specific_day: Optional[DayOfWeek]  # For SPECIFIC_DAY_OFF
+    specific_day: Optional[pendulum.WeekDay]  # For SPECIFIC_DAY_OFF
     penalty_weight: float
     is_hard_block: bool  # If True, becomes a mandatory LP constraint
 
@@ -60,7 +50,7 @@ class NurseProfile:
     employee_id: str
     role: NurseRole
     hourly_cost_base: float  # Base wage, agency adjusted here
-    ot_multiplier: float
+    ot_multiplier: float  # non-exempt OT pay multiplier, if exempt set to 1.0
     available_hours_weekly: int
     is_agency: bool
     skills: List[str]  # e.g., 'IV Therapy', 'Wound Care'
@@ -89,23 +79,22 @@ class MinMandates:
 class FacilityHrConfig:
     """Immutable facility HR policies."""
     max_weekly_hours_per_nurse: int
-    min_rest_hours_between_shifts: int
+    min_rest_hours_between_shifts: float
     max_consecutive_work_days: int
-    max_daily_hours_before_overtime: int
     max_total_hours_per_pay_period: int
     max_patient_to_staff_ratio: Optional[float]
-    mandatory_days_off_after_max_consecutive_days: Optional[int]
+    mandatory_days_off_after_max_consecutive_days: Optional[int]  # if provided, must be greater than 0
     max_weekend_shifts_per_month: Optional[int]
     max_floating_assignments_per_month: Optional[int]  # how often nurses float between units
-    require_annual_training: Optional[bool]
     max_night_shifts_per_month: Optional[int]
+    require_annual_training: Optional[bool]
 
 
 @dataclass(frozen=True)
 class ShiftSpecificRequirements:
     """Immutable shift-specific staffing requirements."""
     target_hprd_rn: float
-    target_hprd_lpn: float
+    # target_hprd_lpn: float
     target_hprd_cna: float
     target_total_hprd: float
 
@@ -123,11 +112,13 @@ class CrossShiftConstraints:
 class FacilityConfig:
     """Immutable facility and HR compliance rules."""
     facility_id: str
-    max_consecutive_shifts: int
     shifts_per_day: int
     overtime_threshold_hours_per_week: int
     start_of_work_week_day: pendulum.WeekDay
     start_of_work_day_time: pendulum.Time
+    pay_period: pendulum.Duration
+    weekend_multiplier: float
+    night_shift_multiplier: float
 
 
 @dataclass(frozen=True)
@@ -135,16 +126,31 @@ class Shift:
     shift_id: str
     shift_number: int
     day_shift: bool
-    day_of_week: DayOfWeek
-    shift_start_time: pendulum.DateTime
-    shift_end_time: pendulum.DateTime
+    day_of_week: pendulum.WeekDay
+    shift_start_dt: pendulum.DateTime
+    shift_end_dt: pendulum.DateTime
     timezone: pendulum.Timezone
 
     @property
     def duration_hours(self) -> float:
-        return (self.shift_end_time - self.shift_start_time).total_hours()
+        return (self.shift_end_dt - self.shift_start_dt).total_hours()
+
+    def __hash__(self) -> int:
+        return hash(self.shift_id)
 
 
 @dataclass(frozen=True)
 class Schedule:
-    shift_assignments: Dict[Shift, List[str]]  # {Shift: [employee_ids]}
+    shift_assignments: Dict[str, List[str]]  # {Shift: [employee_ids]}
+
+
+@dataclass(frozen=True)
+class NurseShiftHourComponent:
+    shift: Shift
+    start_time: pendulum.DateTime
+    end_time: pendulum.DateTime
+    is_ot: bool
+
+    @property
+    def duration_hours(self) -> float:
+        return (self.end_time - self.start_time).total_hours()

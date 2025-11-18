@@ -3,20 +3,8 @@ from typing import Dict, List
 
 import pendulum
 
-from snf_schedule_optimizer.data_models import NurseProfile, Shift
+from snf_schedule_optimizer.data_models import NurseProfile, NurseShiftHourComponent, Shift
 from snf_schedule_optimizer.overtime_calculation import IOvertimeCalculator
-
-
-@dataclass(frozen=True)
-class NurseShiftHourComponent:
-    shift: Shift
-    start_time: pendulum.DateTime
-    end_time: pendulum.DateTime
-    is_ot: bool
-
-    @property
-    def duration_hours(self) -> float:
-        return (self.end_time - self.start_time).total_hours()
 
 
 class NurseShiftHoursStateTracker:
@@ -27,7 +15,7 @@ class NurseShiftHoursStateTracker:
             overtime_calculator: IOvertimeCalculator,
     ):
         self.nurse_profile = nurse_profile
-        self.nurse_shift_history: Dict[Shift, List[NurseShiftHourComponent]] = {}
+        self.nurse_shift_history: Dict[Shift, List[NurseShiftHourComponent]] = {}  # Maps Shift to its NurseShiftHourComponents
         self.overtime_calculator = overtime_calculator
 
     def record_shift_and_get_hour_components(self, shift: Shift) -> List[NurseShiftHourComponent]:
@@ -45,8 +33,8 @@ class NurseShiftHoursStateTracker:
             # Entire shift is OT
             hour_component = NurseShiftHourComponent(
                 shift=shift,
-                start_time=shift.shift_start_time,
-                end_time=shift.shift_end_time,
+                start_time=shift.shift_start_dt,
+                end_time=shift.shift_end_dt,
                 is_ot=True
             )
             self.nurse_shift_history[shift].append(
@@ -58,8 +46,8 @@ class NurseShiftHoursStateTracker:
             # Entire shift is regular time
             component = NurseShiftHourComponent(
                 shift=shift,
-                start_time=shift.shift_start_time,
-                end_time=shift.shift_end_time,
+                start_time=shift.shift_start_dt,
+                end_time=shift.shift_end_dt,
                 is_ot=False
             )
             self.nurse_shift_history[shift].append(
@@ -72,12 +60,12 @@ class NurseShiftHoursStateTracker:
         components = []
 
         # Split shift into regular time and OT
-        regular_end_time = shift.shift_start_time + remaining_non_ot_duration
+        regular_end_time = shift.shift_start_dt + remaining_non_ot_duration
 
         components.append(
             NurseShiftHourComponent(
                 shift=shift,
-                start_time=shift.shift_start_time,
+                start_time=shift.shift_start_dt,
                 end_time=regular_end_time,
                 is_ot=False
             )
@@ -87,7 +75,7 @@ class NurseShiftHoursStateTracker:
             NurseShiftHourComponent(
                 shift=shift,
                 start_time=regular_end_time,
-                end_time=shift.shift_end_time,
+                end_time=shift.shift_end_dt,
                 is_ot=True
             )
         )
@@ -100,7 +88,7 @@ class NurseShiftHoursStateTracker:
         """Get all shift components before the current shift's start time."""
         shifts_before = []
         for shift, components in self.nurse_shift_history.items():
-            if shift.shift_start_time < current_shift.shift_start_time:
+            if shift.shift_start_dt < current_shift.shift_start_dt:
                 shifts_before.extend(components)
             else:
                 break
