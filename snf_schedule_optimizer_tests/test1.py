@@ -7,7 +7,7 @@ from snf_schedule_optimizer.data_models import (
     MinMandates,
     PerShiftStressTestParameters
 )
-from snf_schedule_optimizer.optimization_engine import NurseRetrieverImpl
+from snf_schedule_optimizer.nurse_retrievers import NurseRetrieverImpl
 from snf_schedule_optimizer.robustness_tests import test_running
 from snf_schedule_optimizer.robustness_tests.scenario_generator import (
     DefaultNurseSimulateGenerator,

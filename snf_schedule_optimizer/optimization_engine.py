@@ -1,36 +1,19 @@
 import abc
 from collections import defaultdict
-
-import numpy as np
 import pendulum
-
-from snf_schedule_optimizer.data_models.main_data_models import *
-import pulp
-from pulp import LpProblem, LpMinimize, LpVariable, LpBinary
 from dataclasses import dataclass
 
+import numpy as np
+import pulp
+from pulp import LpBinary, LpMinimize, LpProblem, LpVariable
+
+from snf_schedule_optimizer.data_models.main_data_models import *
+from snf_schedule_optimizer.datetime_utils import is_weekend
+from snf_schedule_optimizer.ml_output_retrievers import IMLModelOutputsRetriever
+from snf_schedule_optimizer.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.resident_acuity_retrievers import IResidentAcuityPerShiftRetriever
+from snf_schedule_optimizer.shift_cost_calculation import INurseDifferentialRetriever, ShiftCostCalculatorImpl
 from snf_schedule_optimizer.shift_requirements_retriever import IShiftRequirementsRetriever
-
-
-@dataclass(frozen=True)
-class PreferenceWeights:
-    ot_avoidance_penalty: float = 1000.0
-    team_consistency_penalty: float = 300.0
-    high_risk_shift_penalty: float = 2000.0
-    custom_preference_penalty: float = 1500.0
-
-
-@dataclass(frozen=True)
-class MlModelOutputs:
-    """Stores the pre-calculated, dynamic outputs from ML models."""
-    turnover_risk_scores: Dict[str, float]  # {employee_id: score}
-    shift_call_out_forecast: float  # {shift_id: predicted_rate}
-    unit_acuity_stress: Dict[str, float]  # {unit_id: stress_multiplier}
-    team_compatibility_scores: Dict[Tuple[str, str], float]  # {(nurse_A, nurse_B): score}
-
-
-N_FORECAST_AHEAD_DAYS = 14
 
 
 class LpNurseShiftVariableHolder:
@@ -160,35 +143,6 @@ class PreferencePenaltyCalculatorImpl(IPreferencePenaltyCalculator):
         return False
 
 
-class IShiftCostCalculator(abc.ABC):
-    @abc.abstractmethod
-    def __call__(self, nurse: NurseProfile, shift: Shift) -> float:
-        pass
-
-
-class ShiftCostCalculatorImpl(IShiftCostCalculator):
-    def __init__(self, facility_config: FacilityConfig):
-        self.facility_config = facility_config
-
-    def __call__(self, nurse: NurseProfile, shift: Shift) -> float:
-        """
-        Calculates the true financial cost (Base + Premium) of assigning this nurse
-        to this specific shift.
-        """
-        # Simplification: Assume all shifts are 8 hours.
-        base_cost = nurse.hourly_cost_base * shift.duration_hours
-
-        # Logic for mandatory overtime (e.g., beyond 40 hours/week or certain shifts)
-        # For simplicity, we mock a premium for weekend shifts (shift 6, 7, 13, 14 are examples)
-        if NurseShiftScheduleOptimizer.is_weekend(shift.day_of_week):
-            return base_cost * self.facility_config.weekend_multiplier
-
-        if not shift.day_shift:
-            return base_cost * self.facility_config.night_shift_multiplier
-
-        return base_cost
-
-
 @dataclass(frozen=True)
 class ScheduleOptimizationParams:
     pass
@@ -201,7 +155,7 @@ class ScheduleOptimizationResults:
     constraint_slacks: Optional[Dict[str, float]]
 
 
-class HprdShiftNurseRequirements:
+class HprdShiftNurseRequirementHolder:
     """
     Stores the required HPRD-adjusted nurse hours per shift and role.
     """
@@ -236,51 +190,6 @@ class HprdShiftNurseRequirements:
         return float(self.values[shift_idx, -1])
 
 
-class INurseRetriever(abc.ABC):
-    @abc.abstractmethod
-    def get_nurses(
-            self,
-            shift: Shift,
-    ) -> List[NurseProfile]:
-        pass
-
-
-class NurseRetrieverImpl(INurseRetriever):
-    def __init__(
-            self,
-            nurses: List[NurseProfile],
-    ):
-        self.nurses = nurses
-
-    def get_nurses(
-            self,
-            shift: Shift,
-    ) -> List[NurseProfile]:
-        # In a real implementation, filter nurses based on availability, skills, etc.
-        return self.nurses
-
-class IMLModelOutputsRetriever(abc.ABC):
-    @abc.abstractmethod
-    def get_model_outputs(
-            self,
-            shift: Shift,
-    ) -> MlModelOutputs:
-        pass
-
-
-class MLModelOutputsRetrieverImpl(IMLModelOutputsRetriever):
-    def get_model_outputs(
-            self,
-            shift: Shift,
-    ) -> MlModelOutputs:
-        return MlModelOutputs(
-            turnover_risk_scores={},
-            shift_call_out_forecast=0.0,
-            unit_acuity_stress={},
-            team_compatibility_scores={}
-        )
-
-
 class NurseShiftScheduleOptimizer:
     """
     Formulates and solves the Acuity-Driven Nurse Scheduling ILP.
@@ -294,12 +203,17 @@ class NurseShiftScheduleOptimizer:
             shift_requirements_retriever: IShiftRequirementsRetriever,
             nurse_retriever: INurseRetriever,
             ml_model_outputs_retriever: IMLModelOutputsRetriever,
+            nurse_differential_retriever: INurseDifferentialRetriever,
     ) -> None:
         self.check_nurse_can_cover_shift_func = NurseCanCoverShiftPreferencesFn()
         self.resident_acuity_retriever = resident_acuity_retriever
         self.shift_requirements_retriever = shift_requirements_retriever
         self.nurse_retriever = nurse_retriever
         self.ml_model_outputs_retriever = ml_model_outputs_retriever
+        self.nurse_differential_retriever = nurse_differential_retriever
+
+        self.shift_cost_calculator = ShiftCostCalculatorImpl(self.nurse_differential_retriever)
+        self.preference_penalty_calculator_impl = PreferencePenaltyCalculatorImpl()
 
     def solve(
             self,
@@ -315,7 +229,7 @@ class NurseShiftScheduleOptimizer:
 
         problem = NurseShiftScheduleOptimizer.build_problem()
         lp_vars_holder = LpNurseShiftVariableHolder()
-        self.populate_nurse_shift_lp_variables(shifts, lp_vars_holder)
+        self.generate_nurse_shift_lp_variables(shifts, lp_vars_holder)
         required_hprd_role_req_hours = self._calculate_hprd_shift_role_req_hours(
             shifts,
             facility_config,
@@ -330,15 +244,11 @@ class NurseShiftScheduleOptimizer:
             lp_vars_holder,
         )
 
-        shift_cost_calculator = ShiftCostCalculatorImpl(facility_config)
-
         problem = self.set_objective_function(
             shifts,
             lp_vars_holder,
             preference_weights,
-            problem,
-            shift_cost_calculator,
-            PreferencePenaltyCalculatorImpl()
+            problem
         )
 
         # Set up a time limit for solving to ensure fast responsiveness (e.g., 60 seconds)
@@ -393,7 +303,7 @@ class NurseShiftScheduleOptimizer:
 
     def add_constraints(
             self,
-            required_nurse_hprd_count: HprdShiftNurseRequirements,
+            required_nurse_hprd_count: HprdShiftNurseRequirementHolder,
             shifts: List[Shift],
             facility_hr_config: FacilityHrConfig,
             problem: LpProblem,
@@ -456,8 +366,6 @@ class NurseShiftScheduleOptimizer:
             var_holder: LpNurseShiftVariableHolder,
             preference_weights: PreferenceWeights,
             problem: LpProblem,
-            shift_cost_calculator: IShiftCostCalculator,
-            calculate_preference_penalty: IPreferencePenaltyCalculator,
     ) -> LpProblem:
         """Sets the objective: Minimize cost while penalizing soft constraint violations.
         """
@@ -470,10 +378,10 @@ class NurseShiftScheduleOptimizer:
                 turnover_risk = get_model_outputs.turnover_risk_scores.get(nurse.employee_id, 0.0)
 
                 var = var_holder.get_variable(nurse.employee_id, shift.shift_id)
-                cost = shift_cost_calculator(nurse, shift)  # Includes OT/Agency multipliers
+                cost = self.shift_cost_calculator(nurse, shift)  # Includes OT/Agency multipliers
 
                 # Add preference penalties as a weighted cost
-                penalty_cost = calculate_preference_penalty(nurse, shift, preference_weights)
+                penalty_cost = self.preference_penalty_calculator_impl(nurse, shift, preference_weights)
 
                 if turnover_risk > 0.0:
                     penalty_cost += turnover_risk * preference_weights.high_risk_shift_penalty
@@ -488,7 +396,7 @@ class NurseShiftScheduleOptimizer:
     def build_problem() -> LpProblem:
         return LpProblem("Optimal_Schedule", LpMinimize)
 
-    def populate_nurse_shift_lp_variables(
+    def generate_nurse_shift_lp_variables(
             self,
             shifts: List[Shift],
             lp_variable_holder: LpNurseShiftVariableHolder,
@@ -507,11 +415,10 @@ class NurseShiftScheduleOptimizer:
 
     def _calculate_hprd_shift_role_req_hours(
             self,
-            # residents_per_shift: Dict[str, List[ResidentAcuity]],  # shift_id -> resident acuity list
             shifts: List[Shift],
             config: FacilityConfig,
             min_mandate: MinMandates,
-    ) -> HprdShiftNurseRequirements:
+    ) -> HprdShiftNurseRequirementHolder:
         """
         Calculates the acuity-adjusted mandated nursing hours (HPRD) required
         for each unit and shift across all shifts in the forecast horizon.
@@ -523,7 +430,7 @@ class NurseShiftScheduleOptimizer:
         # This function would call predictive_ml._calculate_required_minutes(resident)
         # for each resident and aggregate by unit/shift.
 
-        hprd_shift_nurse_requirements = HprdShiftNurseRequirements(
+        hprd_shift_nurse_requirements = HprdShiftNurseRequirementHolder(
             [s.shift_id for s in shifts],
             [NurseRole.RN, NurseRole.CNA]
         )
@@ -557,11 +464,6 @@ class NurseShiftScheduleOptimizer:
         return hprd_shift_nurse_requirements
 
     @staticmethod
-    def is_weekend(day_of_week: pendulum.WeekDay) -> bool:
-        """Helper to determine if a given day is a weekend."""
-        return day_of_week in {pendulum.WeekDay.SATURDAY, pendulum.WeekDay.SUNDAY}
-
-    @staticmethod
     def _nurse_can_cover_shift(nurse: NurseProfile, shift: Shift) -> bool:
         """
         Checks all HARD BLOCKERS (time off requests, skill gaps, max hours).
@@ -592,6 +494,6 @@ class NurseShiftScheduleOptimizer:
                         if shift.day_of_week == pref.specific_day:
                             return True
                     elif pref.preference_type == PreferenceType.WEEKEND_OFF:
-                        if NurseShiftScheduleOptimizer.is_weekend(shift.day_of_week):
+                        if is_weekend(shift.day_of_week):
                             return True
         return False

@@ -7,10 +7,11 @@ from dataclasses import dataclass
 
 from snf_schedule_optimizer.baseline_schedule_generator import BaselineScheduleGenerator
 from snf_schedule_optimizer.data_models import *
+from snf_schedule_optimizer.ml_output_retrievers import MLModelOutputsRetrieverImpl
+from snf_schedule_optimizer.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.nurse_shift_hours_tracking import NurseShiftHoursStateTracker
 from snf_schedule_optimizer.optimization_engine import (
-    INurseRetriever, MLModelOutputsRetrieverImpl, NurseShiftScheduleOptimizer, PreferenceWeights, MlModelOutputs, Shift,
-    Schedule
+    NurseShiftScheduleOptimizer, Shift, Schedule
 )
 from snf_schedule_optimizer.overtime_calculation import BasicOvertimeCalculator, IOvertimeCalculator
 from snf_schedule_optimizer.resident_acuity_retrievers import ResidentAcuityPerShiftRetrieverImpl
@@ -19,6 +20,7 @@ from snf_schedule_optimizer.robustness_tests.scenario_generator import (
     SimulateFacilityScenarioParams)
 import polars as pl
 
+from snf_schedule_optimizer.shift_cost_calculation import NurseDifferentialRetrieverImpl
 from snf_schedule_optimizer.shift_requirements_retriever import IShiftRequirementsRetriever, \
     ShiftRequirementsRetrieverImpl
 
@@ -213,11 +215,16 @@ class TestRunner:
 
         ml_model_outputs_retriever = MLModelOutputsRetrieverImpl()
 
+        nurse_differential_retriever = NurseDifferentialRetrieverImpl(
+            facility_config,
+        )
+
         nurse_shift_schedule_optimizer = NurseShiftScheduleOptimizer(
             resident_acuity_per_shift_retriever,
             shift_requirements_retriever,
             self.nurse_retriever,
-            ml_model_outputs_retriever
+            ml_model_outputs_retriever,
+            nurse_differential_retriever,
         )
 
         optimized_schedule_res = nurse_shift_schedule_optimizer.solve(
@@ -234,12 +241,13 @@ class TestRunner:
         optimal_schedule = optimized_schedule_res.optimal_schedule
         assert optimal_schedule is not None
 
-        overtime_calculator = BasicOvertimeCalculator(facility_config)
-
+        # post-schedule generation, adjust for call-out
         optimal_schedule_call_out_adjusted = self._simulate_call_out_rate_in_schedule(
             optimal_schedule,
             stress_params.staff_call_out_rate
         )
+
+        overtime_calculator = BasicOvertimeCalculator(facility_config)
 
         optimal_cost: float = self._calculate_cost(
             optimal_schedule_call_out_adjusted.schedule,
@@ -272,13 +280,11 @@ class TestRunner:
         optimal_risk_metrics = self._calc_risk_metrics(
             shifts,
             optimal_schedule_call_out_adjusted.schedule,
-            self.nurse_retriever,
             shift_requirements_retriever,
         )
         baseline_risk_metrics = self._calc_risk_metrics(
             shifts,
             baseline_schedule_with_callouts,
-            self.nurse_retriever,
             shift_requirements_retriever
         )
 
@@ -386,12 +392,12 @@ class TestRunner:
         regulatory_compliance_score: float  # 0 (worst) to 100 (best)
         staff_wellbeing_index: float  # 0 (worst) to 100 (best)
         # turnover_likelihood_score: float  # 0 (low risk) to 100 (high risk)
+        overtime_hours_to_total_hours_ratio: int  # ratio of overtime hours to total hours worked, for all nurses
 
     def _calc_risk_metrics(
             self,
             shifts: List[Shift],
             schedule: Schedule,
-            nurse_retriever: INurseRetriever,
             shift_requirements_retriever: IShiftRequirementsRetriever,
     ) -> RiskMetrics:
         """
@@ -455,5 +461,6 @@ class TestRunner:
 
         return TestRunner.RiskMetrics(
             regulatory_compliance_score=max(0.0, regulatory_compliance_score_agg),
-            staff_wellbeing_index=max(0.0, staff_wellbeing_index_agg)
+            staff_wellbeing_index=max(0.0, staff_wellbeing_index_agg),
+            overtime_hours_to_total_hours_ratio=0  # Placeholder implementation
         )

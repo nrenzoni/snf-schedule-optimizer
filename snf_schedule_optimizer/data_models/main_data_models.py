@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import *
 
 import pendulum
@@ -17,7 +17,7 @@ class ResidentAcuity:
     clinical_category: str  # e.g., 'Acute Infection', 'Major Joint'
 
 
-class PreferenceType(str, Enum):
+class PreferenceType(StrEnum):
     WEEKEND_OFF = "Weekend_Off"
     NIGHT_SHIFT_PREFERENCE = "Night_Shift_Preference"
     SPECIFIC_DAY_OFF = "Specific_Day_Off"
@@ -34,7 +34,7 @@ class StaffPreference:
     is_hard_block: bool  # If True, becomes a mandatory LP constraint
 
 
-class NurseRole(str, Enum):
+class NurseRole(StrEnum):
     RN = "RN"
     LPN = "LPN"
     CNA = "CNA"
@@ -154,3 +154,52 @@ class NurseShiftHourComponent:
     @property
     def duration_hours(self) -> float:
         return (self.end_time - self.start_time).total_hours()
+
+
+@dataclass(frozen=True)
+class PreferenceWeights:
+    ot_avoidance_penalty: float = 1000.0
+    team_consistency_penalty: float = 300.0
+    high_risk_shift_penalty: float = 2000.0
+    custom_preference_penalty: float = 1500.0
+
+
+@dataclass(frozen=True)
+class MlModelOutputs:
+    """Stores the pre-calculated, dynamic outputs from ML models."""
+    turnover_risk_scores: Dict[str, float]  # {employee_id: score}
+    shift_call_out_forecast: float  # {shift_id: predicted_rate}
+    unit_acuity_stress: Dict[str, float]  # {unit_id: stress_multiplier}
+    team_compatibility_scores: Dict[Tuple[str, str], float]  # {(nurse_A, nurse_B): score}
+
+
+class DifferentialType(StrEnum):
+    MULTIPLIER = "MULTIPLIER"
+    FLAT = "FLAT"
+
+
+@dataclass
+class Differential:
+    name: str
+    type: DifferentialType
+    multiplier: Optional[float]
+    flat: Optional[float]
+
+    def __init__(
+            self,
+            name: str,
+            type: DifferentialType,
+            multiplier: Optional[float] = None,
+            flat: Optional[float] = None,
+    ):
+        if (multiplier is None) == (flat is None):
+            raise ValueError("Provide either multiplier or flat, not both or neither.")
+        if type == DifferentialType.MULTIPLIER and multiplier is None:
+            raise ValueError("Multiplier type requires a multiplier value.")
+        if type == DifferentialType.FLAT and flat is None:
+            raise ValueError("flat type requires a flat value.")
+
+        self.name = name
+        self.type = type
+        self.multiplier = multiplier
+        self.flat = flat

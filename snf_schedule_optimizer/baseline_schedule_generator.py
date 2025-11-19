@@ -1,8 +1,8 @@
-import itertools
-from typing import List, Dict, Any
+from typing import Dict, List
 
-from snf_schedule_optimizer.data_models import ResidentAcuity, Schedule, NurseProfile
-from snf_schedule_optimizer.optimization_engine import INurseRetriever, Shift
+from snf_schedule_optimizer.data_models import Schedule
+from snf_schedule_optimizer.nurse_retrievers import INurseRetriever
+from snf_schedule_optimizer.optimization_engine import Shift
 from snf_schedule_optimizer.resident_acuity_retrievers import IResidentAcuityPerShiftRetriever
 
 
