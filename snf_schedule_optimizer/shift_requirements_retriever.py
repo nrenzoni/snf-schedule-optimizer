@@ -1,6 +1,6 @@
 import abc
 
-from snf_schedule_optimizer.data_models import Shift, ShiftSpecificRequirements
+from snf_schedule_optimizer.models import Shift, ShiftSpecificRequirements
 
 
 class IShiftRequirementsRetriever(abc.ABC):

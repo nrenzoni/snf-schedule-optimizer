@@ -1,7 +1,7 @@
 import abc
 from typing import List
 
-from snf_schedule_optimizer.data_models import NurseProfile, Shift
+from snf_schedule_optimizer.models import NurseProfile, Shift
 
 
 class INurseRetriever(abc.ABC):
@@ -13,7 +13,7 @@ class INurseRetriever(abc.ABC):
         pass
 
 
-class NurseRetrieverImpl(INurseRetriever):
+class NurseRetrieverStaticListImpl(INurseRetriever):
     def __init__(
             self,
             nurses: List[NurseProfile],

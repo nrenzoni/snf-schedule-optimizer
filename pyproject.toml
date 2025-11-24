@@ -8,10 +8,12 @@ authors = [
 requires-python = ">=3.13"
 
 dependencies = [
+    "asyncpg>=0.30.0",
     "numpy>=2.3.4",
     "pendulum>=3.1.0",
     "polars>=1.35.2",
     "pulp>=3.3.0",
+    "sqlalchemy[mypy]>=2.0.44",
 ]
 
 [dependency-groups]
@@ -34,6 +36,10 @@ strict = true            # Enables many strict checks (good for new projects)
 # warn_return_any = true
 # disallow_any_unimported = true
 # disallow_untyped_calls = true
+
+plugins = [
+    "sqlalchemy.ext.mypy.plugin"
+]
 
 # === Common Configuration Settings ===
 # If you don't have type stubs for all dependencies, you might need this *temporarily*.

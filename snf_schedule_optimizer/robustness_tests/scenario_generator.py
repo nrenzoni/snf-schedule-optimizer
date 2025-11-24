@@ -3,10 +3,11 @@ import dataclasses
 import random
 from dataclasses import dataclass
 from typing import *
+from uuid import uuid4
 
 import pendulum
 
-from snf_schedule_optimizer.data_models import *
+from snf_schedule_optimizer.models import *
 
 
 @dataclass(frozen=True)
@@ -21,107 +22,133 @@ class SimulateFacilityScenarioParams:
 
 class INurseSimulateGenerator(abc.ABC):
     @abc.abstractmethod
-    def generate_nurse_profiles(self, simulation_params: SimulateFacilityScenarioParams) -> List[NurseProfile]:
+    def generate_nurse_profiles(self) -> List[NurseProfile]:
         pass
+
+
+class HardcodedNurseSimulateGenerator(INurseSimulateGenerator):
+    def __init__(self, nurse_profiles: List[NurseProfile]):
+        self.nurse_profiles = nurse_profiles
+
+    def generate_nurse_profiles(self) -> List[NurseProfile]:
+        """Returns the predefined list of nurse profiles."""
+        return self.nurse_profiles
 
 
 class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
     def __init__(
             self,
-            n_nurses: int,
-            seed: int,
+            n_employees: int,
+            simulation_params: SimulateFacilityScenarioParams,
+            rng: random.Random,
     ):
-        self.n_nurses = n_nurses
-        self.rng = random.Random(seed)
+        self.n_employees = n_employees
+        self.simulation_params = simulation_params
+        self.rng = rng
 
-    def generate_nurse_profiles(self, simulation_params: SimulateFacilityScenarioParams) -> List[NurseProfile]:
+    def generate_nurse_profiles(self) -> List[NurseProfile]:
         """Creates a mock staff roster reflecting the facility's profile and turnover risk."""
-        roster = []
-        for i in range(self.n_nurses):
-            is_ot_risk = self.rng.random() < simulation_params.turnover_rate  # Higher turnover means more unstable staff
+        employees_compensation = self.generate_employees_and_compensation()
+        return self._generate_nurse_profiles(employees_compensation)
 
-            role = self.rng.choice([NurseRole.RN, NurseRole.LPN, NurseRole.CNA])
+    def generate_employees_and_compensation(self) -> List[Tuple[Employee, StaffCompensationRecord]]:
+        """
+        Creates base Employee records and their current StaffCompensationRecords.
+        Replaces the old generate_nurse_profiles logic.
+        """
+        roster_data = []
+        now = pendulum.now()
+
+        for i in range(self.n_employees):
+            employee_id = str(uuid4())
+            is_ot_risk = self.rng.random() < self.simulation_params.turnover_rate
+
+            # Map NurseRole choices to Job Titles
+            job_title = self.rng.choice(["RN", "LPN", "CNA"])
             is_agency = self.rng.random() < 0.10
 
-            if role == NurseRole.RN:
-                cost_base = simulation_params.rn_base_wage
-            elif role == NurseRole.LPN:
-                cost_base = simulation_params.lpn_base_wage
-            elif role == NurseRole.CNA:
-                cost_base = simulation_params.cna_base_wage
-            else:
-                raise ValueError(f"Unknown NurseRole: {role}")
+            if job_title == "RN":
+                cost_base = self.simulation_params.rn_base_wage
+            elif job_title == "LPN":
+                cost_base = self.simulation_params.lpn_base_wage
+            else:  # CNA
+                cost_base = self.simulation_params.cna_base_wage
 
             if is_agency:
-                cost_base *= simulation_params.agency_multiplier
+                cost_base *= self.simulation_params.agency_multiplier
 
-            roster.append(
-                NurseProfile(
-                    employee_id=f"N_{i}",
-                    role=role,
-                    hourly_cost_base=cost_base,
-                    ot_multiplier=simulation_params.agency_multiplier if is_ot_risk else 1.5,
-                    available_hours_weekly=40,
-                    is_agency=is_agency,
-                    skills=['Wound Care'] if self.rng.random() < 0.3 else []
-                )
+            # 1. Create Employee (HR Identity)
+            employee = Employee(
+                employee_id=employee_id,
+                name=f"Nurse {i}",
+                job_title=job_title,
+                hire_date=now.subtract(days=self.rng.randint(30, 1000)),
             )
 
-        return roster
+            # 2. Create StaffCompensationRecord (Cost Data)
+            compensation = StaffCompensationRecord(
+                employee_id=employee_id,
+                base_rate_effective=cost_base,
+                # Use a specific multiplier, 1.5 is standard FLSA
+                ot_multiplier=1.5,
+                effective_start_date=now.start_of('day'),
+                is_agency=is_agency,
+            )
+
+            roster_data.append((employee, compensation))
+
+        return roster_data
+
+    def _generate_nurse_profiles(
+            self,
+            employee_compensation_data:
+            List[Tuple[Employee, StaffCompensationRecord]],
+    ) -> List[NurseProfile]:
+        """
+        Generates scheduling-specific NurseProfiles using the base cost data.
+        """
+        profiles = []
+        for employee, compensation in employee_compensation_data:
+            profiles.append(
+                NurseProfile(
+                    employee_id=employee.employee_id,
+                    base_rate=compensation.base_rate_effective,  # Copy rate
+                    ot_multiplier=compensation.ot_multiplier,
+                    available_hours_weekly=40,  # Assuming standard availability
+                    is_agency=compensation.is_agency,
+                    skills=['Wound Care'] if self.rng.random() < 0.3 else [],
+                    shift_custom_preferences=[],
+                )
+            )
+        return profiles
 
 
 class WrappedWithPreferencesNurseSimulateGenerator(INurseSimulateGenerator):
     def __init__(
             self,
             inner_simulator: INurseSimulateGenerator,
+            simulation_params: SimulateFacilityScenarioParams,
             rng_seed: int,
     ):
         self.inner_simulator = inner_simulator
+        self.simulation_params = simulation_params
         self.rng = random.Random(rng_seed)
 
-    def generate_nurse_profiles(self, simulation_params: SimulateFacilityScenarioParams) -> List[NurseProfile]:
+    def generate_nurse_profiles(self) -> List[NurseProfile]:
         """Creates a mock staff roster reflecting the facility's profile and turnover risk, with preferences."""
         roster = []
-        for i, nurse_profile in enumerate(self.inner_simulator.generate_nurse_profiles(simulation_params)):
+        for i, nurse_profile in enumerate(self.inner_simulator.generate_nurse_profiles()):
             preferences = []
             if self.rng.random() < 0.5:
                 preferences.append(
-                    StaffPreference(
+                    StaffShiftPreference(
                         preference_type=PreferenceType.SPECIFIC_DAY_OFF,
-                        specific_day=pendulum.WeekDay.MONDAY,
+                        specific_value=str(pendulum.WeekDay.MONDAY),
                         penalty_weight=2.0,
                         is_hard_block=False
                     )
                 )
-                nurse_profile_updated = dataclasses.replace(nurse_profile, custom_preferences=preferences)
+                nurse_profile_updated = dataclasses.replace(nurse_profile, shift_custom_preferences=preferences)
                 roster.append(nurse_profile_updated)
 
         return roster
-
-
-def generate_simulated_acuity(
-        stress_params: PerShiftStressTestParameters,
-        rng: random.Random,
-) -> List[ResidentAcuity]:
-    """Creates acuity records reflecting a stressed clinical demand."""
-    residents = []
-    # Base population size
-    base_count = 100 * (1.0 + stress_params.admission_surge_factor)
-
-    for i in range(int(base_count)):
-        # Stress Test: Increase the likelihood of high-cost residents
-        high_acuity_prob = 0.15 * (1.0 + stress_params.high_acuity_mix_increase)
-
-        acuity = 15 if rng.random() < high_acuity_prob else 5  # High vs Low score
-
-        residents.append(
-            ResidentAcuity(
-                resident_id=f"R_{i}",
-                unit_id=rng.choice(['A', 'B']),
-                census_day=pendulum.now(pendulum.UTC),
-                pt_score_gg=acuity,
-                nta_score=rng.randint(1, 10),
-                clinical_category=rng.choice(['Rehab', 'LTC'])
-            )
-        )
-    return residents

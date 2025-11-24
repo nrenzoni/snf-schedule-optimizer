@@ -1,7 +1,7 @@
 import abc
 from typing import List
 
-from snf_schedule_optimizer.data_models import ResidentAcuity, Shift
+from snf_schedule_optimizer.models import ResidentAcuity, Shift
 
 
 class IResidentAcuityPerShiftRetriever(abc.ABC):
