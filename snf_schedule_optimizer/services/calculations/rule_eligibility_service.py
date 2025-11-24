@@ -1,45 +1,86 @@
-from typing import List
+from typing import List, Optional, Protocol, Tuple
 
 import pendulum
 
 from snf_schedule_optimizer.models import Employee, Shift
 from snf_schedule_optimizer.services.calculations.overtime_calculation import ThresholdOvertimeRule
-from snf_schedule_optimizer.services.interfaces import ICertificationService, IDifferentialRule
+from snf_schedule_optimizer.services.interfaces import ICertificationService, IDifferentialRule, IOvertimeRule, \
+    IRuleRetrievalService
+
+
+class RuleEligibilityCriteria(Protocol):
+    """
+    Protocol defining the minimum required properties for a rule object
+    to be checked by the RuleEligibilityService.
+    """
+
+    @property
+    def applicable_job_titles(self) -> Optional[List[str]]:
+        ...
+
+    @property
+    def required_certifications(self) -> Optional[List[str]]:
+        ...
+
+    @property
+    def certification_match_type(self) -> str:
+        ...
 
 
 class RuleEligibilityService:
-    """Filters the master list of rules based on employee and shift context."""
+    """
+    Filters the potential rule set (retrieved from persistence) against complex
+    employee-specific criteria (certifications, job title).
+    """
 
     def __init__(
             self,
             certification_service: ICertificationService,
-            all_rules: List[IDifferentialRule],
+            rule_retriever_service: IRuleRetrievalService,
     ):
         self.certification_service = certification_service
-        self.all_rules = all_rules
+        self.rule_retrieval_service = rule_retriever_service
 
     def get_applicable_rules(
             self,
             employee: Employee,
             shift: Shift,
-    ) -> List[IDifferentialRule]:
+    ) -> Tuple[List[IDifferentialRule], List[IOvertimeRule]]:
         """
-        Returns only the rules the specific employee is eligible for on this shift.
+        Retrieves all rules applicable to the employee and performs the final
+        in-memory filtering (certifications, job title).
+
+        Returns: (List of applicable Differential Rules, List of applicable Overtime Rules)
         """
 
-        # todo: filter by shift type/unit
-        filtered_to_employee = [
-            rule for rule in self.all_rules
+        # Differential rules (Used for eligibility and slicing)
+        potential_diff_rules = self.rule_retrieval_service.get_differential_rules_by_context(employee, shift)
+
+        # Overtime rules (Used for threshold calculation)
+        potential_ot_rules = self.rule_retrieval_service.get_overtime_rules_by_context(employee, shift)
+
+        # Filter Differential Rules (requires job title/cert checks)
+        filtered_diff_rules = [
+            rule for rule in potential_diff_rules
             if self._is_applicable_to_employee(rule, employee, shift)
         ]
 
-        # Add priority sorting here if needed
+        # Filter Overtime Rules (requires job title/cert checks)
+        # Note: We must ensure the filtering logic works for both types of rules.
+        filtered_ot_rules = [
+            rule for rule in potential_ot_rules
+            if self._is_applicable_to_employee(rule, employee, shift)
+        ]
 
-        return filtered_to_employee
+        # FIX: Priority sorting should happen here, as the DB might not have sorted them correctly
+        filtered_diff_rules.sort(key=lambda r: r.priority, reverse=True)
+        filtered_ot_rules.sort(key=lambda r: r.priority, reverse=True)
+
+        return filtered_diff_rules, filtered_ot_rules
 
     def _is_applicable_to_employee(
             self,
-            rule: IDifferentialRule,
+            rule: RuleEligibilityCriteria,
             employee: Employee,
             shift: Shift,
     ) -> bool:
@@ -48,8 +89,9 @@ class RuleEligibilityService:
         against the rule's criteria.
         """
 
-        if rule.applicable_job_titles and employee.job_title not in rule.applicable_job_titles:
-            return False
+        if rule.applicable_job_titles:
+            if employee.job_title not in rule.applicable_job_titles:
+                return False
 
         # 2. Check Certifications
         if rule.required_certifications:

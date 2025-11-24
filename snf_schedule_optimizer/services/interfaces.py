@@ -120,6 +120,7 @@ class IOvertimeCalculator(abc.ABC):
             shift: Shift,
             employee: Employee,
             work_shift_history: Dict[Shift, List[WorkedShiftSegment]],
+            overtime_rules: List['IOvertimeRule'],
     ) -> List[OvertimeInterval]:
         """Returns list of overtime intervals applicable to the given shift and employee."""
         pass
@@ -161,6 +162,23 @@ class IOvertimeRule(abc.ABC):
         """Priority for tie-breaking: Higher number means checked first."""
         pass
 
+    @property
+    @abc.abstractmethod
+    def applicable_job_titles(self) -> Optional[List[str]]:
+        """List of job titles required for this rule."""
+        pass
+
+    @property
+    # @abc.abstractmethod
+    def required_certifications(self) -> Optional[List[str]]:
+        """List of certifications required for this rule."""
+        return None
+
+    @property
+    def certification_match_type(self) -> str:
+        """Type of match for certifications: 'ALL' or 'ANY'."""
+        return "ALL"
+
 
 class IDifferentialRule(abc.ABC):
     @abc.abstractmethod
@@ -173,6 +191,11 @@ class IDifferentialRule(abc.ABC):
     @property
     @abc.abstractmethod
     def differential(self) -> Differential:
+        pass
+
+    @property
+    @abc.abstractmethod
+    def priority(self) -> int:
         pass
 
     @property
@@ -316,15 +339,47 @@ class IFacilityRulesService(abc.ABC):
         """
         pass
 
+
 class IEmployeeRetriever(abc.ABC):
     """Defines the contract for retrieving core Employee identity records."""
 
     @abc.abstractmethod
-    def get_employee_by_id(self, employee_id: str) -> Optional['Employee']:
+    def get_employee_by_id(self, employee_id: str) -> Optional[Employee]:
         """Retrieves a single Employee record by their unique ID."""
         pass
 
     @abc.abstractmethod
-    def get_all_employees(self) -> List['Employee']:
+    def get_all_employees(self) -> List[Employee]:
         """Retrieves all active Employee records."""
+        pass
+
+
+class IRuleRetrievalService(abc.ABC):
+    """
+    Defines the contract for efficiently retrieving all potentially applicable
+    rules (Differential and Overtime) separately from the persistence layer.
+    """
+
+    @abc.abstractmethod
+    def get_differential_rules_by_context(
+            self,
+            employee: 'Employee',
+            shift: 'Shift',
+    ) -> List['IDifferentialRule']:
+        """
+        Retrieves all active, non-time-specific differential rules (e.g., Weekend
+        Differential) applicable to the employee and facility context.
+        """
+        pass
+
+    @abc.abstractmethod
+    def get_overtime_rules_by_context(
+            self,
+            employee: 'Employee',
+            shift: 'Shift',
+    ) -> List['IOvertimeRule']:
+        """
+        Retrieves all active overtime threshold rules (e.g., 8-hour daily OT,
+        40-hour weekly OT, Union OT) applicable to the employee and date.
+        """
         pass

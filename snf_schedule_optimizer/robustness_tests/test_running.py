@@ -10,11 +10,24 @@ from snf_schedule_optimizer.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.optimization_engine import (
     NurseShiftScheduleOptimizer, Shift, Schedule
 )
+from snf_schedule_optimizer.persistence.certification_service import CertificationServiceStaticListImpl
+from snf_schedule_optimizer.persistence.employee_retriever_impl import EmployeeRetrieverStaticListImpl
+from snf_schedule_optimizer.persistence.facility_rules_service import FacilityRulesServiceStaticListImpl
+from snf_schedule_optimizer.persistence.history_retriever import RawHistoryRetrieverStaticListImpl
+from snf_schedule_optimizer.persistence.rule_retrieval import RuleRetrievalServiceStaticListImpl
+from snf_schedule_optimizer.persistence.staff_compensation_service import StaffCompensationServiceStaticListImpl
 from snf_schedule_optimizer.resident_acuity_retrievers import IResidentAcuityPerShiftRetriever
 import polars as pl
 
 from snf_schedule_optimizer.services.calculations.differential_retrieval import NurseDifferentialRetrieverImpl
+from snf_schedule_optimizer.services.calculations.overtime_calculation import OvertimeCalculatorImpl
+from snf_schedule_optimizer.services.calculations.rate_calculations import DifferentialAndOvertimeRateCalculator
+from snf_schedule_optimizer.services.calculations.rule_eligibility_service import RuleEligibilityService
 from snf_schedule_optimizer.services.calculations.shift_pay_processor import ShiftPayProcessor
+from snf_schedule_optimizer.services.calculations.shift_reconciliation import ShiftReconcilerServiceImpl
+from snf_schedule_optimizer.services.calculations.shift_slicers import TimeOverlapShiftSlicer
+from snf_schedule_optimizer.services.calculations.work_history_service import EmployeeWorkHistoryServiceImpl
+from snf_schedule_optimizer.services.interfaces import IEmployeeRetriever
 from snf_schedule_optimizer.shift_requirements_retriever import IShiftRequirementsRetriever, \
     ShiftRequirementsRetrieverImpl
 
@@ -127,11 +140,13 @@ class TestRunner:
     def __init__(
             self,
             nurse_retriever: INurseRetriever,
+            employee_retriever: IEmployeeRetriever,
             resident_acuity_retriever: IResidentAcuityPerShiftRetriever,
             shift_pay_processor: ShiftPayProcessor,
             seed: int,
     ) -> None:
         self.nurse_retriever = nurse_retriever
+        self.employee_retriever = employee_retriever
         self.resident_acuity_retriever = resident_acuity_retriever
         self.shift_pay_processor = shift_pay_processor
         self.rng = random.Random(seed)
@@ -204,8 +219,46 @@ class TestRunner:
         ml_model_outputs_retriever = MLModelOutputsRetrieverImpl()
 
         nurse_differential_retriever = NurseDifferentialRetrieverImpl(
-            facility_config,
+            facility_config
         )
+
+        rule_retriever_service = RuleRetrievalServiceStaticListImpl()
+
+        certification_service = CertificationServiceStaticListImpl()
+
+        rule_eligibility_service = RuleEligibilityService(
+            certification_service,
+            rule_retriever_service
+        )
+
+        history_retriever = RawHistoryRetrieverStaticListImpl()
+
+        facility_rules_service = FacilityRulesServiceStaticListImpl()
+
+        shift_reconciler = ShiftReconcilerServiceImpl(
+            facility_rules_service
+        )
+
+        work_history_service = EmployeeWorkHistoryServiceImpl(
+            history_retriever,
+            shift_reconciler
+        )
+        ot_calculator = OvertimeCalculatorImpl(
+            work_history_service
+        )
+        shift_slicer = TimeOverlapShiftSlicer()
+        overtime_rate_calculator = DifferentialAndOvertimeRateCalculator()
+        staff_compensation_service = StaffCompensationServiceStaticListImpl()
+        shift_pay_processor = ShiftPayProcessor(
+            rule_eligibility_service,
+            ot_calculator,
+            shift_slicer,
+            overtime_rate_calculator,
+            staff_compensation_service,
+            work_history_service
+        )
+
+        employee_retriever = EmployeeRetrieverStaticListImpl()
 
         nurse_shift_schedule_optimizer = NurseShiftScheduleOptimizer(
             self.resident_acuity_retriever,
@@ -213,6 +266,9 @@ class TestRunner:
             self.nurse_retriever,
             ml_model_outputs_retriever,
             nurse_differential_retriever,
+            shift_pay_processor,
+            employee_retriever,
+            staff_compensation_service,
         )
 
         optimized_schedule_res = nurse_shift_schedule_optimizer.solve(
@@ -343,10 +399,11 @@ class TestRunner:
         """
         total_cost = 0.0
 
-        for shift_id, assigned_nurse_ids in schedule.shift_assignments.items():
+        employees = set(self.employee_retriever.get_all_employees())
+
+        for shift_id, assigned_employee_ids in schedule.shift_assignments.items():
             shift = shifts[shift_id]
-            nurses = self.nurse_retriever.get_nurses(shift)
-            assigned_employees = [n for n in nurses if n.employee_id in assigned_nurse_ids]
+            assigned_employees = [ee for ee in employees if ee.employee_id in assigned_employee_ids]
             for employee in assigned_employees:
                 shift_cost = self.shift_pay_processor.calculate_shift_cost(employee, shift)
                 total_cost += shift_cost

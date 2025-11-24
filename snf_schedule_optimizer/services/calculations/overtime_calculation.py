@@ -6,8 +6,7 @@ import pendulum
 
 from snf_schedule_optimizer.models import Employee, OvertimeInterval, OvertimeTrigger, WorkedShiftSegment, Shift
 from snf_schedule_optimizer.models.constraints import LookbackPeriod
-from snf_schedule_optimizer.services.interfaces import IEmployeeWorkHistoryService, IOvertimeCalculator, IOvertimeRule, \
-    IOvertimeRuleRetrieverService
+from snf_schedule_optimizer.services.interfaces import IEmployeeWorkHistoryService, IOvertimeCalculator, IOvertimeRule
 
 
 class ThresholdOvertimeRule(IOvertimeRule):
@@ -34,7 +33,7 @@ class ThresholdOvertimeRule(IOvertimeRule):
         self._multiplier = multiplier
         self.trigger = trigger
         self._priority = priority
-        self.applicable_job_titles = applicable_job_titles
+        self._applicable_job_titles = applicable_job_titles
         self.required_certificates = required_certificates
 
     @property
@@ -47,15 +46,17 @@ class ThresholdOvertimeRule(IOvertimeRule):
         """Returns the priority of this rule for conflict resolution."""
         return self._priority
 
+    @property
+    def applicable_job_titles(self) -> Optional[List[str]]:
+        return self._applicable_job_titles
+
 
 class OvertimeCalculatorImpl(IOvertimeCalculator):
 
     def __init__(
             self,
-            rule_retriever_service: IOvertimeRuleRetrieverService,
             work_history_service: IEmployeeWorkHistoryService,
     ):
-        self.rule_retriever_service = rule_retriever_service
         self.work_history_service = work_history_service
 
     def get_overtime_intervals(
@@ -63,26 +64,25 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
             shift: Shift,
             employee: Employee,
             work_shift_history: Dict[Shift, List[WorkedShiftSegment]],
+            overtime_rules: List['IOvertimeRule'],
     ) -> List[OvertimeInterval]:
         """
         Calculates all overlapping and sequential overtime intervals for the current shift,
         assigning all triggering rules to each segment.
         """
 
-        # Fetch Applicable Rules and Remaining Non-OT Hours
-        # We assume the retriever only returns ThresholdOvertimeRule instances
-        applicable_rules = (
-            self.rule_retriever_service.get_applicable_rules(employee, shift)
-        )
-
         threshold_rules: List[ThresholdOvertimeRule] = []
-        for rule in applicable_rules:
+        for rule in overtime_rules:
             if isinstance(rule, ThresholdOvertimeRule):
                 threshold_rules.append(rule)
             else:
-                print(f"WARNING: Skipping unknown IOvertimeRule type: {type(rule).__name__}")
+                # Log non-threshold rules, as they shouldn't be passed here if filtering is correct
+                print(f"WARNING: Non-threshold rule passed to OT calculator: {type(rule).__name__}")
 
-        # Calculate the required remaining non-OT hours for all rules
+        if not threshold_rules:
+            return []
+
+            # Calculate the required remaining non-OT hours for all rules
         remaining_non_ot = self.work_history_service.get_remaining_non_ot_hours(employee, shift, threshold_rules)
 
         # Collect All Boundary Events (Start/End points)
@@ -105,7 +105,8 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
             elif trigger.weekly_threshold is not None:
                 remaining = remaining_non_ot[LookbackPeriod.WEEKLY]
             else:
-                raise ValueError("Overtime rule must have either daily or weekly threshold defined.")
+                # Skip rules with no daily/weekly threshold defined (e.g., only consecutive day rule)
+                continue
 
             ot_start_time = self._get_ot_trigger_time(shift, remaining)
 
@@ -118,13 +119,6 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
                 rule_ot_start_map[rule] = shift.shift_start_dt
 
         # --- 2. Process Calendar/Consecutive Rules ---
-
-        # --- Days of Week Trigger ---
-        for rule in threshold_rules:
-            trigger = rule.trigger
-            if trigger.days_of_week_trigger and shift.shift_start_dt.day_of_week in trigger.days_of_week_trigger:
-                # The entire shift is OT under this rule
-                rule_ot_start_map[rule] = shift.shift_start_dt
 
         # --- Consecutive Day Trigger ---
 

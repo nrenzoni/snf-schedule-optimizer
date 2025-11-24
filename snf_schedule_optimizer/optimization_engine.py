@@ -91,19 +91,24 @@ class IPreferencePenaltyCalcFn(abc.ABC):
             nurse: NurseProfile,
             shift: Shift,
             preference_weights: PreferenceWeights,
-            staff_compensation_service: IStaffCompensationService,
     ) -> float:
         pass
 
 
 class PreferencePenaltyCalcFnImpl(IPreferencePenaltyCalcFn):
+
+    def __init__(
+            self,
+            staff_compensation_service: IStaffCompensationService,
+    ):
+        self.staff_compensation_service = staff_compensation_service
+
     def __call__(
             self,
             employee: Employee,
             nurse: NurseProfile,
             shift: Shift,
             preference_weights: PreferenceWeights,
-            staff_compensation_service: IStaffCompensationService,
     ) -> float:
         """
         Calculates the non-financial penalty cost if the assignment violates a soft preference.
@@ -144,9 +149,12 @@ class PreferencePenaltyCalcFnImpl(IPreferencePenaltyCalcFn):
         # FIX: The ot_multiplier is not on NurseProfile. Delegate the multiplier check 
         # to the ShiftPayProcessor or assume a standard rate for soft penalty calculation.
         # Here, we assume the base_rate is enough proxy cost.
+        comp_record = self.staff_compensation_service.get_record_for_date(employee.employee_id, shift.shift_start_dt)
+        if comp_record is None:
+            raise ValueError(f"Missing compensation record for {employee.employee_id=}, {shift.shift_start_dt=}")
         if self._is_overtime_risk(nurse, shift.day_shift):
             # Use nurse.base_rate (which is on NurseProfile now) as a proxy for cost
-            penalty += preference_weights.ot_avoidance_penalty * self.employee.base_rate
+            penalty += preference_weights.ot_avoidance_penalty * comp_record.base_rate_effective
 
         # Future implementation: Incorporate penalties for breaking team consistency here
         # 
@@ -241,6 +249,7 @@ class NurseShiftScheduleOptimizer:
             nurse_differential_retriever: INurseDifferentialRetriever,
             shift_pay_processor: ShiftPayProcessor,
             employee_retriever: IEmployeeRetriever,
+            staff_compensation_service: IStaffCompensationService,
     ) -> None:
         self.nurse_hard_block_checker_fn = NurseHardBlockCheckerImpl()
         self.resident_acuity_retriever = resident_acuity_retriever
@@ -250,8 +259,11 @@ class NurseShiftScheduleOptimizer:
         self.nurse_differential_retriever = nurse_differential_retriever
         self.shift_pay_processor = shift_pay_processor
         self.employee_retriever = employee_retriever
+        self.staff_compensation_service = staff_compensation_service
 
-        self.preference_penalty_calc_fn = PreferencePenaltyCalcFnImpl()
+        self.preference_penalty_calc_fn = PreferencePenaltyCalcFnImpl(
+            self.staff_compensation_service
+        )
 
     def solve(
             self,
@@ -571,8 +583,13 @@ class NurseShiftScheduleOptimizer:
             for pref in nurse.shift_custom_preferences:
                 if pref.is_hard_block:
                     if pref.preference_type == PreferenceType.SPECIFIC_DAY_OFF:
-                        if shift.day_of_week == pref.specific_value:
-                            return True
+                        try:
+                            pref_day_int = int(pref.specific_value) if pref.specific_value is not None else -1
+                            if shift.day_of_week.value == pref_day_int:
+                                return True
+                        except (ValueError, TypeError):
+                            # If conversion fails (e.g., specific_value is 'Sunday' instead of '7'), ignore the preference
+                            continue
                     elif pref.preference_type == PreferenceType.WEEKEND_OFF:
                         if is_weekend(shift.day_of_week):
                             return True

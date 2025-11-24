@@ -43,7 +43,9 @@ class ShiftPayProcessor:
 
         # Phase 1: Retrieve Inputs
         # Get rules applicable to this nurse
-        applicable_rules = self.eligibility_service.get_applicable_rules(employee, shift)
+        differential_rules, overtime_rules = (
+            self.eligibility_service.get_applicable_rules(employee, shift)
+        )
 
         nurse_shift_history = self.work_history_service.get_processed_history_for_period(
             employee.employee_id,
@@ -52,11 +54,9 @@ class ShiftPayProcessor:
 
         # Convert abstract rules into concrete time intervals
         differential_intervals: List[DifferentialDateInterval] = []
-        for rule in applicable_rules:
+        for rule in differential_rules:
             differential_intervals.extend(
-                rule.get_applicable_intervals_for_shift(
-                    shift
-                )
+                rule.get_applicable_intervals_for_shift(shift)
             )
 
         # Get concrete overtime intervals
@@ -64,6 +64,7 @@ class ShiftPayProcessor:
             shift,
             employee,
             nurse_shift_history,
+            overtime_rules
         )
 
         # Phase 2: Slice the Shift

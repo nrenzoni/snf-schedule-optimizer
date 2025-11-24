@@ -112,10 +112,10 @@ class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
             profiles.append(
                 NurseProfile(
                     employee_id=employee.employee_id,
-                    base_rate=compensation.base_rate_effective,  # Copy rate
-                    ot_multiplier=compensation.ot_multiplier,
+                    # base_rate=compensation.base_rate_effective,  # Copy rate
+                    # ot_multiplier=compensation.ot_multiplier,
                     available_hours_weekly=40,  # Assuming standard availability
-                    is_agency=compensation.is_agency,
+                    # is_agency=compensation.is_agency,
                     skills=['Wound Care'] if self.rng.random() < 0.3 else [],
                     shift_custom_preferences=[],
                 )

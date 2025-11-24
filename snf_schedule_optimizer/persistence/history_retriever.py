@@ -1,5 +1,5 @@
 from itertools import groupby
-from typing import Dict, Iterable, List
+from typing import Dict, Iterable, List, Tuple
 from uuid import uuid4
 
 import pendulum
@@ -10,6 +10,54 @@ from snf_schedule_optimizer.models import Shift, TimePunch, WorkedShiftSegment
 from snf_schedule_optimizer.services.interfaces import IRawHistoryRetriever
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
+
+RawHistoryRecord = Tuple[Shift, List[TimePunch]]
+
+
+class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
+    """
+    Concrete implementation that provides raw shift and punch data from a static
+    list, filtered by employee ID and date range.
+    """
+
+    def __init__(self, records: List[RawHistoryRecord]):
+        """
+        Initializes with a list of pre-grouped shift and punch data.
+        """
+        self.records = records
+
+    def get_raw_inputs_for_period(
+            self,
+            employee_id: str,
+            check_date: pendulum.DateTime,
+    ) -> Dict['Shift', List['TimePunch']]:
+
+        history_map: Dict['Shift', List['TimePunch']] = {}
+
+        # Define the relevant period (8 days lookback, matching the Calculator's assumption)
+        max_lookback_dt = check_date.subtract(days=8).start_of('day')
+
+        for shift, punches in self.records:
+            # Filter 1: Check Employee ID
+            if shift.employee_id != employee_id:
+                continue
+
+            # Filter 2: Check Date Range (shift ended before check_date and started within lookback)
+            if shift.shift_end_dt <= check_date and shift.shift_start_dt >= max_lookback_dt:
+
+                # Filter 3: Check Punches (Only include punches valid for the shift's context)
+                # We assume the external system/API provides only relevant punches,
+                # but we check the time bounds for safety.
+
+                valid_punches = [
+                    p for p in punches
+                    if p.punch_time >= max_lookback_dt and p.punch_time <= check_date
+                ]
+
+                if valid_punches:
+                    history_map[shift] = valid_punches
+
+        return history_map
 
 
 class SQLARawHistoryRetriever(IRawHistoryRetriever):
