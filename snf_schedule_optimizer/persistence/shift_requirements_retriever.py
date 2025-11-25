@@ -1,12 +1,7 @@
 import abc
 
 from snf_schedule_optimizer.models import Shift, ShiftSpecificRequirements
-
-
-class IShiftRequirementsRetriever(abc.ABC):
-    @abc.abstractmethod
-    def get_shift_requirements(self, shift: Shift) -> ShiftSpecificRequirements:
-        pass
+from snf_schedule_optimizer.services.interfaces import IShiftRequirementsRetriever
 
 
 class ShiftRequirementsRetrieverImpl(IShiftRequirementsRetriever):

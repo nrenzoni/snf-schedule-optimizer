@@ -3,11 +3,13 @@ from typing import List, TYPE_CHECKING
 from sqlalchemy import String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from .base import SQLABase
+
 if TYPE_CHECKING:
     from snf_schedule_optimizer.sqlalchemy_models.employee_certification import EmployeeCertificationModel
 
 
-class EmployeeModel(DeclarativeBase):
+class EmployeeModel(SQLABase):
     """
     Represents the main employee identity table (Employee).
     """

@@ -4,10 +4,11 @@ from typing import Optional
 from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 from snf_schedule_optimizer.sqlalchemy_models.employee import EmployeeModel
 
 
-class StaffCompensationModel(DeclarativeBase):
+class StaffCompensationModel(SQLABase):
     """
     SQLAlchemy ORM model for storing time-versioned financial rate data.
     Maps directly to the StaffCompensationRecord application dataclass.

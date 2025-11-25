@@ -6,8 +6,10 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, declarative_base, mapped_column
 from pendulum import WeekDay
 
+from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 
-class OvertimeRuleConfig(DeclarativeBase):
+
+class OvertimeRuleConfig(SQLABase):
     """
     SQLAlchemy ORM model representing a single overtime rule configuration
     stored in the PostgreSQL database.

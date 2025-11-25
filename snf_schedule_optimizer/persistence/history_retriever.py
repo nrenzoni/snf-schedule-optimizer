@@ -1,3 +1,4 @@
+from collections import defaultdict
 from itertools import groupby
 from typing import Dict, Iterable, List, Tuple
 from uuid import uuid4
@@ -11,7 +12,7 @@ from snf_schedule_optimizer.services.interfaces import IRawHistoryRetriever
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
 
-RawHistoryRecord = Tuple[Shift, List[TimePunch]]
+RawHistoryRecord = Tuple[str, Shift, List[TimePunch]]
 
 
 class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
@@ -24,34 +25,37 @@ class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
         """
         Initializes with a list of pre-grouped shift and punch data.
         """
-        self.records = records
+        self.shift_assignment_map: Dict[str, List[Tuple[Shift, List[TimePunch]]]] = defaultdict(list)
+        for employee_id, shift, punches in records:
+            self.shift_assignment_map[employee_id].append((shift, punches))
 
     def get_raw_inputs_for_period(
             self,
             employee_id: str,
             check_date: pendulum.DateTime,
-    ) -> Dict['Shift', List['TimePunch']]:
+    ) -> Dict[Shift, List[TimePunch]]:
 
-        history_map: Dict['Shift', List['TimePunch']] = {}
+        history_map: Dict[Shift, List[TimePunch]] = {}
 
         # Define the relevant period (8 days lookback, matching the Calculator's assumption)
         max_lookback_dt = check_date.subtract(days=8).start_of('day')
 
-        for shift, punches in self.records:
-            # Filter 1: Check Employee ID
-            if shift.employee_id != employee_id:
-                continue
+        if employee_id not in self.shift_assignment_map:
+            return {}
 
-            # Filter 2: Check Date Range (shift ended before check_date and started within lookback)
+        employee_history = self.shift_assignment_map[employee_id]
+
+        for shift, punches in employee_history:
+            # Filter: Check Date Range (shift ended before check_date and started within lookback)
             if shift.shift_end_dt <= check_date and shift.shift_start_dt >= max_lookback_dt:
 
-                # Filter 3: Check Punches (Only include punches valid for the shift's context)
+                # Filter: Check Punches (Only include punches valid for the shift's context)
                 # We assume the external system/API provides only relevant punches,
                 # but we check the time bounds for safety.
 
                 valid_punches = [
                     p for p in punches
-                    if p.punch_time >= max_lookback_dt and p.punch_time <= check_date
+                    if max_lookback_dt <= p.punch_time <= check_date
                 ]
 
                 if valid_punches:

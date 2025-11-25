@@ -10,26 +10,20 @@ from snf_schedule_optimizer.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.optimization_engine import (
     NurseShiftScheduleOptimizer, Shift, Schedule
 )
-from snf_schedule_optimizer.persistence.certification_service import CertificationServiceStaticListImpl
+
 from snf_schedule_optimizer.persistence.employee_retriever_impl import EmployeeRetrieverStaticListImpl
 from snf_schedule_optimizer.persistence.facility_rules_service import FacilityRulesServiceStaticListImpl
 from snf_schedule_optimizer.persistence.history_retriever import RawHistoryRetrieverStaticListImpl
-from snf_schedule_optimizer.persistence.rule_retrieval import RuleRetrievalServiceStaticListImpl
 from snf_schedule_optimizer.persistence.staff_compensation_service import StaffCompensationServiceStaticListImpl
 from snf_schedule_optimizer.resident_acuity_retrievers import IResidentAcuityPerShiftRetriever
 import polars as pl
 
 from snf_schedule_optimizer.services.calculations.differential_retrieval import NurseDifferentialRetrieverImpl
-from snf_schedule_optimizer.services.calculations.overtime_calculation import OvertimeCalculatorImpl
-from snf_schedule_optimizer.services.calculations.rate_calculations import DifferentialAndOvertimeRateCalculator
-from snf_schedule_optimizer.services.calculations.rule_eligibility_service import RuleEligibilityService
 from snf_schedule_optimizer.services.calculations.shift_pay_processor import ShiftPayProcessor
 from snf_schedule_optimizer.services.calculations.shift_reconciliation import ShiftReconcilerServiceImpl
-from snf_schedule_optimizer.services.calculations.shift_slicers import TimeOverlapShiftSlicer
-from snf_schedule_optimizer.services.calculations.work_history_service import EmployeeWorkHistoryServiceImpl
-from snf_schedule_optimizer.services.interfaces import IEmployeeRetriever
-from snf_schedule_optimizer.shift_requirements_retriever import IShiftRequirementsRetriever, \
-    ShiftRequirementsRetrieverImpl
+from snf_schedule_optimizer.services.interfaces import IEmployeeRetriever, IShiftRequirementsRetriever, \
+    IStaffCompensationService
+from snf_schedule_optimizer.persistence.shift_requirements_retriever import ShiftRequirementsRetrieverImpl
 
 
 class ITestRunCaseGenerator(abc.ABC):
@@ -143,12 +137,15 @@ class TestRunner:
             employee_retriever: IEmployeeRetriever,
             resident_acuity_retriever: IResidentAcuityPerShiftRetriever,
             shift_pay_processor: ShiftPayProcessor,
+            staff_compensation_service: IStaffCompensationService,
             seed: int,
     ) -> None:
         self.nurse_retriever = nurse_retriever
         self.employee_retriever = employee_retriever
         self.resident_acuity_retriever = resident_acuity_retriever
         self.shift_pay_processor = shift_pay_processor
+        self.staff_compensation_service = staff_compensation_service
+
         self.rng = random.Random(seed)
 
     def run_sensitivity_analysis(
@@ -222,53 +219,15 @@ class TestRunner:
             facility_config
         )
 
-        rule_retriever_service = RuleRetrievalServiceStaticListImpl()
-
-        certification_service = CertificationServiceStaticListImpl()
-
-        rule_eligibility_service = RuleEligibilityService(
-            certification_service,
-            rule_retriever_service
-        )
-
-        history_retriever = RawHistoryRetrieverStaticListImpl()
-
-        facility_rules_service = FacilityRulesServiceStaticListImpl()
-
-        shift_reconciler = ShiftReconcilerServiceImpl(
-            facility_rules_service
-        )
-
-        work_history_service = EmployeeWorkHistoryServiceImpl(
-            history_retriever,
-            shift_reconciler
-        )
-        ot_calculator = OvertimeCalculatorImpl(
-            work_history_service
-        )
-        shift_slicer = TimeOverlapShiftSlicer()
-        overtime_rate_calculator = DifferentialAndOvertimeRateCalculator()
-        staff_compensation_service = StaffCompensationServiceStaticListImpl()
-        shift_pay_processor = ShiftPayProcessor(
-            rule_eligibility_service,
-            ot_calculator,
-            shift_slicer,
-            overtime_rate_calculator,
-            staff_compensation_service,
-            work_history_service
-        )
-
-        employee_retriever = EmployeeRetrieverStaticListImpl()
-
         nurse_shift_schedule_optimizer = NurseShiftScheduleOptimizer(
             self.resident_acuity_retriever,
             shift_requirements_retriever,
             self.nurse_retriever,
             ml_model_outputs_retriever,
             nurse_differential_retriever,
-            shift_pay_processor,
-            employee_retriever,
-            staff_compensation_service,
+            self.shift_pay_processor,
+            self.employee_retriever,
+            self.staff_compensation_service,
         )
 
         optimized_schedule_res = nurse_shift_schedule_optimizer.solve(
@@ -437,10 +396,28 @@ class TestRunner:
 
             assigned_nurse_ids = schedule.shift_assignments[shift.shift_id]
             assigned_nurses = [n for n in nurses if n.employee_id in assigned_nurse_ids]
-            rn_assigned = [n for n in assigned_nurses if n.role == NurseRole.RN]
-            # lpn_assigned = [n for n in assigned_nurses if n.role == NurseRole.LPN]  # LPNs not required
-            cna_assigned = [n for n in assigned_nurses if n.role == NurseRole.CNA]
+
+            employee_map = {
+                n.employee_id: self.employee_retriever.get_employee_by_id(n.employee_id)
+                for n in assigned_nurses
+            }
+
+            rn_assigned = []
+            # lpn_assigned = []  # LPNs not required
+            cna_assigned = []
             total_assigned = len(assigned_nurses)
+
+            for nurse_profile in assigned_nurses:
+                employee = employee_map.get(nurse_profile.employee_id)
+                if employee is None:
+                    continue  # Skip if no corresponding Employee record is found (HR issue)
+
+                # Use employee.job_title for classification
+                if employee.job_title == NurseRole.RN:
+                    rn_assigned.append(nurse_profile)
+                elif employee.job_title == NurseRole.CNA:
+                    cna_assigned.append(nurse_profile)
+                # Add LPN check here if needed
 
             required_rn = shift_specific_requirements.target_hprd_rn
             required_cna = shift_specific_requirements.target_hprd_cna
@@ -463,9 +440,11 @@ class TestRunner:
 
             staff_wellbeing_misses = 0
 
-            for nurse in assigned_nurses:
-                if nurse.shift_custom_preferences is not None:
-                    for pref in nurse.shift_custom_preferences:
+            current_shift_day_value = shift.day_of_week.value  # Get the integer value once
+
+            for nurse_profile in assigned_nurses:
+                if nurse_profile.shift_custom_preferences is not None:
+                    for pref in nurse_profile.shift_custom_preferences:
                         if pref.preference_type == PreferenceType.DAY_SHIFT_PREFERENCE:
                             if not shift.day_shift:
                                 staff_wellbeing_misses -= 1
@@ -473,10 +452,18 @@ class TestRunner:
                             if shift.day_shift:
                                 staff_wellbeing_misses -= 1
                         if pref.preference_type == PreferenceType.SPECIFIC_DAY_OFF:
-                            if pref.specific_value == shift.day_of_week:
+                            try:
+                                pref_day_int = int(pref.specific_value) if pref.specific_value is not None else -1
+                            except (ValueError, TypeError):
+                                pref_day_int = -1  # Treat invalid input as non-matching
+
+                            if pref_day_int == current_shift_day_value:
                                 staff_wellbeing_misses -= 1
                         if pref.preference_type == PreferenceType.WEEKEND_OFF:
-                            if pref.specific_value in [pendulum.WeekDay.SATURDAY, pendulum.WeekDay.SUNDAY]:
+                            if current_shift_day_value in {
+                                pendulum.WeekDay.SATURDAY.value,
+                                pendulum.WeekDay.SUNDAY.value
+                            }:
                                 staff_wellbeing_misses -= 1
 
             regulatory_compliance_score_agg -= regulatory_compliance_misses

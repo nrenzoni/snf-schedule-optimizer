@@ -4,10 +4,11 @@ import pendulum
 from sqlalchemy import Boolean, Date, ForeignKey, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from .base import SQLABase
 from snf_schedule_optimizer.sqlalchemy_models.employee import EmployeeModel
 
 
-class EmployeeCertificationModel(DeclarativeBase):
+class EmployeeCertificationModel(SQLABase):
     """
     Represents a single certification record for an employee.
     Maps to the employee_certification table.

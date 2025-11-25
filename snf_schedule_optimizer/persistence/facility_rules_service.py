@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, and_
 import datetime
 
-from snf_schedule_optimizer.models import EmployeeTimeSettings, MealDeductionRules, PunchType
+from snf_schedule_optimizer.models import EmployeeTimeSettings, MealDeductionRules, PunchType, RoundingType, \
+    SplitDayType
 from snf_schedule_optimizer.services.interfaces import IFacilityRulesService
 from snf_schedule_optimizer.sqlalchemy_models.facility_rules_config import FacilityRulesConfigModel
+from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
 
 class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
@@ -31,23 +33,18 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
             is_mandatory=True
         )
 
-    def apply_rounding(self, raw_time: pendulum.DateTime, punch_type: 'PunchType') -> pendulum.DateTime:
+    def apply_rounding(
+            self,
+            raw_time: pendulum.DateTime,
+            punch_type: PunchType,
+    ) -> pendulum.DateTime:
         """
         Applies a standard nearest-interval rounding (e.g., 6-minute rule).
         """
-        unit = self.DEFAULT_ROUNDING_UNIT
-
-        # Calculate total minutes since midnight
-        minutes_since_midnight = raw_time.hour * 60 + raw_time.minute + raw_time.second / 60.0
-
-        # Round to the nearest multiple of the unit
-        rounded_minutes = round(minutes_since_midnight / unit) * unit
-
-        new_hour = int(rounded_minutes // 60)
-        new_minute = int(rounded_minutes % 60)
-
-        # Return the new DateTime object, letting pendulum handle carryover (e.g., 23:58 rounds to 00:00 next day)
-        return raw_time.set(hour=new_hour, minute=new_minute, second=0, microsecond=0)
+        return TimeRoundingUtility.round_to_nearest_unit(
+            raw_time,
+            self.DEFAULT_ROUNDING_UNIT
+        )
 
     def get_time_settings(
             self,
@@ -64,6 +61,8 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
             shift_separator_time=self.DEFAULT_SPLIT_TIME,  # Using the split time as separator for simplicity
             shift_grace_window=self.DEFAULT_GRACE_WINDOW,
             rounding_unit_minutes=self.DEFAULT_ROUNDING_UNIT,
+            split_day_day_type=SplitDayType.CURRENT,
+            rounding_type=RoundingType.NEAREST,
         )
 
     def get_meal_deduction_rules(self, check_dt: pendulum.DateTime) -> Optional['MealDeductionRules']:
@@ -89,7 +88,10 @@ class SQLAFacilityRulesService(IFacilityRulesService):
     def apply_rounding(self, raw_time: pendulum.DateTime, punch_type: PunchType) -> pendulum.DateTime:
         """Applies the nearest-interval rounding rule."""
         # For simplicity, we apply standard nearest-interval rounding.
-        return self._round_time(raw_time)
+        return TimeRoundingUtility.round_to_nearest_unit(
+            raw_time,
+            self.rounding_unit_minutes
+        )
 
     def get_time_settings(self, employee_id: str, check_dt: pendulum.DateTime) -> EmployeeTimeSettings:
         raise NotImplementedError()
@@ -122,21 +124,3 @@ class SQLAFacilityRulesService(IFacilityRulesService):
             "meal_deduction_duration_hours" : record.meal_deduction_duration_hours,
             "meal_is_mandatory"             : record.meal_is_mandatory
         }
-
-    def _round_time(self, dt: pendulum.DateTime) -> pendulum.DateTime:
-        """Helper to apply the rounding logic to the nearest configured unit."""
-
-        unit = self.rounding_unit_minutes
-
-        # Calculate total minutes since midnight
-        minutes_since_midnight = dt.hour * 60 + dt.minute + dt.second / 60.0
-
-        # Calculate the closest multiple of the rounding unit
-        rounded_minutes = round(minutes_since_midnight / unit) * unit
-
-        # Convert back to hours, minutes, seconds
-        new_hour = int(rounded_minutes // 60)
-        new_minute = int(rounded_minutes % 60)
-
-        # Use pendulum's set() method, which handles crossing midnight correctly
-        return dt.set(hour=new_hour, minute=new_minute, second=0, microsecond=0)

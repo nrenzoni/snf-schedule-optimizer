@@ -2,12 +2,12 @@ import abc
 import enum
 import itertools
 from collections import defaultdict
-
-import numpy as np
-import pulp
 import pendulum
 from dataclasses import dataclass
+
+import pulp
 from pulp import LpBinary, LpMinimize, LpProblem, LpVariable
+import numpy as np
 
 from snf_schedule_optimizer.models import *
 from snf_schedule_optimizer.datetime_utils import is_weekend
@@ -16,8 +16,7 @@ from snf_schedule_optimizer.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.resident_acuity_retrievers import IResidentAcuityPerShiftRetriever
 from snf_schedule_optimizer.services.calculations.shift_pay_processor import ShiftPayProcessor
 from snf_schedule_optimizer.services.interfaces import IEmployeeRetriever, INurseDifferentialRetriever, \
-    IStaffCompensationService
-from snf_schedule_optimizer.shift_requirements_retriever import IShiftRequirementsRetriever
+    IShiftRequirementsRetriever, IStaffCompensationService
 
 
 class LpNurseShiftVariableHolder:

@@ -6,11 +6,13 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
+
 if typing.TYPE_CHECKING:
     from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
 
 
-class ShiftModel(DeclarativeBase):
+class ShiftModel(SQLABase):
     """
     Represents the primary shift record (scheduled or worked).
     The Parent in the One-to-Many relationship with WorkedShiftSegmentModel.

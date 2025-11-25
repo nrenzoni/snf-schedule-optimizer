@@ -50,6 +50,10 @@ class ThresholdOvertimeRule(IOvertimeRule):
     def applicable_job_titles(self) -> Optional[List[str]]:
         return self._applicable_job_titles
 
+    @property
+    def contract_id(self) -> Optional[str]:
+        raise NotImplementedError()
+
 
 class OvertimeCalculatorImpl(IOvertimeCalculator):
 
@@ -64,7 +68,7 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
             shift: Shift,
             employee: Employee,
             work_shift_history: Dict[Shift, List[WorkedShiftSegment]],
-            overtime_rules: List['IOvertimeRule'],
+            overtime_rules: List[IOvertimeRule],
     ) -> List[OvertimeInterval]:
         """
         Calculates all overlapping and sequential overtime intervals for the current shift,
@@ -184,58 +188,3 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
 
         # OT starts only after the remaining non-OT hours are worked
         return shift.shift_start_dt + duration_delta
-
-    # def get_overtime_intervals(
-    #         self, shift: Shift, employee: Employee,
-    # ) -> List[OvertimeInterval]:
-    #     # This is where the complex state/union threshold logic lives.
-    #
-    #     # Placeholder: Assume OT starts 4 hours into the shift for 1.5x
-    #     # todo: replace overtime multiplier with audit-compliant records
-    #     ot_start = shift.shift_start_dt.add(hours=4)
-    #     if ot_start < shift.shift_end_dt:
-    #         # Ensure the multiplier is "most favorable"
-    #         return [
-    #             OvertimeInterval(
-    #                 start_dt=ot_start,
-    #                 end_dt=shift.shift_end_dt,
-    #                 multiplier=1.5
-    #             )
-    #         ]
-    #     return []
-
-    # def get_remaining_non_ot_hours(
-    #         self,
-    #         nurse_profile: NurseProfile,
-    #         current_shift: Shift,
-    #         nurse_shift_history: Dict[Shift, List[WorkedShiftSegment]],
-    # ) -> float:
-    #     total_hours_worked = 0.0
-    #
-    #     beginning_of_work_week_dt = current_shift.shift_start_dt.start_of('week').add(
-    #         days=self.start_of_work_week_day - pendulum.WeekDay.MONDAY,
-    #         hours=self.start_of_work_day_time.hour,
-    #         minutes=self.start_of_work_day_time.minute,
-    #         seconds=self.start_of_work_day_time.second,
-    #     )
-    #
-    #     for shift, components in nurse_shift_history.items():
-    #         if beginning_of_work_week_dt <= shift.shift_end_dt <= current_shift.shift_start_dt:
-    #             for component in components:
-    #                 if component.start_time >= beginning_of_work_week_dt:
-    #                     total_hours_worked += component.duration_hours
-    #
-    #     remaining_non_ot_hours = max(
-    #         0.0,
-    #         self.overtime_threshold_hours_per_week - total_hours_worked
-    #     )
-    #
-    #     return remaining_non_ot_hours
-
-    # def calculate_overtime_intervals(
-    #         self,
-    #         nurse_profile: NurseProfile,
-    #         current_shift: Shift,
-    #         nurse_shift_history: Dict[Shift, List[WorkedShiftSegment]],
-    # ) -> List[pendulum.Interval]:
-    #     pass

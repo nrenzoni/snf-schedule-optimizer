@@ -5,11 +5,13 @@ from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
+
 if TYPE_CHECKING:
     from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 
 
-class TimePunchModel(DeclarativeBase):
+class TimePunchModel(SQLABase):
     """
     Represents a single, raw time clock EVENT (IN, OUT, MEAL OUT, etc.)
     aligned with the TimePunch domain dataclass.

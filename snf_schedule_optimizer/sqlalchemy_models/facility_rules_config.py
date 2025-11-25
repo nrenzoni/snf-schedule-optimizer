@@ -4,8 +4,10 @@ from sqlalchemy.orm import Mapped, mapped_column, Session
 from sqlalchemy import Date, Integer, Float, Boolean, String, ForeignKey
 from sqlalchemy.orm import DeclarativeBase
 
+from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 
-class FacilityRulesConfigModel(DeclarativeBase):
+
+class FacilityRulesConfigModel(SQLABase):
     """
     SQLAlchemy ORM model for storing facility-specific time and payroll rules.
     """

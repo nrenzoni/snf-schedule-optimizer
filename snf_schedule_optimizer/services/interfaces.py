@@ -3,17 +3,20 @@ from enum import StrEnum
 from typing import Dict, List, Optional
 
 import pendulum
+from typing_extensions import TYPE_CHECKING
 
 from snf_schedule_optimizer.models import (
     Differential, DifferentialDateInterval, Employee,
     NurseProfile,
     OvertimeInterval,
-    Shift, StaffCompensationRecord, TimePunch, WorkedShiftSegment, WorkedTimeBlock,
+    Shift, ShiftSpecificRequirements, StaffCompensationRecord, TimePunch, WorkedShiftSegment, WorkedTimeBlock,
     EmployeeTimeSettings,
     MealDeductionRules
 )
 from snf_schedule_optimizer.models.constraints import LookbackPeriod, PunchType
-from snf_schedule_optimizer.services.calculations.overtime_calculation import ThresholdOvertimeRule
+
+if TYPE_CHECKING:
+    from snf_schedule_optimizer.services.calculations.overtime_calculation import ThresholdOvertimeRule
 
 
 class ICertificationService(abc.ABC):
@@ -56,7 +59,7 @@ class IEmployeeWorkHistoryService(abc.ABC):
             self,
             employee: Employee,
             current_shift: Shift,
-            ot_rules: List[ThresholdOvertimeRule],
+            ot_rules: List['ThresholdOvertimeRule'],
     ) -> Dict[LookbackPeriod, float]:
         """
         Calculates the minimum remaining non-OT hours based on all provided rules
@@ -178,6 +181,12 @@ class IOvertimeRule(abc.ABC):
     def certification_match_type(self) -> str:
         """Type of match for certifications: 'ALL' or 'ANY'."""
         return "ALL"
+
+    @property
+    @abc.abstractmethod
+    def contract_id(self) -> Optional[str]:
+        """The specific union/facility contract ID this rule belongs to."""
+        pass
 
 
 class IDifferentialRule(abc.ABC):
@@ -382,4 +391,10 @@ class IRuleRetrievalService(abc.ABC):
         Retrieves all active overtime threshold rules (e.g., 8-hour daily OT,
         40-hour weekly OT, Union OT) applicable to the employee and date.
         """
+        pass
+
+
+class IShiftRequirementsRetriever(abc.ABC):
+    @abc.abstractmethod
+    def get_shift_requirements(self, shift: Shift) -> ShiftSpecificRequirements:
         pass
