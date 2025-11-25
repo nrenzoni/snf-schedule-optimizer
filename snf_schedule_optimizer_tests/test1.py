@@ -1,4 +1,5 @@
 import random
+import uuid
 from typing import List, Optional, Tuple
 
 import pendulum
@@ -9,8 +10,9 @@ from snf_schedule_optimizer.models import (
     Employee, FacilityConfig,
     FacilityHrConfig,
     MinMandates,
-    NurseProfile, NurseRole, OvertimeTrigger, PerShiftStressTestParameters, ResidentAcuity, ShiftSpecificRequirements,
-    StaffCompensationRecord
+    NurseProfile, NurseRole, OvertimeTrigger, PerShiftStressTestParameters, PunchType, ResidentAcuity, Shift,
+    ShiftSpecificRequirements,
+    StaffCompensationRecord, TimePunch
 )
 from snf_schedule_optimizer.models.testing import MockCertificationRecord
 from snf_schedule_optimizer.nurse_retrievers import NurseRetrieverStaticListImpl
@@ -270,7 +272,8 @@ class Container(containers.DeclarativeContainer):
     )
 
     history_retriever = providers.Singleton(
-        RawHistoryRetrieverStaticListImpl
+        RawHistoryRetrieverStaticListImpl,
+        records=config.HISTORY_RECORDS.provided,
     )
 
     facility_rule_service = providers.Singleton(
@@ -284,8 +287,8 @@ class Container(containers.DeclarativeContainer):
 
     work_history_service = providers.Singleton(
         EmployeeWorkHistoryServiceImpl,
-        config.HISTORY_RECORDS.provided,
-        shift_reconciler_service
+        history_retriever=history_retriever,
+        shift_reconciler=shift_reconciler_service
     )
 
     ot_calculator = providers.Singleton(
@@ -474,6 +477,7 @@ def test_two_shifts_cheapest_nurse_selected_each_refactored() -> None:
         "EMPLOYEES"                 : data_provider.employees,
         "CERTIFICATES"              : data_provider.certificate_records,
         "STAFF_COMPENSATION_RECORDS": data_provider._compensation_records,
+        "HISTORY_RECORDS"           : data_provider.history_records,
 
         # Override the mandates to require only 1 CNA
         "MANDATES"                  : MinMandates(
@@ -555,6 +559,7 @@ class TestDataProvider:
         self._compensation_records: List[StaffCompensationRecord] = []
         self._nurse_profiles: List[NurseProfile] = []
         self._certificate_records: List[Tuple[str, MockCertificationRecord]] = []
+        self._raw_history_records: List[RawHistoryRecord] = []
 
         # Run the full generation pipeline immediately
         self._generate_all_data()
@@ -563,23 +568,69 @@ class TestDataProvider:
         """Executes the sequential generation logic."""
 
         # 1. Generate Base Employee and Compensation Data
-        # This gives us the final employee IDs and base rates.
         employee_comp_data = generate_simulated_employees_deterministic(self.employee_count)
-
         self._employees = [e for e, c in employee_comp_data]
         self._compensation_records = [c for e, c in employee_comp_data]
-
         employee_ids = [e.employee_id for e in self._employees]
 
-        # 2. Generate Dependent Data (Certifications)
-        self._certificate_records = generate_mock_certification_records(
-            employee_ids,
-            rng_seed=self.rng.getrandbits(32)
-        )
-
-        # 3. Generate Final Profile Data (Needs Employee/Compensation)
-        # Assuming build_cheapest_nurses logic is replaced by a deterministic function
+        # 2. Generate Dependent Data (Certifications and Profiles)
+        self._certificate_records = generate_mock_certification_records(employee_ids, rng_seed=self.rng.getrandbits(32))
         self._nurse_profiles = self._generate_nurse_profiles_from_comp(employee_comp_data)
+
+        # 3. NEW STEP: Generate Raw History Records
+        self._raw_history_records = self._generate_raw_history(self._employees)
+
+    def _generate_raw_history(self, employees: List[Employee]) -> List[RawHistoryRecord]:
+        """
+        Creates mock raw shift assignments and punches for historical lookback.
+        This simulates data retrieved by the IRawHistoryRetriever.
+        """
+        history: List[RawHistoryRecord] = []
+
+        # Use a fixed date in the past for determinism
+        day_in_the_past = pendulum.datetime(2025, 11, 10, tz='UTC')
+
+        for emp in employees:
+            # Simulate a standard 8-hour shift in the past
+            shift_start = day_in_the_past.add(hours=self.rng.randint(8, 12))
+            shift_end = shift_start.add(hours=8)
+
+            shift_id = f"HIST_{emp.employee_id}"
+
+            # 1. Create a Shift Template (for the dictionary key)
+            shift_template = Shift(
+                shift_id=shift_id,
+                shift_start_dt=shift_start,
+                shift_end_dt=shift_end,
+                # Add minimal necessary fields for the Shift model context
+                # employee_id=emp.employee_id,
+                shift_number=1,
+                day_shift=True,
+                day_of_week=pendulum.MONDAY,
+                timezone=pendulum.timezone('UTC')
+            )
+
+            # 2. Create corresponding raw punches (simulating a clean 8-hour punch)
+            punches = [
+                TimePunch(
+                    employee_id=emp.employee_id,
+                    punch_time=shift_start,
+                    raw_punch_id=uuid.uuid4(),
+                    punch_type=PunchType.CHECK_IN,
+                ),
+                TimePunch(
+                    employee_id=emp.employee_id,
+                    punch_time=shift_end,
+                    raw_punch_id=uuid.uuid4(),
+                    punch_type=PunchType.CHECK_OUT,
+                ),
+            ]
+
+            # 3. Add to the list in the required format: (employee_id, Shift, List[TimePunch])
+            # NOTE: We use the employee_id in the tuple for the final retrieval service lookup.
+            history.append((emp.employee_id, shift_template, punches))
+
+        return history
 
     def _generate_nurse_profiles_from_comp(
             self,
@@ -603,6 +654,11 @@ class TestDataProvider:
         return profiles
 
     # --- Properties to Expose Final Data Structures ---
+
+    @property
+    def history_records(self) -> List[RawHistoryRecord]:
+        """Returns the list of (employee_id, Shift, List[TimePunch]) tuples for historical lookups."""
+        return self._raw_history_records
 
     @property
     def employees(self) -> List[Employee]:
@@ -672,7 +728,7 @@ def generate_simulated_employees_deterministic(count: int, start_id: int = 1) ->
 
     # Use fixed values for determinism
     fixed_hire_date = pendulum.datetime(2023, 1, 1, tz='UTC')
-    fixed_comp_start_date = pendulum.datetime(2025, 1, 1, tz='UTC').start_of('day')
+    fixed_comp_start_date = pendulum.datetime(2025, 1, 1, tz='UTC').date()
     job_roles = ["RN", "LPN", "CNA"]  # Use string literals instead of enum if not needed here
 
     # Base rates for deterministic cost calculation

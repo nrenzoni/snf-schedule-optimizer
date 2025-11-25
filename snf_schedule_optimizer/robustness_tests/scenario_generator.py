@@ -91,7 +91,7 @@ class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
                 base_rate_effective=cost_base,
                 # Use a specific multiplier, 1.5 is standard FLSA
                 ot_multiplier=1.5,
-                effective_start_date=now.start_of('day'),
+                effective_start_date=now.date(),
                 is_agency=is_agency,
             )
 
