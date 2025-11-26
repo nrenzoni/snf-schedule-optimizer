@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+package scheduling;
+
+// The main service used to interact with shift and staffing data.
+service SchedulingService {
+  // Retrieves the schedule and HRPD metrics for a given date range (usually a month).
+  rpc GetMonthlySchedule(GetMonthlyScheduleRequest) returns (GetMonthlyScheduleResponse);
+
+  // Example for future mutation: Removes a nurse from a specific shift.
+  rpc RemoveNurseFromShift(RemoveNurseFromShiftRequest) returns (RemoveNurseFromShiftResponse);
+}
+
+// --- Requests and Responses ---
+
+message GetMonthlyScheduleRequest {
+  // Date in YYYY-MM-DD format, usually the start of the month to query.
+  string start_date = 1;
+}
+
+message GetMonthlyScheduleResponse {
+  // A map where the key is the date (YYYY-MM-DD) and the value is the schedule for that day.
+  map<string, DaySchedule> schedules = 1;
+}
+
+message RemoveNurseFromShiftRequest {
+  string shift_date = 1;      // Date of the shift (YYYY-MM-DD)
+  string shift_name = 2;      // Morning, Afternoon, or Night
+  string nurse_id = 3;        // ID of the nurse to remove
+}
+
+message RemoveNurseFromShiftResponse {
+  bool success = 1;
+  string message = 2;
+  // Optionally return the updated DaySchedule
+  DaySchedule updated_schedule = 3;
+}
+
+// --- Data Structures ---
+
+message Nurse {
+  string id = 1;
+  string name = 2;
+  double shift_hours = 3;
+  string scheduling_rationale = 4;
+}
+
+message Shift {
+  string shift_name = 1; // "Morning", "Afternoon", "Night"
+  int32 patient_count = 2;
+  double required_hrpd = 3;
+  double required_hours = 4;
+  double actual_hours = 5;
+  bool is_hrpd_met = 6;
+  repeated Nurse nurses = 7;
+}
+
+message DaySchedule {
+  string date = 1; // YYYY-MM-DD
+  repeated Shift shifts = 2;
+}
