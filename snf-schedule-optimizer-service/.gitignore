@@ -286,3 +286,8 @@ poetry.toml
 pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/python,pycharm
+
+
+# Ignore generated proto files
+src/snf_schedule_optimizer/generated/*
+!src/snf_schedule_optimizer/generated/__init__.py

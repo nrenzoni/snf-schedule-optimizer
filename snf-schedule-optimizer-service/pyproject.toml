@@ -13,6 +13,7 @@ dependencies = [
     "numpy>=2.3.4",
     "pendulum>=3.1.0",
     "polars>=1.35.2",
+    "protobuf>=6.33.1",
     "pulp>=3.3.0",
     "sqlalchemy[mypy]>=2.0.44",
 ]
@@ -53,3 +54,7 @@ python_executable = ".venv/Scripts/python.exe"
 [[tool.mypy.overrides]]
 module = "pulp"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "snf_schedule_optimizer.generated.*"
+ignore_errors = true

@@ -5,3 +5,9 @@ plugins:
   - remote: buf.build/bufbuild/es
     out: ../snf-schedule-optimizer-ui/gen
     opt: target=ts
+  
+  - remote: buf.build/protocolbuffers/python
+    out: ../snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated
+  # 2. Type Stubs (.pyi) - Essential for MyPy support
+  - remote: buf.build/protocolbuffers/pyi
+    out: ../snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated
