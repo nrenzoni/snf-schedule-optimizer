@@ -1,3 +1,8 @@
+// Define domain types used across the UI. We intentionally declare our own
+// lightweight interfaces here (instead of directly re-using the generated
+// protobuf types) so the UI code can rely on consistent property casing and
+// optional fields.
+
 export interface Nurse {
     id: string;
     name: string;
@@ -6,28 +11,34 @@ export interface Nurse {
 }
 
 export interface Shift {
+    // "Morning" | "Afternoon" | "Night"
     shiftName: 'Morning' | 'Afternoon' | 'Night';
     patientCount: number;
-    requiredHRPD: number;
+    // Note: UI logic uses `requiredHRPD` casing (not `requiredHrpd` from proto)
+    requiredHPRD: number;
     requiredHours: number;
     actualHours: number;
-    isHRPDMet: boolean;
+    // UI uses `isHPRDMet` boolean flag
+    isHPRDMet: boolean;
     nurses: Nurse[];
 }
 
 export interface DaySchedule {
-    date: string; // YYYY-MM-DD
+    // YYYY-MM-DD
+    date: string;
     shifts: Shift[];
 }
 
 export interface CalendarDay {
-    date: Date;
+    date: Date | null;
     dateString: string; // YYYY-MM-DD
     dayOfMonth: number;
     isToday: boolean;
     isCurrentMonth: boolean;
     isSelectable: boolean;
     schedule: DaySchedule | null;
-    isDayHRPDMet: boolean;
-    dayHRPDPercentage: number;
+    isDayHPRDMet: boolean;
+    dayHPRDPercentage: number;
+    isPadding: boolean;
+    coverage: number;
 }

@@ -1,7 +1,17 @@
-import {Nurse, Shift, DaySchedule} from '@/types/scheduling';
+import {DaySchedule, Nurse, Shift} from '@/types/scheduling';
 
 export const SHIFT_NAMES: ('Morning' | 'Afternoon' | 'Night')[] = ['Morning', 'Afternoon', 'Night'];
 export const TODAY = new Date();
+
+export const getStartOfWeek = (date: Date): Date => {
+    const day = date.getDay(); // 0 for Sunday, 1 for Monday, etc.
+    const diff = day; // Days to subtract to get to Sunday (the start of the week)
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - diff);
+    startOfWeek.setHours(0, 0, 0, 0);
+    return startOfWeek;
+};
+
 
 // Helper to get the start of the month (1st day)
 export const getStartOfMonth = (date: Date): Date => {
@@ -46,32 +56,35 @@ const createMockNurses = (shiftName: string, baseCount: number, variance: number
 // Creates a single Shift object for a specific time period
 const createShift = (shiftName: 'Morning' | 'Afternoon' | 'Night', date: Date): Shift => {
     const patientCount = 30 + Math.floor(Math.random() * 15);
-    const requiredHRPD = 5.5;
+    const requiredHPRD = 5.5;
     const shiftHours = (shiftName === 'Night' ? 12 : 8);
 
-    const requiredHours = (patientCount / shiftHours) * requiredHRPD;
+    const requiredHours = (patientCount / shiftHours) * requiredHPRD;
 
     const dayOfWeek = date.getDay();
-    let baseNurses = 3;
+    let baseNurses: number;
 
-    if (shiftName === 'Morning') baseNurses = (dayOfWeek === 0 || dayOfWeek === 6) ? 3 : 5;
-    else if (shiftName === 'Afternoon') baseNurses = (dayOfWeek === 0 || dayOfWeek === 6) ? 2 : 4;
-    else baseNurses = 2;
+    if (shiftName === 'Morning')
+        baseNurses = (dayOfWeek === 0 || dayOfWeek === 6) ? 3 : 5;
+    else if (shiftName === 'Afternoon')
+        baseNurses = (dayOfWeek === 0 || dayOfWeek === 6) ? 2 : 4;
+    else
+        baseNurses = 2;
 
     const nurses = createMockNurses(shiftName, baseNurses, 1);
     const actualHours = nurses.reduce((sum, nurse) => sum + nurse.shiftHours, 0);
 
     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-    // Add a bias to fail HRPD on weekends randomly for demonstration
-    const isHRPDMet = actualHours >= requiredHours && (isWeekend ? Math.random() > 0.3 : true);
+    // Add a bias to fail HPRD on weekends randomly for demonstration
+    const isHPRDMet = actualHours >= requiredHours && (isWeekend ? Math.random() > 0.3 : true);
 
     return {
         shiftName,
         patientCount,
-        requiredHRPD,
+        requiredHPRD: requiredHPRD,
         requiredHours,
         actualHours,
-        isHRPDMet,
+        isHPRDMet,
         nurses,
     };
 };

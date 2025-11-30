@@ -1,13 +1,60 @@
 import React, {useMemo} from 'react';
-import {CalendarDay, Shift, Nurse} from '@/types/scheduling';
+import {CalendarDay, Nurse, Shift} from '@/types/scheduling';
 import {useScheduling} from '@/hooks/useScheduling';
 import {NurseDetailsPanel} from './NurseDetailsPanel';
+import {X} from "lucide-react";
 
 interface ShiftModalProps {
     selectedDay: CalendarDay | null;
     isModalVisible: boolean;
     closeModal: () => void;
 }
+
+const ShiftModalNew: React.FC<ShiftModalProps> = ({selectedDay, isModalVisible, closeModal}) => {
+    if (!isModalVisible || !selectedDay) return null;
+
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+            <div
+                className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="bg-indigo-600 p-4 flex justify-between items-center text-white">
+                    <h3 className="text-lg font-bold">Shift Details</h3>
+                    <button onClick={closeModal} className="hover:bg-indigo-700 p-1 rounded">
+                        <X size={20}/>
+                    </button>
+                </div>
+                <div className="p-6">
+                    <p className="text-gray-600 text-lg mb-4">
+                        Date: <span
+                        className="font-semibold text-gray-900">{selectedDay?.date ? selectedDay.date.toDateString() : selectedDay?.dateString}</span>
+                    </p>
+                    <div className="space-y-3">
+                        <div className="flex justify-between p-3 bg-gray-50 rounded border">
+                            <span>Coverage</span>
+                            <span
+                                className={`font-bold ${selectedDay.coverage === 100 ? 'text-green-600' : 'text-red-600'}`}>
+                                {selectedDay.coverage}%
+                            </span>
+                        </div>
+                        <div className="flex justify-between p-3 bg-gray-50 rounded border">
+                            <span>Staff Scheduled</span>
+                            <span className="font-bold text-gray-800">12 / 12</span>
+                        </div>
+                    </div>
+                    <div className="mt-6 flex justify-end">
+                        <button
+                            onClick={closeModal}
+                            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export const ShiftModal: React.FC<ShiftModalProps> = ({selectedDay, isModalVisible, closeModal}) => {
     const {
@@ -37,7 +84,7 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({selectedDay, isModalVisib
                 <div className="flex-grow p-6 flex flex-col min-w-[20rem]">
                     <div className="flex justify-between items-start mb-4 border-b pb-3">
                         <h3 className="text-2xl font-semibold text-gray-800">
-                            Schedule: {modalDateFormatter.format(selectedDay.date)}
+                            Schedule: {selectedDay.date ? modalDateFormatter.format(selectedDay.date) : selectedDay.dateString}
                         </h3>
                         <button onClick={closeModal} className="text-gray-400 hover:text-gray-600">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -54,11 +101,11 @@ export const ShiftModal: React.FC<ShiftModalProps> = ({selectedDay, isModalVisib
                                  onClick={() => selectShift(shift)}
                                  className={`p-3 rounded-lg border transition duration-150 cursor-pointer 
                               ${selectedShift?.shiftName === shift.shiftName ? 'ring-2 ring-indigo-500 shadow-lg bg-white' : 'hover:shadow-md'}
-                              ${shift.isHRPDMet && selectedShift?.shiftName !== shift.shiftName ? 'bg-green-100' : ''}
-                              ${!shift.isHRPDMet && selectedShift?.shiftName !== shift.shiftName ? 'bg-red-100' : ''}`}>
+                              ${shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? 'bg-green-100' : ''}
+                              ${!shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? 'bg-red-100' : ''}`}>
                                 <div className="flex justify-between items-center mb-1">
-                                    <p className={`font-bold text-lg ${shift.isHRPDMet ? 'text-green-700' : 'text-red-700'}`}>
-                                        {shift.shiftName} Shift: {shift.isHRPDMet ? 'MET' : 'NOT MET'}
+                                    <p className={`font-bold text-lg ${shift.isHPRDMet ? 'text-green-700' : 'text-red-700'}`}>
+                                        {shift.shiftName} Shift: {shift.isHPRDMet ? 'MET' : 'NOT MET'}
                                     </p>
                                     <span
                                         className="text-sm font-medium text-gray-500">({shift.nurses.length} Nurses)</span>

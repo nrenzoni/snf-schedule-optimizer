@@ -2,26 +2,26 @@
 // @generated from file schema/scheduling.proto (package scheduling, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Message } from "@bufbuild/protobuf";
+import type {GenFile, GenMessage, GenService} from "@bufbuild/protobuf/codegenv2";
+import {fileDesc, messageDesc, serviceDesc} from "@bufbuild/protobuf/codegenv2";
+import type {Message} from "@bufbuild/protobuf";
 
 /**
  * Describes the file schema/scheduling.proto.
  */
 export const file_schema_scheduling: GenFile = /*@__PURE__*/
-  fileDesc("ChdzY2hlbWEvc2NoZWR1bGluZy5wcm90bxIKc2NoZWR1bGluZyIvChlHZXRNb250aGx5U2NoZWR1bGVSZXF1ZXN0EhIKCnN0YXJ0X2RhdGUYASABKAkisQEKGkdldE1vbnRobHlTY2hlZHVsZVJlc3BvbnNlEkgKCXNjaGVkdWxlcxgBIAMoCzI1LnNjaGVkdWxpbmcuR2V0TW9udGhseVNjaGVkdWxlUmVzcG9uc2UuU2NoZWR1bGVzRW50cnkaSQoOU2NoZWR1bGVzRW50cnkSCwoDa2V5GAEgASgJEiYKBXZhbHVlGAIgASgLMhcuc2NoZWR1bGluZy5EYXlTY2hlZHVsZToCOAEiVwobUmVtb3ZlTnVyc2VGcm9tU2hpZnRSZXF1ZXN0EhIKCnNoaWZ0X2RhdGUYASABKAkSEgoKc2hpZnRfbmFtZRgCIAEoCRIQCghudXJzZV9pZBgDIAEoCSJzChxSZW1vdmVOdXJzZUZyb21TaGlmdFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSDwoHbWVzc2FnZRgCIAEoCRIxChB1cGRhdGVkX3NjaGVkdWxlGAMgASgLMhcuc2NoZWR1bGluZy5EYXlTY2hlZHVsZSJUCgVOdXJzZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC3NoaWZ0X2hvdXJzGAMgASgBEhwKFHNjaGVkdWxpbmdfcmF0aW9uYWxlGAQgASgJIq8BCgVTaGlmdBISCgpzaGlmdF9uYW1lGAEgASgJEhUKDXBhdGllbnRfY291bnQYAiABKAUSFQoNcmVxdWlyZWRfaHJwZBgDIAEoARIWCg5yZXF1aXJlZF9ob3VycxgEIAEoARIUCgxhY3R1YWxfaG91cnMYBSABKAESEwoLaXNfaHJwZF9tZXQYBiABKAgSIQoGbnVyc2VzGAcgAygLMhEuc2NoZWR1bGluZy5OdXJzZSI+CgtEYXlTY2hlZHVsZRIMCgRkYXRlGAEgASgJEiEKBnNoaWZ0cxgCIAMoCzIRLnNjaGVkdWxpbmcuU2hpZnQy4wEKEVNjaGVkdWxpbmdTZXJ2aWNlEmMKEkdldE1vbnRobHlTY2hlZHVsZRIlLnNjaGVkdWxpbmcuR2V0TW9udGhseVNjaGVkdWxlUmVxdWVzdBomLnNjaGVkdWxpbmcuR2V0TW9udGhseVNjaGVkdWxlUmVzcG9uc2USaQoUUmVtb3ZlTnVyc2VGcm9tU2hpZnQSJy5zY2hlZHVsaW5nLlJlbW92ZU51cnNlRnJvbVNoaWZ0UmVxdWVzdBooLnNjaGVkdWxpbmcuUmVtb3ZlTnVyc2VGcm9tU2hpZnRSZXNwb25zZWIGcHJvdG8z");
+    fileDesc("ChdzY2hlbWEvc2NoZWR1bGluZy5wcm90bxIKc2NoZWR1bGluZyIvChlHZXRNb250aGx5U2NoZWR1bGVSZXF1ZXN0EhIKCnN0YXJ0X2RhdGUYASABKAkisQEKGkdldE1vbnRobHlTY2hlZHVsZVJlc3BvbnNlEkgKCXNjaGVkdWxlcxgBIAMoCzI1LnNjaGVkdWxpbmcuR2V0TW9udGhseVNjaGVkdWxlUmVzcG9uc2UuU2NoZWR1bGVzRW50cnkaSQoOU2NoZWR1bGVzRW50cnkSCwoDa2V5GAEgASgJEiYKBXZhbHVlGAIgASgLMhcuc2NoZWR1bGluZy5EYXlTY2hlZHVsZToCOAEiVwobUmVtb3ZlTnVyc2VGcm9tU2hpZnRSZXF1ZXN0EhIKCnNoaWZ0X2RhdGUYASABKAkSEgoKc2hpZnRfbmFtZRgCIAEoCRIQCghudXJzZV9pZBgDIAEoCSJzChxSZW1vdmVOdXJzZUZyb21TaGlmdFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSDwoHbWVzc2FnZRgCIAEoCRIxChB1cGRhdGVkX3NjaGVkdWxlGAMgASgLMhcuc2NoZWR1bGluZy5EYXlTY2hlZHVsZSJUCgVOdXJzZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC3NoaWZ0X2hvdXJzGAMgASgBEhwKFHNjaGVkdWxpbmdfcmF0aW9uYWxlGAQgASgJIq8BCgVTaGlmdBISCgpzaGlmdF9uYW1lGAEgASgJEhUKDXBhdGllbnRfY291bnQYAiABKAUSFQoNcmVxdWlyZWRfaHJwZBgDIAEoARIWCg5yZXF1aXJlZF9ob3VycxgEIAEoARIUCgxhY3R1YWxfaG91cnMYBSABKAESEwoLaXNfaHJwZF9tZXQYBiABKAgSIQoGbnVyc2VzGAcgAygLMhEuc2NoZWR1bGluZy5OdXJzZSI+CgtEYXlTY2hlZHVsZRIMCgRkYXRlGAEgASgJEiEKBnNoaWZ0cxgCIAMoCzIRLnNjaGVkdWxpbmcuU2hpZnQy4wEKEVNjaGVkdWxpbmdTZXJ2aWNlEmMKEkdldE1vbnRobHlTY2hlZHVsZRIlLnNjaGVkdWxpbmcuR2V0TW9udGhseVNjaGVkdWxlUmVxdWVzdBomLnNjaGVkdWxpbmcuR2V0TW9udGhseVNjaGVkdWxlUmVzcG9uc2USaQoUUmVtb3ZlTnVyc2VGcm9tU2hpZnQSJy5zY2hlZHVsaW5nLlJlbW92ZU51cnNlRnJvbVNoaWZ0UmVxdWVzdBooLnNjaGVkdWxpbmcuUmVtb3ZlTnVyc2VGcm9tU2hpZnRSZXNwb25zZWIGcHJvdG8z");
 
 /**
  * @generated from message scheduling.GetMonthlyScheduleRequest
  */
 export type GetMonthlyScheduleRequest = Message<"scheduling.GetMonthlyScheduleRequest"> & {
-  /**
-   * Date in YYYY-MM-DD format, usually the start of the month to query.
-   *
-   * @generated from field: string start_date = 1;
-   */
-  startDate: string;
+    /**
+     * Date in YYYY-MM-DD format, usually the start of the month to query.
+     *
+     * @generated from field: string start_date = 1;
+     */
+    startDate: string;
 };
 
 /**
@@ -29,18 +29,18 @@ export type GetMonthlyScheduleRequest = Message<"scheduling.GetMonthlyScheduleRe
  * Use `create(GetMonthlyScheduleRequestSchema)` to create a new message.
  */
 export const GetMonthlyScheduleRequestSchema: GenMessage<GetMonthlyScheduleRequest> = /*@__PURE__*/
-  messageDesc(file_schema_scheduling, 0);
+    messageDesc(file_schema_scheduling, 0);
 
 /**
  * @generated from message scheduling.GetMonthlyScheduleResponse
  */
 export type GetMonthlyScheduleResponse = Message<"scheduling.GetMonthlyScheduleResponse"> & {
-  /**
-   * A map where the key is the date (YYYY-MM-DD) and the value is the schedule for that day.
-   *
-   * @generated from field: map<string, scheduling.DaySchedule> schedules = 1;
-   */
-  schedules: { [key: string]: DaySchedule };
+    /**
+     * A map where the key is the date (YYYY-MM-DD) and the value is the schedule for that day.
+     *
+     * @generated from field: map<string, scheduling.DaySchedule> schedules = 1;
+     */
+    schedules: { [key: string]: DaySchedule };
 };
 
 /**
@@ -48,32 +48,32 @@ export type GetMonthlyScheduleResponse = Message<"scheduling.GetMonthlyScheduleR
  * Use `create(GetMonthlyScheduleResponseSchema)` to create a new message.
  */
 export const GetMonthlyScheduleResponseSchema: GenMessage<GetMonthlyScheduleResponse> = /*@__PURE__*/
-  messageDesc(file_schema_scheduling, 1);
+    messageDesc(file_schema_scheduling, 1);
 
 /**
  * @generated from message scheduling.RemoveNurseFromShiftRequest
  */
 export type RemoveNurseFromShiftRequest = Message<"scheduling.RemoveNurseFromShiftRequest"> & {
-  /**
-   * Date of the shift (YYYY-MM-DD)
-   *
-   * @generated from field: string shift_date = 1;
-   */
-  shiftDate: string;
+    /**
+     * Date of the shift (YYYY-MM-DD)
+     *
+     * @generated from field: string shift_date = 1;
+     */
+    shiftDate: string;
 
-  /**
-   * Morning, Afternoon, or Night
-   *
-   * @generated from field: string shift_name = 2;
-   */
-  shiftName: string;
+    /**
+     * Morning, Afternoon, or Night
+     *
+     * @generated from field: string shift_name = 2;
+     */
+    shiftName: string;
 
-  /**
-   * ID of the nurse to remove
-   *
-   * @generated from field: string nurse_id = 3;
-   */
-  nurseId: string;
+    /**
+     * ID of the nurse to remove
+     *
+     * @generated from field: string nurse_id = 3;
+     */
+    nurseId: string;
 };
 
 /**
@@ -81,28 +81,28 @@ export type RemoveNurseFromShiftRequest = Message<"scheduling.RemoveNurseFromShi
  * Use `create(RemoveNurseFromShiftRequestSchema)` to create a new message.
  */
 export const RemoveNurseFromShiftRequestSchema: GenMessage<RemoveNurseFromShiftRequest> = /*@__PURE__*/
-  messageDesc(file_schema_scheduling, 2);
+    messageDesc(file_schema_scheduling, 2);
 
 /**
  * @generated from message scheduling.RemoveNurseFromShiftResponse
  */
 export type RemoveNurseFromShiftResponse = Message<"scheduling.RemoveNurseFromShiftResponse"> & {
-  /**
-   * @generated from field: bool success = 1;
-   */
-  success: boolean;
+    /**
+     * @generated from field: bool success = 1;
+     */
+    success: boolean;
 
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
+    /**
+     * @generated from field: string message = 2;
+     */
+    message: string;
 
-  /**
-   * Optionally return the updated DaySchedule
-   *
-   * @generated from field: scheduling.DaySchedule updated_schedule = 3;
-   */
-  updatedSchedule?: DaySchedule;
+    /**
+     * Optionally return the updated DaySchedule
+     *
+     * @generated from field: scheduling.DaySchedule updated_schedule = 3;
+     */
+    updatedSchedule?: DaySchedule;
 };
 
 /**
@@ -110,31 +110,31 @@ export type RemoveNurseFromShiftResponse = Message<"scheduling.RemoveNurseFromSh
  * Use `create(RemoveNurseFromShiftResponseSchema)` to create a new message.
  */
 export const RemoveNurseFromShiftResponseSchema: GenMessage<RemoveNurseFromShiftResponse> = /*@__PURE__*/
-  messageDesc(file_schema_scheduling, 3);
+    messageDesc(file_schema_scheduling, 3);
 
 /**
  * @generated from message scheduling.Nurse
  */
 export type Nurse = Message<"scheduling.Nurse"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
+    /**
+     * @generated from field: string id = 1;
+     */
+    id: string;
 
-  /**
-   * @generated from field: string name = 2;
-   */
-  name: string;
+    /**
+     * @generated from field: string name = 2;
+     */
+    name: string;
 
-  /**
-   * @generated from field: double shift_hours = 3;
-   */
-  shiftHours: number;
+    /**
+     * @generated from field: double shift_hours = 3;
+     */
+    shiftHours: number;
 
-  /**
-   * @generated from field: string scheduling_rationale = 4;
-   */
-  schedulingRationale: string;
+    /**
+     * @generated from field: string scheduling_rationale = 4;
+     */
+    schedulingRationale: string;
 };
 
 /**
@@ -142,48 +142,48 @@ export type Nurse = Message<"scheduling.Nurse"> & {
  * Use `create(NurseSchema)` to create a new message.
  */
 export const NurseSchema: GenMessage<Nurse> = /*@__PURE__*/
-  messageDesc(file_schema_scheduling, 4);
+    messageDesc(file_schema_scheduling, 4);
 
 /**
  * @generated from message scheduling.Shift
  */
 export type Shift = Message<"scheduling.Shift"> & {
-  /**
-   * "Morning", "Afternoon", "Night"
-   *
-   * @generated from field: string shift_name = 1;
-   */
-  shiftName: string;
+    /**
+     * "Morning", "Afternoon", "Night"
+     *
+     * @generated from field: string shift_name = 1;
+     */
+    shiftName: string;
 
-  /**
-   * @generated from field: int32 patient_count = 2;
-   */
-  patientCount: number;
+    /**
+     * @generated from field: int32 patient_count = 2;
+     */
+    patientCount: number;
 
-  /**
-   * @generated from field: double required_hrpd = 3;
-   */
-  requiredHrpd: number;
+    /**
+     * @generated from field: double required_hrpd = 3;
+     */
+    requiredHrpd: number;
 
-  /**
-   * @generated from field: double required_hours = 4;
-   */
-  requiredHours: number;
+    /**
+     * @generated from field: double required_hours = 4;
+     */
+    requiredHours: number;
 
-  /**
-   * @generated from field: double actual_hours = 5;
-   */
-  actualHours: number;
+    /**
+     * @generated from field: double actual_hours = 5;
+     */
+    actualHours: number;
 
-  /**
-   * @generated from field: bool is_hrpd_met = 6;
-   */
-  isHrpdMet: boolean;
+    /**
+     * @generated from field: bool is_hrpd_met = 6;
+     */
+    isHrpdMet: boolean;
 
-  /**
-   * @generated from field: repeated scheduling.Nurse nurses = 7;
-   */
-  nurses: Nurse[];
+    /**
+     * @generated from field: repeated scheduling.Nurse nurses = 7;
+     */
+    nurses: Nurse[];
 };
 
 /**
@@ -191,23 +191,23 @@ export type Shift = Message<"scheduling.Shift"> & {
  * Use `create(ShiftSchema)` to create a new message.
  */
 export const ShiftSchema: GenMessage<Shift> = /*@__PURE__*/
-  messageDesc(file_schema_scheduling, 5);
+    messageDesc(file_schema_scheduling, 5);
 
 /**
  * @generated from message scheduling.DaySchedule
  */
 export type DaySchedule = Message<"scheduling.DaySchedule"> & {
-  /**
-   * YYYY-MM-DD
-   *
-   * @generated from field: string date = 1;
-   */
-  date: string;
+    /**
+     * YYYY-MM-DD
+     *
+     * @generated from field: string date = 1;
+     */
+    date: string;
 
-  /**
-   * @generated from field: repeated scheduling.Shift shifts = 2;
-   */
-  shifts: Shift[];
+    /**
+     * @generated from field: repeated scheduling.Shift shifts = 2;
+     */
+    shifts: Shift[];
 };
 
 /**
@@ -215,7 +215,7 @@ export type DaySchedule = Message<"scheduling.DaySchedule"> & {
  * Use `create(DayScheduleSchema)` to create a new message.
  */
 export const DayScheduleSchema: GenMessage<DaySchedule> = /*@__PURE__*/
-  messageDesc(file_schema_scheduling, 6);
+    messageDesc(file_schema_scheduling, 6);
 
 /**
  * The main service used to interact with shift and staffing data.
@@ -223,26 +223,26 @@ export const DayScheduleSchema: GenMessage<DaySchedule> = /*@__PURE__*/
  * @generated from service scheduling.SchedulingService
  */
 export const SchedulingService: GenService<{
-  /**
-   * Retrieves the schedule and HRPD metrics for a given date range (usually a month).
-   *
-   * @generated from rpc scheduling.SchedulingService.GetMonthlySchedule
-   */
-  getMonthlySchedule: {
-    methodKind: "unary";
-    input: typeof GetMonthlyScheduleRequestSchema;
-    output: typeof GetMonthlyScheduleResponseSchema;
-  },
-  /**
-   * Example for future mutation: Removes a nurse from a specific shift.
-   *
-   * @generated from rpc scheduling.SchedulingService.RemoveNurseFromShift
-   */
-  removeNurseFromShift: {
-    methodKind: "unary";
-    input: typeof RemoveNurseFromShiftRequestSchema;
-    output: typeof RemoveNurseFromShiftResponseSchema;
-  },
+    /**
+     * Retrieves the schedule and HRPD metrics for a given date range (usually a month).
+     *
+     * @generated from rpc scheduling.SchedulingService.GetMonthlySchedule
+     */
+    getMonthlySchedule: {
+        methodKind: "unary";
+        input: typeof GetMonthlyScheduleRequestSchema;
+        output: typeof GetMonthlyScheduleResponseSchema;
+    },
+    /**
+     * Example for future mutation: Removes a nurse from a specific shift.
+     *
+     * @generated from rpc scheduling.SchedulingService.RemoveNurseFromShift
+     */
+    removeNurseFromShift: {
+        methodKind: "unary";
+        input: typeof RemoveNurseFromShiftRequestSchema;
+        output: typeof RemoveNurseFromShiftResponseSchema;
+    },
 }> = /*@__PURE__*/
-  serviceDesc(file_schema_scheduling, 0);
+    serviceDesc(file_schema_scheduling, 0);
 
