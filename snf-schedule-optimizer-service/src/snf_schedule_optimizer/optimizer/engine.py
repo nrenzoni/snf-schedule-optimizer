@@ -1,16 +1,10 @@
-import abc
-import enum
 from collections import defaultdict
-from dataclasses import dataclass
+
+import pulp
+from pulp import LpMinimize, LpProblem
 import pendulum
 
-import numpy as np
-import pulp
-from pulp import LpMinimize, LpProblem, LpVariable
-
 from snf_schedule_optimizer.models import *
-from snf_schedule_optimizer.datetime_utils import is_weekend
-from snf_schedule_optimizer.ml_output_retrievers import IMLModelOutputsRetriever
 from snf_schedule_optimizer.optimizer.context import (
     FacilityScenarioContext,
     LpNurseShiftVariableHolder,
@@ -28,21 +22,6 @@ from snf_schedule_optimizer.optimizer.models import (
 from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.variables import (
     CoreVariableGenerationStrategy,
-)
-from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
-from snf_schedule_optimizer.resident_acuity_retrievers import (
-    IResidentAcuityPerShiftRetriever,
-)
-from snf_schedule_optimizer.services.hr.interfaces import (
-    IEmployeeRetriever,
-    IStaffCompensationService,
-)
-from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IPreferencePenaltyProcessor,
-    IShiftRequirementsRetriever,
-)
-from snf_schedule_optimizer.services.timekeeping.interfaces import (
-    IEmployeeWorkHistoryService,
 )
 
 
