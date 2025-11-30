@@ -28,19 +28,6 @@ from snf_schedule_optimizer.services.timekeeping.interfaces import (
 )
 
 
-class OvertimeRuleType(enum.StrEnum):
-    WEEKLY_VOLUME = "WEEKLY_VOLUME"  # Classic > 40 hours
-    CALIFORNIA_DAILY = "CALIFORNIA_DAILY"  # > 8 hours in a day is OT
-    CONSECUTIVE_DAYS = "CONSECUTIVE_DAYS"  # > N days in a row is OT
-
-
-@dataclass(frozen=True)
-class OvertimeConfig:
-    rule_type: OvertimeRuleType
-    threshold: float  # e.g., 40.0 for weekly, 8.0 for daily, 6.0 for consecutive
-    ot_multiplier: float = 1.5
-
-
 @dataclass(frozen=True)
 class ShiftCostBreakdown:
     base_wage: float  # Hourly Rate * Hours
@@ -61,11 +48,6 @@ class ShiftCostBreakdown:
             + self.shift_differentials
             + self.incentive_bonuses
         )
-
-
-@dataclass(frozen=True)
-class ScheduleOptimizationParams:
-    pass
 
 
 class InfeasibilityReason(enum.StrEnum):
@@ -98,23 +80,6 @@ class FacilityScenarioContext:
     config: FacilityConfig
     min_mandates: MinMandates
     # Future: Facility-specific acuity data, etc.
-
-
-@dataclass
-class OptimizationContext:
-    """
-    Holds transient data calculated during the optimization lifecycle,
-    shared between different strategies.
-    """
-
-    shifts: List[Shift]
-    facility_config: FacilityConfig
-    # ... other configs ...
-    all_employees: List[Employee]  # Pre-fetched list
-
-    # Data calculated in Phase 1 (Pre-calculation)
-    hprd_requirements: Optional["HprdShiftNurseRequirementHolder"] = None
-    # Potentially pre-calculated financial data, unavailable staff lists, etc.
 
 
 class LpNurseShiftVariableHolder:
