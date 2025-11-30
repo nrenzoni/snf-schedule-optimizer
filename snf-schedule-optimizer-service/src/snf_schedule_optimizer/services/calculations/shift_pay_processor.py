@@ -47,9 +47,17 @@ class ShiftPayProcessor:
             self.eligibility_service.get_applicable_rules(employee, shift)
         )
 
-        nurse_shift_history = self.work_history_service.get_processed_history_for_period(
+        work_segment_history = self.work_history_service.get_processed_history_for_period(
             employee.employee_id,
             shift.shift_start_dt
+        )
+
+        # Get concrete overtime intervals
+        overtime_intervals = self.ot_calculator.get_overtime_intervals(
+            shift,
+            employee,
+            work_segment_history,
+            overtime_rules
         )
 
         # Convert abstract rules into concrete time intervals
@@ -58,14 +66,6 @@ class ShiftPayProcessor:
             differential_intervals.extend(
                 rule.get_applicable_intervals_for_shift(shift)
             )
-
-        # Get concrete overtime intervals
-        overtime_intervals = self.ot_calculator.get_overtime_intervals(
-            shift,
-            employee,
-            nurse_shift_history,
-            overtime_rules
-        )
 
         # Phase 2: Slice the Shift
         segments: List[WorkedShiftSegment] = self.slicer.slice_shift(

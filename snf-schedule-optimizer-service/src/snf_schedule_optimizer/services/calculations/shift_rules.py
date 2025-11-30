@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from snf_schedule_optimizer.models import Differential, DifferentialDateInterval, Shift
 from snf_schedule_optimizer.datetime_utils import is_weekend
@@ -14,6 +14,14 @@ class DailyPatternDifferentialRule(IDifferentialRule):
     @property
     def differential(self) -> Differential:
         return self._differential
+
+    @property
+    def priority(self) -> int:
+        raise NotImplementedError()
+
+    @property
+    def applicable_job_titles(self) -> Optional[List[str]]:
+        raise NotImplementedError()
 
     def get_applicable_intervals_for_shift(
             self,

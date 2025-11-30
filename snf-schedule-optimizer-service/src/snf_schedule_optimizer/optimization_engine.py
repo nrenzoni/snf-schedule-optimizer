@@ -16,7 +16,7 @@ from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.resident_acuity_retrievers import IResidentAcuityPerShiftRetriever
 from snf_schedule_optimizer.services.calculations.shift_pay_processor import ShiftPayProcessor
 from snf_schedule_optimizer.services.interfaces import IEmployeeRetriever, INurseDifferentialRetriever, \
-    IShiftRequirementsRetriever, IStaffCompensationService
+    IPreferencePenaltyProcessor, IShiftRequirementsRetriever, IStaffCompensationService
 
 
 class LpNurseShiftVariableHolder:
@@ -82,97 +82,6 @@ class NurseHardBlockCheckerImpl(INurseHardBlockChecker):
         #    return False
 
 
-class IPreferencePenaltyCalcFn(abc.ABC):
-    @abc.abstractmethod
-    def __call__(
-            self,
-            employee: Employee,
-            nurse: NurseProfile,
-            shift: Shift,
-            preference_weights: PreferenceWeights,
-    ) -> float:
-        pass
-
-
-class PreferencePenaltyCalcFnImpl(IPreferencePenaltyCalcFn):
-
-    def __init__(
-            self,
-            staff_compensation_service: IStaffCompensationService,
-    ):
-        self.staff_compensation_service = staff_compensation_service
-
-    def __call__(
-            self,
-            employee: Employee,
-            nurse: NurseProfile,
-            shift: Shift,
-            preference_weights: PreferenceWeights,
-    ) -> float:
-        """
-        Calculates the non-financial penalty cost if the assignment violates a soft preference.
-        This cost is added to the LP objective function.
-        """
-        penalty = 0.0
-
-        # Penalize assigning a nurse to a night shift if they prefer days
-        if not shift.day_shift:
-            if (
-                    nurse.shift_custom_preferences and
-                    any(p for p in nurse.shift_custom_preferences if p.preference_type.DAY_SHIFT_PREFERENCE)
-            ):
-                # The 'weights' parameter controls the impact of this penalty on the solver
-                penalty += preference_weights.custom_preference_penalty
-
-        if shift.day_shift:
-            if (
-                    nurse.shift_custom_preferences and
-                    any(p for p in nurse.shift_custom_preferences if p.preference_type.NIGHT_SHIFT_PREFERENCE)
-            ):
-                penalty += preference_weights.custom_preference_penalty
-
-        if nurse.shift_custom_preferences is not None:
-            preference_day_string: Optional[str]
-            for p in nurse.shift_custom_preferences:
-                preference_day_int = int(p.specific_value) if p.specific_value is not None else -1
-                if p.preference_type == PreferenceType.SPECIFIC_DAY_OFF:
-                    try:
-                        preference_day_int = int(p.specific_value) if p.specific_value is not None else -1
-                        if shift.day_of_week.value == preference_day_int:
-                            penalty += preference_weights.custom_preference_penalty
-                            break
-                    except ValueError:
-                        # Ignore invalid preference values
-                        pass
-
-        # FIX: The ot_multiplier is not on NurseProfile. Delegate the multiplier check 
-        # to the ShiftPayProcessor or assume a standard rate for soft penalty calculation.
-        # Here, we assume the base_rate is enough proxy cost.
-        comp_record = self.staff_compensation_service.get_record_for_date(employee.employee_id, shift.shift_start_dt)
-        if comp_record is None:
-            raise ValueError(f"Missing compensation record for {employee.employee_id=}, {shift.shift_start_dt=}")
-        if self._is_overtime_risk(nurse, shift.day_shift):
-            # Use nurse.base_rate (which is on NurseProfile now) as a proxy for cost
-            penalty += preference_weights.ot_avoidance_penalty * comp_record.base_rate_effective
-
-        # Future implementation: Incorporate penalties for breaking team consistency here
-        # 
-
-        return penalty
-
-    @staticmethod
-    def _is_overtime_risk(nurse: NurseProfile, day_shift: int) -> bool:
-        """
-        Predictive check: Determines if assigning this shift will push the nurse into OT.
-        This logic is complex and requires knowledge of past scheduled shifts.
-        """
-        # Placeholder: In a real system, this would query scheduled hours from the DB.
-        # For this structure, we assume an abstract complexity check.
-        # if nurse.scheduled_hours_to_date > 32 and nurse.role != 'Agency':
-        #     return True
-        return False
-
-
 @dataclass(frozen=True)
 class ScheduleOptimizationParams:
     pass
@@ -205,7 +114,7 @@ class HprdShiftNurseRequirementHolder:
     def __init__(
             self,
             shifts: List[str],  # shift_ids
-            roles: List[NurseRole],
+            roles: List[HprdEnforcedRole],
     ):
         # self.values: np.ndarray[Any, np.dtype[np.float64]]  # Shape: (n_shifts, n_roles)
         self.values = np.zeros((len(shifts), len(roles) + 1))
@@ -213,12 +122,12 @@ class HprdShiftNurseRequirementHolder:
         self.shifts = shifts  # shift_ids
         self.roles = roles
 
-    def __setitem__(self, key: Tuple[str, NurseRole], value: float) -> None:  # (shift_id, NurseRole)
+    def __setitem__(self, key: Tuple[str, HprdEnforcedRole], value: float) -> None:  # (shift_id, NurseRole)
         shift_idx = self.shifts.index(key[0])
         role_idx = self.roles.index(key[1])
         self.values[shift_idx, role_idx] = value
 
-    def __getitem__(self, key: Tuple[str, NurseRole]) -> float:  # (shift_id, NurseRole)
+    def __getitem__(self, key: Tuple[str, HprdEnforcedRole]) -> float:  # (shift_id, NurseRole)
         shift_idx = self.shifts.index(key[0])
         role_idx = self.roles.index(key[1])
         return float(self.values[shift_idx, role_idx])
@@ -249,6 +158,7 @@ class NurseShiftScheduleOptimizer:
             shift_pay_processor: ShiftPayProcessor,
             employee_retriever: IEmployeeRetriever,
             staff_compensation_service: IStaffCompensationService,
+            preference_penalty_processor: IPreferencePenaltyProcessor,
     ) -> None:
         self.nurse_hard_block_checker_fn = NurseHardBlockCheckerImpl()
         self.resident_acuity_retriever = resident_acuity_retriever
@@ -260,9 +170,10 @@ class NurseShiftScheduleOptimizer:
         self.employee_retriever = employee_retriever
         self.staff_compensation_service = staff_compensation_service
 
-        self.preference_penalty_calc_fn = PreferencePenaltyCalcFnImpl(
-            self.staff_compensation_service
-        )
+        self.preference_penalty_processor = preference_penalty_processor
+        # PreferencePenaltyProcessorImpl(
+        #     self.staff_compensation_service
+        # )
 
     def solve(
             self,
@@ -285,7 +196,7 @@ class NurseShiftScheduleOptimizer:
             min_mandate
         )
 
-        infeasibility_result = self.add_constraints(
+        infeasibility_result = self.add_min_hprd_per_shift_constraints(
             required_hprd_role_req_hours,
             shifts,
             facility_hr_config,
@@ -363,9 +274,9 @@ class NurseShiftScheduleOptimizer:
 
         return Schedule(assignments)
 
-    def add_constraints(
+    def add_min_hprd_per_shift_constraints(
             self,
-            required_nurse_hprd_count: HprdShiftNurseRequirementHolder,
+            required_hprd_per_position_holder: HprdShiftNurseRequirementHolder,
             shifts: List[Shift],
             facility_hr_config: FacilityHrConfig,
             problem: LpProblem,
@@ -375,34 +286,32 @@ class NurseShiftScheduleOptimizer:
 
         # 1. HPRD Coverage (The Core Constraint)
         for shift in shifts:
-            for nurse_role in required_nurse_hprd_count.roles:
-                required_count = required_nurse_hprd_count[shift.shift_id, nurse_role]
+            for hprd_enforced_role in required_hprd_per_position_holder.roles:
+                required_count = required_hprd_per_position_holder[shift.shift_id, hprd_enforced_role]
                 if required_count > 0:
-                    all_nurses = self.nurse_retriever.get_nurses(shift)
-                    available_nurses_for_shift = []
+                    all_employees = self.employee_retriever.get_all_employees()
+                    available_for_shift = []
 
-                    for n_profile in all_nurses:
-                        # FIX 1: Fetch the Employee object for job_title
-                        employee = self.employee_retriever.get_employee_by_id(n_profile.employee_id)
+                    for employee in all_employees:
+                        employee = self.employee_retriever.get_employee_by_id(employee.employee_id)
 
-                        # Guard against missing employee data
                         if employee is None:
                             continue
 
-                        # FIX 2: Check employee.job_title against the required role string
-                        if employee.job_title == nurse_role.value:
-                            if not self.nurse_hard_block_checker_fn(n_profile, shift):
-                                available_nurses_for_shift.append(
-                                    lp_variables_holder.get_variable(n_profile.employee_id, shift.shift_id)
+                        if employee.job_title == hprd_enforced_role.value:
+                            nurse = self.nurse_retriever.get_nurse(employee.employee_id)
+                            if not self.nurse_hard_block_checker_fn(nurse, shift):
+                                available_for_shift.append(
+                                    lp_variables_holder.get_variable(employee.employee_id, shift.shift_id)
                                 )
-                    if len(available_nurses_for_shift) == 0:
+                    if len(available_for_shift) == 0:
                         return InfeasibilityReasonResult(
                             InfeasibilityReason.NO_AVAILABLE_NURSES,
-                            f"No available nurses for role {nurse_role.value} on shift {shift.shift_id}"
+                            f"No available nurses for role {hprd_enforced_role.value} on shift {shift.shift_id}"
                         )
 
-                    problem += pulp.lpSum(available_nurses_for_shift) >= required_count, \
-                        f"HPRD_Min_Nurse_Count__{shift.shift_id}__{nurse_role.value}"
+                    problem += pulp.lpSum(available_for_shift) >= required_count, \
+                        f"HPRD_Min_Nurse_Count__{shift.shift_id}__{hprd_enforced_role.value}"
 
         # 2. Fatigue/Rest hard constraint
         # Ensure no nurse works consecutive shifts without adequate rest.
@@ -454,30 +363,33 @@ class NurseShiftScheduleOptimizer:
 
         for shift in shifts:
             get_model_outputs = self.ml_model_outputs_retriever.get_model_outputs(shift)
-            nurses = self.nurse_retriever.get_nurses(shift)
+            nurses = self.nurse_retriever.get_nurses(
+                shift
+            )  # todo: change to get employees, and maybe add EmployeeShiftFilterService, then remove NurseRetriever
             for nurse in nurses:
                 turnover_risk = get_model_outputs.turnover_risk_scores.get(nurse.employee_id, 0.0)
 
-                employee_object = self.employee_retriever.get_employee_by_id(nurse.employee_id)
-                if employee_object is None:
-                    continue  # Skip if no HR record found
+                employee = self.employee_retriever.get_employee_by_id(nurse.employee_id)
+                if employee is None:
+                    print(f"Employee {nurse.employee_id} not found for shift {shift.shift_id}")
+                    continue
 
-                var = var_holder.get_variable(nurse.employee_id, shift.shift_id)
+                employee_shift_lp_var = var_holder.get_variable(nurse.employee_id, shift.shift_id)
 
                 cost = self.shift_pay_processor.calculate_shift_cost(
-                    employee_object,
+                    employee,
                     shift
                 )  # Includes OT/Agency multipliers
 
                 # Add preference penalties as a weighted cost
-                penalty_cost = self.preference_penalty_calc_fn(
-                    employee_object, nurse, shift, preference_weights
+                penalty_cost = self.preference_penalty_processor.calculate_penalty_cost(
+                    employee, nurse, shift, preference_weights
                 )
 
                 if turnover_risk > 0.0:
                     penalty_cost += turnover_risk * preference_weights.high_risk_shift_penalty
 
-                total_cost_expr += (cost + penalty_cost) * var
+                total_cost_expr += (cost + penalty_cost) * employee_shift_lp_var
 
         problem += pulp.lpSum(total_cost_expr), "Total_Weighted_Cost"
 
@@ -523,7 +435,7 @@ class NurseShiftScheduleOptimizer:
 
         hprd_shift_nurse_requirements = HprdShiftNurseRequirementHolder(
             [s.shift_id for s in shifts],
-            [NurseRole.RN, NurseRole.CNA]
+            [HprdEnforcedRole.RN, HprdEnforcedRole.CNA]
         )
 
         for shift_idx, shift in enumerate(shifts):
@@ -548,8 +460,8 @@ class NurseShiftScheduleOptimizer:
             required_cna_shift_hours = required_cna_hours / hours_in_shift
             required_total_shift_hours = required_total_hours / hours_in_shift
 
-            hprd_shift_nurse_requirements[shift.shift_id, NurseRole.RN] = required_rn_shift_hours
-            hprd_shift_nurse_requirements[shift.shift_id, NurseRole.CNA] = required_cna_shift_hours
+            hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.RN] = required_rn_shift_hours
+            hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.CNA] = required_cna_shift_hours
             hprd_shift_nurse_requirements.add_total_req(shift, required_total_shift_hours)
 
         return hprd_shift_nurse_requirements

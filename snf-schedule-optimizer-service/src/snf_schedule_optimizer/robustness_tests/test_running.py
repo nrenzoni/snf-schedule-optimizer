@@ -16,7 +16,8 @@ import polars as pl
 
 from snf_schedule_optimizer.services.calculations.differential_retrieval import NurseDifferentialRetrieverImpl
 from snf_schedule_optimizer.services.calculations.shift_pay_processor import ShiftPayProcessor
-from snf_schedule_optimizer.services.interfaces import IEmployeeRetriever, IShiftRequirementsRetriever, \
+from snf_schedule_optimizer.services.interfaces import IEmployeeRetriever, IPreferencePenaltyProcessor, \
+    IShiftRequirementsRetriever, \
     IStaffCompensationService
 from snf_schedule_optimizer.persistence.shift_requirements_retriever import ShiftRequirementsRetrieverImpl
 
@@ -133,6 +134,7 @@ class TestRunner:
             resident_acuity_retriever: IResidentAcuityPerShiftRetriever,
             shift_pay_processor: ShiftPayProcessor,
             staff_compensation_service: IStaffCompensationService,
+            preference_penalty_processor: IPreferencePenaltyProcessor,
             seed: int,
     ) -> None:
         self.nurse_retriever = nurse_retriever
@@ -140,6 +142,7 @@ class TestRunner:
         self.resident_acuity_retriever = resident_acuity_retriever
         self.shift_pay_processor = shift_pay_processor
         self.staff_compensation_service = staff_compensation_service
+        self.preference_penalty_processor = preference_penalty_processor
 
         self.rng = random.Random(seed)
 
@@ -223,6 +226,7 @@ class TestRunner:
             self.shift_pay_processor,
             self.employee_retriever,
             self.staff_compensation_service,
+            self.preference_penalty_processor
         )
 
         optimized_schedule_res = nurse_shift_schedule_optimizer.solve(

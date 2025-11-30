@@ -27,6 +27,9 @@ class NurseRole(StrEnum):
     LPN = "LPN"
     CNA = "CNA"
 
+class HprdEnforcedRole(StrEnum):
+    RN = "RN"
+    CNA = "CNA"
 
 NURSE_ROLES = [NurseRole.RN, NurseRole.LPN, NurseRole.CNA]
 
