@@ -2,11 +2,14 @@ from typing import List, Optional
 
 from snf_schedule_optimizer.models import Differential, DifferentialDateInterval, Shift
 from snf_schedule_optimizer.datetime_utils import is_weekend
-from snf_schedule_optimizer.services.interfaces import IDifferentialRule
+from snf_schedule_optimizer.services.payroll.interfaces import IDifferentialRule
 
 
 class DailyPatternDifferentialRule(IDifferentialRule):
-    def __init__(self, differential: Differential):
+    def __init__(
+        self,
+        differential: Differential,
+    ):
         # Store the defined differential rate
         self._differential = differential
         # Add pattern-specific config here (e.g., self.start_time = 19:00, self.end_time = 07:00)

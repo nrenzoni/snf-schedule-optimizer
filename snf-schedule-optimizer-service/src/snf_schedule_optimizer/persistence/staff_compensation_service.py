@@ -4,7 +4,7 @@ import pendulum
 from typing import Dict, List, Optional
 
 from snf_schedule_optimizer.models import StaffCompensationRecord
-from snf_schedule_optimizer.services.interfaces import IStaffCompensationService
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationService
 from snf_schedule_optimizer.sqlalchemy_models.staff_compensation_model import (
     StaffCompensationModel,
 )

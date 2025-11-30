@@ -7,7 +7,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session, joinedload
 
 from snf_schedule_optimizer.models import Shift, TimePunch
-from snf_schedule_optimizer.services.interfaces import IRawHistoryRetriever
+from snf_schedule_optimizer.services.timekeeping.interfaces import IRawHistoryRetriever
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
 

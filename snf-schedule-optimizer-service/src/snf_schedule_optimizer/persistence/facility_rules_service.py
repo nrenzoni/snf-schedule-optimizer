@@ -10,7 +10,7 @@ from snf_schedule_optimizer.models import (
     RoundingType,
     SplitDayType,
 )
-from snf_schedule_optimizer.services.interfaces import IFacilityRulesService
+from snf_schedule_optimizer.services.payroll.interfaces import IFacilityRulesService
 from snf_schedule_optimizer.sqlalchemy_models.facility_rules_config import (
     FacilityRulesConfigModel,
 )

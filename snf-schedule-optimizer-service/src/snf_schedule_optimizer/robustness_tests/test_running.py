@@ -3,35 +3,36 @@ import random
 import pendulum
 from dataclasses import dataclass
 
+import polars as pl
+
 from snf_schedule_optimizer.baseline_schedule_generator import BaselineScheduleGenerator
-from snf_schedule_optimizer.models import *
 from snf_schedule_optimizer.ml_output_retrievers import MLModelOutputsRetrieverImpl
-from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
+from snf_schedule_optimizer.models import *
 from snf_schedule_optimizer.optimization_engine import (
     NurseShiftScheduleOptimizer,
-    Shift,
     Schedule,
+    Shift,
 )
-
+from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
+from snf_schedule_optimizer.persistence.shift_requirements_retriever import (
+    ShiftRequirementsRetrieverImpl,
+)
 from snf_schedule_optimizer.resident_acuity_retrievers import (
     IResidentAcuityPerShiftRetriever,
 )
-import polars as pl
-
-from snf_schedule_optimizer.services.calculations.differential_retrieval import (
-    NurseDifferentialRetrieverImpl,
-)
-from snf_schedule_optimizer.services.calculations.shift_pay_processor import (
-    ShiftPayProcessor,
-)
-from snf_schedule_optimizer.services.interfaces import (
+from snf_schedule_optimizer.services.hr.interfaces import (
     IEmployeeRetriever,
-    IPreferencePenaltyProcessor,
-    IShiftRequirementsRetriever,
     IStaffCompensationService,
 )
-from snf_schedule_optimizer.persistence.shift_requirements_retriever import (
-    ShiftRequirementsRetrieverImpl,
+from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
+    ShiftPayProcessor,
+)
+from snf_schedule_optimizer.services.payroll.rules.differential_retrieval import (
+    NurseDifferentialRetrieverImpl,
+)
+from snf_schedule_optimizer.services.scheduling.interfaces import (
+    IPreferencePenaltyProcessor,
+    IShiftRequirementsRetriever,
 )
 
 

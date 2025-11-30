@@ -4,7 +4,6 @@ from typing import *
 from uuid import UUID
 
 import pendulum
-from sqlalchemy.testing.suite import UuidTest
 
 from snf_schedule_optimizer.models import (
     DifferentialType,
@@ -16,9 +15,9 @@ from snf_schedule_optimizer.models import (
 
 if TYPE_CHECKING:
     # These imports are only for type checking/static analysis, not runtime execution
-    from snf_schedule_optimizer.services.interfaces import (
-        IOvertimeRule,
+    from snf_schedule_optimizer.services.payroll.interfaces import (
         IDifferentialRule,
+        IOvertimeRule,
     )
 
 

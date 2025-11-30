@@ -3,7 +3,7 @@ from snf_schedule_optimizer.models import (
     StaffCompensationRecord,
     WorkedShiftSegment,
 )
-from snf_schedule_optimizer.services.interfaces import IRateCalculator
+from snf_schedule_optimizer.services.payroll.interfaces import IRateCalculator
 
 
 class DifferentialAndOvertimeRateCalculator(IRateCalculator):

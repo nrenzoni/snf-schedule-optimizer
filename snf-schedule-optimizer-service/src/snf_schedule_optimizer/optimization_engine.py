@@ -2,9 +2,21 @@ import abc
 import enum
 import itertools
 from collections import defaultdict
-from dataclasses import dataclass
-import pendulum
 import numpy as np
+import pendulum
+from dataclasses import dataclass
+
+from snf_schedule_optimizer.services.hr.interfaces import (
+    IEmployeeRetriever,
+    IStaffCompensationService,
+)
+from snf_schedule_optimizer.services.payroll.interfaces import (
+    INurseDifferentialRetriever,
+)
+from snf_schedule_optimizer.services.scheduling.interfaces import (
+    IPreferencePenaltyProcessor,
+    IShiftRequirementsRetriever,
+)
 
 import pulp
 from pulp import LpBinary, LpMinimize, LpProblem, LpVariable
@@ -16,15 +28,8 @@ from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.resident_acuity_retrievers import (
     IResidentAcuityPerShiftRetriever,
 )
-from snf_schedule_optimizer.services.calculations.shift_pay_processor import (
+from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
     ShiftPayProcessor,
-)
-from snf_schedule_optimizer.services.interfaces import (
-    IEmployeeRetriever,
-    INurseDifferentialRetriever,
-    IPreferencePenaltyProcessor,
-    IShiftRequirementsRetriever,
-    IStaffCompensationService,
 )
 
 

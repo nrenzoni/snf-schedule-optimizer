@@ -5,7 +5,7 @@ from sqlalchemy import select, and_
 import pendulum
 
 from snf_schedule_optimizer.models.testing import MockCertificationRecord
-from snf_schedule_optimizer.services.interfaces import ICertificationService
+from snf_schedule_optimizer.services.hr.interfaces import ICertificationService
 from snf_schedule_optimizer.sqlalchemy_models.employee_certification import (
     EmployeeCertificationModel,
 )

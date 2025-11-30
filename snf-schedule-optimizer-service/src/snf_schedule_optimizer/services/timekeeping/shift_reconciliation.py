@@ -13,7 +13,7 @@ from snf_schedule_optimizer.models import (
     TimePunch,
     WorkedTimeBlock,
 )
-from snf_schedule_optimizer.services.interfaces import (
+from snf_schedule_optimizer.services.payroll.interfaces import (
     IFacilityRulesService,
     IShiftReconcilerService,
 )

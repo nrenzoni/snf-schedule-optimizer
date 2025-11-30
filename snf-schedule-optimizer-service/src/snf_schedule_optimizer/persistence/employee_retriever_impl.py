@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from snf_schedule_optimizer.models import Employee
-from snf_schedule_optimizer.services.interfaces import IEmployeeRetriever
+from snf_schedule_optimizer.services.hr.interfaces import IEmployeeRetriever
 
 
 class EmployeeRetrieverStaticListImpl(IEmployeeRetriever):

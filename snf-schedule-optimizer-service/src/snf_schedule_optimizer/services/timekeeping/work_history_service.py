@@ -9,12 +9,12 @@ from snf_schedule_optimizer.models import (
     WorkedTimeBlock,
 )
 from snf_schedule_optimizer.models.constraints import LookbackPeriod
-from snf_schedule_optimizer.services.calculations.overtime_calculation import (
+from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
     ThresholdOvertimeRule,
 )
-from snf_schedule_optimizer.services.interfaces import (
+from snf_schedule_optimizer.services.payroll.interfaces import IShiftReconcilerService
+from snf_schedule_optimizer.services.timekeeping.interfaces import (
     IEmployeeWorkHistoryService,
-    IShiftReconcilerService,
     IRawHistoryRetriever,
 )
 

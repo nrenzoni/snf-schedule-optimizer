@@ -1,5 +1,7 @@
 from snf_schedule_optimizer.models import Shift, ShiftSpecificRequirements
-from snf_schedule_optimizer.services.interfaces import IShiftRequirementsRetriever
+from snf_schedule_optimizer.services.scheduling.interfaces import (
+    IShiftRequirementsRetriever,
+)
 
 
 class ShiftRequirementsRetrieverImpl(IShiftRequirementsRetriever):

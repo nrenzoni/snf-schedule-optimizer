@@ -6,10 +6,10 @@ import sqlalchemy
 import sqlalchemy.orm
 
 from snf_schedule_optimizer.models import Employee, OvertimeTrigger, Shift
-from snf_schedule_optimizer.services.calculations.overtime_calculation import (
+from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
     ThresholdOvertimeRule,
 )
-from snf_schedule_optimizer.services.interfaces import (
+from snf_schedule_optimizer.services.payroll.interfaces import (
     IOvertimeRule,
     IOvertimeRuleRetrieverService,
 )

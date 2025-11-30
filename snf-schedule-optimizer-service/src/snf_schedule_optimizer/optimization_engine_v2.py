@@ -1,16 +1,12 @@
 import abc
 import enum
-import itertools
 from collections import defaultdict
 from dataclasses import dataclass
-from functools import cached_property
-from typing import List, Dict, Optional, Any, Tuple, Set, cast
-
 import pendulum
-import numpy as np
 
+import numpy as np
 import pulp
-from pulp import LpBinary, LpMinimize, LpProblem, LpVariable
+from pulp import LpMinimize, LpProblem, LpVariable
 
 from snf_schedule_optimizer.models import *
 from snf_schedule_optimizer.datetime_utils import is_weekend
@@ -19,16 +15,16 @@ from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.resident_acuity_retrievers import (
     IResidentAcuityPerShiftRetriever,
 )
-from snf_schedule_optimizer.services.calculations.shift_pay_processor import (
-    ShiftPayProcessor,
-)
-from snf_schedule_optimizer.services.interfaces import (
+from snf_schedule_optimizer.services.hr.interfaces import (
     IEmployeeRetriever,
-    IEmployeeWorkHistoryService,
-    INurseDifferentialRetriever,
+    IStaffCompensationService,
+)
+from snf_schedule_optimizer.services.scheduling.interfaces import (
     IPreferencePenaltyProcessor,
     IShiftRequirementsRetriever,
-    IStaffCompensationService,
+)
+from snf_schedule_optimizer.services.timekeeping.interfaces import (
+    IEmployeeWorkHistoryService,
 )
 
 
@@ -270,7 +266,6 @@ class IObjectivePenaltyStrategy(abc.ABC):
         """
         Returns a list of LpAffineExpression terms to be ADDED to the objective function.
         E.g. [ (x_1 * 50), (x_2 * 100) ]
-        :param data_provider:
         """
         pass
 
@@ -946,7 +941,6 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self,
         shifts: List["Shift"],  # The scope of this scenario
         config: "FacilityConfig",
-        # Inject the heavy lifters here
         employee_retriever: "IEmployeeRetriever",
         nurse_retriever: "INurseRetriever",
         hprd_calculator: "IHprdRequirementCalculator",

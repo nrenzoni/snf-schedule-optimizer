@@ -7,9 +7,9 @@ from snf_schedule_optimizer.models import (
     PreferenceWeights,
     Shift,
 )
-from snf_schedule_optimizer.services.interfaces import (
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationService
+from snf_schedule_optimizer.services.scheduling.interfaces import (
     IPreferencePenaltyProcessor,
-    IStaffCompensationService,
 )
 
 

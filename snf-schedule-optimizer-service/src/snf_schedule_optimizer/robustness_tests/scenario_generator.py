@@ -1,9 +1,9 @@
 import abc
 import random
 from uuid import uuid4
-import pendulum
 import dataclasses
 from dataclasses import dataclass
+import pendulum
 
 from snf_schedule_optimizer.models import *
 

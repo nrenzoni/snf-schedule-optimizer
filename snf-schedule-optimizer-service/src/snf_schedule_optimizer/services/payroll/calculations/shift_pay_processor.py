@@ -6,15 +6,17 @@ from snf_schedule_optimizer.models import (
     Shift,
     WorkedShiftSegment,
 )
-from snf_schedule_optimizer.services.calculations.rule_eligibility_service import (
-    RuleEligibilityService,
-)
-from snf_schedule_optimizer.services.interfaces import (
-    IEmployeeWorkHistoryService,
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationService
+from snf_schedule_optimizer.services.payroll.interfaces import (
     IOvertimeCalculator,
     IRateCalculator,
     IShiftSlicer,
-    IStaffCompensationService,
+)
+from snf_schedule_optimizer.services.payroll.rules.rule_eligibility_service import (
+    RuleEligibilityService,
+)
+from snf_schedule_optimizer.services.timekeeping.interfaces import (
+    IEmployeeWorkHistoryService,
 )
 
 

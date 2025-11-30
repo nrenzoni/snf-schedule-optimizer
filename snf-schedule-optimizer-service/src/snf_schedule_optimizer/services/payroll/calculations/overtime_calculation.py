@@ -10,10 +10,12 @@ from snf_schedule_optimizer.models import (
     Shift,
 )
 from snf_schedule_optimizer.models.constraints import LookbackPeriod
-from snf_schedule_optimizer.services.interfaces import (
-    IEmployeeWorkHistoryService,
+from snf_schedule_optimizer.services.payroll.interfaces import (
     IOvertimeCalculator,
     IOvertimeRule,
+)
+from snf_schedule_optimizer.services.timekeeping.interfaces import (
+    IEmployeeWorkHistoryService,
 )
 
 
@@ -192,7 +194,9 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
         return final_intervals
 
     def _get_ot_trigger_time(
-        self, shift: "Shift", remaining_hours: float
+        self,
+        shift: "Shift",
+        remaining_hours: float,
     ) -> pendulum.DateTime:
         """Calculates the exact DateTime when OT starts on the current shift."""
         if remaining_hours <= 0:

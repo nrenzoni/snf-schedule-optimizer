@@ -44,15 +44,27 @@ from snf_schedule_optimizer.robustness_tests import (
     DefaultNurseSimulateGenerator,
     SimulateFacilityScenarioParams,
 )
-from snf_schedule_optimizer.services.calculations import OvertimeCalculatorImpl
-from snf_schedule_optimizer.services.calculations import (
+from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
+    OvertimeCalculatorImpl,
+)
+from snf_schedule_optimizer.services.payroll.calculations.rate_calculations import (
     DifferentialAndOvertimeRateCalculator,
 )
-from snf_schedule_optimizer.services.calculations import RuleEligibilityService
-from snf_schedule_optimizer.services.calculations import ShiftPayProcessor
-from snf_schedule_optimizer.services.calculations import ShiftReconcilerServiceImpl
-from snf_schedule_optimizer.services.calculations import TimeOverlapShiftSlicer
-from snf_schedule_optimizer.services.calculations import EmployeeWorkHistoryServiceImpl
+from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
+    ShiftPayProcessor,
+)
+from snf_schedule_optimizer.services.payroll.calculations.shift_slicers import (
+    TimeOverlapShiftSlicer,
+)
+from snf_schedule_optimizer.services.payroll.rules.rule_eligibility_service import (
+    RuleEligibilityService,
+)
+from snf_schedule_optimizer.services.timekeeping.shift_reconciliation import (
+    ShiftReconcilerServiceImpl,
+)
+from snf_schedule_optimizer.services.timekeeping.work_history_service import (
+    EmployeeWorkHistoryServiceImpl,
+)
 
 N_FORECAST_DAYS = 3
 NY_TZ = pendulum.Timezone("America/New_York")

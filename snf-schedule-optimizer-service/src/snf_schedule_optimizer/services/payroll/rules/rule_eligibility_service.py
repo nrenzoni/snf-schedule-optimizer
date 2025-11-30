@@ -3,8 +3,8 @@ from typing import List, Optional, Protocol, Tuple
 import pendulum
 
 from snf_schedule_optimizer.models import Employee, Shift
-from snf_schedule_optimizer.services.interfaces import (
-    ICertificationService,
+from snf_schedule_optimizer.services.hr.interfaces import ICertificationService
+from snf_schedule_optimizer.services.payroll.interfaces import (
     IDifferentialRule,
     IOvertimeRule,
     IRuleRetrievalService,
