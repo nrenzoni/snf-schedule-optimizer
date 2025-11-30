@@ -1,7 +1,6 @@
 import abc
 
-from snf_schedule_optimizer.models import Shift
-from snf_schedule_optimizer.optimization_engine import MlModelOutputs
+from snf_schedule_optimizer.models import MlModelOutputs, Shift
 
 
 class IMLModelOutputsRetriever(abc.ABC):

@@ -1,0 +1,183 @@
+from typing import List, Set, Tuple
+
+import pendulum
+
+from snf_schedule_optimizer.models import (
+    Employee,
+    FacilityConfig,
+    HprdEnforcedRole,
+    MinMandates,
+    NurseProfile,
+    PreferenceType,
+    Shift,
+)
+from snf_schedule_optimizer.optimizer.context import HprdShiftNurseRequirementHolder
+from snf_schedule_optimizer.optimizer.interfaces import (
+    IHprdRequirementCalculator,
+    IIncentiveManager,
+    ILaborBurdenCalculator,
+    INurseHardBlockChecker,
+)
+from snf_schedule_optimizer.resident_acuity_retrievers import (
+    IResidentAcuityPerShiftRetriever,
+)
+from snf_schedule_optimizer.services.scheduling.interfaces import (
+    IShiftRequirementsRetriever,
+)
+
+
+class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
+    def __init__(
+        self,
+        resident_acuity_retriever: IResidentAcuityPerShiftRetriever,
+        shift_requirements_retriever: IShiftRequirementsRetriever,
+    ):
+        self.resident_acuity_retriever = resident_acuity_retriever
+        self.shift_requirements_retriever = shift_requirements_retriever
+
+    def calculate_requirements(
+        self,
+        shifts: List[Shift],
+        config: FacilityConfig,
+        min_mandate: MinMandates,
+    ) -> HprdShiftNurseRequirementHolder:
+        # --- YOUR ORIGINAL LOGIC GOES HERE ---
+
+        hprd_shift_nurse_requirements = HprdShiftNurseRequirementHolder(
+            [s.shift_id for s in shifts], [HprdEnforcedRole.RN, HprdEnforcedRole.CNA]
+        )
+
+        for shift in shifts:
+            shift_requirements = (
+                self.shift_requirements_retriever.get_shift_requirements(shift)
+            )
+            hours_in_shift = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
+            residents_acuity = self.resident_acuity_retriever.get_resident_acuity_list(
+                shift
+            )
+            shift_census = len(residents_acuity)
+
+            # Calculation Logic
+            required_rn_hours = shift_requirements.target_hprd_rn * shift_census
+            required_cna_hours = shift_requirements.target_hprd_cna * shift_census
+            required_total_hours = shift_requirements.target_total_hprd * shift_census
+
+            # Convert to Shift Hours
+            hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.RN] = (
+                required_rn_hours / hours_in_shift
+            )
+            hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.CNA] = (
+                required_cna_hours / hours_in_shift
+            )
+            hprd_shift_nurse_requirements.add_total_req(
+                shift, required_total_hours / hours_in_shift
+            )
+
+        return hprd_shift_nurse_requirements
+
+
+class NurseHardBlockCheckerImpl(INurseHardBlockChecker):
+    def check(self, nurse: "NurseProfile", shift: "Shift") -> bool:
+        # Check 1: Mandatory time off blocks (from StaffPreference)
+        if nurse.shift_custom_preferences:
+            for pref in nurse.shift_custom_preferences:
+                if pref.is_hard_block:
+                    if pref.preference_type == PreferenceType.SPECIFIC_DAY_OFF:
+                        # FIX: The specific_value must be converted to WeekDay for comparison.
+                        # Assuming specific_value is stored as an integer (0-6) or a string representation of the integer.
+                        try:
+                            # Safely convert to int, then to WeekDay if needed, or compare int to WeekDay.value
+                            pref_day_int = (
+                                int(pref.specific_value)
+                                if pref.specific_value is not None
+                                else -1
+                            )
+                        except ValueError:
+                            pref_day_int = -1  # Invalid value means no match
+
+                        if shift.day_of_week.value == pref_day_int:
+                            return True
+                    elif pref.preference_type == PreferenceType.WEEKEND_OFF:
+                        if shift.day_of_week in {
+                            pendulum.WeekDay.SATURDAY,
+                            pendulum.WeekDay.SUNDAY,
+                        }:
+                            return True
+        return False
+
+        # Check 2: Max weekly/monthly hour limits (Fatigue/Compliance)
+        # This is complex in LP, usually handled via SUM constraints, but included here for logic completeness
+
+        # Check 3: Role/Skill match (RN cannot cover CNA shift if hard rule)
+        # if self.config.unit_needs_rn(day_shift) and nurse.role != 'RN':
+        #    return False
+
+
+class StandardLaborBurdenCalculator(ILaborBurdenCalculator):
+    def __init__(self) -> None:
+        # Configuration could actually come from a DB
+        self.fica_rate = 0.0765  # 6.2% SS + 1.45% Medicare
+        self.futa_sui_rate = 0.03  # Estimate for Unemployment
+        self.work_comp_rate = 0.02  # Estimate for Nursing
+
+        # Benefits: Usually calculated as a fixed $ per hour or % of wage
+        self.benefits_load_factor = 0.15  # 15% for Health/401k/PTO
+
+    def calculate_burden(
+        self,
+        employee: Employee,
+        base_cost: float,
+    ) -> Tuple[float, float]:
+        # 1. Statutory Taxes (FICA, etc.) are strictly % of wage
+        statutory = base_cost * (
+            self.fica_rate + self.futa_sui_rate + self.work_comp_rate
+        )
+
+        # 2. Benefits
+        # In refined models, checking employee.enrollment_status is better.
+        # For optimization, a load factor is standard.
+        benefits = base_cost * self.benefits_load_factor
+
+        return statutory, benefits
+
+
+class ConfigurableIncentiveManager(IIncentiveManager):
+    def __init__(
+        self,
+        holidays: Set[pendulum.Date],
+        urgency_threshold_days: int,
+        pickup_bonus: float,
+    ):
+        self.holidays = holidays
+        self.urgency_threshold_days = urgency_threshold_days  # e.g., 2 days
+        self.pickup_bonus_amount = pickup_bonus  # e.g., $50 flat
+
+    def calculate_incentives(
+        self,
+        shift: Shift,
+        employee: Employee,
+        base_rate: float,
+    ) -> float:
+        total_incentive = 0.0
+
+        # 1. Holiday Logic
+        # If shift starts on a holiday
+        if shift.shift_start_dt.date() in self.holidays:
+            # Usually 1.5x Base Rate.
+            # Note: We return the *Incremental* cost here.
+            # Base is already paid. We add the 0.5x premium.
+            total_incentive += base_rate * 0.5 * shift.duration_hours
+
+        # 2. Urgent "Pick-up" Bonus
+        # If scheduling for "Tomorrow", add bonus cost
+        days_until_shift = (shift.shift_start_dt.date() - pendulum.Date.today()).days
+        if 0 <= days_until_shift <= self.urgency_threshold_days:
+            total_incentive += self.pickup_bonus_amount
+
+        # 3. Amortized Bonuses (Sunk Cost?)
+        # Optimization Theory Note: Strictly speaking, a sign-on bonus is a "Sunk Cost"
+        # and shouldn't affect the decision to schedule a shift today.
+        # However, if you want "Total Budget Accuracy", you include it.
+        # total_incentive += employee.daily_amortized_bonus
+
+        return total_incentive

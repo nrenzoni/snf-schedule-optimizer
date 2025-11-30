@@ -8,11 +8,8 @@ import polars as pl
 from snf_schedule_optimizer.baseline_schedule_generator import BaselineScheduleGenerator
 from snf_schedule_optimizer.ml_output_retrievers import MLModelOutputsRetrieverImpl
 from snf_schedule_optimizer.models import *
-from snf_schedule_optimizer.optimization_engine import (
-    NurseShiftScheduleOptimizer,
-    Schedule,
-    Shift,
-)
+from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
+
 from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.persistence.shift_requirements_retriever import (
     ShiftRequirementsRetrieverImpl,
