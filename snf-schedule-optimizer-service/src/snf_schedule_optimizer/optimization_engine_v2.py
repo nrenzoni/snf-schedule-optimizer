@@ -90,6 +90,17 @@ class ScheduleOptimizationResults:
 
 
 @dataclass
+class FacilityScenarioContext:
+    """Grouping of inputs specific to a single facility for a scenario run."""
+
+    facility_id: str
+    shifts: List[Shift]
+    config: FacilityConfig
+    min_mandates: MinMandates
+    # Future: Facility-specific acuity data, etc.
+
+
+@dataclass
 class OptimizationContext:
     """
     Holds transient data calculated during the optimization lifecycle,
@@ -218,13 +229,27 @@ class IPayModelStrategy(abc.ABC):
 class ILaborBurdenCalculator(abc.ABC):
     @abc.abstractmethod
     def calculate_burden(
-        self, employee: Employee, base_cost: float
+        self,
+        employee: Employee,
+        base_cost: float,
     ) -> Tuple[float, float]:
         """Returns (statutory_burden, benefits_burden)"""
         pass
 
 
-class IRuleConstraintStrategy(abc.ABC):
+# 1. Global Strategies (e.g., Pay, Overtime buckets)
+class IGlobalConstraintStrategy(abc.ABC):
+    @abc.abstractmethod
+    def apply_global_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: "IScenarioDataProvider",
+    ) -> Optional[InfeasibilityReasonResult]:
+        pass
+
+
+class IFacilityScopedConstraintStrategy(abc.ABC):
     """
     Encapsulates HARD constraints.
     Examples:
@@ -239,6 +264,7 @@ class IRuleConstraintStrategy(abc.ABC):
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: "IScenarioDataProvider",
+        facility_id: str,  # <--- Crucial
     ) -> Optional[InfeasibilityReasonResult]:
         """
         Applies constraints directly to the 'problem'.
@@ -307,7 +333,8 @@ class HprdShiftNurseRequirementHolder:
         self.values[shift_idx, role_idx] = value
 
     def __getitem__(
-        self, key: Tuple[str, HprdEnforcedRole]
+        self,
+        key: Tuple[str, HprdEnforcedRole],
     ) -> float:  # (shift_id, NurseRole)
         shift_idx = self.shifts.index(key[0])
         role_idx = self.roles.index(key[1])
@@ -322,7 +349,7 @@ class HprdShiftNurseRequirementHolder:
         return float(self.values[shift_idx, -1])
 
 
-class HprdStaffingConstraintStrategy(IRuleConstraintStrategy):
+class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
     def __init__(
         self,
         hard_block_checker: INurseHardBlockChecker,
@@ -334,11 +361,14 @@ class HprdStaffingConstraintStrategy(IRuleConstraintStrategy):
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: "IScenarioDataProvider",
+        facility_id: str,
     ) -> Optional[InfeasibilityReasonResult]:
         # todo: Add infeasibility checks (e.g., no available nurses for a required role)
 
-        requirements_holder = data_provider.get_hprd_requirements()
-        shifts = data_provider.get_shifts()
+        requirements_holder = data_provider.get_hprd_requirements_for_facility(
+            facility_id
+        )
+        shifts = data_provider.get_shifts_for_facility(facility_id)
 
         # "For every shift, sum of assigned nurses >= Required HPRD count"
         for shift in shifts:
@@ -389,14 +419,15 @@ class HprdStaffingConstraintStrategy(IRuleConstraintStrategy):
         return None
 
 
-class ConsecutiveShiftFatigueStrategy(IRuleConstraintStrategy):
+class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
     def apply_constraints(
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: "IScenarioDataProvider",
+        facility_id: str,
     ) -> Optional[InfeasibilityReasonResult]:
-        shifts = data_provider.get_shifts()
+        shifts = data_provider.get_all_shifts()
 
         # todo: Make this more generic/configurable, add infeasibility checks
 
@@ -529,7 +560,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
     ) -> List[Any]:
         terms = []
 
-        for shift in data_provider.get_shifts():
+        for shift in data_provider.get_all_shifts():
             duration = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
             nurses = data_provider.get_nurses_for_shift(shift)
 
@@ -641,7 +672,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
 
             # Sum assigned hours
             assigned_hours = []
-            for shift in data_provider.get_shifts():
+            for shift in data_provider.get_all_shifts():
                 try:
                     var = lp_holder.get_variable(emp_id, shift.shift_id)
                     duration = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
@@ -667,7 +698,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
 
         # We need a reference date to look up the rate.
         # Using the start of the first shift in the window is standard practice.
-        reference_date = data_provider.get_shifts()[0].shift_start_dt
+        reference_date = data_provider.get_all_shifts()[0].shift_start_dt
 
         for emp_id in unique_employees:
             pay_vars = lp_holder.get_pay_variables(emp_id)
@@ -726,7 +757,7 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
         data_provider: "IScenarioDataProvider",
     ) -> List[pulp.LpAffineExpression]:
         terms = []
-        for shift in data_provider.get_shifts():
+        for shift in data_provider.get_all_shifts():
             duration = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
             # Calculate cost ONCE here (deterministic)
             is_ot_shift = duration > 8.0
@@ -769,7 +800,9 @@ class StandardLaborBurdenCalculator(ILaborBurdenCalculator):
         self.benefits_load_factor = 0.15  # 15% for Health/401k/PTO
 
     def calculate_burden(
-        self, employee: Employee, base_cost: float
+        self,
+        employee: Employee,
+        base_cost: float,
     ) -> Tuple[float, float]:
         # 1. Statutory Taxes (FICA, etc.) are strictly % of wage
         statutory = base_cost * (
@@ -796,7 +829,10 @@ class ConfigurableIncentiveManager(IIncentiveManager):
         self.pickup_bonus_amount = pickup_bonus  # e.g., $50 flat
 
     def calculate_incentives(
-        self, shift: Shift, employee: Employee, base_rate: float
+        self,
+        shift: Shift,
+        employee: Employee,
+        base_rate: float,
     ) -> float:
         total_incentive = 0.0
 
@@ -844,7 +880,7 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
     ) -> List[Any]:
         penalty_terms = []
 
-        for shift in data_provider.get_shifts():
+        for shift in data_provider.get_all_shifts():
             # Get Context
             ml_outputs = data_provider.get_ml_model_outputs(shift)
             nurses = data_provider.get_nurses_for_shift(shift)
@@ -888,10 +924,7 @@ class IScenarioDataProvider(abc.ABC):
     optimization run. Implementations must handle lazy loading and caching within the run scope.
     """
 
-    @abc.abstractmethod
-    def get_shifts(self) -> List["Shift"]:
-        """Returns the list of shifts in the scenario."""
-        pass
+    # --- Global Methods (Enterprise Level) ---
 
     @abc.abstractmethod
     def get_all_employees(self) -> List["Employee"]:
@@ -904,18 +937,37 @@ class IScenarioDataProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def get_compensation_service(self) -> IStaffCompensationService:
+        """Provides access to financial data scoped for this run."""
+        pass
+
+    @abc.abstractmethod
+    def get_all_shifts(self) -> List["Shift"]:
+        """Returns the list of shifts in the scenario."""
+        pass
+
+    # --- Facility-Scoped Methods ---
+
+    @abc.abstractmethod
+    def get_facility_ids(self) -> List[str]:
+        """Returns list of facility IDs in this run."""
+        pass
+
+    @abc.abstractmethod
+    def get_shifts_for_facility(self, facility_id: str) -> List["Shift"]:
+        pass
+
+    @abc.abstractmethod
     def get_nurses_for_shift(self, shift: "Shift") -> List["NurseProfile"]:
         """Returns available nurses for a specific shift, cached per shift."""
         pass
 
     @abc.abstractmethod
-    def get_hprd_requirements(self) -> "HprdShiftNurseRequirementHolder":
+    def get_hprd_requirements_for_facility(
+        self,
+        facility_id: str,
+    ) -> "HprdShiftNurseRequirementHolder":
         """Calculates (once) and returns HPRD requirements for all shifts."""
-        pass
-
-    @abc.abstractmethod
-    def get_compensation_service(self) -> IStaffCompensationService:
-        """Provides access to financial data scoped for this run."""
         pass
 
     @abc.abstractmethod
@@ -939,8 +991,9 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
 
     def __init__(
         self,
-        shifts: List["Shift"],  # The scope of this scenario
-        config: "FacilityConfig",
+        facility_contexts: Dict[str, FacilityScenarioContext],
+        # shifts: List["Shift"],  # The scope of this scenario
+        # config: "FacilityConfig",
         employee_retriever: "IEmployeeRetriever",
         nurse_retriever: "INurseRetriever",
         hprd_calculator: "IHprdRequirementCalculator",
@@ -949,10 +1002,11 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         work_history_service: IEmployeeWorkHistoryService,
         pay_period_start: pendulum.DateTime,
         optimization_start_time: pendulum.DateTime,
-        min_mandates: "MinMandates",
+        # min_mandates: "MinMandates",
     ):
-        self._shifts = shifts
-        self._config = config
+        self._facility_contexts = facility_contexts
+        # self._shifts = shifts
+        # self._config = config
         self._employee_retriever = employee_retriever
         self._nurse_retriever = nurse_retriever
         self._hprd_calculator = hprd_calculator
@@ -962,16 +1016,13 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
 
         self.pay_period_start = pay_period_start
         self.opt_start = optimization_start_time
-        self._min_mandates = min_mandates
+        # self._min_mandates = min_mandates
 
         # Internal Caches for parameterized data
         self._shift_nurses_cache: Dict[str, List["NurseProfile"]] = {}
         self._cached_all_employees: Optional[List["Employee"]] = None
-        self._cached_hprd_reqs: Optional["HprdShiftNurseRequirementHolder"] = None
+        self._cached_hprd_reqs: Dict[str, "HprdShiftNurseRequirementHolder"] = {}
         self._accumulated_hours_cache: Dict[str, float] = {}
-
-    def get_shifts(self) -> List["Shift"]:
-        return self._shifts
 
     # FIX 13: Removed @cached_property, used manual caching to match interface signature
     def get_all_employees(self) -> List["Employee"]:
@@ -988,13 +1039,19 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         return None
 
     # FIX 14: Removed @cached_property, used manual caching
-    def get_hprd_requirements(self) -> "HprdShiftNurseRequirementHolder":
-        if self._cached_hprd_reqs is None:
+    def get_hprd_requirements_for_facility(
+        self,
+        facility_id: str,
+    ) -> "HprdShiftNurseRequirementHolder":
+        if facility_id not in self._cached_hprd_reqs:
             print("Calculating heavy HPRD math...")
-            self._cached_hprd_reqs = self._hprd_calculator.calculate_requirements(
-                self._shifts, self._config, self._min_mandates
+            context = self._facility_contexts[facility_id]
+            self._cached_hprd_reqs[facility_id] = (
+                self._hprd_calculator.calculate_requirements(
+                    context.shifts, context.config, context.min_mandates
+                )
             )
-        return self._cached_hprd_reqs
+        return self._cached_hprd_reqs[facility_id]
 
     # --- Case 2: Parameterized data cached manually with dicts ---
     def get_nurses_for_shift(self, shift: "Shift") -> List["NurseProfile"]:
@@ -1035,6 +1092,18 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self._accumulated_hours_cache[employee_id] = total_hours
         return total_hours
 
+    def get_facility_ids(self) -> List[str]:
+        return list(self._facility_contexts.keys())
+
+    def get_shifts_for_facility(self, facility_id: str) -> List["Shift"]:
+        return self._facility_contexts[facility_id].shifts
+
+    def get_all_shifts(self) -> List["Shift"]:
+        all_shifts = []
+        for context in self._facility_contexts.values():
+            all_shifts.extend(context.shifts)
+        return all_shifts
+
 
 class ScenarioDataProviderFactory:
     """
@@ -1060,15 +1129,12 @@ class ScenarioDataProviderFactory:
 
     def create(
         self,
-        shifts: List[Shift],
-        config: FacilityConfig,
+        facility_contexts: Dict[str, FacilityScenarioContext],
         pay_period_start: pendulum.DateTime,
         optimization_start_time: pendulum.DateTime,
-        min_mandates: MinMandates,
     ) -> IScenarioDataProvider:
         return ScenarioDataProviderImpl(
-            shifts=shifts,
-            config=config,
+            facility_contexts=facility_contexts,
             employee_retriever=self.employee_retriever,
             nurse_retriever=self.nurse_retriever,
             hprd_calculator=self.hprd_calculator,
@@ -1077,7 +1143,6 @@ class ScenarioDataProviderFactory:
             work_history_service=self.work_history_service,
             pay_period_start=pay_period_start,
             optimization_start_time=optimization_start_time,
-            min_mandates=min_mandates,
         )
 
 
@@ -1088,8 +1153,9 @@ class CoreVariableGenerationStrategy:
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
+        facility_id: str,
     ) -> None:
-        shifts = data_provider.get_shifts()
+        shifts = data_provider.get_all_shifts()
         for shift in shifts:
             # Use the provider!
             nurses = data_provider.get_nurses_for_shift(shift)
@@ -1108,23 +1174,23 @@ class NurseShiftScheduleOptimizer:
         self,
         provider_factory: ScenarioDataProviderFactory,
         core_variable_strategy: CoreVariableGenerationStrategy,
-        pay_strategies: List[IPayModelStrategy],
-        rule_strategies: List[IRuleConstraintStrategy],
+        global_pay_strategies: List[IPayModelStrategy],
+        facility_constraint_strategies: List[IFacilityScopedConstraintStrategy],
+        rule_strategies: List[IFacilityScopedConstraintStrategy],
         penalty_strategies: List[IObjectivePenaltyStrategy],
     ) -> None:
         self.provider_factory = provider_factory
         self.core_variable_strategy = core_variable_strategy
 
-        self.pay_strategies = pay_strategies
+        self.global_pay_strategies = global_pay_strategies
+        self.facility_constraint_strategies = facility_constraint_strategies
         self.rule_strategies = rule_strategies
         self.penalty_strategies = penalty_strategies
 
     def solve(
         self,
-        shifts: List[Shift],
         preference_weights: PreferenceWeights,
-        facility_config: FacilityConfig,
-        min_mandates: MinMandates,
+        facility_contexts: Dict[str, FacilityScenarioContext],
         pay_period_start: pendulum.DateTime,
         optimization_start_time: Optional[pendulum.DateTime] = None,
     ) -> ScheduleOptimizationResults:
@@ -1132,7 +1198,7 @@ class NurseShiftScheduleOptimizer:
         # If the caller doesn't say when the optimization starts, assume it starts
         # at the moment of the earliest shift in the list.
         if optimization_start_time is None:
-            if not shifts:
+            if not any(f.shifts for f in facility_contexts.values()):
                 return ScheduleOptimizationResults(
                     False,
                     None,
@@ -1141,36 +1207,59 @@ class NurseShiftScheduleOptimizer:
                         InfeasibilityReason.OTHER, "No shifts provided"
                     ),
                 )
-            optimization_start_time = min(s.shift_start_dt for s in shifts)
+            optimization_start_time = min(
+                s.shift_start_dt
+                for fac in facility_contexts.values()
+                for s in fac.shifts
+            )
 
         data_provider = self.provider_factory.create(
-            shifts=shifts,
-            config=facility_config,
+            facility_contexts=facility_contexts,
             pay_period_start=pay_period_start,
             optimization_start_time=optimization_start_time,
-            min_mandates=min_mandates,
         )
 
         problem = LpProblem("Scheduling", LpMinimize)
         lp_vars = LpNurseShiftVariableHolder()
 
-        # 1. Setup Variables
-        self.core_variable_strategy.create_variables(lp_vars, data_provider)
-        for pay_strategy in self.pay_strategies:
+        facility_ids = data_provider.get_facility_ids()
+
+        # --- Phase 1: Variable Creation ---
+
+        # A. Global variables (e.g., Pay buckets for employees spanning facilities)
+        for pay_strategy in self.global_pay_strategies:
             pay_strategy.create_variables(lp_vars, data_provider)
 
-        # 2. Apply Constraints
-        for rule_strategy in self.rule_strategies:
-            rule_strategy.apply_constraints(
-                problem, lp_vars, data_provider
-            )  # HPRD, Fatigue
-        for pay_strategy in self.pay_strategies:
+        # B. Facility-scoped variables (The actual shift assignments)
+        for facility_id in facility_ids:
+            self.core_variable_strategy.create_variables(
+                lp_vars,
+                data_provider,
+                facility_id,
+            )
+
+        # --- Phase 2: Constraints ---
+
+        for facility_id in facility_ids:
+            for rule_strategy in self.rule_strategies:
+                rule_strategy.apply_constraints(
+                    problem, lp_vars, data_provider, facility_id
+                )  # HPRD, Fatigue
+
+        # Apply Global Constraints (Pay/OT linkage across facilities)
+        for pay_strategy in self.global_pay_strategies:
             pay_strategy.apply_constraints(problem, lp_vars, data_provider)  # OT Math
 
-        # 3. Build Objective
+        # --- Phase 3: Objective Function ---
+
         obj_terms = []
-        for pay_strategy in self.pay_strategies:
+        # Pay is usually global
+        for pay_strategy in self.global_pay_strategies:
             obj_terms.extend(pay_strategy.get_objective_terms(lp_vars, data_provider))
+
+        # Penalties might need facility scoping if weights differ per facility,
+        # but usually iterating over all shifts globally is fine for preferences.
+        # If needed, loop through facilities here too.
         for penalty_strategy in self.penalty_strategies:
             obj_terms.extend(
                 penalty_strategy.get_penalty_terms(
