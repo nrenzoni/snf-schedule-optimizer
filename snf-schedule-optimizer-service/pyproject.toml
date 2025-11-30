@@ -24,6 +24,7 @@ dependencies = [
 dev = [
     "mypy>=1.18.2",
     "pytest>=9.0.1",
+    "ruff>=0.14.7",
 ]
 
 [tool.mypy]
@@ -60,3 +61,49 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "snf_schedule_optimizer.generated.*"
 ignore_errors = true
+
+
+[tool.ruff]
+# Ruff respects .gitignore by default
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+]
+# Set the line length, similar to Black's default
+line-length = 88
+# Target Python version for backwards-compatibility checks
+target-version = "py314"
+
+[tool.ruff.lint]
+# Enable the default rule set (Pyflakes F and some Pycodestyle E rules)
+# You can extend this with other rule sets
+select = ["E", "F"]
+# Example: Extend with additional checks for Python errors and common gotchas (B, I, UP, etc.)
+extend-select = ["B", "I", "UP", "C4", "SIM"]
+# Ignore specific rules project-wide (optional)
+ignore = ["E501"] # Example: ignore line length rule if needed
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
