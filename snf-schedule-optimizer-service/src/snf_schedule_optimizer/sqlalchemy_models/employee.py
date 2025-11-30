@@ -13,14 +13,14 @@ class EmployeeModel(SQLABase):
     """
     Represents the main employee identity table (Employee).
     """
-    __tablename__ = 'employee'
+
+    __tablename__ = "employee"
 
     # Primary Key
     employee_id: Mapped[str] = mapped_column(String(32), primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
 
     # Relationship to the certifications (One Employee has Many Certifications)
-    certifications: Mapped[List['EmployeeCertificationModel']] = relationship(
-        back_populates="employee",
-        cascade="all, delete-orphan"
+    certifications: Mapped[List["EmployeeCertificationModel"]] = relationship(
+        back_populates="employee", cascade="all, delete-orphan"
     )

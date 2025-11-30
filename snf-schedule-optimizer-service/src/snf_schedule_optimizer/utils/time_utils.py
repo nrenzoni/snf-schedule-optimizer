@@ -7,7 +7,9 @@ class TimeRoundingUtility:
     """Provides stateless utility functions for time manipulation."""
 
     @staticmethod
-    def round_to_nearest_unit(dt: pendulum.DateTime, unit_minutes: int) -> pendulum.DateTime:
+    def round_to_nearest_unit(
+        dt: pendulum.DateTime, unit_minutes: int
+    ) -> pendulum.DateTime:
         """
         Applies rounding logic to the nearest configured unit (e.g., 6-minute rule).
         This is a pure function.

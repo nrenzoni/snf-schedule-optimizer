@@ -24,8 +24,8 @@ class DailyPatternDifferentialRule(IDifferentialRule):
         raise NotImplementedError()
 
     def get_applicable_intervals_for_shift(
-            self,
-            shift: Shift,
+        self,
+        shift: Shift,
     ) -> List[DifferentialDateInterval]:
         if is_weekend(shift.shift_start_dt.day_of_week):
             return [

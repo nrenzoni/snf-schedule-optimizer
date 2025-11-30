@@ -11,6 +11,7 @@ from snf_schedule_optimizer.models import *
 @dataclass(frozen=True)
 class SimulateFacilityScenarioParams:
     """Defines a simulated facility scenario for robustness testing."""
+
     rn_base_wage: float
     lpn_base_wage: float
     cna_base_wage: float
@@ -35,10 +36,10 @@ class HardcodedNurseSimulateGenerator(INurseSimulateGenerator):
 
 class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
     def __init__(
-            self,
-            n_employees: int,
-            simulation_params: SimulateFacilityScenarioParams,
-            rng: random.Random,
+        self,
+        n_employees: int,
+        simulation_params: SimulateFacilityScenarioParams,
+        rng: random.Random,
     ):
         self.n_employees = n_employees
         self.simulation_params = simulation_params
@@ -49,7 +50,9 @@ class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
         employees_compensation = self.generate_employees_and_compensation()
         return self._generate_nurse_profiles(employees_compensation)
 
-    def generate_employees_and_compensation(self) -> List[Tuple[Employee, StaffCompensationRecord]]:
+    def generate_employees_and_compensation(
+        self,
+    ) -> List[Tuple[Employee, StaffCompensationRecord]]:
         """
         Creates base Employee records and their current StaffCompensationRecords.
         Replaces the old generate_nurse_profiles logic.
@@ -98,9 +101,8 @@ class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
         return roster_data
 
     def _generate_nurse_profiles(
-            self,
-            employee_compensation_data:
-            List[Tuple[Employee, StaffCompensationRecord]],
+        self,
+        employee_compensation_data: List[Tuple[Employee, StaffCompensationRecord]],
     ) -> List[NurseProfile]:
         """
         Generates scheduling-specific NurseProfiles using the base cost data.
@@ -114,7 +116,7 @@ class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
                     # ot_multiplier=compensation.ot_multiplier,
                     available_hours_weekly=40,  # Assuming standard availability
                     # is_agency=compensation.is_agency,
-                    skills=['Wound Care'] if self.rng.random() < 0.3 else [],
+                    skills=["Wound Care"] if self.rng.random() < 0.3 else [],
                     shift_custom_preferences=[],
                 )
             )
@@ -123,10 +125,10 @@ class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
 
 class WrappedWithPreferencesNurseSimulateGenerator(INurseSimulateGenerator):
     def __init__(
-            self,
-            inner_simulator: INurseSimulateGenerator,
-            simulation_params: SimulateFacilityScenarioParams,
-            rng_seed: int,
+        self,
+        inner_simulator: INurseSimulateGenerator,
+        simulation_params: SimulateFacilityScenarioParams,
+        rng_seed: int,
     ):
         self.inner_simulator = inner_simulator
         self.simulation_params = simulation_params
@@ -135,7 +137,9 @@ class WrappedWithPreferencesNurseSimulateGenerator(INurseSimulateGenerator):
     def generate_nurse_profiles(self) -> List[NurseProfile]:
         """Creates a mock staff roster reflecting the facility's profile and turnover risk, with preferences."""
         roster = []
-        for i, nurse_profile in enumerate(self.inner_simulator.generate_nurse_profiles()):
+        for i, nurse_profile in enumerate(
+            self.inner_simulator.generate_nurse_profiles()
+        ):
             preferences = []
             if self.rng.random() < 0.5:
                 preferences.append(
@@ -143,10 +147,12 @@ class WrappedWithPreferencesNurseSimulateGenerator(INurseSimulateGenerator):
                         preference_type=PreferenceType.SPECIFIC_DAY_OFF,
                         specific_value=str(pendulum.WeekDay.MONDAY),
                         penalty_weight=2.0,
-                        is_hard_block=False
+                        is_hard_block=False,
                     )
                 )
-                nurse_profile_updated = dataclasses.replace(nurse_profile, shift_custom_preferences=preferences)
+                nurse_profile_updated = dataclasses.replace(
+                    nurse_profile, shift_custom_preferences=preferences
+                )
                 roster.append(nurse_profile_updated)
 
         return roster

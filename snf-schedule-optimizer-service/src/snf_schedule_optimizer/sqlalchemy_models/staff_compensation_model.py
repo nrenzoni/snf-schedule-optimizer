@@ -13,16 +13,15 @@ class StaffCompensationModel(SQLABase):
     SQLAlchemy ORM model for storing time-versioned financial rate data.
     Maps directly to the StaffCompensationRecord application dataclass.
     """
-    __tablename__ = 'staff_compensation_record'
+
+    __tablename__ = "staff_compensation_record"
 
     # --- Primary Key ---
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # --- Foreign Key to Employee (One Employee has Many Compensation Records) ---
     employee_id: Mapped[str] = mapped_column(
-        ForeignKey('employee.employee_id'),
-        index=True,
-        nullable=False
+        ForeignKey("employee.employee_id"), index=True, nullable=False
     )
 
     # --- Rate and Multipliers ---
@@ -33,7 +32,9 @@ class StaffCompensationModel(SQLABase):
 
     # --- Audit and Validity Period (Crucial for time-series data) ---
     effective_start_date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
-    effective_end_date: Mapped[Optional[datetime.date]] = mapped_column(Date, nullable=True)
+    effective_end_date: Mapped[Optional[datetime.date]] = mapped_column(
+        Date, nullable=True
+    )
 
     # --- Metadata and Source ---
     union_contract_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -45,7 +46,9 @@ class StaffCompensationModel(SQLABase):
     )
 
     def __repr__(self) -> str:
-        return (f"<StaffCompensationModel("
-                f"id={self.id}, employee_id='{self.employee_id}', "
-                f"rate={self.base_rate_effective}, "
-                f"start_date={self.effective_start_date})>")
+        return (
+            f"<StaffCompensationModel("
+            f"id={self.id}, employee_id='{self.employee_id}', "
+            f"rate={self.base_rate_effective}, "
+            f"start_date={self.effective_start_date})>"
+        )

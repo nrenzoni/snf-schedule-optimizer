@@ -1,23 +1,31 @@
 from typing import Optional
 
-from snf_schedule_optimizer.models import Employee, NurseProfile, PreferenceType, PreferenceWeights, Shift
-from snf_schedule_optimizer.services.interfaces import IPreferencePenaltyProcessor, IStaffCompensationService
+from snf_schedule_optimizer.models import (
+    Employee,
+    NurseProfile,
+    PreferenceType,
+    PreferenceWeights,
+    Shift,
+)
+from snf_schedule_optimizer.services.interfaces import (
+    IPreferencePenaltyProcessor,
+    IStaffCompensationService,
+)
 
 
 class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
-
     def __init__(
-            self,
-            staff_compensation_service: IStaffCompensationService,
+        self,
+        staff_compensation_service: IStaffCompensationService,
     ):
         self.staff_compensation_service = staff_compensation_service
 
     def calculate_penalty_cost(
-            self,
-            employee: Employee,
-            nurse: NurseProfile,
-            shift: Shift,
-            preference_weights: PreferenceWeights,
+        self,
+        employee: Employee,
+        nurse: NurseProfile,
+        shift: Shift,
+        preference_weights: PreferenceWeights,
     ) -> float:
         """
         Calculates the non-financial penalty cost if the assignment violates a soft preference.
@@ -27,17 +35,19 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
 
         # Penalize assigning a nurse to a night shift if they prefer days
         if not shift.day_shift:
-            if (
-                    nurse.shift_custom_preferences and
-                    any(p for p in nurse.shift_custom_preferences if p.preference_type.DAY_SHIFT_PREFERENCE)
+            if nurse.shift_custom_preferences and any(
+                p
+                for p in nurse.shift_custom_preferences
+                if p.preference_type.DAY_SHIFT_PREFERENCE
             ):
                 # The 'weights' parameter controls the impact of this penalty on the solver
                 penalty += preference_weights.custom_preference_penalty
 
         if shift.day_shift:
-            if (
-                    nurse.shift_custom_preferences and
-                    any(p for p in nurse.shift_custom_preferences if p.preference_type.NIGHT_SHIFT_PREFERENCE)
+            if nurse.shift_custom_preferences and any(
+                p
+                for p in nurse.shift_custom_preferences
+                if p.preference_type.NIGHT_SHIFT_PREFERENCE
             ):
                 penalty += preference_weights.custom_preference_penalty
 
@@ -46,7 +56,11 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
             for p in nurse.shift_custom_preferences:
                 if p.preference_type == PreferenceType.SPECIFIC_DAY_OFF:
                     try:
-                        preference_day_int = int(p.specific_value) if p.specific_value is not None else -1
+                        preference_day_int = (
+                            int(p.specific_value)
+                            if p.specific_value is not None
+                            else -1
+                        )
                         if shift.day_of_week.value == preference_day_int:
                             penalty += preference_weights.custom_preference_penalty
                             break
@@ -57,12 +71,19 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
         # FIX: The ot_multiplier is not on NurseProfile. Delegate the multiplier check
         # to the ShiftPayProcessor or assume a standard rate for soft penalty calculation.
         # Here, we assume the base_rate is enough proxy cost.
-        comp_record = self.staff_compensation_service.get_record_for_date(employee.employee_id, shift.shift_start_dt)
+        comp_record = self.staff_compensation_service.get_record_for_date(
+            employee.employee_id, shift.shift_start_dt
+        )
         if comp_record is None:
-            raise ValueError(f"Missing compensation record for {employee.employee_id=}, {shift.shift_start_dt=}")
+            raise ValueError(
+                f"Missing compensation record for {employee.employee_id=}, {shift.shift_start_dt=}"
+            )
         if self._is_overtime_risk(nurse, shift.day_shift):
             # Use nurse.base_rate (which is on NurseProfile now) as a proxy for cost
-            penalty += preference_weights.ot_avoidance_penalty * comp_record.base_rate_effective
+            penalty += (
+                preference_weights.ot_avoidance_penalty
+                * comp_record.base_rate_effective
+            )
 
         # Future implementation: Incorporate penalties for breaking team consistency here
         #

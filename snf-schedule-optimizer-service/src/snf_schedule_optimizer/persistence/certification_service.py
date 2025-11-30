@@ -6,7 +6,9 @@ import pendulum
 
 from snf_schedule_optimizer.models.testing import MockCertificationRecord
 from snf_schedule_optimizer.services.interfaces import ICertificationService
-from snf_schedule_optimizer.sqlalchemy_models.employee_certification import EmployeeCertificationModel
+from snf_schedule_optimizer.sqlalchemy_models.employee_certification import (
+    EmployeeCertificationModel,
+)
 
 
 class CertificationServiceStaticListImpl(ICertificationService):
@@ -33,10 +35,10 @@ class CertificationServiceStaticListImpl(ICertificationService):
             self.employee_certs[employee_id].append(record)
 
     def is_certification_active(
-            self,
-            employee_id: str,
-            certification_name: str,
-            check_date: pendulum.DateTime,
+        self,
+        employee_id: str,
+        certification_name: str,
+        check_date: pendulum.DateTime,
     ) -> bool:
         """
         Checks if the named certification is valid/unexpired for the employee
@@ -51,10 +53,12 @@ class CertificationServiceStaticListImpl(ICertificationService):
 
         for record in self.employee_certs[employee_id]:
             if record.certification_name == certification_name:
-
                 # Check 1: Expiration Date must be greater than or equal to the check date.
                 # If cert expires on 2025-12-31, it is still valid FOR 2025-12-31.
-                if record.expiration_date is None or record.expiration_date >= check_date_date:
+                if (
+                    record.expiration_date is None
+                    or record.expiration_date >= check_date_date
+                ):
                     return True
 
         return False
@@ -69,10 +73,10 @@ class SQLACertificationService(ICertificationService):
         self.db_session = db_session
 
     def is_certification_active(
-            self,
-            employee_id: str,
-            certification_name: str,
-            check_date: pendulum.DateTime,
+        self,
+        employee_id: str,
+        certification_name: str,
+        check_date: pendulum.DateTime,
     ) -> bool:
         """
         Checks if the employee holds an unexpired certification on the required date.
@@ -87,11 +91,9 @@ class SQLACertificationService(ICertificationService):
             and_(
                 EmployeeCertificationModel.employee_id == employee_id,
                 EmployeeCertificationModel.certification_name == certification_name,
-
                 # Crucial Check 1: The expiration date must be GREATER than or equal to the check date.
                 # If the cert expires *before* the shift starts, it's invalid.
                 EmployeeCertificationModel.expiration_date >= check_date_for_db,
-
                 # Optional Check 2: The acquired date must be LESS than or equal to the check date
                 # (Assuming the model has an 'acquired_date' field, though not explicitly in the placeholder)
                 # EmployeeCertificationModel.acquired_date <= check_date_for_db

@@ -1,9 +1,12 @@
-from snf_schedule_optimizer.models import DifferentialType, StaffCompensationRecord, WorkedShiftSegment
+from snf_schedule_optimizer.models import (
+    DifferentialType,
+    StaffCompensationRecord,
+    WorkedShiftSegment,
+)
 from snf_schedule_optimizer.services.interfaces import IRateCalculator
 
 
 class DifferentialAndOvertimeRateCalculator(IRateCalculator):
-
     # def calculate_effective_rate(
     #         self,
     #         employee: Employee,
@@ -22,11 +25,10 @@ class DifferentialAndOvertimeRateCalculator(IRateCalculator):
     #         raise ValueError(f"Unknown DifferentialType: {differential.type}")
 
     def calculate_effective_rate(
-            self,
-            compensation_record: StaffCompensationRecord,
-            segment: WorkedShiftSegment,
+        self,
+        compensation_record: StaffCompensationRecord,
+        segment: WorkedShiftSegment,
     ) -> float:
-
         # 1. Sum Differential Additions (FLAT) and Multipliers (for Regular Rate)
         total_differential_addition = 0.0
         differential_multiplier_sum = 0.0
@@ -47,16 +49,22 @@ class DifferentialAndOvertimeRateCalculator(IRateCalculator):
         ot_multiplier = 1.0
         if segment.applicable_overtime_rules:
             # Find the highest multiplier required by any applicable rule
-            ot_multiplier = max(rule.multiplier for rule in segment.applicable_overtime_rules)
+            ot_multiplier = max(
+                rule.multiplier for rule in segment.applicable_overtime_rules
+            )
 
         # 2. Calculate the Regular Rate of Pay (Base + Differentials)
         # Note: If Base Rate is $30 and Diff is 1.1x (10%), the rate is $30 * 1.1 = $33
-        regular_rate_hourly = compensation_record.base_rate_effective * (1.0 + differential_multiplier_sum)
+        regular_rate_hourly = compensation_record.base_rate_effective * (
+            1.0 + differential_multiplier_sum
+        )
 
         # 3. Apply the Overtime Multiplier to the Regular Rate
         effective_rate_hourly = regular_rate_hourly * ot_multiplier
 
         # 4. Calculate total segment cost
-        total_cost = (effective_rate_hourly * segment.duration_hours) + total_differential_addition
+        total_cost = (
+            effective_rate_hourly * segment.duration_hours
+        ) + total_differential_addition
 
         return total_cost

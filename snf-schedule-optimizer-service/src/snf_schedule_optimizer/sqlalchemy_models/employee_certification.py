@@ -13,15 +13,15 @@ class EmployeeCertificationModel(SQLABase):
     Represents a single certification record for an employee.
     Maps to the employee_certification table.
     """
-    __tablename__ = 'employee_certification'
+
+    __tablename__ = "employee_certification"
 
     # Primary Key
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # Foreign Key to EmployeeModel
     employee_id: Mapped[str] = mapped_column(
-        ForeignKey('employee.employee_id'),
-        index=True
+        ForeignKey("employee.employee_id"), index=True
     )
 
     # Certification Metadata
@@ -37,10 +37,12 @@ class EmployeeCertificationModel(SQLABase):
     employee: Mapped[EmployeeModel] = relationship(back_populates="certifications")
 
     def __repr__(self) -> str:
-        return (f"<EmployeeCertificationModel("
-                f"employee_id='{self.employee_id}', "
-                f"cert='{self.certification_name}', "
-                f"expires='{self.expiration_date}')>")
+        return (
+            f"<EmployeeCertificationModel("
+            f"employee_id='{self.employee_id}', "
+            f"cert='{self.certification_name}', "
+            f"expires='{self.expiration_date}')>"
+        )
 
     def is_valid_on_date(self, check_date: pendulum.DateTime) -> bool:
         """

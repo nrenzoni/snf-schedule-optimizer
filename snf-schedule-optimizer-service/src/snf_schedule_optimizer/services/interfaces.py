@@ -5,27 +5,36 @@ import pendulum
 from typing_extensions import TYPE_CHECKING
 
 from snf_schedule_optimizer.models import (
-    Differential, DifferentialDateInterval, Employee,
+    Differential,
+    DifferentialDateInterval,
+    Employee,
     NurseProfile,
     OvertimeInterval,
-    PreferenceWeights, Shift, ShiftSpecificRequirements, StaffCompensationRecord, TimePunch, WorkedShiftSegment,
+    PreferenceWeights,
+    Shift,
+    ShiftSpecificRequirements,
+    StaffCompensationRecord,
+    TimePunch,
+    WorkedShiftSegment,
     WorkedTimeBlock,
     EmployeeTimeSettings,
-    MealDeductionRules
+    MealDeductionRules,
 )
 from snf_schedule_optimizer.models.constraints import LookbackPeriod, PunchType
 
 if TYPE_CHECKING:
-    from snf_schedule_optimizer.services.calculations.overtime_calculation import ThresholdOvertimeRule
+    from snf_schedule_optimizer.services.calculations.overtime_calculation import (
+        ThresholdOvertimeRule,
+    )
 
 
 class ICertificationService(abc.ABC):
     @abc.abstractmethod
     def is_certification_active(
-            self,
-            employee_id: str,
-            certification_name: str,
-            check_date: pendulum.DateTime,
+        self,
+        employee_id: str,
+        certification_name: str,
+        check_date: pendulum.DateTime,
     ) -> bool:
         """Checks if the named certification is valid/unexpired on the check_date."""
         pass
@@ -38,10 +47,10 @@ class IOvertimeRuleRetrieverService(abc.ABC):
 
     @abc.abstractmethod
     def get_applicable_rules(
-            self,
-            employee: Employee,
-            shift: Shift,
-    ) -> List['IOvertimeRule']:
+        self,
+        employee: Employee,
+        shift: Shift,
+    ) -> List["IOvertimeRule"]:
         """
         Retrieves all active and eligible IOvertimeRule objects for the given
         employee and shift, often factoring in union/contract ID.
@@ -56,10 +65,10 @@ class IEmployeeWorkHistoryService(abc.ABC):
 
     @abc.abstractmethod
     def get_remaining_non_ot_hours(
-            self,
-            employee: Employee,
-            current_shift: Shift,
-            ot_rules: List['ThresholdOvertimeRule'],
+        self,
+        employee: Employee,
+        current_shift: Shift,
+        ot_rules: List["ThresholdOvertimeRule"],
     ) -> Dict[LookbackPeriod, float]:
         """
         Calculates the minimum remaining non-OT hours based on all provided rules
@@ -70,14 +79,14 @@ class IEmployeeWorkHistoryService(abc.ABC):
 
     @abc.abstractmethod
     def get_accumulated_hours(
-            self,
-            employee: Employee,
-            current_shift: Shift,
-            history: Dict[Shift, List[WorkedShiftSegment]],
-            threshold_hours: float,
-            lookback_period: LookbackPeriod,
-            work_period_start_day: Optional[int] = None,  # pendulum.DayOfWeek
-            work_period_start_time: Optional[pendulum.Time] = None,
+        self,
+        employee: Employee,
+        current_shift: Shift,
+        history: Dict[Shift, List[WorkedShiftSegment]],
+        threshold_hours: float,
+        lookback_period: LookbackPeriod,
+        work_period_start_day: Optional[int] = None,  # pendulum.DayOfWeek
+        work_period_start_time: Optional[pendulum.Time] = None,
     ) -> float:
         """
         Calculates total non-OT hours accumulated by the employee
@@ -87,11 +96,11 @@ class IEmployeeWorkHistoryService(abc.ABC):
 
     @abc.abstractmethod
     def get_consecutive_days_worked(
-            self,
-            employee: Employee,
-            current_shift: Shift,
-            history: Dict[Shift, List[WorkedShiftSegment]],
-            max_consecutive_days: int,
+        self,
+        employee: Employee,
+        current_shift: Shift,
+        history: Dict[Shift, List[WorkedShiftSegment]],
+        max_consecutive_days: int,
     ) -> List[pendulum.Date]:
         """
         Calculates the number of consecutive calendar days worked immediately
@@ -102,9 +111,9 @@ class IEmployeeWorkHistoryService(abc.ABC):
 
     @abc.abstractmethod
     def get_processed_history_for_period(
-            self,
-            employee_id: str,
-            up_to_check_date: pendulum.DateTime,
+        self,
+        employee_id: str,
+        up_to_check_date: pendulum.DateTime,
     ) -> Dict[Shift, List[WorkedShiftSegment]]:
         """
         Retrieves all previously processed shifts and their segments for the employee
@@ -119,11 +128,11 @@ class IOvertimeCalculator(abc.ABC):
 
     @abc.abstractmethod
     def get_overtime_intervals(
-            self,
-            shift: Shift,
-            employee: Employee,
-            work_shift_history: Dict[Shift, List[WorkedShiftSegment]],
-            overtime_rules: List['IOvertimeRule'],
+        self,
+        shift: Shift,
+        employee: Employee,
+        work_shift_history: Dict[Shift, List[WorkedShiftSegment]],
+        overtime_rules: List["IOvertimeRule"],
     ) -> List[OvertimeInterval]:
         """Returns list of overtime intervals applicable to the given shift and employee."""
         pass
@@ -192,8 +201,8 @@ class IOvertimeRule(abc.ABC):
 class IDifferentialRule(abc.ABC):
     @abc.abstractmethod
     def get_applicable_intervals_for_shift(
-            self,
-            shift: Shift,
+        self,
+        shift: Shift,
     ) -> List[DifferentialDateInterval]:
         pass
 
@@ -232,10 +241,10 @@ class IShiftSlicer(abc.ABC):
 
     @abc.abstractmethod
     def slice_shift(
-            self,
-            shift: Shift,
-            differential_intervals: List[DifferentialDateInterval],
-            overtime_intervals: List[OvertimeInterval],
+        self,
+        shift: Shift,
+        differential_intervals: List[DifferentialDateInterval],
+        overtime_intervals: List[OvertimeInterval],
     ) -> List[WorkedShiftSegment]:
         pass
 
@@ -245,16 +254,18 @@ class IRateCalculator(abc.ABC):
 
     @abc.abstractmethod
     def calculate_effective_rate(
-            self,
-            compensation_record: StaffCompensationRecord,
-            segment: WorkedShiftSegment,
+        self,
+        compensation_record: StaffCompensationRecord,
+        segment: WorkedShiftSegment,
     ) -> float:
         pass
 
 
 class INurseDifferentialRetriever(abc.ABC):
     @abc.abstractmethod
-    def get_differentials(self, nurse: NurseProfile, shift: Shift) -> List[Differential]:
+    def get_differentials(
+        self, nurse: NurseProfile, shift: Shift
+    ) -> List[Differential]:
         pass
 
 
@@ -263,9 +274,9 @@ class IStaffCompensationService(abc.ABC):
 
     @abc.abstractmethod
     def get_record_for_date(
-            self,
-            employee_id: str,
-            check_date: pendulum.DateTime,
+        self,
+        employee_id: str,
+        check_date: pendulum.DateTime,
     ) -> Optional[StaffCompensationRecord]:
         """
         Retrieves the one StaffCompensationRecord whose validity period
@@ -279,9 +290,9 @@ class IRawHistoryRetriever(abc.ABC):
 
     @abc.abstractmethod
     def get_raw_inputs_for_period(
-            self,
-            employee_id: str,
-            check_date: pendulum.DateTime,
+        self,
+        employee_id: str,
+        check_date: pendulum.DateTime,
     ) -> Dict[Shift, List[TimePunch]]:
         """
         Retrieves all scheduled Shifts and their corresponding raw TimePunches
@@ -299,9 +310,9 @@ class IShiftReconcilerService(abc.ABC):
 
     @abc.abstractmethod
     def reconcile_shift_to_blocks(
-            self,
-            scheduled_shift: Shift,
-            raw_punches: List[TimePunch],
+        self,
+        scheduled_shift: Shift,
+        raw_punches: List[TimePunch],
     ) -> List[WorkedTimeBlock]:
         """
         Combines scheduled time and actual punches, applies rounding rules,
@@ -317,7 +328,9 @@ class IFacilityRulesService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def apply_rounding(self, raw_time: pendulum.DateTime, punch_type: PunchType) -> pendulum.DateTime:
+    def apply_rounding(
+        self, raw_time: pendulum.DateTime, punch_type: PunchType
+    ) -> pendulum.DateTime:
         """
         Applies facility-specific rounding rules (e.g., 6-minute rule, 15-minute rule)
         to a raw punch time.
@@ -330,9 +343,9 @@ class IFacilityRulesService(abc.ABC):
 
     @abc.abstractmethod
     def get_time_settings(
-            self,
-            employee_id: str,
-            check_dt: pendulum.DateTime,
+        self,
+        employee_id: str,
+        check_dt: pendulum.DateTime,
     ) -> EmployeeTimeSettings:
         """
         Retrieves complex time-related payroll settings (pairing threshold,
@@ -341,7 +354,9 @@ class IFacilityRulesService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_meal_deduction_rules(self, check_dt: pendulum.DateTime) -> Optional[MealDeductionRules]:
+    def get_meal_deduction_rules(
+        self, check_dt: pendulum.DateTime
+    ) -> Optional[MealDeductionRules]:
         """
         Retrieves the mandatory meal deduction rules applicable on the given date/time,
         as these can change based on contract or state law.
@@ -371,10 +386,10 @@ class IRuleRetrievalService(abc.ABC):
 
     @abc.abstractmethod
     def get_differential_rules_by_context(
-            self,
-            employee: 'Employee',
-            shift: 'Shift',
-    ) -> List['IDifferentialRule']:
+        self,
+        employee: "Employee",
+        shift: "Shift",
+    ) -> List["IDifferentialRule"]:
         """
         Retrieves all active, non-time-specific differential rules (e.g., Weekend
         Differential) applicable to the employee and facility context.
@@ -383,10 +398,10 @@ class IRuleRetrievalService(abc.ABC):
 
     @abc.abstractmethod
     def get_overtime_rules_by_context(
-            self,
-            employee: 'Employee',
-            shift: 'Shift',
-    ) -> List['IOvertimeRule']:
+        self,
+        employee: "Employee",
+        shift: "Shift",
+    ) -> List["IOvertimeRule"]:
         """
         Retrieves all active overtime threshold rules (e.g., 8-hour daily OT,
         40-hour weekly OT, Union OT) applicable to the employee and date.
@@ -405,11 +420,11 @@ class IPreferencePenaltyProcessor(abc.ABC):
 
     @abc.abstractmethod
     def calculate_penalty_cost(
-            self,
-            employee: Employee,
-            nurse: NurseProfile,
-            shift: Shift,
-            preference_weights: PreferenceWeights,
+        self,
+        employee: Employee,
+        nurse: NurseProfile,
+        shift: Shift,
+        preference_weights: PreferenceWeights,
     ) -> float:
         """
         Calculates the non-financial penalty cost if the assignment violates a soft preference.

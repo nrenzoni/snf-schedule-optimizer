@@ -8,23 +8,38 @@ from snf_schedule_optimizer.models import *
 from snf_schedule_optimizer.ml_output_retrievers import MLModelOutputsRetrieverImpl
 from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.optimization_engine import (
-    NurseShiftScheduleOptimizer, Shift, Schedule
+    NurseShiftScheduleOptimizer,
+    Shift,
+    Schedule,
 )
 
-from snf_schedule_optimizer.resident_acuity_retrievers import IResidentAcuityPerShiftRetriever
+from snf_schedule_optimizer.resident_acuity_retrievers import (
+    IResidentAcuityPerShiftRetriever,
+)
 import polars as pl
 
-from snf_schedule_optimizer.services.calculations.differential_retrieval import NurseDifferentialRetrieverImpl
-from snf_schedule_optimizer.services.calculations.shift_pay_processor import ShiftPayProcessor
-from snf_schedule_optimizer.services.interfaces import IEmployeeRetriever, IPreferencePenaltyProcessor, \
-    IShiftRequirementsRetriever, \
-    IStaffCompensationService
-from snf_schedule_optimizer.persistence.shift_requirements_retriever import ShiftRequirementsRetrieverImpl
+from snf_schedule_optimizer.services.calculations.differential_retrieval import (
+    NurseDifferentialRetrieverImpl,
+)
+from snf_schedule_optimizer.services.calculations.shift_pay_processor import (
+    ShiftPayProcessor,
+)
+from snf_schedule_optimizer.services.interfaces import (
+    IEmployeeRetriever,
+    IPreferencePenaltyProcessor,
+    IShiftRequirementsRetriever,
+    IStaffCompensationService,
+)
+from snf_schedule_optimizer.persistence.shift_requirements_retriever import (
+    ShiftRequirementsRetrieverImpl,
+)
 
 
 class ITestRunCaseGenerator(abc.ABC):
     @abc.abstractmethod
-    def generate_test_cases(self) -> Generator[PerShiftStressTestParameters, None, None]:
+    def generate_test_cases(
+        self,
+    ) -> Generator[PerShiftStressTestParameters, None, None]:
         """Yields test cases for robustness testing."""
         pass
 
@@ -33,22 +48,26 @@ class SingleTestRunCaseGenerator(ITestRunCaseGenerator):
     def __init__(self, test_case: PerShiftStressTestParameters) -> None:
         self.test_case = test_case
 
-    def generate_test_cases(self) -> Generator[PerShiftStressTestParameters, None, None]:
+    def generate_test_cases(
+        self,
+    ) -> Generator[PerShiftStressTestParameters, None, None]:
         yield self.test_case
 
 
 class SingleParamPermuteTestRunCaseGenerator(ITestRunCaseGenerator):
     def __init__(
-            self,
-            param_name: StressTestParameterName,
-            test_values: List[Any],
-            default_params: dict[str, Any],
+        self,
+        param_name: StressTestParameterName,
+        test_values: List[Any],
+        default_params: dict[str, Any],
     ) -> None:
         self.param_name = param_name
         self.test_values = test_values
         self.default_params = default_params
 
-    def generate_test_cases(self) -> Generator[PerShiftStressTestParameters, None, None]:
+    def generate_test_cases(
+        self,
+    ) -> Generator[PerShiftStressTestParameters, None, None]:
         for value in self.test_values:
             try:
                 params = self.default_params.copy()
@@ -57,7 +76,9 @@ class SingleParamPermuteTestRunCaseGenerator(ITestRunCaseGenerator):
             except TypeError:
                 stress_params = PerShiftStressTestParameters(**self.default_params)
                 if not hasattr(stress_params, self.param_name):
-                    raise ValueError(f"Unknown TimeSeriesParameters field: {self.param_name}")
+                    raise ValueError(
+                        f"Unknown TimeSeriesParameters field: {self.param_name}"
+                    )
                 setattr(stress_params, self.param_name, value)
 
             yield stress_params
@@ -72,16 +93,18 @@ class IShiftGenerator(abc.ABC):
 
 class DefaultShiftGenerator(IShiftGenerator):
     def __init__(
-            self,
-            start_date: pendulum.DateTime,
-            n_forecast_days: Optional[int],
-            shifts_total: Optional[int],
-            timezone: pendulum.Timezone,
+        self,
+        start_date: pendulum.DateTime,
+        n_forecast_days: Optional[int],
+        shifts_total: Optional[int],
+        timezone: pendulum.Timezone,
     ) -> None:
         if n_forecast_days is None and shifts_total is None:
             raise ValueError("Either n_forecast_days or shifts_total must be provided.")
         if shifts_total is not None and n_forecast_days is not None:
-            raise ValueError("Only one of n_forecast_days or shifts_total should be provided.")
+            raise ValueError(
+                "Only one of n_forecast_days or shifts_total should be provided."
+            )
 
         self.start_date = start_date
         self.n_forecast_days = n_forecast_days
@@ -92,10 +115,12 @@ class DefaultShiftGenerator(IShiftGenerator):
         n_shifts_per_day = 3
         shift_duration = 24 // n_shifts_per_day  # 8 hours
 
-        sunday_of_current_week = self.start_date.start_of('week').add(days=6)
+        sunday_of_current_week = self.start_date.start_of("week").add(days=6)
 
         if self.shifts_total is not None:
-            n_forecast_days = (self.shifts_total + n_shifts_per_day - 1) // n_shifts_per_day
+            n_forecast_days = (
+                self.shifts_total + n_shifts_per_day - 1
+            ) // n_shifts_per_day
         else:
             assert self.n_forecast_days is not None
             n_forecast_days = self.n_forecast_days
@@ -105,7 +130,9 @@ class DefaultShiftGenerator(IShiftGenerator):
         for i in range(n_forecast_days):
             for j in range(n_shifts_per_day):
                 shift_start_hour = 7 if j == 0 else (15 if j == 1 else 23)
-                shift_start_time = sunday_of_current_week.add(days=i).add(hours=shift_start_hour)
+                shift_start_time = sunday_of_current_week.add(days=i).add(
+                    hours=shift_start_hour
+                )
                 shift_end_time = shift_start_time.add(hours=shift_duration)
                 shifts.append(
                     Shift(
@@ -115,7 +142,7 @@ class DefaultShiftGenerator(IShiftGenerator):
                         day_of_week=pendulum.WeekDay((i - 1) % 7),  # 1=Sun, 7=Sat
                         shift_start_dt=shift_start_time,
                         shift_end_dt=shift_end_time,
-                        timezone=self.timezone
+                        timezone=self.timezone,
                     )
                 )
                 if self.shifts_total is not None:
@@ -126,16 +153,15 @@ class DefaultShiftGenerator(IShiftGenerator):
 
 
 class TestRunner:
-
     def __init__(
-            self,
-            nurse_retriever: INurseRetriever,
-            employee_retriever: IEmployeeRetriever,
-            resident_acuity_retriever: IResidentAcuityPerShiftRetriever,
-            shift_pay_processor: ShiftPayProcessor,
-            staff_compensation_service: IStaffCompensationService,
-            preference_penalty_processor: IPreferencePenaltyProcessor,
-            seed: int,
+        self,
+        nurse_retriever: INurseRetriever,
+        employee_retriever: IEmployeeRetriever,
+        resident_acuity_retriever: IResidentAcuityPerShiftRetriever,
+        shift_pay_processor: ShiftPayProcessor,
+        staff_compensation_service: IStaffCompensationService,
+        preference_penalty_processor: IPreferencePenaltyProcessor,
+        seed: int,
     ) -> None:
         self.nurse_retriever = nurse_retriever
         self.employee_retriever = employee_retriever
@@ -147,14 +173,14 @@ class TestRunner:
         self.rng = random.Random(seed)
 
     def run_sensitivity_analysis(
-            self,
-            test_param_name: str,
-            shift_generator: IShiftGenerator,
-            test_run_case_generator: ITestRunCaseGenerator,
-            facility_config: FacilityConfig,
-            facility_hr_config: FacilityHrConfig,
-            shift_specific_requirements: ShiftSpecificRequirements,
-            min_mandates: MinMandates,
+        self,
+        test_param_name: str,
+        shift_generator: IShiftGenerator,
+        test_run_case_generator: ITestRunCaseGenerator,
+        facility_config: FacilityConfig,
+        facility_hr_config: FacilityHrConfig,
+        shift_specific_requirements: ShiftSpecificRequirements,
+        min_mandates: MinMandates,
     ) -> pl.DataFrame:
         """
         runs comparison scenarios. Returns a Polars DataFrame of aggregated metrics.
@@ -186,14 +212,14 @@ class TestRunner:
         return df
 
     def run_scenario(
-            self,
-            scenario_id: str,
-            shifts: List[Shift],
-            stress_params: PerShiftStressTestParameters,
-            facility_config: FacilityConfig,
-            facility_hr_config: FacilityHrConfig,
-            min_mandates: MinMandates,
-            shift_requirements: ShiftSpecificRequirements,
+        self,
+        scenario_id: str,
+        shifts: List[Shift],
+        stress_params: PerShiftStressTestParameters,
+        facility_config: FacilityConfig,
+        facility_hr_config: FacilityHrConfig,
+        min_mandates: MinMandates,
+        shift_requirements: ShiftSpecificRequirements,
     ) -> Dict[str, Any]:
         """
         Runs a single scenario to generate both forward- and backward-looking data.
@@ -203,8 +229,7 @@ class TestRunner:
 
         # parameters prioritize cost savings
         user_scheduler_pref_weights: PreferenceWeights = PreferenceWeights(
-            ot_avoidance_penalty=10.0,
-            team_consistency_penalty=1.0
+            ot_avoidance_penalty=10.0, team_consistency_penalty=1.0
         )
 
         shift_requirements_retriever = ShiftRequirementsRetrieverImpl(
@@ -213,9 +238,7 @@ class TestRunner:
 
         ml_model_outputs_retriever = MLModelOutputsRetrieverImpl()
 
-        nurse_differential_retriever = NurseDifferentialRetrieverImpl(
-            facility_config
-        )
+        nurse_differential_retriever = NurseDifferentialRetrieverImpl(facility_config)
 
         nurse_shift_schedule_optimizer = NurseShiftScheduleOptimizer(
             self.resident_acuity_retriever,
@@ -226,7 +249,7 @@ class TestRunner:
             self.shift_pay_processor,
             self.employee_retriever,
             self.staff_compensation_service,
-            self.preference_penalty_processor
+            self.preference_penalty_processor,
         )
 
         optimized_schedule_res = nurse_shift_schedule_optimizer.solve(
@@ -234,7 +257,7 @@ class TestRunner:
             facility_config,
             facility_hr_config,
             min_mandates,
-            user_scheduler_pref_weights
+            user_scheduler_pref_weights,
         )
 
         if not optimized_schedule_res.success:
@@ -250,8 +273,7 @@ class TestRunner:
 
         # post-schedule generation, adjust for call-out
         optimal_schedule_call_out_adjusted = self._simulate_call_out_rate_in_schedule(
-            optimal_schedule,
-            stress_params.staff_call_out_rate
+            optimal_schedule, stress_params.staff_call_out_rate
         )
 
         # overtime_calculator = OvertimeCalculatorImpl(facility_config)
@@ -263,15 +285,15 @@ class TestRunner:
         )
 
         baseline_schedule_generator = BaselineScheduleGenerator(
-            self.resident_acuity_retriever,
-            self.nurse_retriever
+            self.resident_acuity_retriever, self.nurse_retriever
         )
 
-        baseline_schedule = baseline_schedule_generator.generate_baseline_schedule(shifts)
+        baseline_schedule = baseline_schedule_generator.generate_baseline_schedule(
+            shifts
+        )
 
         baseline_schedule_call_out_adjusted = self._simulate_call_out_rate_in_schedule(
-            baseline_schedule,
-            stress_params.staff_call_out_rate
+            baseline_schedule, stress_params.staff_call_out_rate
         )
 
         baseline_schedule_with_callouts = baseline_schedule_call_out_adjusted.schedule
@@ -287,9 +309,7 @@ class TestRunner:
             shift_requirements_retriever,
         )
         baseline_risk_metrics = self._calc_risk_metrics(
-            shifts,
-            baseline_schedule_with_callouts,
-            shift_requirements_retriever
+            shifts, baseline_schedule_with_callouts, shift_requirements_retriever
         )
 
         # Calculate savings
@@ -297,18 +317,18 @@ class TestRunner:
 
         # Note: Return type is Dict[str, Any] as metrics can be floats, ints, or strings
         row_results = {
-            'Scenario_ID'         : scenario_id,
-            'Baseline_Cost'       : baseline_cost,
-            'Optimized_Cost'      : optimal_cost,
-            'Cost_Savings_Percent': cost_savings_pct
+            "Scenario_ID": scenario_id,
+            "Baseline_Cost": baseline_cost,
+            "Optimized_Cost": optimal_cost,
+            "Cost_Savings_Percent": cost_savings_pct,
         }
 
         row_results.update(
             {
-                'Baseline_Regulatory_Compliance_Score' : baseline_risk_metrics.regulatory_compliance_score,
-                'Optimized_Regulatory_Compliance_Score': optimal_risk_metrics.regulatory_compliance_score,
-                'Baseline_Staff_Wellbeing_Index'       : baseline_risk_metrics.staff_wellbeing_index,
-                'Optimized_Staff_Wellbeing_Index'      : optimal_risk_metrics.staff_wellbeing_index
+                "Baseline_Regulatory_Compliance_Score": baseline_risk_metrics.regulatory_compliance_score,
+                "Optimized_Regulatory_Compliance_Score": optimal_risk_metrics.regulatory_compliance_score,
+                "Baseline_Staff_Wellbeing_Index": baseline_risk_metrics.staff_wellbeing_index,
+                "Optimized_Staff_Wellbeing_Index": optimal_risk_metrics.staff_wellbeing_index,
             }
         )
 
@@ -320,17 +340,16 @@ class TestRunner:
         call_outs: Dict[str, List[str]]  # {Shift: [employee_ids who called out]}
 
     def _simulate_call_out_rate_in_schedule(
-            self,
-            schedule: Schedule,
-            call_out_rate: float,
+        self,
+        schedule: Schedule,
+        call_out_rate: float,
     ) -> ScheduleWithCallOut:
         """Simulates staff call-outs in the given schedule based on the call-out rate."""
         shift_assignments_with_call_out: Dict[str, List[str]] = {}
         called_out_per_shift: Dict[str, List[str]] = {}
         for shift_id, staff_ids in schedule.shift_assignments.items():
             adjusted_staff_ids = [
-                staff_id for staff_id in staff_ids
-                if self.rng.random() > call_out_rate
+                staff_id for staff_id in staff_ids if self.rng.random() > call_out_rate
             ]
             called_out_staff = list(set(staff_ids) - set(adjusted_staff_ids))
             called_out_per_shift[shift_id] = called_out_staff
@@ -338,7 +357,7 @@ class TestRunner:
 
         return self.ScheduleWithCallOut(
             schedule=Schedule(shift_assignments_with_call_out),
-            call_outs=called_out_per_shift
+            call_outs=called_out_per_shift,
         )
 
     @staticmethod
@@ -348,9 +367,9 @@ class TestRunner:
         return {}
 
     def _calculate_cost(
-            self,
-            schedule: Schedule,
-            shifts: Dict[str, Shift],
+        self,
+        schedule: Schedule,
+        shifts: Dict[str, Shift],
     ) -> float:
         """
         Calculates the total dollar total_cost based on assignments and pay rates.
@@ -361,9 +380,13 @@ class TestRunner:
 
         for shift_id, assigned_employee_ids in schedule.shift_assignments.items():
             shift = shifts[shift_id]
-            assigned_employees = [ee for ee in employees if ee.employee_id in assigned_employee_ids]
+            assigned_employees = [
+                ee for ee in employees if ee.employee_id in assigned_employee_ids
+            ]
             for employee in assigned_employees:
-                shift_cost = self.shift_pay_processor.calculate_shift_cost(employee, shift)
+                shift_cost = self.shift_pay_processor.calculate_shift_cost(
+                    employee, shift
+                )
                 total_cost += shift_cost
 
         return total_cost
@@ -373,13 +396,15 @@ class TestRunner:
         regulatory_compliance_score: float  # 0 (worst) to 100 (best)
         staff_wellbeing_index: float  # 0 (worst) to 100 (best)
         # turnover_likelihood_score: float  # 0 (low risk) to 100 (high risk)
-        overtime_hours_to_total_hours_ratio: int  # ratio of overtime hours to total hours worked, for all nurses
+        overtime_hours_to_total_hours_ratio: (
+            int  # ratio of overtime hours to total hours worked, for all nurses
+        )
 
     def _calc_risk_metrics(
-            self,
-            shifts: List[Shift],
-            schedule: Schedule,
-            shift_requirements_retriever: IShiftRequirementsRetriever,
+        self,
+        shifts: List[Shift],
+        schedule: Schedule,
+        shift_requirements_retriever: IShiftRequirementsRetriever,
     ) -> RiskMetrics:
         """
         quantify non-financial risk.
@@ -389,8 +414,9 @@ class TestRunner:
         staff_wellbeing_index_agg = 100.0
 
         for shift in shifts:
-
-            shift_specific_requirements = shift_requirements_retriever.get_shift_requirements(shift)
+            shift_specific_requirements = (
+                shift_requirements_retriever.get_shift_requirements(shift)
+            )
             nurses = self.nurse_retriever.get_nurses(shift)
 
             assigned_nurse_ids = schedule.shift_assignments[shift.shift_id]
@@ -439,7 +465,9 @@ class TestRunner:
 
             staff_wellbeing_misses = 0
 
-            current_shift_day_value = shift.day_of_week.value  # Get the integer value once
+            current_shift_day_value = (
+                shift.day_of_week.value
+            )  # Get the integer value once
 
             for nurse_profile in assigned_nurses:
                 if nurse_profile.shift_custom_preferences is not None:
@@ -447,12 +475,19 @@ class TestRunner:
                         if pref.preference_type == PreferenceType.DAY_SHIFT_PREFERENCE:
                             if not shift.day_shift:
                                 staff_wellbeing_misses -= 1
-                        if pref.preference_type == PreferenceType.NIGHT_SHIFT_PREFERENCE:
+                        if (
+                            pref.preference_type
+                            == PreferenceType.NIGHT_SHIFT_PREFERENCE
+                        ):
                             if shift.day_shift:
                                 staff_wellbeing_misses -= 1
                         if pref.preference_type == PreferenceType.SPECIFIC_DAY_OFF:
                             try:
-                                pref_day_int = int(pref.specific_value) if pref.specific_value is not None else -1
+                                pref_day_int = (
+                                    int(pref.specific_value)
+                                    if pref.specific_value is not None
+                                    else -1
+                                )
                             except (ValueError, TypeError):
                                 pref_day_int = -1  # Treat invalid input as non-matching
 
@@ -461,7 +496,7 @@ class TestRunner:
                         if pref.preference_type == PreferenceType.WEEKEND_OFF:
                             if current_shift_day_value in {
                                 pendulum.WeekDay.SATURDAY.value,
-                                pendulum.WeekDay.SUNDAY.value
+                                pendulum.WeekDay.SUNDAY.value,
                             }:
                                 staff_wellbeing_misses -= 1
 
@@ -471,5 +506,5 @@ class TestRunner:
         return TestRunner.RiskMetrics(
             regulatory_compliance_score=max(0.0, regulatory_compliance_score_agg),
             staff_wellbeing_index=max(0.0, staff_wellbeing_index_agg),
-            overtime_hours_to_total_hours_ratio=0  # Placeholder implementation
+            overtime_hours_to_total_hours_ratio=0,  # Placeholder implementation
         )

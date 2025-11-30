@@ -4,10 +4,19 @@ from typing import List
 import pendulum
 
 from snf_schedule_optimizer.datetime_utils import is_between
-from snf_schedule_optimizer.models import EmployeeTimeSettings, MealDeductionRules, PunchType, Shift, SplitDayType, \
-    TimePunch, \
-    WorkedTimeBlock
-from snf_schedule_optimizer.services.interfaces import IFacilityRulesService, IShiftReconcilerService
+from snf_schedule_optimizer.models import (
+    EmployeeTimeSettings,
+    MealDeductionRules,
+    PunchType,
+    Shift,
+    SplitDayType,
+    TimePunch,
+    WorkedTimeBlock,
+)
+from snf_schedule_optimizer.services.interfaces import (
+    IFacilityRulesService,
+    IShiftReconcilerService,
+)
 
 
 class ShiftReconcilerServiceImpl(IShiftReconcilerService):
@@ -17,26 +26,24 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
     """
 
     def __init__(
-            self,
-            facility_rules_service: IFacilityRulesService,
+        self,
+        facility_rules_service: IFacilityRulesService,
     ):
         # This service provides rounding rules, auto-deduction times, etc.
         self.rules_service = facility_rules_service
 
     def reconcile_shift_to_blocks(
-            self,
-            scheduled_shift: Shift,
-            raw_punches: List[TimePunch],
+        self,
+        scheduled_shift: Shift,
+        raw_punches: List[TimePunch],
     ) -> List[WorkedTimeBlock]:
-
         # 1. Sort Punches: Crucial for pairing
         raw_punches.sort(key=lambda p: p.punch_time)
 
         # NOTE: We need the employee's specific time settings (e.g., pairing threshold).
         # Assuming the rules service can provide this based on employee/date.
         settings = self.rules_service.get_time_settings(
-            raw_punches[0].employee_id,
-            scheduled_shift.shift_start_dt
+            raw_punches[0].employee_id, scheduled_shift.shift_start_dt
         )
 
         # 2. Punch Pairing ('Pair' logic)
@@ -45,26 +52,21 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         # 3. Apply Splitting ('SplitPunches' logic)
         blocks_after_split = []
         for block in paired_blocks:
-            blocks_after_split.extend(
-                self._split_overnight_block(block, settings)
-            )
+            blocks_after_split.extend(self._split_overnight_block(block, settings))
 
         # 4. Apply Rounding & Meal Deduction (Simplified)
         final_blocks = []
         for block in blocks_after_split:
             # Reapply rounding and meal deduction logic here
-            final_blocks.extend(
-                self._apply_rounding_and_deduction(block, settings)
-            )
+            final_blocks.extend(self._apply_rounding_and_deduction(block, settings))
 
         return final_blocks
 
     def _pair_raw_punches(
-            self,
-            punches: List[TimePunch],
-            settings: EmployeeTimeSettings,
+        self,
+        punches: List[TimePunch],
+        settings: EmployeeTimeSettings,
     ) -> List[WorkedTimeBlock]:
-
         paired_blocks: List[WorkedTimeBlock] = []
         i = 0
 
@@ -81,8 +83,7 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
                 continue
 
             # Check for CheckIn type
-            if punch1.punch_type in [None, 'CheckIn']:
-
+            if punch1.punch_type in [None, "CheckIn"]:
                 # Look for the immediate next punch
                 if i + 1 < len(punches):
                     punch2 = punches[i + 1]
@@ -94,14 +95,14 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
                         continue
 
                     # Check for CheckOut type
-                    if punch2.punch_type in [None, 'CheckOut']:
-
-                        duration: pendulum.Duration = punch2.punch_time - punch1.punch_time
+                    if punch2.punch_type in [None, "CheckOut"]:
+                        duration: pendulum.Duration = (
+                            punch2.punch_time - punch1.punch_time
+                        )
 
                         # 2. DURATION THRESHOLD CHECK
                         # We use the pairing_threshold from settings.
                         if duration <= settings.pairing_threshold:
-
                             is_pairable = True
 
                             # 3. INTERMEDIATE PUNCH CHECK
@@ -110,7 +111,8 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
                             # Find all times that are potentially between the pair
                             intermediate_punches = [
-                                t for t in all_punch_times
+                                t
+                                for t in all_punch_times
                                 if is_between(t, punch1.punch_time, punch2.punch_time)
                             ]
 
@@ -121,10 +123,11 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
                             # Assume shift_separator_time is available on the settings object.
                             shift_sep_time = settings.shift_separator_time
 
-                            if shift_sep_time is not None and self._is_separated_by_shift(
-                                    punch1.punch_time,
-                                    punch2.punch_time,
-                                    shift_sep_time
+                            if (
+                                shift_sep_time is not None
+                                and self._is_separated_by_shift(
+                                    punch1.punch_time, punch2.punch_time, shift_sep_time
+                                )
                             ):
                                 # If the block crosses the shift separator boundary, it cannot be paired.
                                 is_pairable = False
@@ -144,7 +147,7 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
                                         cost_center_1=punch1.cost_center_1,
                                         cost_center_2=punch1.cost_center_2,
                                         rate_from_punch=punch1.rate,
-                                        meal_not_taken=punch2.meal_not_taken  # Often set on the OUT punch
+                                        meal_not_taken=punch2.meal_not_taken,  # Often set on the OUT punch
                                         # NOTE: post_date is set in the splitting logic, not here.
                                     )
                                 )
@@ -156,9 +159,9 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         return paired_blocks
 
     def _split_overnight_block(
-            self,
-            block: WorkedTimeBlock,
-            settings: EmployeeTimeSettings,
+        self,
+        block: WorkedTimeBlock,
+        settings: EmployeeTimeSettings,
     ) -> List[WorkedTimeBlock]:
         """
         Replicates the SplitPunches logic, splitting a block that crosses the
@@ -178,7 +181,10 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
         # ADJUST FOR PREVIOUS DAY TYPE: If the block started *after* the reset time
         # but the rule says to associate it with the previous day (C# logic using DayType.Previous)
-        if settings.split_day_day_type == SplitDayType.PREVIOUS and block.start_time < reset_dt:
+        if (
+            settings.split_day_day_type == SplitDayType.PREVIOUS
+            and block.start_time < reset_dt
+        ):
             # If the shift started before the reset time, the relevant reset point
             # is often the reset time from the previous calendar day.
             # However, for splitting *a punch block*, we just need the point it crosses.
@@ -187,7 +193,6 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
         # Check if the block crosses the reset boundary
         if block.start_time < reset_dt < block.end_time:
-
             # --- Determine Post Dates ---
             # Block 1 (before reset) keeps the original post_date
             post_date_block1 = block.post_date
@@ -232,14 +237,17 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         return [block]
 
     def _apply_rounding_and_deduction(
-            self,
-            block: WorkedTimeBlock,
-            settings: EmployeeTimeSettings,
+        self,
+        block: WorkedTimeBlock,
+        settings: EmployeeTimeSettings,
     ) -> List[WorkedTimeBlock]:
-
         # 1. Apply Rounding (Crucial Step: Rounding MUST happen before deduction checks)
-        rounded_start = self.rules_service.apply_rounding(block.start_time, PunchType.CHECK_IN)
-        rounded_end = self.rules_service.apply_rounding(block.end_time, PunchType.CHECK_OUT)
+        rounded_start = self.rules_service.apply_rounding(
+            block.start_time, PunchType.CHECK_IN
+        )
+        rounded_end = self.rules_service.apply_rounding(
+            block.end_time, PunchType.CHECK_OUT
+        )
 
         # Create a temporary rounded block for deduction checks
         rounded_block = WorkedTimeBlock(
@@ -253,7 +261,7 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
             cost_center_1=block.cost_center_1,
             cost_center_2=block.cost_center_2,
             rate_from_punch=block.rate_from_punch,
-            meal_not_taken=block.meal_not_taken
+            meal_not_taken=block.meal_not_taken,
         )
 
         # 2. Check and Apply Meal Deduction
@@ -271,16 +279,18 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         return [rounded_block]
 
     def _get_blocks_after_deduction(
-            self,
-            block: WorkedTimeBlock,
-            deduction_rules: MealDeductionRules,
+        self,
+        block: WorkedTimeBlock,
+        deduction_rules: MealDeductionRules,
     ) -> List[WorkedTimeBlock]:
         """
         Splits the block into two, removing the mandatory meal period (e.g., 30 mins)
         from the center of the block.
         """
         duration = block.end_time - block.start_time
-        deduction_duration = pendulum.duration(hours=deduction_rules.meal_duration_hours)
+        deduction_duration = pendulum.duration(
+            hours=deduction_rules.meal_duration_hours
+        )
 
         # Calculate where the deduction sits (usually near the midpoint or after 5 hours)
 
@@ -293,7 +303,10 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         deduction_gap_end = placement_start_dt + duration_div_2
 
         # Check for invalid split points (e.g., gap starts before block begins)
-        if deduction_gap_start <= block.start_time or deduction_gap_end >= block.end_time:
+        if (
+            deduction_gap_start <= block.start_time
+            or deduction_gap_end >= block.end_time
+        ):
             # In robust payroll, this requires careful auditing, but we proceed with the split.
             pass
 
@@ -312,10 +325,10 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         return [block1, block2]
 
     def _is_separated_by_shift(
-            self,
-            punch_in_local_time: pendulum.DateTime,
-            punch_out_local_time: pendulum.DateTime,
-            shift_separator_time: pendulum.Time,  # Should be part of EmployeeTimeSettings
+        self,
+        punch_in_local_time: pendulum.DateTime,
+        punch_out_local_time: pendulum.DateTime,
+        shift_separator_time: pendulum.Time,  # Should be part of EmployeeTimeSettings
     ) -> bool:
         """
         Checks if the time block spans across the configured daily shift separator time.

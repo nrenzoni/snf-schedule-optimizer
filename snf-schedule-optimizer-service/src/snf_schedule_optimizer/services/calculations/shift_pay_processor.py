@@ -1,10 +1,21 @@
 from typing import List
 
-from snf_schedule_optimizer.models import DifferentialDateInterval, Employee, Shift, WorkedShiftSegment
-from snf_schedule_optimizer.services.calculations.rule_eligibility_service import RuleEligibilityService
-from snf_schedule_optimizer.services.interfaces import IEmployeeWorkHistoryService, IOvertimeCalculator, \
-    IRateCalculator, IShiftSlicer, \
-    IStaffCompensationService
+from snf_schedule_optimizer.models import (
+    DifferentialDateInterval,
+    Employee,
+    Shift,
+    WorkedShiftSegment,
+)
+from snf_schedule_optimizer.services.calculations.rule_eligibility_service import (
+    RuleEligibilityService,
+)
+from snf_schedule_optimizer.services.interfaces import (
+    IEmployeeWorkHistoryService,
+    IOvertimeCalculator,
+    IRateCalculator,
+    IShiftSlicer,
+    IStaffCompensationService,
+)
 
 
 class ShiftPayProcessor:
@@ -13,13 +24,13 @@ class ShiftPayProcessor:
     """
 
     def __init__(
-            self,
-            eligibility_service: RuleEligibilityService,
-            ot_calculator: IOvertimeCalculator,
-            slicer: IShiftSlicer,
-            rate_calculator: IRateCalculator,
-            compensation_service: IStaffCompensationService,
-            work_history_service: IEmployeeWorkHistoryService,
+        self,
+        eligibility_service: RuleEligibilityService,
+        ot_calculator: IOvertimeCalculator,
+        slicer: IShiftSlicer,
+        rate_calculator: IRateCalculator,
+        compensation_service: IStaffCompensationService,
+        work_history_service: IEmployeeWorkHistoryService,
     ):
         self.eligibility_service = eligibility_service
         self.ot_calculator = ot_calculator
@@ -29,10 +40,9 @@ class ShiftPayProcessor:
         self.work_history_service = work_history_service
 
     def calculate_shift_cost(self, employee: Employee, shift: Shift) -> float:
-
         comp_record = self.compensation_service.get_record_for_date(
             employee.employee_id,
-            shift.shift_start_dt  # The date the shift begins
+            shift.shift_start_dt,  # The date the shift begins
         )
 
         if comp_record is None:
@@ -47,17 +57,15 @@ class ShiftPayProcessor:
             self.eligibility_service.get_applicable_rules(employee, shift)
         )
 
-        work_segment_history = self.work_history_service.get_processed_history_for_period(
-            employee.employee_id,
-            shift.shift_start_dt
+        work_segment_history = (
+            self.work_history_service.get_processed_history_for_period(
+                employee.employee_id, shift.shift_start_dt
+            )
         )
 
         # Get concrete overtime intervals
         overtime_intervals = self.ot_calculator.get_overtime_intervals(
-            shift,
-            employee,
-            work_segment_history,
-            overtime_rules
+            shift, employee, work_segment_history, overtime_rules
         )
 
         # Convert abstract rules into concrete time intervals

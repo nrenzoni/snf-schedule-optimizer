@@ -3,10 +3,17 @@ from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 
-from snf_schedule_optimizer.models import EmployeeTimeSettings, MealDeductionRules, PunchType, RoundingType, \
-    SplitDayType
+from snf_schedule_optimizer.models import (
+    EmployeeTimeSettings,
+    MealDeductionRules,
+    PunchType,
+    RoundingType,
+    SplitDayType,
+)
 from snf_schedule_optimizer.services.interfaces import IFacilityRulesService
-from snf_schedule_optimizer.sqlalchemy_models.facility_rules_config import FacilityRulesConfigModel
+from snf_schedule_optimizer.sqlalchemy_models.facility_rules_config import (
+    FacilityRulesConfigModel,
+)
 from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
 
@@ -27,26 +34,25 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
         self.default_meal_rules = MealDeductionRules(
             meal_threshold_hours=6.0,
             meal_duration_hours=0.5,  # 30 minutes
-            is_mandatory=True
+            is_mandatory=True,
         )
 
     def apply_rounding(
-            self,
-            raw_time: pendulum.DateTime,
-            punch_type: PunchType,
+        self,
+        raw_time: pendulum.DateTime,
+        punch_type: PunchType,
     ) -> pendulum.DateTime:
         """
         Applies a standard nearest-interval rounding (e.g., 6-minute rule).
         """
         return TimeRoundingUtility.round_to_nearest_unit(
-            raw_time,
-            self.DEFAULT_ROUNDING_UNIT
+            raw_time, self.DEFAULT_ROUNDING_UNIT
         )
 
     def get_time_settings(
-            self,
-            employee_id: str,
-            check_dt: pendulum.DateTime,
+        self,
+        employee_id: str,
+        check_dt: pendulum.DateTime,
     ) -> EmployeeTimeSettings:
         """
         Retrieves hardcoded time settings, ignoring employee_id and date for simplicity.
@@ -62,7 +68,9 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
             rounding_type=RoundingType.NEAREST,
         )
 
-    def get_meal_deduction_rules(self, check_dt: pendulum.DateTime) -> Optional['MealDeductionRules']:
+    def get_meal_deduction_rules(
+        self, check_dt: pendulum.DateTime
+    ) -> Optional["MealDeductionRules"]:
         """
         Retrieves the standard 6-hour threshold/30-minute mandatory deduction rules.
         """
@@ -80,20 +88,25 @@ class SQLAFacilityRulesService(IFacilityRulesService):
         self.facility_id = facility_id
         # Load rules eagerly upon instantiation
         self.rules_config = self._load_rules_config()
-        self.rounding_unit_minutes = self.rules_config.get('rounding_unit_minutes', 6)
+        self.rounding_unit_minutes = self.rules_config.get("rounding_unit_minutes", 6)
 
-    def apply_rounding(self, raw_time: pendulum.DateTime, punch_type: PunchType) -> pendulum.DateTime:
+    def apply_rounding(
+        self, raw_time: pendulum.DateTime, punch_type: PunchType
+    ) -> pendulum.DateTime:
         """Applies the nearest-interval rounding rule."""
         # For simplicity, we apply standard nearest-interval rounding.
         return TimeRoundingUtility.round_to_nearest_unit(
-            raw_time,
-            self.rounding_unit_minutes
+            raw_time, self.rounding_unit_minutes
         )
 
-    def get_time_settings(self, employee_id: str, check_dt: pendulum.DateTime) -> EmployeeTimeSettings:
+    def get_time_settings(
+        self, employee_id: str, check_dt: pendulum.DateTime
+    ) -> EmployeeTimeSettings:
         raise NotImplementedError()
 
-    def get_meal_deduction_rules(self, check_dt: pendulum.DateTime) -> Optional[MealDeductionRules]:
+    def get_meal_deduction_rules(
+        self, check_dt: pendulum.DateTime
+    ) -> Optional[MealDeductionRules]:
         raise NotImplementedError()
 
     def _load_rules_config(self) -> Dict[str, Any]:
@@ -101,23 +114,30 @@ class SQLAFacilityRulesService(IFacilityRulesService):
         Fetches the active FacilityRulesConfig from the database.
         """
         # Fetch the most recent active configuration for the facility
-        stmt = select(FacilityRulesConfigModel).where(
-            FacilityRulesConfigModel.facility_id == self.facility_id
-            # NOTE: Add date filtering here if the config is versioned (e.g., current date between effective_date and expiration_date)
-        ).order_by(
-            # Assuming the highest ID/most recent is the active one if no date filtering
-            FacilityRulesConfigModel.id.desc()
-        ).limit(1)
+        stmt = (
+            select(FacilityRulesConfigModel)
+            .where(
+                FacilityRulesConfigModel.facility_id == self.facility_id
+                # NOTE: Add date filtering here if the config is versioned (e.g., current date between effective_date and expiration_date)
+            )
+            .order_by(
+                # Assuming the highest ID/most recent is the active one if no date filtering
+                FacilityRulesConfigModel.id.desc()
+            )
+            .limit(1)
+        )
 
         record = self.db_session.execute(stmt).scalar_one_or_none()
 
         if not record:
-            raise ValueError(f"CRITICAL: No active facility rules found for facility ID {self.facility_id}")
+            raise ValueError(
+                f"CRITICAL: No active facility rules found for facility ID {self.facility_id}"
+            )
 
         # Map the ORM record to a simple dictionary for easy internal access
         return {
-            "rounding_unit_minutes"         : record.rounding_unit_minutes,
+            "rounding_unit_minutes": record.rounding_unit_minutes,
             "meal_deduction_threshold_hours": record.meal_deduction_threshold_hours,
-            "meal_deduction_duration_hours" : record.meal_deduction_duration_hours,
-            "meal_is_mandatory"             : record.meal_is_mandatory
+            "meal_deduction_duration_hours": record.meal_deduction_duration_hours,
+            "meal_is_mandatory": record.meal_is_mandatory,
         }

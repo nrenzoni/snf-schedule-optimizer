@@ -5,7 +5,9 @@ from typing import Dict, List, Optional
 
 from snf_schedule_optimizer.models import StaffCompensationRecord
 from snf_schedule_optimizer.services.interfaces import IStaffCompensationService
-from snf_schedule_optimizer.sqlalchemy_models.staff_compensation_model import StaffCompensationModel
+from snf_schedule_optimizer.sqlalchemy_models.staff_compensation_model import (
+    StaffCompensationModel,
+)
 
 
 class StaffCompensationServiceStaticListImpl(IStaffCompensationService):
@@ -30,12 +32,14 @@ class StaffCompensationServiceStaticListImpl(IStaffCompensationService):
         # Ensure records for each employee are sorted by start date descending
         # This helps when looking for the most recent valid record.
         for employee_id in self.employee_records:
-            self.employee_records[employee_id].sort(key=lambda r: r.effective_start_date, reverse=True)
+            self.employee_records[employee_id].sort(
+                key=lambda r: r.effective_start_date, reverse=True
+            )
 
     def get_record_for_date(
-            self,
-            employee_id: str,
-            check_date: pendulum.DateTime,
+        self,
+        employee_id: str,
+        check_date: pendulum.DateTime,
     ) -> Optional[StaffCompensationRecord]:
         """
         Retrieves the one StaffCompensationRecord whose validity period
@@ -54,8 +58,8 @@ class StaffCompensationServiceStaticListImpl(IStaffCompensationService):
 
             # Check 2: Must not be expired before the check date
             is_end_valid = (
-                    record.effective_end_date is None or
-                    record.effective_end_date > check_date_date
+                record.effective_end_date is None
+                or record.effective_end_date > check_date_date
             )
 
             if is_start_valid and is_end_valid:
@@ -74,9 +78,9 @@ class SQLAStaffCompensationService(IStaffCompensationService):
         self.db_session = db_session
 
     def get_record_for_date(
-            self,
-            employee_id: str,
-            check_date: pendulum.DateTime,
+        self,
+        employee_id: str,
+        check_date: pendulum.DateTime,
     ) -> Optional[StaffCompensationRecord]:
         """
         Retrieves the StaffCompensationRecord whose validity period covers the check_date.
@@ -86,23 +90,26 @@ class SQLAStaffCompensationService(IStaffCompensationService):
         check_date_for_db = check_date.date()
 
         # 1. Construct the Query: Find the record where the check date falls within the range.
-        stmt = select(StaffCompensationModel).where(
-            # Filter by the employee
-            StaffCompensationModel.employee_id == employee_id,
-
-            # Filter 1: Check date must be >= start date
-            StaffCompensationModel.effective_start_date <= check_date_for_db,
-
-            # Filter 2: Check date must be < end date (or end date must be NULL/future)
-            # We use an OR clause to handle the open-ended record (NULL end_date)
-            or_(
-                StaffCompensationModel.effective_end_date.is_(None),
-                StaffCompensationModel.effective_end_date > check_date_for_db
+        stmt = (
+            select(StaffCompensationModel)
+            .where(
+                # Filter by the employee
+                StaffCompensationModel.employee_id == employee_id,
+                # Filter 1: Check date must be >= start date
+                StaffCompensationModel.effective_start_date <= check_date_for_db,
+                # Filter 2: Check date must be < end date (or end date must be NULL/future)
+                # We use an OR clause to handle the open-ended record (NULL end_date)
+                or_(
+                    StaffCompensationModel.effective_end_date.is_(None),
+                    StaffCompensationModel.effective_end_date > check_date_for_db,
+                ),
             )
-        ).order_by(
-            # Order by start date descending to help confirm the active record in case of overlap/tie
-            StaffCompensationModel.effective_start_date.desc()
-        ).limit(1)
+            .order_by(
+                # Order by start date descending to help confirm the active record in case of overlap/tie
+                StaffCompensationModel.effective_start_date.desc()
+            )
+            .limit(1)
+        )
 
         # 2. Execute and Retrieve
         result = self.db_session.execute(stmt).scalar_one_or_none()
@@ -114,8 +121,8 @@ class SQLAStaffCompensationService(IStaffCompensationService):
         return self._map_db_record_to_dataclass(result)
 
     def _map_db_record_to_dataclass(
-            self,
-            record: StaffCompensationModel,
+        self,
+        record: StaffCompensationModel,
     ) -> StaffCompensationRecord:
         """Translates the SQLAlchemy ORM object into the application dataclass."""
 
@@ -125,11 +132,11 @@ class SQLAStaffCompensationService(IStaffCompensationService):
             base_rate_effective=record.base_rate_effective,
             ot_multiplier=record.ot_multiplier,
             is_agency=record.is_agency,
-
             # Map datetime.date from DB to pendulum.DateTime
             effective_start_date=pendulum.instance(record.effective_start_date),
-            effective_end_date=pendulum.instance(record.effective_end_date) if record.effective_end_date else None,
-
+            effective_end_date=pendulum.instance(record.effective_end_date)
+            if record.effective_end_date
+            else None,
             union_contract_id=record.union_contract_id,
             pay_grade_or_step=record.pay_grade_or_step,
         )
