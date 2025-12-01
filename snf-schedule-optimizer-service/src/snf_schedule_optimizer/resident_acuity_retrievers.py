@@ -1,5 +1,4 @@
 import abc
-from typing import List
 
 from snf_schedule_optimizer.models import ResidentAcuity, Shift
 
@@ -9,7 +8,7 @@ class IResidentAcuityPerShiftRetriever(abc.ABC):
     def get_resident_acuity_list(
         self,
         shift: Shift,
-    ) -> List[ResidentAcuity]:
+    ) -> list[ResidentAcuity]:
         pass
 
 
@@ -18,12 +17,12 @@ class ResidentAcuityPerShiftRetrieverImpl(IResidentAcuityPerShiftRetriever):
 
     def __init__(
         self,
-        predefined_acuity_data: List[ResidentAcuity],
+        predefined_acuity_data: list[ResidentAcuity],
     ):
-        self.stressed_residents: List[ResidentAcuity] = predefined_acuity_data
+        self.stressed_residents: list[ResidentAcuity] = predefined_acuity_data
 
     def get_resident_acuity_list(
         self,
         shift: Shift,
-    ) -> List[ResidentAcuity]:
+    ) -> list[ResidentAcuity]:
         return self.stressed_residents

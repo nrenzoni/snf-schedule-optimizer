@@ -1,5 +1,5 @@
 import datetime
-from typing import Iterable, List, Optional
+from collections.abc import Iterable
 
 import pendulum
 import sqlalchemy
@@ -35,7 +35,7 @@ class SQLAOvertimeRuleRetriever(IOvertimeRuleRetrieverService):
         """
 
         # Helper to convert SQLA Time/Date to pendulum types safely
-        def to_pendulum_time(t: Optional[datetime.time]) -> Optional[pendulum.Time]:
+        def to_pendulum_time(t: datetime.time | None) -> pendulum.Time | None:
             if t is None:
                 return None
             return pendulum.time(t.hour, t.minute, t.second)
@@ -69,7 +69,7 @@ class SQLAOvertimeRuleRetriever(IOvertimeRuleRetrieverService):
         self,
         employee: Employee,
         shift: Shift,
-    ) -> List[IOvertimeRule]:
+    ) -> list[IOvertimeRule]:
         # 1. Define the base query to fetch all active rules
         stmt = sqlalchemy.select(OvertimeRuleConfig).where(
             # Basic active/date filtering (assuming these fields exist)
@@ -96,7 +96,7 @@ class SQLAOvertimeRuleRetriever(IOvertimeRuleRetrieverService):
         )
 
         # 4. Final Rule Instantiation and In-Memory Eligibility Check
-        applicable_rules: List[IOvertimeRule] = []
+        applicable_rules: list[IOvertimeRule] = []
         for record in db_records:
             rule = self._map_db_record_to_rule(record)
             applicable_rules.append(rule)

@@ -1,5 +1,4 @@
-from typing import List
-
+from snf_schedule_optimizer.datetime_utils import is_weekend
 from snf_schedule_optimizer.models import (
     Differential,
     DifferentialType,
@@ -7,7 +6,6 @@ from snf_schedule_optimizer.models import (
     NurseProfile,
     Shift,
 )
-from snf_schedule_optimizer.datetime_utils import is_weekend
 from snf_schedule_optimizer.services.payroll.interfaces import (
     INurseDifferentialRetriever,
 )
@@ -21,7 +19,7 @@ class NurseDifferentialRetrieverImpl(INurseDifferentialRetriever):
         self,
         nurse: NurseProfile,
         shift: Shift,
-    ) -> List[Differential]:
+    ) -> list[Differential]:
         if is_weekend(shift.day_of_week):
             return [
                 Differential(

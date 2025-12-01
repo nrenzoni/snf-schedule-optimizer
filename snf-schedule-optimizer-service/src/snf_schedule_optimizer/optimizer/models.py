@@ -1,8 +1,7 @@
 import enum
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
-from snf_schedule_optimizer.models import FacilityConfig, MinMandates, Schedule, Shift
+from snf_schedule_optimizer.models import Schedule
 
 
 class InfeasibilityReason(enum.StrEnum):
@@ -14,6 +13,10 @@ class InfeasibilityReason(enum.StrEnum):
 
 @dataclass(frozen=True)
 class ShiftCostBreakdown:
+    """
+    Represents the calculated cost components for a SINGLE shift for a specific employee.
+    """
+
     base_wage: float  # Hourly Rate * Hours
     overtime_premium: float  # The extra 0.5x portion
     statutory_burden: float  # Taxes (FICA, SUI, FUTA)
@@ -37,12 +40,12 @@ class ShiftCostBreakdown:
 @dataclass(frozen=True)
 class InfeasibilityReasonResult:
     reason: InfeasibilityReason
-    details: Optional[str] = None
+    details: str | None = None
 
 
 @dataclass(frozen=True)
 class ScheduleOptimizationResults:
     success: bool
-    optimal_schedule: Optional[Schedule]
-    constraint_slacks: Optional[Dict[str, float]]
-    infeasibility_reason: Optional[InfeasibilityReasonResult]
+    optimal_schedule: Schedule | None
+    constraint_slacks: dict[str, float] | None
+    infeasibility_reason: InfeasibilityReasonResult | None

@@ -1,5 +1,3 @@
-from typing import List, Set
-
 import pendulum
 
 from snf_schedule_optimizer.models import (
@@ -19,16 +17,16 @@ class TimeOverlapShiftSlicer(IShiftSlicer):
     def slice_shift(
         self,
         shift: Shift,
-        differential_intervals: List[DifferentialDateInterval],
-        overtime_intervals: List[OvertimeInterval],
-    ) -> List[WorkedShiftSegment]:
+        differential_intervals: list[DifferentialDateInterval],
+        overtime_intervals: list[OvertimeInterval],
+    ) -> list[WorkedShiftSegment]:
         shift_start = shift.shift_start_dt
         shift_end = shift.shift_end_dt
 
         # 1. Collect All Unique Boundary Points
 
         # Start with the shift's boundaries
-        boundaries: Set[pendulum.DateTime] = {shift_start, shift_end}
+        boundaries: set[pendulum.DateTime] = {shift_start, shift_end}
 
         # Add all start/end points from differential intervals
         for diff_interval in differential_intervals:
@@ -53,7 +51,7 @@ class TimeOverlapShiftSlicer(IShiftSlicer):
 
         # Ensure only unique boundaries remain (set conversion handled this, but sort removes duplicates cleanly)
 
-        final_segments: List[WorkedShiftSegment] = []
+        final_segments: list[WorkedShiftSegment] = []
 
         # 3. Iterate through sorted boundaries to create segments (bins)
         for i in range(len(sorted_boundaries) - 1):
@@ -71,8 +69,8 @@ class TimeOverlapShiftSlicer(IShiftSlicer):
 
             # --- 4. Assign Applicable Rules to the Segment ---
 
-            active_diff_rules: Set[IDifferentialRule] = set()
-            active_ot_rules: Set[IOvertimeRule] = set()
+            active_diff_rules: set[IDifferentialRule] = set()
+            active_ot_rules: set[IOvertimeRule] = set()
 
             # A. Assign Differential Rules
             for diff_interval in differential_intervals:

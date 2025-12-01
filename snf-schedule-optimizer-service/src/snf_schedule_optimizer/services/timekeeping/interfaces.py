@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import abc
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING
 
 import pendulum
 
@@ -10,9 +12,11 @@ from snf_schedule_optimizer.models import (
     TimePunch,
     WorkedShiftSegment,
 )
-from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
-    ThresholdOvertimeRule,
-)
+
+if TYPE_CHECKING:
+    from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
+        ThresholdOvertimeRule,
+    )
 
 
 class IEmployeeWorkHistoryService(abc.ABC):
@@ -25,8 +29,8 @@ class IEmployeeWorkHistoryService(abc.ABC):
         self,
         employee: Employee,
         current_shift: Shift,
-        ot_rules: List["ThresholdOvertimeRule"],
-    ) -> Dict[LookbackPeriod, float]:
+        ot_rules: list[ThresholdOvertimeRule],
+    ) -> dict[LookbackPeriod, float]:
         """
         Calculates the minimum remaining non-OT hours based on all provided rules
         (daily and weekly).
@@ -39,11 +43,11 @@ class IEmployeeWorkHistoryService(abc.ABC):
         self,
         employee: Employee,
         current_shift: Shift,
-        history: Dict[Shift, List[WorkedShiftSegment]],
+        history: dict[Shift, list[WorkedShiftSegment]],
         threshold_hours: float,
         lookback_period: LookbackPeriod,
-        work_period_start_day: Optional[int] = None,  # pendulum.DayOfWeek
-        work_period_start_time: Optional[pendulum.Time] = None,
+        work_period_start_day: int | None = None,  # pendulum.DayOfWeek
+        work_period_start_time: pendulum.Time | None = None,
     ) -> float:
         """
         Calculates total non-OT hours accumulated by the employee
@@ -56,9 +60,9 @@ class IEmployeeWorkHistoryService(abc.ABC):
         self,
         employee: Employee,
         current_shift: Shift,
-        history: Dict[Shift, List[WorkedShiftSegment]],
+        history: dict[Shift, list[WorkedShiftSegment]],
         max_consecutive_days: int,
-    ) -> List[pendulum.Date]:
+    ) -> list[pendulum.Date]:
         """
         Calculates the number of consecutive calendar days worked immediately
         leading up to the current shift's start date.
@@ -71,7 +75,7 @@ class IEmployeeWorkHistoryService(abc.ABC):
         self,
         employee_id: str,
         up_to_check_date: pendulum.DateTime,
-    ) -> Dict[Shift, List[WorkedShiftSegment]]:
+    ) -> dict[Shift, list[WorkedShiftSegment]]:
         """
         Retrieves all previously processed shifts and their segments for the employee
         that fall within the relevant lookback period (e.g., the last 7 days/last 24 hours
@@ -88,7 +92,7 @@ class IRawHistoryRetriever(abc.ABC):
         self,
         employee_id: str,
         check_date: pendulum.DateTime,
-    ) -> Dict[Shift, List[TimePunch]]:
+    ) -> dict[Shift, list[TimePunch]]:
         """
         Retrieves all scheduled Shifts and their corresponding raw TimePunches
         for the period relevant to the check_date. (The structure ensures pairing

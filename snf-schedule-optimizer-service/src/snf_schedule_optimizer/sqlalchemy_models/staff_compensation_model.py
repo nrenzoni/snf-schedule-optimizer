@@ -1,8 +1,7 @@
 import datetime
-from typing import Optional
 
 from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, Numeric, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import SQLABase
 from .employee import EmployeeModel
@@ -32,13 +31,13 @@ class StaffCompensationModel(SQLABase):
 
     # --- Audit and Validity Period (Crucial for time-series data) ---
     effective_start_date: Mapped[datetime.date] = mapped_column(Date, nullable=False)
-    effective_end_date: Mapped[Optional[datetime.date]] = mapped_column(
+    effective_end_date: Mapped[datetime.date | None] = mapped_column(
         Date, nullable=True
     )
 
     # --- Metadata and Source ---
-    union_contract_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    pay_grade_or_step: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    union_contract_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    pay_grade_or_step: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # --- Relationship Linkage ---
     employee: Mapped[EmployeeModel] = relationship(

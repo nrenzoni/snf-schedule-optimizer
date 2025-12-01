@@ -1,8 +1,6 @@
-from typing import Dict, List, Tuple
-
-from sqlalchemy.orm import Session
-from sqlalchemy import select, and_
 import pendulum
+from sqlalchemy import and_, select
+from sqlalchemy.orm import Session
 
 from snf_schedule_optimizer.models.testing import MockCertificationRecord
 from snf_schedule_optimizer.services.hr.interfaces import ICertificationService
@@ -17,7 +15,7 @@ class CertificationServiceStaticListImpl(ICertificationService):
     in-memory dictionary for testing validity and expiration.
     """
 
-    def __init__(self, records: List[Tuple[str, MockCertificationRecord]]):
+    def __init__(self, records: list[tuple[str, MockCertificationRecord]]):
         """
         Initializes the service with a list of (employee_id, record) tuples.
 
@@ -27,7 +25,7 @@ class CertificationServiceStaticListImpl(ICertificationService):
         ]
         """
         # Dictionary mapping employee_id -> List[MockCertificationRecord]
-        self.employee_certs: Dict[str, List[MockCertificationRecord]] = {}
+        self.employee_certs: dict[str, list[MockCertificationRecord]] = {}
 
         for employee_id, record in records:
             if employee_id not in self.employee_certs:

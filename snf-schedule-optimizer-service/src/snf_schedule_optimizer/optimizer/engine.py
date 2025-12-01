@@ -1,10 +1,10 @@
 from collections import defaultdict
 
+import pendulum
 import pulp
 from pulp import LpMinimize, LpProblem
-import pendulum
 
-from snf_schedule_optimizer.models import *
+from snf_schedule_optimizer.models import PreferenceWeights, Schedule
 from snf_schedule_optimizer.optimizer.context import (
     FacilityScenarioContext,
     LpNurseShiftVariableHolder,
@@ -36,25 +36,26 @@ class NurseShiftScheduleOptimizer:
         self,
         provider_factory: ScenarioDataProviderFactory,
         core_variable_strategy: CoreVariableGenerationStrategy,
-        global_pay_strategies: List[IPayModelStrategy],
-        facility_constraint_strategies: List[IFacilityScopedConstraintStrategy],
-        rule_strategies: List[IFacilityScopedConstraintStrategy],
-        penalty_strategies: List[IObjectivePenaltyStrategy],
+        global_pay_strategies: list[IPayModelStrategy],
+        facility_constraint_strategies: list[IFacilityScopedConstraintStrategy],
+        facility_rule_strategies: list[IFacilityScopedConstraintStrategy],
+        penalty_strategies: list[IObjectivePenaltyStrategy],
     ) -> None:
         self.provider_factory = provider_factory
         self.core_variable_strategy = core_variable_strategy
 
         self.global_pay_strategies = global_pay_strategies
         self.facility_constraint_strategies = facility_constraint_strategies
-        self.rule_strategies = rule_strategies
+        self.facility_rule_strategies = facility_rule_strategies
         self.penalty_strategies = penalty_strategies
 
     def solve(
         self,
+        org_id: str,
         preference_weights: PreferenceWeights,
-        facility_contexts: Dict[str, FacilityScenarioContext],
+        facility_contexts: dict[str, FacilityScenarioContext],
         pay_period_start: pendulum.DateTime,
-        optimization_start_time: Optional[pendulum.DateTime] = None,
+        optimization_start_time: pendulum.DateTime | None = None,
     ) -> ScheduleOptimizationResults:
         # 1. Infer Optimization Start if not provided
         # If the caller doesn't say when the optimization starts, assume it starts
@@ -76,6 +77,7 @@ class NurseShiftScheduleOptimizer:
             )
 
         data_provider = self.provider_factory.create(
+            org_id=org_id,
             facility_contexts=facility_contexts,
             pay_period_start=pay_period_start,
             optimization_start_time=optimization_start_time,
@@ -103,10 +105,17 @@ class NurseShiftScheduleOptimizer:
         # --- Phase 2: Constraints ---
 
         for facility_id in facility_ids:
-            for rule_strategy in self.rule_strategies:
+            # 1. Apply Rules (e.g. Fatigue, Patterns)
+            for rule_strategy in self.facility_rule_strategies:
                 rule_strategy.apply_constraints(
                     problem, lp_vars, data_provider, facility_id
-                )  # HPRD, Fatigue
+                )
+
+            # 2. Apply Constraints (e.g. HPRD, Min Staffing)
+            for constraint_strategy in self.facility_constraint_strategies:
+                constraint_strategy.apply_constraints(
+                    problem, lp_vars, data_provider, facility_id
+                )
 
         # Apply Global Constraints (Pay/OT linkage across facilities)
         for pay_strategy in self.global_pay_strategies:
@@ -131,11 +140,12 @@ class NurseShiftScheduleOptimizer:
 
         problem += pulp.lpSum(obj_terms)
 
-        return self.solve_finalize(problem)
+        return self.solve_finalize(problem, lp_vars)
 
     def solve_finalize(
         self,
         problem: pulp.LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
     ) -> ScheduleOptimizationResults:
         # Set up a time limit for solving to ensure fast responsiveness (e.g., 60 seconds)
         solver = pulp.PULP_CBC_CMD(timeLimit=60)
@@ -162,22 +172,25 @@ class NurseShiftScheduleOptimizer:
             if constraint.slack is not None
         }
 
-        schedule = self._extract_optimized_schedule_from_lp(problem)
+        schedule = self._extract_optimized_schedule_from_lp(lp_holder)
 
         return ScheduleOptimizationResults(True, schedule, constraint_slacks, None)
 
     @staticmethod
     def _extract_optimized_schedule_from_lp(
-        lp_problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
     ) -> Schedule:
-        assignments: Dict[str, List[str]] = defaultdict(list)
-        for v in lp_problem.variables():
-            if v.varValue > 0:  # Only consider assigned shifts
-                parts = v.name.split("__")
-                employee_id = parts[1]
-                shift_id = str(parts[2])
-                # nurse = next((n for n in nurses if n.employee_id == employee_id), None)
-                # shift = shifts[shift_id]
+        assignments: dict[str, list[str]] = defaultdict(list)
+
+        # Iterate over the structured Tuple keys
+        for (
+            employee_id,
+            shift_id,
+        ), variable in lp_holder.get_all_assignments().items():
+            # Check the resolved value
+            if (
+                variable.varValue and variable.varValue > 0.5
+            ):  # 0.5 threshold for floating point safety
                 assignments[shift_id].append(employee_id)
 
         return Schedule(assignments)

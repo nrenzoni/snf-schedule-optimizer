@@ -1,9 +1,7 @@
-from typing import Optional
-
 import pulp
 from pulp import LpProblem
 
-from snf_schedule_optimizer.models import HprdEnforcedRole
+from snf_schedule_optimizer.models import HprdEnforcedRole, Shift
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IFacilityScopedConstraintStrategy,
@@ -24,9 +22,9 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
         facility_id: str,
-    ) -> Optional[InfeasibilityReasonResult]:
+    ) -> InfeasibilityReasonResult | None:
         # todo: Add infeasibility checks (e.g., no available nurses for a required role)
 
         requirements_holder = data_provider.get_hprd_requirements_for_facility(
@@ -88,9 +86,9 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
         facility_id: str,
-    ) -> Optional[InfeasibilityReasonResult]:
+    ) -> InfeasibilityReasonResult | None:
         shifts = data_provider.get_all_shifts()
 
         # todo: Make this more generic/configurable, add infeasibility checks
@@ -114,6 +112,21 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
                 for emp_id in common:
                     v1 = lp_holder.get_variable(emp_id, s1.shift_id)
                     v2 = lp_holder.get_variable(emp_id, s2.shift_id)
+                    if v1 is None or v2 is None:
+                        continue
                     problem += v1 + v2 <= 1, f"Fatigue_{emp_id}_{s1.shift_id}"
 
         return None
+
+    # example
+    def _check_gap(self, s1: Shift, s2: Shift) -> bool:
+        gap = (s2.shift_start_dt - s1.shift_end_dt).total_hours()
+
+        if s1.facility_id == s2.facility_id:
+            # Same building: Check standard rest (e.g., 8 hours)
+            return gap < 8.0
+        else:
+            # Different buildings: Check travel time
+            # travel_time = self.distance_matrix.get(s1.facility_id, s2.facility_id)
+            travel_time = 1.0  # Placeholder assumption
+            return gap < travel_time

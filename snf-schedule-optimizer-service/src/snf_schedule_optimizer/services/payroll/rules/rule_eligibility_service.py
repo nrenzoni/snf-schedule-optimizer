@@ -1,4 +1,4 @@
-from typing import List, Optional, Protocol, Tuple
+from typing import Protocol
 
 import pendulum
 
@@ -18,10 +18,10 @@ class RuleEligibilityCriteria(Protocol):
     """
 
     @property
-    def applicable_job_titles(self) -> Optional[List[str]]: ...
+    def applicable_job_titles(self) -> list[str] | None: ...
 
     @property
-    def required_certifications(self) -> Optional[List[str]]: ...
+    def required_certifications(self) -> list[str] | None: ...
 
     @property
     def certification_match_type(self) -> str: ...
@@ -45,7 +45,7 @@ class RuleEligibilityService:
         self,
         employee: Employee,
         shift: Shift,
-    ) -> Tuple[List[IDifferentialRule], List[IOvertimeRule]]:
+    ) -> tuple[list[IDifferentialRule], list[IOvertimeRule]]:
         """
         Retrieves all rules applicable to the employee and performs the final
         in-memory filtering (certifications, job title).
@@ -116,7 +116,7 @@ class RuleEligibilityService:
     def _check_certification_eligibility(
         self,
         employee_id: str,
-        required_certs: List[str],
+        required_certs: list[str],
         match_type: str,
         check_date: pendulum.DateTime,
     ) -> bool:

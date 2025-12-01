@@ -1,4 +1,3 @@
-from typing import Dict, List, Optional
 import pendulum
 
 from snf_schedule_optimizer.models import (
@@ -39,8 +38,8 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         self,
         employee: Employee,
         current_shift: Shift,
-        ot_rules: List[ThresholdOvertimeRule],
-    ) -> Dict[LookbackPeriod, float]:
+        ot_rules: list[ThresholdOvertimeRule],
+    ) -> dict[LookbackPeriod, float]:
         """
         Calculates the minimum remaining non-OT hours needed to trigger OT,
         checking all supplied daily and weekly rules.
@@ -104,11 +103,11 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         self,
         employee: Employee,
         current_shift: Shift,
-        history: Dict[Shift, List[WorkedShiftSegment]],
+        history: dict[Shift, list[WorkedShiftSegment]],
         threshold_hours: float,
         lookback_period: LookbackPeriod,
-        work_period_start_day: Optional[int] = None,
-        work_period_start_time: Optional[pendulum.Time] = None,
+        work_period_start_day: int | None = None,
+        work_period_start_time: pendulum.Time | None = None,
     ) -> float:
         # Determine the start boundary for the lookback period
         period_start_dt = self._get_work_period_start(
@@ -142,16 +141,16 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         self,
         employee: Employee,
         current_shift: Shift,
-        history: Dict[Shift, List[WorkedShiftSegment]],
+        history: dict[Shift, list[WorkedShiftSegment]],
         max_consecutive_days: int,
-    ) -> List[pendulum.Date]:
+    ) -> list[pendulum.Date]:
         if not history:
             return []
 
         # Collect all unique work dates prior to the current shift
         work_dates = {
             s.shift_start_dt.date()
-            for s in history.keys()
+            for s in history
             if s.shift_start_dt < current_shift.shift_start_dt
         }
 
@@ -173,18 +172,18 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         self,
         employee_id: str,
         check_date: pendulum.DateTime,
-    ) -> Dict[Shift, List[WorkedShiftSegment]]:
+    ) -> dict[Shift, list[WorkedShiftSegment]]:
         # 1. Fetch Raw Inputs (Shifts and Punches)
-        raw_history_data: Dict[Shift, List[TimePunch]] = (
+        raw_history_data: dict[Shift, list[TimePunch]] = (
             self.history_retriever.get_raw_inputs_for_period(employee_id, check_date)
         )
 
-        processed_history: Dict[Shift, List[WorkedShiftSegment]] = {}
+        processed_history: dict[Shift, list[WorkedShiftSegment]] = {}
 
         # 2. Reconcile Each Shift (The Core Integration Point)
         for shift, raw_punches in raw_history_data.items():
             # Use the Reconciler to convert raw inputs into clean blocks of time.
-            worked_blocks: List[WorkedTimeBlock] = (
+            worked_blocks: list[WorkedTimeBlock] = (
                 self.shift_reconciler.reconcile_shift_to_blocks(shift, raw_punches)
             )
 
@@ -198,9 +197,9 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         self,
         shift_dt: pendulum.DateTime,
         period_type: LookbackPeriod,
-        start_day: Optional[int],
-        start_time: Optional[pendulum.Time],
-        daily_reset_time: Optional[pendulum.Time] = None,
+        start_day: int | None,
+        start_time: pendulum.Time | None,
+        daily_reset_time: pendulum.Time | None = None,
     ) -> pendulum.DateTime:
         """Determines the exact start time of the work period (day or week)."""
 
@@ -249,8 +248,8 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
     def _convert_blocks_to_initial_segments(
         self,
         shift: Shift,
-        blocks: List[WorkedTimeBlock],
-    ) -> List[WorkedShiftSegment]:
+        blocks: list[WorkedTimeBlock],
+    ) -> list[WorkedShiftSegment]:
         """
         This function creates the final historical segment structure from the clean time blocks.
         We initialize the rule lists as empty because the segments being created here
@@ -284,18 +283,18 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
     def _convert_raw_history_to_segments(
         self,
-        raw_history: Dict[Shift, List[TimePunch]],
-    ) -> Dict[Shift, List[WorkedShiftSegment]]:
-        processed_history: Dict["Shift", List["WorkedShiftSegment"]] = {}
+        raw_history: dict[Shift, list[TimePunch]],
+    ) -> dict[Shift, list[WorkedShiftSegment]]:
+        processed_history: dict[Shift, list[WorkedShiftSegment]] = {}
 
         for shift, punches in raw_history.items():
             # Use the Reconciler to clean the punches and apply rounding/deductions
-            worked_blocks: List[WorkedTimeBlock] = (
+            worked_blocks: list[WorkedTimeBlock] = (
                 self.shift_reconciler.reconcile_shift_to_blocks(shift, punches)
             )
 
             # Convert clean time blocks into the segment structure expected by calculation logic
-            segments: List[WorkedShiftSegment] = []
+            segments: list[WorkedShiftSegment] = []
 
             for block in worked_blocks:
                 # Create the segment instance. Rules are empty because this history

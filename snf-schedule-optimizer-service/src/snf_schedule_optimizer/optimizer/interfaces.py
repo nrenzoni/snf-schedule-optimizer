@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import abc
-from typing import List, Optional, Tuple
 
 import pulp
 from pulp import LpProblem
@@ -7,13 +8,13 @@ from pulp import LpProblem
 from snf_schedule_optimizer.models import (
     Employee,
     FacilityConfig,
-    MinMandates,
     MlModelOutputs,
     NurseProfile,
     PreferenceWeights,
     Shift,
 )
 from snf_schedule_optimizer.optimizer.context import (
+    FacilityScenarioContext,
     HprdShiftNurseRequirementHolder,
     LpNurseShiftVariableHolder,
 )
@@ -63,7 +64,7 @@ class IPayModelStrategy(abc.ABC):
     def create_variables(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
     ) -> None:
         """Initialize buckets (h_reg, h_ot) if needed."""
         pass
@@ -73,7 +74,7 @@ class IPayModelStrategy(abc.ABC):
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
     ) -> None:
         """Apply math: sum(shifts) == reg + ot, or similar."""
         pass
@@ -82,8 +83,8 @@ class IPayModelStrategy(abc.ABC):
     def get_objective_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
-    ) -> List[pulp.LpAffineExpression]:
+        data_provider: IScenarioDataProvider,
+    ) -> list[pulp.LpAffineExpression]:
         """Return the cost expression (e.g., h_reg * 20 + h_ot * 30)."""
         pass
 
@@ -94,7 +95,7 @@ class ILaborBurdenCalculator(abc.ABC):
         self,
         employee: Employee,
         base_cost: float,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         """Returns (statutory_burden, benefits_burden)"""
         pass
 
@@ -113,9 +114,9 @@ class IFacilityScopedConstraintStrategy(abc.ABC):
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
         facility_id: str,  # <--- Crucial
-    ) -> Optional[InfeasibilityReasonResult]:
+    ) -> InfeasibilityReasonResult | None:
         """
         Applies constraints directly to the 'problem'.
         Returns a reason if immediate infeasibility is detected (optional).
@@ -130,8 +131,8 @@ class IGlobalConstraintStrategy(abc.ABC):
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
-    ) -> Optional[InfeasibilityReasonResult]:
+        data_provider: IScenarioDataProvider,
+    ) -> InfeasibilityReasonResult | None:
         pass
 
 
@@ -148,9 +149,9 @@ class IObjectivePenaltyStrategy(abc.ABC):
     def get_penalty_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
         weights: PreferenceWeights,
-    ) -> List[pulp.LpAffineExpression]:
+    ) -> list[pulp.LpAffineExpression]:
         """
         Returns a list of LpAffineExpression terms to be ADDED to the objective function.
         E.g. [ (x_1 * 50), (x_2 * 100) ]
@@ -162,10 +163,8 @@ class IHprdRequirementCalculator(abc.ABC):
     @abc.abstractmethod
     def calculate_requirements(
         self,
-        shifts: List[Shift],
-        config: FacilityConfig,
-        min_mandate: MinMandates,
-    ) -> "HprdShiftNurseRequirementHolder":
+        context: FacilityScenarioContext,
+    ) -> HprdShiftNurseRequirementHolder:
         pass
 
 
@@ -178,12 +177,12 @@ class IScenarioDataProvider(abc.ABC):
     # --- Global Methods (Enterprise Level) ---
 
     @abc.abstractmethod
-    def get_all_employees(self) -> List["Employee"]:
+    def get_all_employees(self) -> list[Employee]:
         """Returns all employees active for this scenario horizon."""
         pass
 
     @abc.abstractmethod
-    def get_employee_by_id(self, employee_id: str) -> Optional["Employee"]:
+    def get_employee_by_id(self, employee_id: str) -> Employee | None:
         """Returns a specific employee by ID."""
         pass
 
@@ -193,23 +192,23 @@ class IScenarioDataProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_all_shifts(self) -> List["Shift"]:
+    def get_all_shifts(self) -> list[Shift]:
         """Returns the list of shifts in the scenario."""
         pass
 
     # --- Facility-Scoped Methods ---
 
     @abc.abstractmethod
-    def get_facility_ids(self) -> List[str]:
+    def get_facility_ids(self) -> list[str]:
         """Returns list of facility IDs in this run."""
         pass
 
     @abc.abstractmethod
-    def get_shifts_for_facility(self, facility_id: str) -> List["Shift"]:
+    def get_shifts_for_facility(self, facility_id: str) -> list[Shift]:
         pass
 
     @abc.abstractmethod
-    def get_nurses_for_shift(self, shift: "Shift") -> List["NurseProfile"]:
+    def get_nurses_for_shift(self, shift: Shift) -> list[NurseProfile]:
         """Returns available nurses for a specific shift, cached per shift."""
         pass
 
@@ -217,7 +216,7 @@ class IScenarioDataProvider(abc.ABC):
     def get_hprd_requirements_for_facility(
         self,
         facility_id: str,
-    ) -> "HprdShiftNurseRequirementHolder":
+    ) -> HprdShiftNurseRequirementHolder:
         """Calculates (once) and returns HPRD requirements for all shifts."""
         pass
 
@@ -231,4 +230,9 @@ class IScenarioDataProvider(abc.ABC):
         Returns the total hours worked by the employee in the current pay week
         BEFORE the optimization window starts.
         """
+        pass
+
+    @abc.abstractmethod
+    def get_facility_config(self, facility_id: str) -> FacilityConfig:
+        """Returns the configuration for the given facility."""
         pass

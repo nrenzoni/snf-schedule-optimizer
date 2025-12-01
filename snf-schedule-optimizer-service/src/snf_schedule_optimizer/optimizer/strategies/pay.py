@@ -1,5 +1,3 @@
-from typing import Any, List
-
 import pulp
 from pulp import LpProblem
 
@@ -10,6 +8,9 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     ILaborBurdenCalculator,
     IPayModelStrategy,
     IScenarioDataProvider,
+)
+from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
+    ShiftPayProcessor,
 )
 
 
@@ -27,8 +28,8 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
     def get_objective_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
-    ) -> List[pulp.LpAffineExpression]:
+        data_provider: IScenarioDataProvider,
+    ) -> list[pulp.LpAffineExpression]:
         terms = []
 
         for shift in data_provider.get_all_shifts():
@@ -37,6 +38,8 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
 
             for nurse in nurses:
                 var = lp_holder.get_variable(nurse.employee_id, shift.shift_id)
+                if not var:
+                    continue
 
                 employee = data_provider.get_employee_by_id(nurse.employee_id)
                 if not employee:
@@ -93,7 +96,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
     def create_variables(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
     ) -> None:
         pass
 
@@ -101,7 +104,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
     ) -> None:
         pass
 
@@ -113,14 +116,16 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
 
     def __init__(
         self,
+        shift_pay_processor: ShiftPayProcessor,
         threshold: float = 40.0,
     ):
+        self.shift_pay_processor = shift_pay_processor
         self.threshold = threshold
 
     def create_variables(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
     ) -> None:
         # Create Reg/OT buckets for everyone
         for emp in data_provider.get_all_employees():
@@ -130,14 +135,15 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
     ) -> None:
-        unique_employees = set(lp_holder.pay_variables.keys())
+        unique_employees = lp_holder.get_all_employees()
 
         for emp_id in unique_employees:
             pay_vars = lp_holder.get_pay_variables(emp_id)
             if not pay_vars:
                 continue
+
             worked_hours = data_provider.get_accumulated_hours_for_pay_period(emp_id)
             remaining_cap = max(0.0, self.threshold - worked_hours)
 
@@ -146,8 +152,9 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
             for shift in data_provider.get_all_shifts():
                 try:
                     var = lp_holder.get_variable(emp_id, shift.shift_id)
-                    duration = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
-                    assigned_hours.append(var * duration)
+                    if not var:
+                        continue
+                    assigned_hours.append(var * shift.duration_hours)
                 except KeyError:
                     pass
 
@@ -162,18 +169,61 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
     def get_objective_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
-    ) -> List[pulp.LpAffineExpression]:
+        data_provider: IScenarioDataProvider,
+    ) -> list[pulp.LpAffineExpression]:
         terms = []
-        unique_employees = set(lp_holder.pay_variables.keys())
+
+        # --- Part A: Shift-Specific Costs (Straight Time + Diffs + Incentives) ---
+        shifts = data_provider.get_all_shifts()
+        for shift in shifts:
+            config = data_provider.get_facility_config(shift.facility_id)
+            nurses = data_provider.get_nurses_for_shift(shift)
+
+            for nurse in nurses:
+                variable = lp_holder.get_variable(nurse.employee_id, shift.shift_id)
+                if not variable:
+                    continue
+
+                employee = data_provider.get_employee_by_id(nurse.employee_id)
+                if not employee:
+                    continue
+
+                # Calculate "Straight Time" Cost
+                # We pass 0.0 hours to force the processor to calculate this shift
+                # as if it were the first shift of the week (no automatic OT).
+                # The OT Buckets will handle the premium if this pushes them over.
+                straight_time_breakdown = (
+                    self.shift_pay_processor.calculate_detailed_cost(
+                        employee=employee,
+                        shift=shift,
+                        current_weekly_hours=0.0,
+                        facility_config=config,
+                    )
+                )
+
+                # Sum up Base + Diffs + Burdens + Incentives
+                # Note: We assume calculate_detailed_cost returns 0.0 for overtime_premium
+                # because we passed 0.0 current hours and shift < threshold.
+                shift_cost = (
+                    straight_time_breakdown.base_wage
+                    + straight_time_breakdown.shift_differentials
+                    + straight_time_breakdown.incentive_bonuses
+                    + straight_time_breakdown.statutory_burden
+                    + straight_time_breakdown.benefits_burden
+                )
+
+                terms.append(variable * shift_cost)
+
+        # --- Part B: OT Premium Costs (The 0.5x kicker) ---
 
         # We need a reference date to look up the rate.
         # Using the start of the first shift in the window is standard practice.
         reference_date = data_provider.get_all_shifts()[0].shift_start_dt
 
+        unique_employees = lp_holder.get_all_employees()
+
         for emp_id in unique_employees:
             pay_vars = lp_holder.get_pay_variables(emp_id)
-
             if not pay_vars:
                 continue
 
@@ -184,31 +234,38 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                 continue
 
             # Handle case where no record exists (e.g. inactive employee)
-            # Assuming the property on StaffCompensationRecord is 'base_hourly_rate'
 
             base_rate = comp_record.base_rate_effective
+            ot_multiplier = comp_record.ot_multiplier
 
-            # Buckets carry the cost
-            terms.append(pay_vars["reg"] * base_rate)
-            terms.append(pay_vars["ot"] * (base_rate * 1.5))
+            # The Premium is (Multiplier - 1.0) * Rate
+            # Example: (1.5 - 1.0) * $30 = $15/hr premium
+            # The Base $30 is already covered by Part A (the shift variable)
+            ot_premium_rate = base_rate * (ot_multiplier - 1.0)
+
+            # Reg Bucket cost is 0.0 (covered by Part A)
+            # OT Bucket cost is only the Premium
+            terms.append(pay_vars["ot"] * ot_premium_rate)
 
         return terms
 
 
 class DailyOvertimePayStrategy(IPayModelStrategy):
+    """
+    Strategy for jurisdictions (e.g. California) where Overtime is calculated
+    daily (per shift) rather than weekly.
+    """
+
     def __init__(
         self,
-        # staff_comp_service: IStaffCompensationService,
-        # nurse_retriever: INurseRetriever,
+        shift_pay_processor: ShiftPayProcessor,
     ) -> None:
-        # self.comp_service = staff_comp_service
-        # self.nurse_retriever = nurse_retriever
-        pass
+        self.shift_pay_processor = shift_pay_processor
 
     def create_variables(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
     ) -> None:
         # No buckets needed for daily OT! Costs are on the shifts themselves.
         pass
@@ -217,7 +274,7 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
     ) -> None:
         # No complex linking constraints needed for daily OT
         pass
@@ -225,36 +282,34 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
     def get_objective_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
-    ) -> List[pulp.LpAffineExpression]:
+        data_provider: IScenarioDataProvider,
+    ) -> list[pulp.LpAffineExpression]:
         terms = []
-        for shift in data_provider.get_all_shifts():
-            duration = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
-            # Calculate cost ONCE here (deterministic)
-            is_ot_shift = duration > 8.0
+        shifts = data_provider.get_all_shifts()
+        for shift in shifts:
+            # For Daily OT, "accumulated weekly hours" doesn't affect the Daily OT rate.
+            # We pass 0.0 so the processor calculates purely based on the shift duration > 8h.
+            # (Assuming the FacilityConfig passed has the 8h daily threshold configured).
 
+            config = data_provider.get_facility_config(shift.facility_id)
             nurses = data_provider.get_nurses_for_shift(shift)
+
             for nurse in nurses:
-                comp_record = (
-                    data_provider.get_compensation_service().get_record_for_date(
-                        nurse.employee_id, shift.shift_start_dt
-                    )
-                )
-                if not comp_record:
-                    continue
-
-                base_rate = comp_record.base_rate_effective
-                if base_rate is None:
-                    continue
-
                 var = lp_holder.get_variable(nurse.employee_id, shift.shift_id)
+                if not var:
+                    continue
 
-                if is_ot_shift:
-                    reg_hours = 8.0
-                    ot_hours = duration - 8.0
-                    cost = (reg_hours * base_rate) + (ot_hours * base_rate * 1.5)
-                else:
-                    cost = duration * base_rate
+                employee = data_provider.get_employee_by_id(nurse.employee_id)
+                if not employee:
+                    continue
 
-                terms.append(var * cost)
+                cost_breakdown = self.shift_pay_processor.calculate_detailed_cost(
+                    employee=employee,
+                    shift=shift,
+                    current_weekly_hours=0.0,  # Irrelevant for Daily Rule
+                    facility_config=config,
+                )
+
+                terms.append(var * cost_breakdown.total_optimization_cost)
+
         return terms

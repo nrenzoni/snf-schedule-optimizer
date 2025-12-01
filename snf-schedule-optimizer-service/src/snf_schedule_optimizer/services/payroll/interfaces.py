@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import abc
-from typing import Dict, List, Optional
 
 import pendulum
 
@@ -19,7 +20,6 @@ from snf_schedule_optimizer.models import (
     WorkedTimeBlock,
 )
 
-
 # region Payroll Service Interfaces
 
 
@@ -33,9 +33,9 @@ class IShiftSlicer(abc.ABC):
     def slice_shift(
         self,
         shift: Shift,
-        differential_intervals: List[DifferentialDateInterval],
-        overtime_intervals: List[OvertimeInterval],
-    ) -> List[WorkedShiftSegment]:
+        differential_intervals: list[DifferentialDateInterval],
+        overtime_intervals: list[OvertimeInterval],
+    ) -> list[WorkedShiftSegment]:
         pass
 
 
@@ -59,29 +59,11 @@ class IOvertimeCalculator(abc.ABC):
         self,
         shift: Shift,
         employee: Employee,
-        work_shift_history: Dict[Shift, List[WorkedShiftSegment]],
-        overtime_rules: List["IOvertimeRule"],
-    ) -> List[OvertimeInterval]:
+        work_shift_history: dict[Shift, list[WorkedShiftSegment]],
+        overtime_rules: list[IOvertimeRule],
+    ) -> list[OvertimeInterval]:
         """Returns list of overtime intervals applicable to the given shift and employee."""
         pass
-
-    # @abc.abstractmethod
-    # def get_remaining_non_ot_hours(
-    #         self,
-    #         nurse_profile: NurseProfile,
-    #         current_shift: Shift,
-    #         nurse_shift_history: Dict[Shift, List[WorkedShiftSegment]],
-    # ) -> float:
-    #     pass
-
-    # @abc.abstractmethod
-    # def calculate_overtime_intervals(
-    #         self,
-    #         nurse_profile: NurseProfile,
-    #         current_shift: Shift,
-    #         nurse_shift_history: Dict[Shift, List[WorkedShiftSegment]],
-    # ) -> List[pendulum.Interval]:
-    #     pass
 
 
 class IShiftReconcilerService(abc.ABC):
@@ -94,8 +76,8 @@ class IShiftReconcilerService(abc.ABC):
     def reconcile_shift_to_blocks(
         self,
         scheduled_shift: Shift,
-        raw_punches: List[TimePunch],
-    ) -> List[WorkedTimeBlock]:
+        raw_punches: list[TimePunch],
+    ) -> list[WorkedTimeBlock]:
         """
         Combines scheduled time and actual punches, applies rounding rules,
         and accounts for mandatory breaks to produce one or more contiguous
@@ -129,13 +111,13 @@ class IOvertimeRule(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def applicable_job_titles(self) -> Optional[List[str]]:
+    def applicable_job_titles(self) -> list[str] | None:
         """List of job titles required for this rule."""
         pass
 
     @property
     # @abc.abstractmethod
-    def required_certifications(self) -> Optional[List[str]]:
+    def required_certifications(self) -> list[str] | None:
         """List of certifications required for this rule."""
         return None
 
@@ -146,7 +128,7 @@ class IOvertimeRule(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def contract_id(self) -> Optional[str]:
+    def contract_id(self) -> str | None:
         """The specific union/facility contract ID this rule belongs to."""
         pass
 
@@ -156,7 +138,7 @@ class IDifferentialRule(abc.ABC):
     def get_applicable_intervals_for_shift(
         self,
         shift: Shift,
-    ) -> List[DifferentialDateInterval]:
+    ) -> list[DifferentialDateInterval]:
         pass
 
     @property
@@ -171,12 +153,12 @@ class IDifferentialRule(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def applicable_job_titles(self) -> Optional[List[str]]:
+    def applicable_job_titles(self) -> list[str] | None:
         """List of job titles for which this rule applies. None means applies to all."""
         pass
 
     @property
-    def required_certifications(self) -> Optional[List[str]]:
+    def required_certifications(self) -> list[str] | None:
         """List of certifications required for this rule to apply."""
         return None
 
@@ -196,7 +178,7 @@ class IOvertimeRuleRetrieverService(abc.ABC):
         self,
         employee: Employee,
         shift: Shift,
-    ) -> List["IOvertimeRule"]:
+    ) -> list[IOvertimeRule]:
         """
         Retrieves all active and eligible IOvertimeRule objects for the given
         employee and shift, often factoring in union/contract ID.
@@ -210,7 +192,7 @@ class INurseDifferentialRetriever(abc.ABC):
         self,
         nurse: NurseProfile,
         shift: Shift,
-    ) -> List[Differential]:
+    ) -> list[Differential]:
         pass
 
 
@@ -223,9 +205,9 @@ class IRuleRetrievalService(abc.ABC):
     @abc.abstractmethod
     def get_differential_rules_by_context(
         self,
-        employee: "Employee",
-        shift: "Shift",
-    ) -> List["IDifferentialRule"]:
+        employee: Employee,
+        shift: Shift,
+    ) -> list[IDifferentialRule]:
         """
         Retrieves all active, non-time-specific differential rules (e.g., Weekend
         Differential) applicable to the employee and facility context.
@@ -235,9 +217,9 @@ class IRuleRetrievalService(abc.ABC):
     @abc.abstractmethod
     def get_overtime_rules_by_context(
         self,
-        employee: "Employee",
-        shift: "Shift",
-    ) -> List["IOvertimeRule"]:
+        employee: Employee,
+        shift: Shift,
+    ) -> list[IOvertimeRule]:
         """
         Retrieves all active overtime threshold rules (e.g., 8-hour daily OT,
         40-hour weekly OT, Union OT) applicable to the employee and date.
@@ -282,7 +264,7 @@ class IFacilityRulesService(abc.ABC):
     def get_meal_deduction_rules(
         self,
         check_dt: pendulum.DateTime,
-    ) -> Optional[MealDeductionRules]:
+    ) -> MealDeductionRules | None:
         """
         Retrieves the mandatory meal deduction rules applicable on the given date/time,
         as these can change based on contract or state law.

@@ -1,7 +1,6 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import select, or_
 import pendulum
-from typing import Dict, List, Optional
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
 
 from snf_schedule_optimizer.models import StaffCompensationRecord
 from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationService
@@ -16,12 +15,12 @@ class StaffCompensationServiceStaticListImpl(IStaffCompensationService):
     in-memory list of records (ideal for unit and integration testing).
     """
 
-    def __init__(self, records: List[StaffCompensationRecord]):
+    def __init__(self, records: list[StaffCompensationRecord]):
         """
         Initializes the service with a list of historical compensation records.
         """
         # Group records by employee ID for faster lookup
-        self.employee_records: Dict[str, List[StaffCompensationRecord]] = {}
+        self.employee_records: dict[str, list[StaffCompensationRecord]] = {}
 
         for record in records:
             if record.employee_id not in self.employee_records:
@@ -40,7 +39,7 @@ class StaffCompensationServiceStaticListImpl(IStaffCompensationService):
         self,
         employee_id: str,
         check_date: pendulum.DateTime,
-    ) -> Optional[StaffCompensationRecord]:
+    ) -> StaffCompensationRecord | None:
         """
         Retrieves the one StaffCompensationRecord whose validity period
         covers the check_date.
@@ -81,7 +80,7 @@ class SQLAStaffCompensationService(IStaffCompensationService):
         self,
         employee_id: str,
         check_date: pendulum.DateTime,
-    ) -> Optional[StaffCompensationRecord]:
+    ) -> StaffCompensationRecord | None:
         """
         Retrieves the StaffCompensationRecord whose validity period covers the check_date.
         """

@@ -1,13 +1,11 @@
-from typing import Dict, List, Optional
-
 import pendulum
 
 from snf_schedule_optimizer.models import (
     Employee,
     OvertimeInterval,
     OvertimeTrigger,
-    WorkedShiftSegment,
     Shift,
+    WorkedShiftSegment,
 )
 from snf_schedule_optimizer.models.constraints import LookbackPeriod
 from snf_schedule_optimizer.services.payroll.interfaces import (
@@ -36,8 +34,8 @@ class ThresholdOvertimeRule(IOvertimeRule):
         multiplier: float,
         trigger: OvertimeTrigger,
         priority: int,  # Higher number means checked first if conflicts exist
-        applicable_job_titles: Optional[List[str]] = None,
-        required_certificates: Optional[List[str]] = None,
+        applicable_job_titles: list[str] | None = None,
+        required_certificates: list[str] | None = None,
     ):
         self.name = name
         self._multiplier = multiplier
@@ -57,11 +55,11 @@ class ThresholdOvertimeRule(IOvertimeRule):
         return self._priority
 
     @property
-    def applicable_job_titles(self) -> Optional[List[str]]:
+    def applicable_job_titles(self) -> list[str] | None:
         return self._applicable_job_titles
 
     @property
-    def contract_id(self) -> Optional[str]:
+    def contract_id(self) -> str | None:
         raise NotImplementedError()
 
 
@@ -76,15 +74,15 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
         self,
         shift: Shift,
         employee: Employee,
-        work_shift_history: Dict[Shift, List[WorkedShiftSegment]],
-        overtime_rules: List[IOvertimeRule],
-    ) -> List[OvertimeInterval]:
+        work_shift_history: dict[Shift, list[WorkedShiftSegment]],
+        overtime_rules: list[IOvertimeRule],
+    ) -> list[OvertimeInterval]:
         """
         Calculates all overlapping and sequential overtime intervals for the current shift,
         assigning all triggering rules to each segment.
         """
 
-        threshold_rules: List[ThresholdOvertimeRule] = []
+        threshold_rules: list[ThresholdOvertimeRule] = []
         for rule in overtime_rules:
             if isinstance(rule, ThresholdOvertimeRule):
                 threshold_rules.append(rule)
@@ -108,7 +106,7 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
         boundary_times = {shift.shift_start_dt, shift.shift_end_dt}
 
         # Map: Rule -> OT Start Time
-        rule_ot_start_map: Dict[IOvertimeRule, pendulum.DateTime] = {}
+        rule_ot_start_map: dict[IOvertimeRule, pendulum.DateTime] = {}
 
         # --- 1. Process Threshold and Tiered Rules (Daily/Weekly) ---
 
@@ -159,7 +157,7 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
 
         # Sort Boundaries and Create Segments
         sorted_boundaries = sorted(boundary_times)
-        final_intervals: List[OvertimeInterval] = []
+        final_intervals: list[OvertimeInterval] = []
 
         for i in range(len(sorted_boundaries) - 1):
             interval_start = sorted_boundaries[i]
@@ -173,7 +171,7 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
                 seconds=(interval_end - interval_start).total_seconds() / 2
             )
 
-            segment_rules: List[IOvertimeRule] = []
+            segment_rules: list[IOvertimeRule] = []
 
             # Determine all rules active during this segment
             for rule, ot_start_dt in rule_ot_start_map.items():
@@ -195,7 +193,7 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
 
     def _get_ot_trigger_time(
         self,
-        shift: "Shift",
+        shift: Shift,
         remaining_hours: float,
     ) -> pendulum.DateTime:
         """Calculates the exact DateTime when OT starts on the current shift."""

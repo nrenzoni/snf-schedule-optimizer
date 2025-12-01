@@ -21,7 +21,6 @@
 # import pulp
 # from pulp import LpBinary, LpMinimize, LpProblem, LpVariable
 #
-# from snf_schedule_optimizer.models import *
 # from snf_schedule_optimizer.datetime_utils import is_weekend
 # from snf_schedule_optimizer.ml_output_retrievers import IMLModelOutputsRetriever
 # from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever

@@ -1,17 +1,16 @@
-from typing import List, Set, Tuple
-
 import pendulum
 
 from snf_schedule_optimizer.models import (
     Employee,
-    FacilityConfig,
     HprdEnforcedRole,
-    MinMandates,
     NurseProfile,
     PreferenceType,
     Shift,
 )
-from snf_schedule_optimizer.optimizer.context import HprdShiftNurseRequirementHolder
+from snf_schedule_optimizer.optimizer.context import (
+    FacilityScenarioContext,
+    HprdShiftNurseRequirementHolder,
+)
 from snf_schedule_optimizer.optimizer.interfaces import (
     IHprdRequirementCalculator,
     IIncentiveManager,
@@ -36,18 +35,20 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
         self.shift_requirements_retriever = shift_requirements_retriever
 
     def calculate_requirements(
-        self,
-        shifts: List[Shift],
-        config: FacilityConfig,
-        min_mandate: MinMandates,
+        self, context: FacilityScenarioContext
     ) -> HprdShiftNurseRequirementHolder:
-        # --- YOUR ORIGINAL LOGIC GOES HERE ---
-
         hprd_shift_nurse_requirements = HprdShiftNurseRequirementHolder(
-            [s.shift_id for s in shifts], [HprdEnforcedRole.RN, HprdEnforcedRole.CNA]
+            [s.shift_id for s in context.shifts],
+            [HprdEnforcedRole.RN, HprdEnforcedRole.CNA],
         )
 
-        for shift in shifts:
+        if context.min_mandates is None:
+            raise ValueError(
+                f"Cannot calculate HPRD requirements for facility {context.facility_id}: "
+                "MinMandates is missing from context."
+            )
+
+        for shift in context.shifts:
             shift_requirements = (
                 self.shift_requirements_retriever.get_shift_requirements(shift)
             )
@@ -62,12 +63,22 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
             required_cna_hours = shift_requirements.target_hprd_cna * shift_census
             required_total_hours = shift_requirements.target_total_hprd * shift_census
 
+            req_rn_count = max(
+                (required_rn_hours / hours_in_shift),
+                float(context.min_mandates.min_staff_per_shift_rn),
+            )
+
+            req_cna_count = max(
+                (required_cna_hours / hours_in_shift),
+                float(context.min_mandates.min_staff_per_shift_cna),
+            )
+
             # Convert to Shift Hours
             hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.RN] = (
-                required_rn_hours / hours_in_shift
+                req_rn_count
             )
             hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.CNA] = (
-                required_cna_hours / hours_in_shift
+                req_cna_count
             )
             hprd_shift_nurse_requirements.add_total_req(
                 shift, required_total_hours / hours_in_shift
@@ -77,7 +88,7 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
 
 
 class NurseHardBlockCheckerImpl(INurseHardBlockChecker):
-    def check(self, nurse: "NurseProfile", shift: "Shift") -> bool:
+    def check(self, nurse: NurseProfile, shift: Shift) -> bool:
         # Check 1: Mandatory time off blocks (from StaffPreference)
         if nurse.shift_custom_preferences:
             for pref in nurse.shift_custom_preferences:
@@ -127,7 +138,7 @@ class StandardLaborBurdenCalculator(ILaborBurdenCalculator):
         self,
         employee: Employee,
         base_cost: float,
-    ) -> Tuple[float, float]:
+    ) -> tuple[float, float]:
         # 1. Statutory Taxes (FICA, etc.) are strictly % of wage
         statutory = base_cost * (
             self.fica_rate + self.futa_sui_rate + self.work_comp_rate
@@ -144,7 +155,7 @@ class StandardLaborBurdenCalculator(ILaborBurdenCalculator):
 class ConfigurableIncentiveManager(IIncentiveManager):
     def __init__(
         self,
-        holidays: Set[pendulum.Date],
+        holidays: set[pendulum.Date],
         urgency_threshold_days: int,
         pickup_bonus: float,
     ):

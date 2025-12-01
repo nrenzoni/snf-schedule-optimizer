@@ -1,6 +1,6 @@
 from collections import defaultdict
+from collections.abc import Iterable
 from itertools import groupby
-from typing import Dict, Iterable, List, Tuple
 
 import pendulum
 from sqlalchemy import and_, select
@@ -11,7 +11,7 @@ from snf_schedule_optimizer.services.timekeeping.interfaces import IRawHistoryRe
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
 
-RawHistoryRecord = Tuple[str, Shift, List[TimePunch]]
+RawHistoryRecord = tuple[str, Shift, list[TimePunch]]
 
 
 class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
@@ -20,11 +20,11 @@ class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
     list, filtered by employee ID and date range.
     """
 
-    def __init__(self, records: List[RawHistoryRecord]):
+    def __init__(self, records: list[RawHistoryRecord]):
         """
         Initializes with a list of pre-grouped shift and punch data.
         """
-        self.shift_assignment_map: Dict[str, List[Tuple[Shift, List[TimePunch]]]] = (
+        self.shift_assignment_map: dict[str, list[tuple[Shift, list[TimePunch]]]] = (
             defaultdict(list)
         )
         for employee_id, shift, punches in records:
@@ -34,8 +34,8 @@ class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
         self,
         employee_id: str,
         check_date: pendulum.DateTime,
-    ) -> Dict[Shift, List[TimePunch]]:
-        history_map: Dict[Shift, List[TimePunch]] = {}
+    ) -> dict[Shift, list[TimePunch]]:
+        history_map: dict[Shift, list[TimePunch]] = {}
 
         # Define the relevant period (8 days lookback, matching the Calculator's assumption)
         max_lookback_dt = check_date.subtract(days=8).start_of("day")
@@ -78,7 +78,7 @@ class SQLARawHistoryRetriever(IRawHistoryRetriever):
         self,
         employee_id: str,
         check_date: pendulum.DateTime,
-    ) -> Dict[Shift, List[TimePunch]]:
+    ) -> dict[Shift, list[TimePunch]]:
         # 1. Define the Lookback Period
         # We look back enough to cover the max OT lookback (e.g., 7 days)
         max_lookback_dt = check_date.subtract(days=8).start_of("day")
@@ -122,7 +122,7 @@ class SQLARawHistoryRetriever(IRawHistoryRetriever):
             # Map the template using the original helper
             return self._map_shift_to_domain(p.shift_template)
 
-        history_map: Dict[Shift, List[TimePunch]] = {}
+        history_map: dict[Shift, list[TimePunch]] = {}
 
         # Grouping: Group all punch models by the ID of their associated Shift Template
         # We group by the shift template ID, even though the result is keyed by the Shift object.
@@ -146,7 +146,9 @@ class SQLARawHistoryRetriever(IRawHistoryRetriever):
         """Maps a SQLAlchemy Shift model to the application's Shift dataclass."""
         # We assume Shift only holds identity and basic time data for history purposes.
         return Shift(
-            shift_id=str(shift_model.id),
+            org_id=shift_model.org_id,
+            facility_id=shift_model.facility_id,
+            shift_id=str(shift_model.shift_id),
             shift_start_dt=pendulum.instance(shift_model.shift_start_dt),
             shift_end_dt=pendulum.instance(shift_model.shift_end_dt),
             shift_number=int(shift_model.shift_number)
@@ -177,6 +179,8 @@ class SQLARawHistoryRetriever(IRawHistoryRetriever):
         # Create a generic shift object to hold raw, unassigned punches
         now = pendulum.now()
         return Shift(
+            org_id="UNKNOWN",
+            facility_id="UNKNOWN",
             shift_id="UNASSIGNED",
             shift_start_dt=now.subtract(days=365).start_of("day"),
             shift_end_dt=now.add(days=1).end_of("day"),

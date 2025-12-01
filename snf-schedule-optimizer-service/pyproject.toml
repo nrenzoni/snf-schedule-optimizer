@@ -5,13 +5,14 @@ description = "BE schedule optimizer for skilled nursing facilities, optimizing 
 authors = [
     { name = "Nechemia R", email = "nrenzoni1@gmial.com" },
 ]
-requires-python = ">=3.13"
+requires-python = "==3.13.*"
 
 dependencies = [
     "asyncpg>=0.30.0",
     "connect-python>=0.5.0",
     "dependency-injector>=4.48.2",
     "grpcio>=1.76.0",
+    "hexaly>=14.0.20251112",
     "numpy>=2.3.4",
     "pendulum>=3.1.0",
     "polars>=1.35.2",
@@ -54,6 +55,10 @@ ignore_missing_imports = false
 # Allows MyPy to find stubs for packages that are installed in your venv
 python_executable = ".venv/Scripts/python.exe"
 
+[[tool.uv.index]]
+name = "hexaly"
+url = "https://pip.hexaly.com/"
+
 [[tool.mypy.overrides]]
 module = "pulp"
 ignore_missing_imports = true
@@ -93,7 +98,7 @@ exclude = [
 # Set the line length, similar to Black's default
 line-length = 88
 # Target Python version for backwards-compatibility checks
-target-version = "py314"
+target-version = "py313"
 
 [tool.ruff.lint]
 # Enable the default rule set (Pyflakes F and some Pycodestyle E rules)
@@ -102,8 +107,14 @@ select = ["E", "F"]
 # Example: Extend with additional checks for Python errors and common gotchas (B, I, UP, etc.)
 extend-select = ["B", "I", "UP", "C4", "SIM"]
 # Ignore specific rules project-wide (optional)
-ignore = ["E501"] # Example: ignore line length rule if needed
+ignore = [
+    "E501", # ignore line length rule if needed
+    "SIM102" # disable Combine `if` statements using `and
+]
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.uv.sources]
+hexaly = { index = "hexaly" }

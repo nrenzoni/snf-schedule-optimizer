@@ -1,11 +1,18 @@
 import abc
-import random
-from uuid import uuid4
 import dataclasses
+import random
 from dataclasses import dataclass
+from uuid import uuid4
+
 import pendulum
 
-from snf_schedule_optimizer.models import *
+from snf_schedule_optimizer.models import (
+    Employee,
+    NurseProfile,
+    PreferenceType,
+    StaffCompensationRecord,
+    StaffShiftPreference,
+)
 
 
 @dataclass(frozen=True)
@@ -21,15 +28,15 @@ class SimulateFacilityScenarioParams:
 
 class INurseSimulateGenerator(abc.ABC):
     @abc.abstractmethod
-    def generate_nurse_profiles(self) -> List[NurseProfile]:
+    def generate_nurse_profiles(self) -> list[NurseProfile]:
         pass
 
 
 class HardcodedNurseSimulateGenerator(INurseSimulateGenerator):
-    def __init__(self, nurse_profiles: List[NurseProfile]):
+    def __init__(self, nurse_profiles: list[NurseProfile]):
         self.nurse_profiles = nurse_profiles
 
-    def generate_nurse_profiles(self) -> List[NurseProfile]:
+    def generate_nurse_profiles(self) -> list[NurseProfile]:
         """Returns the predefined list of nurse profiles."""
         return self.nurse_profiles
 
@@ -45,14 +52,14 @@ class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
         self.simulation_params = simulation_params
         self.rng = rng
 
-    def generate_nurse_profiles(self) -> List[NurseProfile]:
+    def generate_nurse_profiles(self) -> list[NurseProfile]:
         """Creates a mock staff roster reflecting the facility's profile and turnover risk."""
         employees_compensation = self.generate_employees_and_compensation()
         return self._generate_nurse_profiles(employees_compensation)
 
     def generate_employees_and_compensation(
         self,
-    ) -> List[Tuple[Employee, StaffCompensationRecord]]:
+    ) -> list[tuple[Employee, StaffCompensationRecord]]:
         """
         Creates base Employee records and their current StaffCompensationRecords.
         Replaces the old generate_nurse_profiles logic.
@@ -102,8 +109,8 @@ class DefaultNurseSimulateGenerator(INurseSimulateGenerator):
 
     def _generate_nurse_profiles(
         self,
-        employee_compensation_data: List[Tuple[Employee, StaffCompensationRecord]],
-    ) -> List[NurseProfile]:
+        employee_compensation_data: list[tuple[Employee, StaffCompensationRecord]],
+    ) -> list[NurseProfile]:
         """
         Generates scheduling-specific NurseProfiles using the base cost data.
         """
@@ -134,7 +141,7 @@ class WrappedWithPreferencesNurseSimulateGenerator(INurseSimulateGenerator):
         self.simulation_params = simulation_params
         self.rng = random.Random(rng_seed)
 
-    def generate_nurse_profiles(self) -> List[NurseProfile]:
+    def generate_nurse_profiles(self) -> list[NurseProfile]:
         """Creates a mock staff roster reflecting the facility's profile and turnover risk, with preferences."""
         roster = []
         for i, nurse_profile in enumerate(

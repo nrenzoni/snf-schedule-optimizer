@@ -1,5 +1,4 @@
 import abc
-from typing import List, Optional
 
 import pendulum
 
@@ -10,12 +9,12 @@ class IEmployeeRetriever(abc.ABC):
     """Defines the contract for retrieving core Employee identity records."""
 
     @abc.abstractmethod
-    def get_employee_by_id(self, employee_id: str) -> Optional[Employee]:
+    def get_employee_by_id(self, employee_id: str) -> Employee | None:
         """Retrieves a single Employee record by their unique ID."""
         pass
 
     @abc.abstractmethod
-    def get_all_employees(self) -> List[Employee]:
+    def get_all_employees(self) -> list[Employee]:
         """Retrieves all active Employee records."""
         pass
 
@@ -28,7 +27,7 @@ class IStaffCompensationService(abc.ABC):
         self,
         employee_id: str,
         check_date: pendulum.DateTime,
-    ) -> Optional[StaffCompensationRecord]:
+    ) -> StaffCompensationRecord | None:
         """
         Retrieves the one StaffCompensationRecord whose validity period
         covers the check_date.

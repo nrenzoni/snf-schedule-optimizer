@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import dataclasses
 from dataclasses import dataclass
-from typing import *
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import pendulum
@@ -40,8 +42,8 @@ class StaffShiftPreference:
 
     # employee_id: str
     preference_type: PreferenceType
-    specific_value: Optional[str]  # For SPECIFIC_DAY_OFF, UNIT_PREFERENCE, etc.
-    penalty_weight: float
+    specific_value: str | None  # For SPECIFIC_DAY_OFF, UNIT_PREFERENCE, etc.
+    penalty_weight: float  # not used yet
     is_hard_block: bool  # If True, becomes a mandatory LP constraint
 
 
@@ -79,10 +81,10 @@ class NurseProfile:
     # ot_multiplier: float  # non-exempt OT pay multiplier, if exempt set to 1.0
     available_hours_weekly: int
     # is_agency: bool
-    skills: Optional[
-        List[str]
-    ]  # e.g., 'IV Therapy', 'Wound Care' perhaps turn into provider
-    shift_custom_preferences: Optional[List[StaffShiftPreference]]
+    skills: (
+        list[str] | None
+    )  # e.g., 'IV Therapy', 'Wound Care' perhaps turn into provider
+    shift_custom_preferences: list[StaffShiftPreference] | None
 
     def __hash__(self) -> int:
         return hash(self.employee_id)
@@ -109,16 +111,16 @@ class FacilityHrConfig:
     min_rest_hours_between_shifts: float
     max_consecutive_work_days: int
     max_total_hours_per_pay_period: int
-    max_patient_to_staff_ratio: Optional[float]
-    mandatory_days_off_after_max_consecutive_days: Optional[
-        int
-    ]  # if provided, must be greater than 0
-    max_weekend_shifts_per_month: Optional[int]
-    max_floating_assignments_per_month: Optional[
-        int
-    ]  # how often nurses float between units
-    max_night_shifts_per_month: Optional[int]
-    require_annual_training: Optional[bool]
+    max_patient_to_staff_ratio: float | None
+    mandatory_days_off_after_max_consecutive_days: (
+        int | None
+    )  # if provided, must be greater than 0
+    max_weekend_shifts_per_month: int | None
+    max_floating_assignments_per_month: (
+        int | None
+    )  # how often nurses float between units
+    max_night_shifts_per_month: int | None
+    require_annual_training: bool | None
 
 
 @dataclass(frozen=True)
@@ -145,6 +147,7 @@ class CrossShiftConstraints:
 class FacilityConfig:
     """Immutable facility and HR compliance rules."""
 
+    org_id: str
     facility_id: str
     shifts_per_day: int
     overtime_threshold_hours_per_week: int
@@ -157,7 +160,10 @@ class FacilityConfig:
 
 @dataclass(frozen=True)
 class Shift:
+    org_id: str
+    facility_id: str
     shift_id: str
+
     shift_number: int
     day_shift: bool
     day_of_week: pendulum.WeekDay
@@ -170,12 +176,12 @@ class Shift:
         return (self.shift_end_dt - self.shift_start_dt).total_hours()
 
     def __hash__(self) -> int:
-        return hash(self.shift_id)
+        return hash((self.org_id, self.facility_id, self.shift_id))
 
 
 @dataclass(frozen=True)
 class Schedule:
-    shift_assignments: Dict[str, List[str]]  # {Shift: [employee_ids]}
+    shift_assignments: dict[str, list[str]]  # {Shift: [employee_ids]}
 
 
 @dataclass(frozen=True)
@@ -189,19 +195,19 @@ class WorkedShiftSegment:
     duration_hours: float = dataclasses.field(init=False)
 
     # --- Rule References (Crucial for Calculation & Audit) ---
-    applicable_differential_rules: list["IDifferentialRule"]
-    applicable_overtime_rules: list["IOvertimeRule"]
+    applicable_differential_rules: list[IDifferentialRule]
+    applicable_overtime_rules: list[IOvertimeRule]
 
     # 1. Job and Cost Center References
-    shift_code: Optional[str] = None  # Code referencing the scheduled shift
-    job_code: Optional[str] = (
+    shift_code: str | None = None  # Code referencing the scheduled shift
+    job_code: str | None = (
         None  # The specific job performed (e.g., 'Charge Nurse', 'ICU_RT')
     )
-    cost_center_1: Optional[str] = None  # Primary cost center (e.g., Unit 4B)
-    cost_center_2: Optional[str] = None  # Secondary cost center
+    cost_center_1: str | None = None  # Primary cost center (e.g., Unit 4B)
+    cost_center_2: str | None = None  # Secondary cost center
 
     # 2. Financial Context
-    rate_from_punch: Optional[float] = (
+    rate_from_punch: float | None = (
         None  # Rate captured at punch time (for audit/cross-check)
     )
 
@@ -211,6 +217,20 @@ class WorkedShiftSegment:
     def __post_init__(self) -> None:
         duration = (self.end_time - self.start_time).total_hours()
         object.__setattr__(self, "duration_hours", duration)
+
+    @property
+    def ot_multiplier(self) -> float:
+        multipliers: list[float] = []
+        for rule in self.applicable_overtime_rules:
+            m = rule.multiplier
+            if m is None:
+                continue
+            try:
+                multipliers.append(m)
+            except (TypeError, ValueError):
+                continue
+
+        return max(multipliers) if multipliers else 1.0
 
 
 @dataclass(frozen=True)
@@ -225,11 +245,11 @@ class PreferenceWeights:
 class MlModelOutputs:
     """Stores the pre-calculated, dynamic outputs from ML models."""
 
-    turnover_risk_scores: Dict[str, float]  # {employee_id: score}
+    turnover_risk_scores: dict[str, float]  # {employee_id: score}
     shift_call_out_forecast: float  # {shift_id: predicted_rate}
-    unit_acuity_stress: Dict[str, float]  # {unit_id: stress_multiplier}
-    team_compatibility_scores: Dict[
-        Tuple[str, str], float
+    unit_acuity_stress: dict[str, float]  # {unit_id: stress_multiplier}
+    team_compatibility_scores: dict[
+        tuple[str, str], float
     ]  # {(nurse_A, nurse_B): score}
 
 
@@ -237,15 +257,15 @@ class MlModelOutputs:
 class Differential:
     name: str
     type: DifferentialType
-    multiplier: Optional[float]
-    flat: Optional[float]
+    multiplier: float | None
+    flat: float | None
 
     def __init__(
         self,
         name: str,
         type: DifferentialType,
-        multiplier: Optional[float] = None,
-        flat: Optional[float] = None,
+        multiplier: float | None = None,
+        flat: float | None = None,
     ):
         if (multiplier is None) == (flat is None):
             raise ValueError("Provide either multiplier or flat, not both or neither.")
@@ -264,7 +284,7 @@ class Differential:
 class OvertimeInterval:
     start_dt: pendulum.DateTime
     end_dt: pendulum.DateTime
-    applicable_rules: List["IOvertimeRule"]
+    applicable_rules: list[IOvertimeRule]
 
 
 @dataclass(frozen=True)
@@ -272,33 +292,33 @@ class OvertimeTrigger:
     """Defines the condition for the rule to activate."""
 
     # --- Existing Fields (Required for basic FLSA/State OT) ---
-    daily_threshold: Optional[float] = None  # e.g., 8.0 hours
-    weekly_threshold: Optional[float] = None  # e.g., 40.0 hours
+    daily_threshold: float | None = None  # e.g., 8.0 hours
+    weekly_threshold: float | None = None  # e.g., 40.0 hours
 
     # Weekly Work Period Definition (Crucial for FLSA)
-    work_period_start_day: Optional[pendulum.WeekDay] = None  # e.g., Monday
-    work_period_start_time: Optional[pendulum.Time] = (
+    work_period_start_day: pendulum.WeekDay | None = None  # e.g., Monday
+    work_period_start_time: pendulum.Time | None = (
         None  # e.g., 12:01 AM (used to define the start of the 7-day work week)
     )
 
     # --- New Fields for Robust Configuration ---
 
     # 1. Daily Work Period Definition (CRUCIAL for Daily OT)
-    daily_period_reset_time: Optional[pendulum.Time] = None
+    daily_period_reset_time: pendulum.Time | None = None
     # Used to define when the 24-hour day resets, important for shifts crossing midnight.
     # Example: If a facility's day is 6:00 AM to 6:00 AM, set this to 6:00 AM.
 
     # 2. Sequential Day Thresholds (Common in some US states like CA)
     # This rule triggers OT when an employee works a specific number of consecutive days.
-    consecutive_day_threshold: Optional[int] = None
+    consecutive_day_threshold: int | None = None
     # e.g., 7 days. OT applies to the 7th day of work.
 
     # 3. Consecutive Hours Threshold (Important for long shifts)
-    consecutive_hours_threshold: Optional[float] = None
+    consecutive_hours_threshold: float | None = None
     # e.g., 12.0 hours. OT applies to any hours worked beyond 12 consecutive hours, regardless of daily/weekly totals.
 
     # 4. Specific Day Overtime (Common for mandated rest day OT)
-    days_of_week_trigger: Optional[List[pendulum.WeekDay]] = None
+    days_of_week_trigger: list[pendulum.WeekDay] | None = None
     # e.g., [pendulum.SUNDAY]. OT applies to all hours on this day, overriding other rules.
 
 
@@ -306,7 +326,7 @@ class OvertimeTrigger:
 class DifferentialDateInterval:
     start_dt: pendulum.DateTime
     end_dt: pendulum.DateTime
-    rule: Optional["IDifferentialRule"]
+    rule: IDifferentialRule | None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -328,15 +348,15 @@ class StaffCompensationRecord:
 
     # --- Audit and Validity Period ---
     effective_start_date: pendulum.Date
-    effective_end_date: Optional[pendulum.Date] = (
+    effective_end_date: pendulum.Date | None = (
         None  # Nullable for records with no end date
     )
 
     # --- Metadata and Source ---
-    union_contract_id: Optional[str] = (
+    union_contract_id: str | None = (
         None  # The specific contract/group driving this rate
     )
-    pay_grade_or_step: Optional[str] = None  # The internal pay scale identifier
+    pay_grade_or_step: str | None = None  # The internal pay scale identifier
 
 
 @dataclasses.dataclass(frozen=True)
@@ -355,16 +375,16 @@ class WorkedTimeBlock:
     is_scheduled: bool = False  # True if this block aligns with a scheduled shift
 
     # --- Cost Allocation Metadata (From TimePunch) ---
-    shift_code: Optional[str] = None  # Code referencing the scheduled shift
-    job_code: Optional[str] = None  # The job performed (e.g., 'Charge Nurse')
+    shift_code: str | None = None  # Code referencing the scheduled shift
+    job_code: str | None = None  # The job performed (e.g., 'Charge Nurse')
 
     # Cost Center Fields (Required for financial posting)
-    cost_center_1: Optional[str] = None  # Primary cost center (e.g., Unit 4B)
-    cost_center_2: Optional[str] = None  # Secondary cost center
+    cost_center_1: str | None = None  # Primary cost center (e.g., Unit 4B)
+    cost_center_2: str | None = None  # Secondary cost center
 
     # Rate/Pay Data (Copied from TimePunch/Compensation Record)
     # The reconciler copies these fields over for quick reference before the final rate calculation.
-    rate_from_punch: Optional[float] = None
+    rate_from_punch: float | None = None
     meal_not_taken: bool = False
 
 
@@ -385,27 +405,27 @@ class TimePunch:
     is_dragged_time: bool = False  # C#: !x.r.draggedTime.HasValue (We invert the check)
 
     # NEW 2: Punch Type (Crucial for pairing logic: CheckIn, CheckOut, MealOut)
-    punch_type: Optional[PunchType] = (
+    punch_type: PunchType | None = (
         None  # e.g., 'CheckIn', 'CheckOut' (C# 'punch1.type')
     )
 
     # --- Cost Allocation Fields (Corresponds to C# cc1, cc2, jobCode, shift) ---
-    shift_code: Optional[str] = (
+    shift_code: str | None = (
         None  # Code referencing the scheduled shift (C#: punch1.shift)
     )
-    job_code: Optional[str] = None  # Job code for cost allocation (C#: punch1.jobCode)
+    job_code: str | None = None  # Job code for cost allocation (C#: punch1.jobCode)
 
     # NEW 3: Cost Center Fields (Mapped from generic C# cc1, cc2, cc3, etc.)
-    cost_center_1: Optional[str] = None  # C#: punch1.cc1
-    cost_center_2: Optional[str] = None  # C#: punch1.cc2
-    cost_center_3: Optional[str] = None  # C#: punch1.cc3
+    cost_center_1: str | None = None  # C#: punch1.cc1
+    cost_center_2: str | None = None  # C#: punch1.cc2
+    cost_center_3: str | None = None  # C#: punch1.cc3
 
     # --- Audit & Metadata ---
-    rate: Optional[float] = None  # Rate from T&A (for cross-checking/costing)
+    rate: float | None = None  # Rate from T&A (for cross-checking/costing)
     meal_not_taken: bool = False  # Flag from punch data (C#: punch1.mealNotTaken)
 
     # NEW 4: Punch Recorded Time (Crucial for Audit and Chronology)
-    punch_recorded_at: Optional[pendulum.DateTime] = (
+    punch_recorded_at: pendulum.DateTime | None = (
         None  # When the punch record was created
     )
 
@@ -419,15 +439,15 @@ class EmployeeTimeSettings:
     )  # Max time between IN/OUT punches to match (Used in C# Pair)
 
     # --- Payroll Day Splitting/Crossover ---
-    split_day_threshold_time: Optional[
-        pendulum.Time
-    ]  # Time of day the payroll day resets (e.g., 3:00 AM)
+    split_day_threshold_time: (
+        pendulum.Time | None
+    )  # Time of day the payroll day resets (e.g., 3:00 AM)
 
-    split_day_day_type: Optional[SplitDayType]
+    split_day_day_type: SplitDayType | None
 
     # Used to check if a block should be split across the daily cutoff.
     # Corresponds to 'shiftSeperator' used in IsSeparatedByShift.
-    shift_separator_time: Optional[pendulum.Time]
+    shift_separator_time: pendulum.Time | None
 
     # Flag used in the splitting logic check (ShiftGraceWindow is usually a Duration)
     shift_grace_window: (
@@ -438,7 +458,7 @@ class EmployeeTimeSettings:
     rounding_unit_minutes: int  # Unit for rounding (e.g., 6, 15)
 
     # NEW 3: Used in the SplitPunches logic, although typically derived from rounding_unit
-    rounding_type: Optional[RoundingType]
+    rounding_type: RoundingType | None
 
     # NEW 4: Used to determine if the time is split/adjusted by a specific shift.
     # In C#, this often comes from the associated shift's metadata.
@@ -457,7 +477,7 @@ class MealDeductionRules:
     meal_duration_hours: float
 
     # The time of day the meal period is typically placed (e.g., 5.0 for 5 hours into the shift)
-    meal_placement_hours: Optional[float] = None
+    meal_placement_hours: float | None = None
 
     # Flag to indicate if the deduction is automatic, even if the employee did not punch out for it
     is_mandatory: bool = True

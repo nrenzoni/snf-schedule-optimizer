@@ -1,8 +1,7 @@
 import datetime
 
+from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import Date, Integer, Float, Boolean, ForeignKey
-from sqlalchemy.orm import DeclarativeBase
 
 from .base import SQLABase
 

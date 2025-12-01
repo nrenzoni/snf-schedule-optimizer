@@ -2,7 +2,7 @@ import datetime
 
 import pendulum
 from sqlalchemy import Boolean, Date, ForeignKey, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import SQLABase
 from .employee import EmployeeModel

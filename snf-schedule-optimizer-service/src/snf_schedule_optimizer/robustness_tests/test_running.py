@@ -1,15 +1,28 @@
 import abc
 import random
-import pendulum
+from collections.abc import Generator
 from dataclasses import dataclass
+from typing import Any
 
+import pendulum
 import polars as pl
 
 from snf_schedule_optimizer.baseline_schedule_generator import BaselineScheduleGenerator
 from snf_schedule_optimizer.ml_output_retrievers import MLModelOutputsRetrieverImpl
-from snf_schedule_optimizer.models import *
+from snf_schedule_optimizer.models import (
+    FacilityConfig,
+    FacilityHrConfig,
+    MinMandates,
+    NurseRole,
+    PerShiftStressTestParameters,
+    PreferenceType,
+    PreferenceWeights,
+    Schedule,
+    Shift,
+    ShiftSpecificRequirements,
+    StressTestParameterName,
+)
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
-
 from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.persistence.shift_requirements_retriever import (
     ShiftRequirementsRetrieverImpl,
@@ -37,7 +50,7 @@ class ITestRunCaseGenerator(abc.ABC):
     @abc.abstractmethod
     def generate_test_cases(
         self,
-    ) -> Generator[PerShiftStressTestParameters, None, None]:
+    ) -> Generator[PerShiftStressTestParameters]:
         """Yields test cases for robustness testing."""
         pass
 
@@ -48,7 +61,7 @@ class SingleTestRunCaseGenerator(ITestRunCaseGenerator):
 
     def generate_test_cases(
         self,
-    ) -> Generator[PerShiftStressTestParameters, None, None]:
+    ) -> Generator[PerShiftStressTestParameters]:
         yield self.test_case
 
 
@@ -56,7 +69,7 @@ class SingleParamPermuteTestRunCaseGenerator(ITestRunCaseGenerator):
     def __init__(
         self,
         param_name: StressTestParameterName,
-        test_values: List[Any],
+        test_values: list[Any],
         default_params: dict[str, Any],
     ) -> None:
         self.param_name = param_name
@@ -65,7 +78,7 @@ class SingleParamPermuteTestRunCaseGenerator(ITestRunCaseGenerator):
 
     def generate_test_cases(
         self,
-    ) -> Generator[PerShiftStressTestParameters, None, None]:
+    ) -> Generator[PerShiftStressTestParameters]:
         for value in self.test_values:
             try:
                 params = self.default_params.copy()
@@ -84,7 +97,7 @@ class SingleParamPermuteTestRunCaseGenerator(ITestRunCaseGenerator):
 
 class IShiftGenerator(abc.ABC):
     @abc.abstractmethod
-    def generate_shifts(self) -> List[Shift]:
+    def generate_shifts(self) -> list[Shift]:
         """Generates shifts for the forecast horizon."""
         pass
 
@@ -93,8 +106,8 @@ class DefaultShiftGenerator(IShiftGenerator):
     def __init__(
         self,
         start_date: pendulum.DateTime,
-        n_forecast_days: Optional[int],
-        shifts_total: Optional[int],
+        n_forecast_days: int | None,
+        shifts_total: int | None,
         timezone: pendulum.Timezone,
     ) -> None:
         if n_forecast_days is None and shifts_total is None:
@@ -109,7 +122,7 @@ class DefaultShiftGenerator(IShiftGenerator):
         self.shifts_total = shifts_total
         self.timezone = timezone
 
-    def generate_shifts(self) -> List[Shift]:
+    def generate_shifts(self) -> list[Shift]:
         n_shifts_per_day = 3
         shift_duration = 24 // n_shifts_per_day  # 8 hours
 
@@ -134,6 +147,8 @@ class DefaultShiftGenerator(IShiftGenerator):
                 shift_end_time = shift_start_time.add(hours=shift_duration)
                 shifts.append(
                     Shift(
+                        org_id="ORG_1",
+                        facility_id="FACILITY_1",
                         shift_id=f"SHIFT_{i * n_shifts_per_day + j + 1}",
                         shift_number=i * n_shifts_per_day + j + 1,
                         day_shift=(j == 0),
@@ -186,7 +201,7 @@ class TestRunner:
 
         shifts = shift_generator.generate_shifts()
 
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
 
         for test_case in test_run_case_generator.generate_test_cases():
             scenario_metrics = self.run_scenario(
@@ -212,13 +227,13 @@ class TestRunner:
     def run_scenario(
         self,
         scenario_id: str,
-        shifts: List[Shift],
+        shifts: list[Shift],
         stress_params: PerShiftStressTestParameters,
         facility_config: FacilityConfig,
         facility_hr_config: FacilityHrConfig,
         min_mandates: MinMandates,
         shift_requirements: ShiftSpecificRequirements,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Runs a single scenario to generate both forward- and backward-looking data.
         """
@@ -335,7 +350,7 @@ class TestRunner:
     @dataclass(frozen=True)
     class ScheduleWithCallOut:
         schedule: Schedule
-        call_outs: Dict[str, List[str]]  # {Shift: [employee_ids who called out]}
+        call_outs: dict[str, list[str]]  # {Shift: [employee_ids who called out]}
 
     def _simulate_call_out_rate_in_schedule(
         self,
@@ -343,8 +358,8 @@ class TestRunner:
         call_out_rate: float,
     ) -> ScheduleWithCallOut:
         """Simulates staff call-outs in the given schedule based on the call-out rate."""
-        shift_assignments_with_call_out: Dict[str, List[str]] = {}
-        called_out_per_shift: Dict[str, List[str]] = {}
+        shift_assignments_with_call_out: dict[str, list[str]] = {}
+        called_out_per_shift: dict[str, list[str]] = {}
         for shift_id, staff_ids in schedule.shift_assignments.items():
             adjusted_staff_ids = [
                 staff_id for staff_id in staff_ids if self.rng.random() > call_out_rate
@@ -359,7 +374,7 @@ class TestRunner:
         )
 
     @staticmethod
-    def _generate_baseline_schedule(residents: Any) -> Dict[Any, Any]:
+    def _generate_baseline_schedule(residents: Any) -> dict[Any, Any]:
         """Mocks the facility's existing, often inefficient, manual scheduling heuristic."""
         # Simple mock implementation returning an empty schedule dict
         return {}
@@ -367,7 +382,7 @@ class TestRunner:
     def _calculate_cost(
         self,
         schedule: Schedule,
-        shifts: Dict[str, Shift],
+        shifts: dict[str, Shift],
     ) -> float:
         """
         Calculates the total dollar total_cost based on assignments and pay rates.
@@ -382,7 +397,7 @@ class TestRunner:
                 ee for ee in employees if ee.employee_id in assigned_employee_ids
             ]
             for employee in assigned_employees:
-                shift_cost = self.shift_pay_processor.calculate_shift_cost(
+                shift_cost = self.shift_pay_processor.calculate_detailed_cost(
                     employee, shift
                 )
                 total_cost += shift_cost
@@ -400,7 +415,7 @@ class TestRunner:
 
     def _calc_risk_metrics(
         self,
-        shifts: List[Shift],
+        shifts: list[Shift],
         schedule: Schedule,
         shift_requirements_retriever: IShiftRequirementsRetriever,
     ) -> RiskMetrics:

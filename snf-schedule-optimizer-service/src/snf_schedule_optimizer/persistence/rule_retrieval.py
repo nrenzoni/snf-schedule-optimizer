@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from snf_schedule_optimizer.models import (
     Differential,
     DifferentialDateInterval,
@@ -14,7 +12,6 @@ from snf_schedule_optimizer.services.payroll.interfaces import (
     IRuleRetrievalService,
 )
 
-
 # --- Assumed Interfaces & Models ---
 # Assuming these interfaces and models are available:
 # IDifferentialRule, IOvertimeRule (with priority, applicable_job_titles, etc.)
@@ -27,7 +24,7 @@ from snf_schedule_optimizer.services.payroll.interfaces import (
 class MockDifferentialRule(IDifferentialRule):
     """A concrete differential rule used solely for testing retrieval/slicing."""
 
-    def __init__(self, name: str, rate: float, priority: int, job_titles: List[str]):
+    def __init__(self, name: str, rate: float, priority: int, job_titles: list[str]):
         self._name = name
         self._rate = rate
         self._priority = priority
@@ -46,11 +43,11 @@ class MockDifferentialRule(IDifferentialRule):
         return self._priority
 
     @property
-    def applicable_job_titles(self) -> Optional[List[str]]:
+    def applicable_job_titles(self) -> list[str] | None:
         return self._job_titles
 
     @property
-    def required_certifications(self) -> Optional[List[str]]:
+    def required_certifications(self) -> list[str] | None:
         return None
 
     @property
@@ -59,7 +56,7 @@ class MockDifferentialRule(IDifferentialRule):
 
     def get_applicable_intervals_for_shift(
         self, shift: Shift
-    ) -> List[DifferentialDateInterval]:
+    ) -> list[DifferentialDateInterval]:
         # Placeholder for slicing logic
         return []
 
@@ -72,8 +69,8 @@ class MockOvertimeRule(IOvertimeRule):
         name: str,
         multiplier: float,
         priority: int,
-        trigger: "OvertimeTrigger",
-        contract_id: Optional[str] = None,
+        trigger: OvertimeTrigger,
+        contract_id: str | None = None,
     ):
         self._name = name
         self._multiplier = multiplier
@@ -90,16 +87,16 @@ class MockOvertimeRule(IOvertimeRule):
         return self._priority
 
     @property
-    def trigger(self) -> "OvertimeTrigger":
+    def trigger(self) -> OvertimeTrigger:
         return self._trigger
 
     # Required by RuleEligibilityCriteria
     @property
-    def applicable_job_titles(self) -> Optional[List[str]]:
+    def applicable_job_titles(self) -> list[str] | None:
         return None
 
     @property
-    def required_certifications(self) -> Optional[List[str]]:
+    def required_certifications(self) -> list[str] | None:
         return None
 
     @property
@@ -107,7 +104,7 @@ class MockOvertimeRule(IOvertimeRule):
         return "ALL"
 
     @property
-    def contract_id(self) -> Optional[str]:
+    def contract_id(self) -> str | None:
         return self._contract_id
 
 
@@ -119,8 +116,8 @@ class RuleRetrievalServiceStaticListImpl(IRuleRetrievalService):
 
     def __init__(
         self,
-        diff_rules: List[IDifferentialRule],
-        overtime_rules: List[IOvertimeRule],
+        diff_rules: list[IDifferentialRule],
+        overtime_rules: list[IOvertimeRule],
     ):
         self.diff_rules = diff_rules
         self.overtime_rules = overtime_rules
@@ -129,7 +126,7 @@ class RuleRetrievalServiceStaticListImpl(IRuleRetrievalService):
         self,
         employee: Employee,
         shift: Shift,
-    ) -> List[IDifferentialRule]:
+    ) -> list[IDifferentialRule]:
         diff_rules = []
         for rule in self.diff_rules:
             # Apply the simple job title filter (others are handled in RuleEligibilityService)
@@ -146,8 +143,8 @@ class RuleRetrievalServiceStaticListImpl(IRuleRetrievalService):
         self,
         employee: Employee,
         shift: Shift,
-    ) -> List[IOvertimeRule]:
-        ot_rules: List[IOvertimeRule] = []
+    ) -> list[IOvertimeRule]:
+        ot_rules: list[IOvertimeRule] = []
         # Assuming Employee has union_contract_id attribute
         employee_contract_id = getattr(employee, "union_contract_id", None)
 

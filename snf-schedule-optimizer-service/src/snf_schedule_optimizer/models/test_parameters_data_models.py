@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import *
+from typing import Literal
 
 
 @dataclass(frozen=True)
@@ -8,7 +8,7 @@ class FacilityParameters:
 
     # 1. Supply/Compliance Configuration
     facility_id: str
-    shift_structure: Dict[str, Tuple[str, str]]  # e.g., {'Day': ('07:00', '15:00')}
+    shift_structure: dict[str, tuple[str, str]]  # e.g., {'Day': ('07:00', '15:00')}
     base_cna_hprd_mandate: float = (
         2.5  # Minimum target HPRD for CNAs (CMS/State benchmark)
     )
@@ -50,7 +50,7 @@ class PerShiftStressTestParameters:
         return "_".join(f"{k}_{v}" for k, v in fields)
 
 
-StressTestParameterName: TypeAlias = Literal[
+StressTestParameterName = Literal[
     "admission_surge_factor",
     "high_acuity_mix_increase",
     "staff_call_out_rate",

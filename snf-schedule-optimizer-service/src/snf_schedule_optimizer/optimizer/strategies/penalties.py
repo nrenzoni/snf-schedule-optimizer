@@ -1,5 +1,3 @@
-from typing import Any, List
-
 import pulp
 
 from snf_schedule_optimizer.models import PreferenceWeights
@@ -31,9 +29,9 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
     def get_penalty_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        data_provider: "IScenarioDataProvider",
+        data_provider: IScenarioDataProvider,
         weights: PreferenceWeights,
-    ) -> List[pulp.LpAffineExpression]:
+    ) -> list[pulp.LpAffineExpression]:
         penalty_terms = []
 
         for shift in data_provider.get_all_shifts():
@@ -50,6 +48,8 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
                 try:
                     lp_var = lp_holder.get_variable(nurse.employee_id, shift.shift_id)
                 except KeyError:
+                    continue
+                if not lp_var:
                     continue
 
                 # 1. Calculate Preference Penalty (The "Soft" Constraints)

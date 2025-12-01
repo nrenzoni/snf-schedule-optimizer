@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import datetime
 import uuid
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 
@@ -35,7 +37,7 @@ class TimePunchModel(SQLABase):
     )
 
     # --- Event Type & State Flags (For Pairing Logic) ---
-    punch_type: Mapped[Optional[str]] = mapped_column(
+    punch_type: Mapped[str | None] = mapped_column(
         String(20), nullable=True
     )  # e.g., 'CheckIn', 'CheckOut'
     is_void: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -43,26 +45,24 @@ class TimePunchModel(SQLABase):
     is_dragged_time: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # --- Cost Allocation Fields ---
-    shift_id: Mapped[Optional[int]] = mapped_column(
+    shift_id: Mapped[int | None] = mapped_column(
         ForeignKey("shift.id"), nullable=True
     )  # FK link
-    shift_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    job_code: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    cost_center_1: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    cost_center_2: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    cost_center_3: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    shift_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    job_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    cost_center_1: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    cost_center_2: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    cost_center_3: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # --- Audit & Metadata ---
-    rate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    rate: Mapped[float | None] = mapped_column(Float, nullable=True)
     meal_not_taken: Mapped[bool] = mapped_column(Boolean, default=False)
     punch_recorded_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False
     )  # When system logged it
 
     # Relationship Linkage
-    shift_template: Mapped[Optional["ShiftModel"]] = relationship(
-        back_populates="punches"
-    )
+    shift_template: Mapped[ShiftModel | None] = relationship(back_populates="punches")
 
     def __repr__(self) -> str:
         return (

@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import datetime
 import typing
-from typing import List, Optional
 
 from sqlalchemy import Boolean, DateTime, Integer, String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import SQLABase
 
@@ -20,7 +21,10 @@ class ShiftModel(SQLABase):
     __tablename__ = "shift"
 
     # --- Primary Key ---
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    org_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
+    facility_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
+    shift_id: Mapped[str] = mapped_column(String, primary_key=True)
 
     # --- Core Identity & Time ---
     shift_start_dt: Mapped[datetime.datetime] = mapped_column(
@@ -33,7 +37,7 @@ class ShiftModel(SQLABase):
     # --- Contextual Data (Required by Mapping and Rules Engine) ---
 
     # 1. Used in _map_shift_to_domain (Fixes previous errors)
-    shift_number: Mapped[Optional[str]] = mapped_column(
+    shift_number: Mapped[str | None] = mapped_column(
         String(20), nullable=True
     )  # e.g., '1', '2', '3'
     day_shift: Mapped[bool] = mapped_column(
@@ -48,8 +52,7 @@ class ShiftModel(SQLABase):
 
     # 2. Scheduling & Role Data
     # Used for filtering rules by facility/unit
-    facility_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    unit_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    unit_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # 3. Status
     is_scheduled: Mapped[bool] = mapped_column(
@@ -57,9 +60,9 @@ class ShiftModel(SQLABase):
     )  # True if this is a scheduled block; False if purely actual worked time
 
     # Relationship to TimePunches (New 1:N relationship)
-    punches: Mapped[List["TimePunchModel"]] = relationship(
+    punches: Mapped[list[TimePunchModel]] = relationship(
         back_populates="shift_template", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:
-        return f"<ShiftModel(id={self.id}, start='{self.shift_start_dt}')>"
+        return f"<ShiftModel(id={self.shift_id}, start='{self.shift_start_dt}')>"

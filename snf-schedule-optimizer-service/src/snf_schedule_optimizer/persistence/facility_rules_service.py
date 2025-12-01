@@ -1,7 +1,8 @@
+from typing import Any
+
 import pendulum
-from typing import Optional, Dict, Any
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from snf_schedule_optimizer.models import (
     EmployeeTimeSettings,
@@ -70,7 +71,7 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
 
     def get_meal_deduction_rules(
         self, check_dt: pendulum.DateTime
-    ) -> Optional["MealDeductionRules"]:
+    ) -> MealDeductionRules | None:
         """
         Retrieves the standard 6-hour threshold/30-minute mandatory deduction rules.
         """
@@ -106,10 +107,10 @@ class SQLAFacilityRulesService(IFacilityRulesService):
 
     def get_meal_deduction_rules(
         self, check_dt: pendulum.DateTime
-    ) -> Optional[MealDeductionRules]:
+    ) -> MealDeductionRules | None:
         raise NotImplementedError()
 
-    def _load_rules_config(self) -> Dict[str, Any]:
+    def _load_rules_config(self) -> dict[str, Any]:
         """
         Fetches the active FacilityRulesConfig from the database.
         """

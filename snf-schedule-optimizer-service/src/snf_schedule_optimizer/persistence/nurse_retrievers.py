@@ -1,5 +1,4 @@
 import abc
-from typing import List
 
 from snf_schedule_optimizer.models import NurseProfile, Shift
 
@@ -9,21 +8,21 @@ class INurseRetriever(abc.ABC):
     def get_nurses(
         self,
         shift: Shift,
-    ) -> List[NurseProfile]:
+    ) -> list[NurseProfile]:
         pass
 
     @abc.abstractmethod
     def get_nurse(
         self,
         employee_id: str,
-    ) -> NurseProfile:
+    ) -> NurseProfile | None:
         pass
 
 
 class NurseRetrieverStaticListImpl(INurseRetriever):
     def __init__(
         self,
-        nurses: List[NurseProfile],
+        nurses: list[NurseProfile],
     ):
         self.nurses = nurses
         self.nurse_dict = {n.employee_id: n for n in nurses}
@@ -31,9 +30,9 @@ class NurseRetrieverStaticListImpl(INurseRetriever):
     def get_nurses(
         self,
         shift: Shift,
-    ) -> List[NurseProfile]:
+    ) -> list[NurseProfile]:
         # In a real implementation, filter nurses based on availability, skills, etc.
         return self.nurses
 
-    def get_nurse(self, employee_id: str) -> NurseProfile:
+    def get_nurse(self, employee_id: str) -> NurseProfile | None:
         return self.nurse_dict[employee_id]

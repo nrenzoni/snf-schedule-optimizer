@@ -1,7 +1,7 @@
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from sqlalchemy import String
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import SQLABase
 
@@ -21,6 +21,6 @@ class EmployeeModel(SQLABase):
     name: Mapped[str] = mapped_column(String(100))
 
     # Relationship to the certifications (One Employee has Many Certifications)
-    certifications: Mapped[List["EmployeeCertificationModel"]] = relationship(
+    certifications: Mapped[list["EmployeeCertificationModel"]] = relationship(
         back_populates="employee", cascade="all, delete-orphan"
     )

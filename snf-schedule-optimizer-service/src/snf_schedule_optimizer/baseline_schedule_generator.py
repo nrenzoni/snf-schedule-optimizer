@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 from snf_schedule_optimizer.models import Schedule, Shift
 from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.resident_acuity_retrievers import (
@@ -18,13 +16,13 @@ class BaselineScheduleGenerator:
 
     def generate_baseline_schedule(
         self,
-        shifts: List[Shift],
+        shifts: list[Shift],
     ) -> Schedule:
         """
         Generates a baseline schedule using a simple heuristic approach.
         placeholder implementation
         """
-        shift_assignments: Dict[str, List[str]] = {}
+        shift_assignments: dict[str, list[str]] = {}
 
         for i, shift in enumerate(shifts):
             nurses = self.nurse_retriever.get_nurses(shift)

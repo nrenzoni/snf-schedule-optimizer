@@ -1,5 +1,3 @@
-from typing import Optional
-
 from snf_schedule_optimizer.models import (
     Employee,
     NurseProfile,
@@ -52,7 +50,7 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
                 penalty += preference_weights.custom_preference_penalty
 
         if nurse.shift_custom_preferences is not None:
-            preference_day_string: Optional[str]
+            preference_day_string: str | None
             for p in nurse.shift_custom_preferences:
                 if p.preference_type == PreferenceType.SPECIFIC_DAY_OFF:
                     try:

@@ -1,9 +1,13 @@
-from typing import Dict, List, Optional
-
 import pendulum
 
 from snf_schedule_optimizer.ml_output_retrievers import IMLModelOutputsRetriever
-from snf_schedule_optimizer.models import Employee, MlModelOutputs, NurseProfile, Shift
+from snf_schedule_optimizer.models import (
+    Employee,
+    FacilityConfig,
+    MlModelOutputs,
+    NurseProfile,
+    Shift,
+)
 from snf_schedule_optimizer.optimizer.context import (
     FacilityScenarioContext,
     HprdShiftNurseRequirementHolder,
@@ -30,12 +34,13 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
 
     def __init__(
         self,
-        facility_contexts: Dict[str, FacilityScenarioContext],
+        target_org_id: str,
+        facility_contexts: dict[str, FacilityScenarioContext],
         # shifts: List["Shift"],  # The scope of this scenario
         # config: "FacilityConfig",
-        employee_retriever: "IEmployeeRetriever",
-        nurse_retriever: "INurseRetriever",
-        hprd_calculator: "IHprdRequirementCalculator",
+        employee_retriever: IEmployeeRetriever,
+        nurse_retriever: INurseRetriever,
+        hprd_calculator: IHprdRequirementCalculator,
         staff_comp_service: IStaffCompensationService,
         ml_model_retriever: IMLModelOutputsRetriever,
         work_history_service: IEmployeeWorkHistoryService,
@@ -43,6 +48,35 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         optimization_start_time: pendulum.DateTime,
         # min_mandates: "MinMandates",
     ):
+        self.target_org_id = target_org_id
+
+        # --- TENANT SECURITY CHECK ---
+        for fac_id, context in facility_contexts.items():
+            # 1. Check Facility Config
+            if context.config.org_id != target_org_id:
+                # raise SecurityError(f"Security Alert: Attempted to load facility {fac_id} from wrong org!")
+                raise Exception(
+                    f"Security Alert: Attempted to load facility {fac_id} from wrong org!"
+                )
+
+            # 2. Check Shifts
+            for shift in context.shifts:
+                if shift.org_id != target_org_id:
+                    # raise SecurityError(
+                    raise Exception(
+                        f"Data Integrity Error: Shift {shift.shift_id} belongs to "
+                        f"org {shift.org_id}, but run is for {target_org_id}"
+                    )
+
+        # --- SANITY CHECK ---
+        for fac_id, context in facility_contexts.items():
+            for shift in context.shifts:
+                if shift.facility_id != fac_id:
+                    raise ValueError(
+                        f"Data Integrity Error: Shift {shift.shift_id} belongs to "
+                        f"{shift.facility_id} but was found in context for {fac_id}"
+                    )
+
         self._facility_contexts = facility_contexts
         # self._shifts = shifts
         # self._config = config
@@ -58,19 +92,19 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         # self._min_mandates = min_mandates
 
         # Internal Caches for parameterized data
-        self._shift_nurses_cache: Dict[str, List["NurseProfile"]] = {}
-        self._cached_all_employees: Optional[List["Employee"]] = None
-        self._cached_hprd_reqs: Dict[str, "HprdShiftNurseRequirementHolder"] = {}
-        self._accumulated_hours_cache: Dict[str, float] = {}
+        self._shift_nurses_cache: dict[str, list[NurseProfile]] = {}
+        self._cached_all_employees: list[Employee] | None = None
+        self._cached_hprd_reqs: dict[str, HprdShiftNurseRequirementHolder] = {}
+        self._accumulated_hours_cache: dict[str, float] = {}
 
     # FIX 13: Removed @cached_property, used manual caching to match interface signature
-    def get_all_employees(self) -> List["Employee"]:
+    def get_all_employees(self) -> list[Employee]:
         if self._cached_all_employees is None:
             print("Fetching all employees from source...")
             self._cached_all_employees = self._employee_retriever.get_all_employees()
         return self._cached_all_employees
 
-    def get_employee_by_id(self, employee_id: str) -> Optional["Employee"]:
+    def get_employee_by_id(self, employee_id: str) -> Employee | None:
         # Simple lookup from pre-fetched list
         for emp in self.get_all_employees():
             if emp.employee_id == employee_id:
@@ -81,19 +115,17 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
     def get_hprd_requirements_for_facility(
         self,
         facility_id: str,
-    ) -> "HprdShiftNurseRequirementHolder":
+    ) -> HprdShiftNurseRequirementHolder:
         if facility_id not in self._cached_hprd_reqs:
             print("Calculating heavy HPRD math...")
             context = self._facility_contexts[facility_id]
             self._cached_hprd_reqs[facility_id] = (
-                self._hprd_calculator.calculate_requirements(
-                    context.shifts, context.config, context.min_mandates
-                )
+                self._hprd_calculator.calculate_requirements(context)
             )
         return self._cached_hprd_reqs[facility_id]
 
     # --- Case 2: Parameterized data cached manually with dicts ---
-    def get_nurses_for_shift(self, shift: "Shift") -> List["NurseProfile"]:
+    def get_nurses_for_shift(self, shift: Shift) -> list[NurseProfile]:
         # Use shift_id as the cache key
         if shift.shift_id not in self._shift_nurses_cache:
             print(f"Fetching nurses for shift {shift.shift_id}...")
@@ -131,17 +163,20 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self._accumulated_hours_cache[employee_id] = total_hours
         return total_hours
 
-    def get_facility_ids(self) -> List[str]:
+    def get_facility_ids(self) -> list[str]:
         return list(self._facility_contexts.keys())
 
-    def get_shifts_for_facility(self, facility_id: str) -> List["Shift"]:
+    def get_shifts_for_facility(self, facility_id: str) -> list[Shift]:
         return self._facility_contexts[facility_id].shifts
 
-    def get_all_shifts(self) -> List["Shift"]:
+    def get_all_shifts(self) -> list[Shift]:
         all_shifts = []
         for context in self._facility_contexts.values():
             all_shifts.extend(context.shifts)
         return all_shifts
+
+    def get_facility_config(self, facility_id: str) -> FacilityConfig:
+        return self._facility_contexts[facility_id].config
 
 
 class ScenarioDataProviderFactory:
@@ -168,11 +203,13 @@ class ScenarioDataProviderFactory:
 
     def create(
         self,
-        facility_contexts: Dict[str, FacilityScenarioContext],
+        org_id: str,
+        facility_contexts: dict[str, FacilityScenarioContext],
         pay_period_start: pendulum.DateTime,
         optimization_start_time: pendulum.DateTime,
     ) -> IScenarioDataProvider:
         return ScenarioDataProviderImpl(
+            target_org_id=org_id,
             facility_contexts=facility_contexts,
             employee_retriever=self.employee_retriever,
             nurse_retriever=self.nurse_retriever,

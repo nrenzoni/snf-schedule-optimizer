@@ -1,6 +1,5 @@
 import random
 import uuid
-from typing import List, Optional, Tuple
 
 import pendulum
 from dependency_injector import containers, providers
@@ -22,27 +21,25 @@ from snf_schedule_optimizer.models import (
     TimePunch,
 )
 from snf_schedule_optimizer.models.testing import MockCertificationRecord
-from snf_schedule_optimizer.persistence import NurseRetrieverStaticListImpl
-from snf_schedule_optimizer.persistence import CertificationServiceStaticListImpl
-from snf_schedule_optimizer.persistence import EmployeeRetrieverStaticListImpl
-from snf_schedule_optimizer.persistence import FacilityRulesServiceStaticListImpl
 from snf_schedule_optimizer.persistence import (
-    RawHistoryRecord,
-    RawHistoryRetrieverStaticListImpl,
-)
-from snf_schedule_optimizer.persistence import (
+    CertificationServiceStaticListImpl,
+    EmployeeRetrieverStaticListImpl,
+    FacilityRulesServiceStaticListImpl,
     MockDifferentialRule,
     MockOvertimeRule,
+    NurseRetrieverStaticListImpl,
+    RawHistoryRecord,
+    RawHistoryRetrieverStaticListImpl,
     RuleRetrievalServiceStaticListImpl,
+    StaffCompensationServiceStaticListImpl,
 )
-from snf_schedule_optimizer.persistence import StaffCompensationServiceStaticListImpl
 from snf_schedule_optimizer.resident_acuity_retrievers import (
     ResidentAcuityPerShiftRetrieverImpl,
 )
-from snf_schedule_optimizer.robustness_tests import test_running
 from snf_schedule_optimizer.robustness_tests import (
     DefaultNurseSimulateGenerator,
     SimulateFacilityScenarioParams,
+    test_running,
 )
 from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
     OvertimeCalculatorImpl,
@@ -76,7 +73,7 @@ DEFAULT_KEY = "default"
 def generate_simulated_acuity(
     stress_params: PerShiftStressTestParameters,
     rng: random.Random,
-) -> List[ResidentAcuity]:
+) -> list[ResidentAcuity]:
     """Creates acuity records reflecting a stressed clinical demand."""
     residents = []
     # Base population size
@@ -120,7 +117,7 @@ class Config(containers.DeclarativeContainer):
     # Allows us to inject a static list of nurses for specific tests
     NURSES_LIST = providers.List()  # Default empty list
     # Allows us to inject predefined acuity data
-    ACUITY_DATA: providers.Object[Optional[List[ResidentAcuity]]] = providers.Object(
+    ACUITY_DATA: providers.Object[list[ResidentAcuity] | None] = providers.Object(
         None
     )  # Default None
 
@@ -194,7 +191,7 @@ class Config(containers.DeclarativeContainer):
         )
     )
 
-    EMPLOYEES: providers.Object[Optional[List[Employee]]] = providers.Object(None)
+    EMPLOYEES: providers.Object[list[Employee] | None] = providers.Object(None)
 
     # Differential and Overtime Rules
     DIFF_RULES = providers.List(
@@ -209,11 +206,11 @@ class Config(containers.DeclarativeContainer):
     STAFF_COMPENSATION_RECORDS = providers.List()
 
 
-def select_nurse_source(nurses_list: Optional[List[str]]) -> str:
+def select_nurse_source(nurses_list: list[str] | None) -> str:
     return PROVIDED_KEY if bool(nurses_list) else DEFAULT_KEY
 
 
-def select_acuity_source(acuity_data: Optional[List[ResidentAcuity]]) -> str:
+def select_acuity_source(acuity_data: list[ResidentAcuity] | None) -> str:
     return PROVIDED_KEY if acuity_data is not None else DEFAULT_KEY
 
 
@@ -582,11 +579,11 @@ class TestDataProvider:
         self.employee_count = employee_count
 
         # Final objects accessible via properties
-        self._employees: List[Employee] = []
-        self._compensation_records: List[StaffCompensationRecord] = []
-        self._nurse_profiles: List[NurseProfile] = []
-        self._certificate_records: List[Tuple[str, MockCertificationRecord]] = []
-        self._raw_history_records: List[RawHistoryRecord] = []
+        self._employees: list[Employee] = []
+        self._compensation_records: list[StaffCompensationRecord] = []
+        self._nurse_profiles: list[NurseProfile] = []
+        self._certificate_records: list[tuple[str, MockCertificationRecord]] = []
+        self._raw_history_records: list[RawHistoryRecord] = []
 
         # Run the full generation pipeline immediately
         self._generate_all_data()
@@ -614,13 +611,13 @@ class TestDataProvider:
         self._raw_history_records = self._generate_raw_history(self._employees)
 
     def _generate_raw_history(
-        self, employees: List[Employee]
-    ) -> List[RawHistoryRecord]:
+        self, employees: list[Employee]
+    ) -> list[RawHistoryRecord]:
         """
         Creates mock raw shift assignments and punches for historical lookback.
         This simulates data retrieved by the IRawHistoryRetriever.
         """
-        history: List[RawHistoryRecord] = []
+        history: list[RawHistoryRecord] = []
 
         # Use a fixed date in the past for determinism
         day_in_the_past = pendulum.datetime(2025, 11, 10, tz="UTC")
@@ -669,8 +666,8 @@ class TestDataProvider:
 
     def _generate_nurse_profiles_from_comp(
         self,
-        employee_comp_data: List[Tuple["Employee", "StaffCompensationRecord"]],
-    ) -> List[NurseProfile]:
+        employee_comp_data: list[tuple[Employee, StaffCompensationRecord]],
+    ) -> list[NurseProfile]:
         """Helper to create NurseProfiles by linking Employee and Compensation data."""
         profiles = []
         for emp, comp in employee_comp_data:
@@ -691,24 +688,24 @@ class TestDataProvider:
     # --- Properties to Expose Final Data Structures ---
 
     @property
-    def history_records(self) -> List[RawHistoryRecord]:
+    def history_records(self) -> list[RawHistoryRecord]:
         """Returns the list of (employee_id, Shift, List[TimePunch]) tuples for historical lookups."""
         return self._raw_history_records
 
     @property
-    def employees(self) -> List[Employee]:
+    def employees(self) -> list[Employee]:
         return self._employees
 
     @property
-    def nurse_profiles(self) -> List[NurseProfile]:
+    def nurse_profiles(self) -> list[NurseProfile]:
         return self._nurse_profiles
 
     @property
-    def certificate_records(self) -> List[Tuple[str, MockCertificationRecord]]:
+    def certificate_records(self) -> list[tuple[str, MockCertificationRecord]]:
         return self._certificate_records
 
 
-def build_cheapest_nurses() -> List[NurseProfile]:
+def build_cheapest_nurses() -> list[NurseProfile]:
     """Helper to build the specific list of nurses for this test."""
 
     def build_nurse(nurse_number: int, hourly_cost_base: float) -> NurseProfile:
@@ -731,7 +728,7 @@ def build_cheapest_nurses() -> List[NurseProfile]:
 
 def generate_simulated_acuity_deterministic(
     n_residents: int,
-) -> List[ResidentAcuity]:
+) -> list[ResidentAcuity]:
     """Creates simple acuity records for testing."""
     residents = []
 
@@ -751,7 +748,7 @@ def generate_simulated_acuity_deterministic(
 
 def generate_simulated_employees_deterministic(
     count: int, start_id: int = 1
-) -> List[Tuple[Employee, StaffCompensationRecord]]:
+) -> list[tuple[Employee, StaffCompensationRecord]]:
     """
     Creates a deterministic list of Employee records and their associated
     StaffCompensationRecords for controlled testing scenarios.
@@ -760,7 +757,7 @@ def generate_simulated_employees_deterministic(
     :param start_id: The starting number for the employee IDs.
     :return: A list of (Employee, StaffCompensationRecord) tuples.
     """
-    employee_comp_data: List[Tuple[Employee, StaffCompensationRecord]] = []
+    employee_comp_data: list[tuple[Employee, StaffCompensationRecord]] = []
 
     # Use fixed values for determinism
     fixed_hire_date = pendulum.datetime(2023, 1, 1, tz="UTC")
@@ -810,9 +807,9 @@ def generate_simulated_employees_deterministic(
 
 
 def generate_mock_certification_records(
-    employee_ids: List[str],
+    employee_ids: list[str],
     rng_seed: int = 42,
-) -> List[Tuple[str, MockCertificationRecord]]:
+) -> list[tuple[str, MockCertificationRecord]]:
     """
     Generates a list of (employee_id, MockCertificationRecord) tuples for testing
     the ICertificationService implementation.
@@ -831,7 +828,7 @@ def generate_mock_certification_records(
         "IV_THERAPY": 365,  # ~1 year
     }
 
-    records: List[Tuple[str, MockCertificationRecord]] = []
+    records: list[tuple[str, MockCertificationRecord]] = []
 
     for emp_id in employee_ids:
         # 1. Mandatory/Primary Certs (Active for all)

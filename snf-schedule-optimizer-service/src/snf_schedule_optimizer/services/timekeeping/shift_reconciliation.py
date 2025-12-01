@@ -1,5 +1,4 @@
 import dataclasses
-from typing import List
 
 import pendulum
 
@@ -35,8 +34,8 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
     def reconcile_shift_to_blocks(
         self,
         scheduled_shift: Shift,
-        raw_punches: List[TimePunch],
-    ) -> List[WorkedTimeBlock]:
+        raw_punches: list[TimePunch],
+    ) -> list[WorkedTimeBlock]:
         # 1. Sort Punches: Crucial for pairing
         raw_punches.sort(key=lambda p: p.punch_time)
 
@@ -64,10 +63,10 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
     def _pair_raw_punches(
         self,
-        punches: List[TimePunch],
+        punches: list[TimePunch],
         settings: EmployeeTimeSettings,
-    ) -> List[WorkedTimeBlock]:
-        paired_blocks: List[WorkedTimeBlock] = []
+    ) -> list[WorkedTimeBlock]:
+        paired_blocks: list[WorkedTimeBlock] = []
         i = 0
 
         # Collect all raw punch times for fast intermediate checking
@@ -162,7 +161,7 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         self,
         block: WorkedTimeBlock,
         settings: EmployeeTimeSettings,
-    ) -> List[WorkedTimeBlock]:
+    ) -> list[WorkedTimeBlock]:
         """
         Replicates the SplitPunches logic, splitting a block that crosses the
         payroll day reset threshold.
@@ -240,7 +239,7 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         self,
         block: WorkedTimeBlock,
         settings: EmployeeTimeSettings,
-    ) -> List[WorkedTimeBlock]:
+    ) -> list[WorkedTimeBlock]:
         # 1. Apply Rounding (Crucial Step: Rounding MUST happen before deduction checks)
         rounded_start = self.rules_service.apply_rounding(
             block.start_time, PunchType.CHECK_IN
@@ -282,7 +281,7 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         self,
         block: WorkedTimeBlock,
         deduction_rules: MealDeductionRules,
-    ) -> List[WorkedTimeBlock]:
+    ) -> list[WorkedTimeBlock]:
         """
         Splits the block into two, removing the mandatory meal period (e.g., 30 mins)
         from the center of the block.

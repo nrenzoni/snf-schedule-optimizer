@@ -1,0 +1,293 @@
+from __future__ import annotations
+
+import pendulum
+from pendulum import WeekDay
+
+from snf_schedule_optimizer.models import (
+    Employee,
+    FacilityConfig,
+    HprdEnforcedRole,
+    MinMandates,
+    NurseProfile,
+    PreferenceType,
+    PreferenceWeights,
+    Shift,
+    StaffCompensationRecord,
+    StaffShiftPreference,
+)
+from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
+
+from .builders import OptimizerTestBuilder
+from .fakes import (
+    FakeHprdRequirementCalculator,
+)
+
+
+def test_financial_hero_ot_vs_agency() -> None:
+    """
+    Demonstrates ROI: Solver chooses internal OT over expensive Agency
+    even when the internal nurse is about to hit the weekly cap.
+    """
+    # 1. Setup Dates
+    ref_date = pendulum.datetime(2025, 11, 10, tz="America/New_York")
+
+    # 2. Setup 12-Hour Shift
+    shift = Shift(
+        org_id="ORG_1",
+        facility_id="FAC_1",
+        shift_id="SHIFT_1",
+        shift_start_dt=ref_date.add(hours=7),
+        shift_end_dt=ref_date.add(hours=19),  # 12 Hours
+        shift_number=1,
+        day_shift=True,
+        day_of_week=ref_date.day_of_week,
+        timezone=pendulum.timezone("America/New_York"),
+    )
+
+    # 3. Setup Employees
+    # Nurse A: Staff, $30/hr. Worked 38 hours already.
+    # Cost logic: 2 hrs @ $30 + 10 hrs @ $45 (1.5x) = $60 + $450 = $510
+    nurse_a = Employee(
+        employee_id="STAFF_A",
+        name="Alice Staff",
+        hire_date=ref_date.subtract(years=1),
+        job_title="RN",
+        # base_rate=30.0,
+    )
+    comp_a = StaffCompensationRecord(
+        employee_id="STAFF_A",
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        effective_start_date=ref_date.subtract(years=1).date(),
+        is_agency=True,
+    )
+    profile_a = NurseProfile(
+        employee_id="STAFF_A",
+        available_hours_weekly=12,
+        skills=["RN"],
+        shift_custom_preferences=[],
+    )
+
+    # Nurse B: Agency, $55/hr flat.
+    # Cost logic: 12 hrs @ $55 = $660
+    nurse_b = Employee(
+        employee_id="AGENCY_B",
+        name="Bob Agency",
+        hire_date=ref_date.subtract(months=1),
+        job_title="RN",
+    )
+    comp_b = StaffCompensationRecord(
+        employee_id="AGENCY_B",
+        base_rate_effective=55.0,
+        ot_multiplier=1.0,  # Agency usually flat rate
+        effective_start_date=ref_date.subtract(months=1).date(),
+        is_agency=True,
+    )
+    profile_b = NurseProfile(
+        employee_id="AGENCY_B",
+        available_hours_weekly=12,
+        skills=["RN"],
+        shift_custom_preferences=[],
+    )
+
+    optimizer = (
+        OptimizerTestBuilder()
+        .with_employees([nurse_a, nurse_b], [profile_a, profile_b])
+        .with_financials([comp_a, comp_b])
+        .with_history({"STAFF_A": 38.0})  # Specific setup for this test
+        .build()
+    )
+
+    # 5. Setup Context
+    context = FacilityScenarioContext(
+        facility_id="FAC_1",
+        shifts=[shift],
+        config=FacilityConfig(
+            org_id="ORG_1",
+            facility_id="FAC_1",
+            overtime_threshold_hours_per_week=40,
+            shifts_per_day=2,
+            start_of_work_week_day=WeekDay.MONDAY,
+            start_of_work_day_time=pendulum.Time(7, 0, 0),
+            pay_period=pendulum.Duration(weeks=1),
+            weekend_multiplier=1.5,
+            night_shift_multiplier=2.0,
+        ),
+        min_mandates=MinMandates(
+            min_rn_hprd=0.0,
+            min_lpn_hprd=0,
+            min_cna_hprd=0,
+            min_total_hprd=0,
+            min_staff_per_shift_rn=1,
+            min_staff_per_shift_lpn=0,
+            min_staff_per_shift_cna=0,
+        ),
+    )
+
+    # 6. Solve
+    result = optimizer.solve(
+        org_id="ORG_1",
+        facility_contexts={"FAC_1": context},
+        preference_weights=PreferenceWeights(),
+        pay_period_start=ref_date.start_of("week"),
+        optimization_start_time=ref_date,
+    )
+
+    # 7. Assertion
+    assert result.success is True
+    assert result.optimal_schedule is not None
+    assigned_ids = result.optimal_schedule.shift_assignments["SHIFT_1"]
+
+    print("\n--- TEST 1: FINANCIAL HERO ---")
+    if "STAFF_A" in assigned_ids:
+        print("SUCCESS: Solver chose Staff (w/ OT) over Agency.")
+        # Staff: 2hr @ 30 + 10hr @ 45 = 60 + 450 = 510
+        # Agency: 12hr @ 55 = 660
+        print(f"Estimated Savings: ${660 - 510}")
+    elif "AGENCY_B" in assigned_ids:
+        print("FAILURE: Solver chose Agency.")
+    else:
+        print("FAILURE: No assignment made.")
+
+    assert "STAFF_A" in assigned_ids
+
+
+def test_compliance_safety_net() -> None:
+    """
+    Demonstrates Safety: Solver violates a nurse's soft preference
+    to prevent an HPRD violation (Hard/Heavy constraint).
+    """
+    # 1. Setup Dates
+    ref_date = pendulum.datetime(2025, 11, 11, tz="America/New_York")
+
+    # 2. Setup Shift
+    shift = Shift(
+        org_id="ORG_1",
+        facility_id="FAC_1",
+        shift_id="SHIFT_CRITICAL",
+        shift_number=1,
+        day_shift=True,
+        day_of_week=ref_date.day_of_week,
+        shift_start_dt=ref_date.add(hours=7),
+        shift_end_dt=ref_date.add(hours=15),  # 8 Hours
+        timezone=pendulum.timezone("America/New_York"),
+    )
+
+    # 3. Setup Employees
+    # Nurse A: The ONLY RN available. Wants off.
+    nurse_a = Employee(
+        employee_id="RN_SUE",
+        name="Sue RN",
+        hire_date=ref_date,
+        job_title="RN",
+    )
+    # Note: StaffCompensationRecord arguments simplified for readability if defaults allow,
+    # otherwise keep full arguments.
+    comp_a = StaffCompensationRecord(
+        employee_id="RN_SUE",
+        base_rate_effective=40.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=ref_date.date(),
+        effective_end_date=None,
+        union_contract_id=None,
+    )
+    profile_a = NurseProfile(
+        employee_id="RN_SUE",
+        available_hours_weekly=40,
+        skills=["RN"],
+        # Note: The builder uses the penalty map below, effectively overriding this object
+        # but we keep it here to make the test data semantically correct.
+        shift_custom_preferences=[
+            StaffShiftPreference(
+                preference_type=PreferenceType.SPECIFIC_DAY_OFF,
+                specific_value=str(ref_date.day_of_week),
+                penalty_weight=10,
+                is_hard_block=False,
+            ),
+        ],
+    )
+
+    # Nurse B: A CNA (Cannot fill RN slot).
+    nurse_b = Employee(
+        employee_id="CNA_BOB", name="Bob CNA", hire_date=ref_date, job_title="CNA"
+    )
+    comp_b = StaffCompensationRecord(
+        employee_id="CNA_BOB",
+        base_rate_effective=20.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=ref_date.date(),
+        effective_end_date=None,
+        union_contract_id=None,
+    )
+    profile_b = NurseProfile(
+        employee_id="CNA_BOB",
+        available_hours_weekly=40,
+        skills=["CNA"],
+        shift_custom_preferences=[],
+    )
+
+    # 4. Initialize Optimizer using Builder
+    # Define the fake calculator to force the logic we want to test
+    fake_hprd_calc = FakeHprdRequirementCalculator(
+        requirements_map={
+            ("SHIFT_CRITICAL", HprdEnforcedRole.RN): 1.0,
+            ("SHIFT_CRITICAL", HprdEnforcedRole.CNA): 0.0,
+        }
+    )
+
+    optimizer = (
+        OptimizerTestBuilder()
+        .with_employees([nurse_a, nurse_b], [profile_a, profile_b])
+        .with_financials([comp_a, comp_b])
+        # This map tells the Fake Processor: "If you see RN_SUE on SHIFT_CRITICAL, return 50.0 penalty"
+        .with_preference_penalties({"RN_SUE:SHIFT_CRITICAL": 50.0})
+        .with_hprd_calculator(fake_hprd_calc)
+        .build()
+    )
+
+    # 5. Setup Context
+    context = FacilityScenarioContext(
+        facility_id="FAC_1",
+        shifts=[shift],
+        config=FacilityConfig(
+            org_id="ORG_1",
+            facility_id="FAC_1",
+            shifts_per_day=3,
+            overtime_threshold_hours_per_week=40,
+            start_of_work_week_day=WeekDay.MONDAY,
+            start_of_work_day_time=pendulum.Time(7, 0, 0),
+            pay_period=pendulum.Duration(weeks=1),
+            weekend_multiplier=1.5,
+            night_shift_multiplier=2.0,
+        ),
+        # Since we injected fake_hprd_calc, these specific numbers are actually ignored
+        # but required for the context object validity.
+        min_mandates=None,
+    )
+
+    # 6. Solve
+    result = optimizer.solve(
+        org_id="ORG_1",
+        facility_contexts={"FAC_1": context},
+        preference_weights=PreferenceWeights(custom_preference_penalty=50.0),
+        pay_period_start=ref_date.start_of("week"),
+    )
+
+    # 7. Assertion
+    print("\n--- TEST 2: COMPLIANCE SAFETY NET ---")
+
+    assert result.optimal_schedule is not None
+
+    # Check for assignment safely
+    assignments = result.optimal_schedule.shift_assignments.get("SHIFT_CRITICAL", [])
+
+    if result.success and "RN_SUE" in assignments:
+        print("SUCCESS: Solver assigned RN Sue despite her preference.")
+        print("Reason: HPRD Compliance took priority over Preference.")
+    else:
+        print(f"FAILURE. Infeasibility: {result.infeasibility_reason}")
+
+    assert result.success is True
+    assert "RN_SUE" in assignments
