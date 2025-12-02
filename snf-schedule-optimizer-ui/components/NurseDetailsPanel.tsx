@@ -1,8 +1,21 @@
 import React from 'react';
-import {useScheduling} from '@/hooks/useScheduling';
+import {UINurse} from "@/types/scheduling";
 
-export const NurseDetailsPanel: React.FC = () => {
-    const {selectedNurse, closeNurseDetails, removeNurseFromShift, addNurseToShift} = useScheduling();
+interface NurseDetailsPanelProps {
+    selectedNurse: UINurse | null;
+    closeNurseDetails: () => void;
+    removeNurseFromShift: (nurse: UINurse) => Promise<void>;
+    addNurseToShift: () => void;
+}
+
+export const NurseDetailsPanel: React.FC<NurseDetailsPanelProps> = (
+    {
+        selectedNurse,
+        closeNurseDetails,
+        removeNurseFromShift,
+        addNurseToShift
+    }) => {
+    console.log("Rendering NurseDetailsPanel. Selected Nurse:", selectedNurse);
 
     return (
         <div className={`

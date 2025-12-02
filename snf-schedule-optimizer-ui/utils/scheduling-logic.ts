@@ -1,7 +1,6 @@
-import {DaySchedule, Nurse, Shift} from '@/types/scheduling';
+import {UINurse, UIDaySchedule, UIShift} from '@/types/scheduling';
 
 export const SHIFT_NAMES: ('Morning' | 'Afternoon' | 'Night')[] = ['Morning', 'Afternoon', 'Night'];
-export const TODAY = new Date();
 
 export const getStartOfWeek = (date: Date): Date => {
     const day = date.getDay(); // 0 for Sunday, 1 for Monday, etc.
@@ -27,8 +26,6 @@ export const formatDate = (date: Date): string => {
     return [year, month, day].join('-');
 };
 
-export const TODAY_STRING = formatDate(TODAY);
-
 // Calculate the end date for the 14-day window (today + 13 days)
 export const getWindowEnd = (today: Date) => {
     const windowEnd = new Date(today);
@@ -36,11 +33,16 @@ export const getWindowEnd = (today: Date) => {
     windowEnd.setHours(23, 59, 59, 999);
     return windowEnd;
 };
+
+const cleanToday = new Date();
+cleanToday.setHours(0, 0, 0, 0);
+export const TODAY = cleanToday;
+export const TODAY_STRING = formatDate(TODAY); // Assuming formatDate is YYYY-MM-DD
 export const FOURTEEN_DAYS_AHEAD = getWindowEnd(TODAY);
 
 // Helper function to create mock nurses for a specific shift
-const createMockNurses = (shiftName: string, baseCount: number, variance: number): Nurse[] => {
-    const nurses: Nurse[] = [];
+const createMockNurses = (shiftName: string, baseCount: number, variance: number): UINurse[] => {
+    const nurses: UINurse[] = [];
     const count = baseCount + Math.floor(Math.random() * variance * (Math.random() > 0.5 ? 1 : -1));
     for (let i = 1; i <= Math.max(0, count); i++) {
         const id = `${shiftName.charAt(0)}${i}`;
@@ -54,7 +56,7 @@ const createMockNurses = (shiftName: string, baseCount: number, variance: number
 };
 
 // Creates a single Shift object for a specific time period
-const createShift = (shiftName: 'Morning' | 'Afternoon' | 'Night', date: Date): Shift => {
+const createShift = (shiftName: 'Morning' | 'Afternoon' | 'Night', date: Date): UIShift => {
     const patientCount = 30 + Math.floor(Math.random() * 15);
     const requiredHPRD = 5.5;
     const shiftHours = (shiftName === 'Night' ? 12 : 8);
@@ -89,25 +91,71 @@ const createShift = (shiftName: 'Morning' | 'Afternoon' | 'Night', date: Date): 
     };
 };
 
-/**
- * Generates a mock schedule map for the entire month of the given date.
- */
-export const generateMockScheduleMap = (monthDate: Date): Map<string, DaySchedule> => {
-    const map = new Map<string, DaySchedule>();
-    const year = monthDate.getFullYear();
-    const month = monthDate.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
+export function generateMockScheduleMap(startDate: Date, daysToGenerate: number = 14): Map<string, UIDaySchedule> {
+    console.log("Generating mock schedule map starting from:", formatDate(startDate), "for", daysToGenerate, "days.");
 
-    for (let i = 1; i <= daysInMonth; i++) {
-        const date = new Date(year, month, i);
-        const dateString = formatDate(date);
+    const map = new Map<string, UIDaySchedule>();
 
-        const shifts: Shift[] = SHIFT_NAMES.map(name => createShift(name, date));
+    // 1. Create a MUTABLE date object to track the current day of the iteration.
+    // This is the key fix: use a single date object and advance it by one day in each loop.
+    const mutableDate = new Date(startDate);
+
+    // Ensure the date is cleaned to midnight, just like the input date should be.
+    mutableDate.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < daysToGenerate; i++) {
+        // We are using 'mutableDate' as the current date for this iteration.
+
+        const dateString = formatDate(mutableDate);
+
+        // Generate shifts using the helper function
+        const shifts: UIShift[] = SHIFT_NAMES.map(name => createShift(name, mutableDate));
 
         map.set(dateString, {
             date: dateString,
             shifts: shifts,
         });
+
+        // 2. Advance the date by one day for the NEXT iteration.
+        mutableDate.setDate(mutableDate.getDate() + 1);
     }
     return map;
+}
+
+// Helper to create an empty, unassigned shift for a specific date
+const createEmptyShift = (shiftName: 'Morning' | 'Afternoon' | 'Night', date: Date): UIShift => {
+    const patientCount = 30 + Math.floor(Math.random() * 15);
+    const requiredHPRD = 5.5;
+    const shiftHours = (shiftName === 'Night' ? 12 : 8);
+    const requiredHours = (patientCount / shiftHours) * requiredHPRD;
+
+    // Key difference: actualHours is 0, nurses is empty.
+    return {
+        shiftName,
+        patientCount,
+        requiredHPRD: requiredHPRD,
+        requiredHours: requiredHours,
+        actualHours: 0,
+        isHPRDMet: false,
+        nurses: [], // No nurses assigned
+    };
 };
+
+// New mock generator for the pre-optimization state
+export function generateEmptyScheduleMap(startDate: Date, daysToGenerate: number = 14): Map<string, UIDaySchedule> {
+    const map = new Map<string, UIDaySchedule>();
+    const mutableDate = new Date(startDate);
+
+    for (let i = 0; i < daysToGenerate; i++) {
+        const dateString = formatDate(mutableDate);
+
+        const shifts: UIShift[] = SHIFT_NAMES.map(name => createEmptyShift(name, mutableDate));
+
+        map.set(dateString, {
+            date: dateString,
+            shifts: shifts,
+        });
+        mutableDate.setDate(mutableDate.getDate() + 1);
+    }
+    return map;
+}

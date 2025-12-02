@@ -3,14 +3,14 @@
 // protobuf types) so the UI code can rely on consistent property casing and
 // optional fields.
 
-export interface Nurse {
+export interface UINurse {
     id: string;
     name: string;
     shiftHours: number;
     schedulingRationale: string;
 }
 
-export interface Shift {
+export interface UIShift {
     // "Morning" | "Afternoon" | "Night"
     shiftName: 'Morning' | 'Afternoon' | 'Night';
     patientCount: number;
@@ -20,24 +20,26 @@ export interface Shift {
     actualHours: number;
     // UI uses `isHPRDMet` boolean flag
     isHPRDMet: boolean;
-    nurses: Nurse[];
+    nurses: UINurse[];
 }
 
-export interface DaySchedule {
+export interface UIDaySchedule {
     // YYYY-MM-DD
     date: string;
-    shifts: Shift[];
+    shifts: UIShift[];
 }
 
-export interface CalendarDay {
+// Structure for the received schedules (Map from YYYY-MM-DD string to DaySchedule)
+export type ScheduleMap = Map<string, UIDaySchedule>;
+
+export interface UICalendarDay {
     date: Date | null;
     dateString: string; // YYYY-MM-DD
     dayOfMonth: number;
     isToday: boolean;
     isCurrentMonth: boolean;
     isSelectable: boolean;
-    schedule: DaySchedule | null;
-    isDayHPRDMet: boolean;
+    schedule: UIDaySchedule | null;
     dayHPRDPercentage: number;
     isPadding: boolean;
     coverage: number;

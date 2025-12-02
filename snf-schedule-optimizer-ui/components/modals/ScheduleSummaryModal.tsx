@@ -1,5 +1,6 @@
 import React from "react";
 import {CheckCircle, Clock, DollarSign, Heart, ListChecks, Scale, Smile, Users, X} from "lucide-react";
+import {ModalContainer} from "../ModalContainer";
 
 export interface SchedulerSettings {
     useMLForecast: boolean;
@@ -19,7 +20,11 @@ interface ScheduleSummaryModalProps {
 
 // --- COMPONENT: ScheduleSummaryModal ---
 export const ScheduleSummaryModal = ({settings, isOpen, onClose}: ScheduleSummaryModalProps) => {
-    if (!isOpen) return null;
+    // Mock data generation (kept here for context)
+    const rawMetrics = {
+        preferenceMatch: 94,
+        overtimePercentage: 6.2,
+    };
 
     // Mock data generation based on settings for demonstration
     const metrics = {
@@ -33,26 +38,31 @@ export const ScheduleSummaryModal = ({settings, isOpen, onClose}: ScheduleSummar
         totalLaborCost: '$1,254,000',
         totalPremiumPay: settings.premiumWeekend || settings.premiumHoliday ? '$45,200' : '$2,100',
         costPerPatientDay: '$85.45',
-        overtimePercentage: '6.2%',
+        overtimePercentage: `${rawMetrics.overtimePercentage.toFixed(1)}%`, // Format back to string
+        overtimeNumerical: rawMetrics.overtimePercentage, // Keep numerical for logic
 
         // Wellbeing Metrics (NEW)
-        preferenceMatch: '94%',
+        preferenceMatch: `${rawMetrics.preferenceMatch}%`, // Format back to string
+        preferenceMatchNumerical: rawMetrics.preferenceMatch, // Keep numerical for logic
         teamSynergy: '87%',
         weekendFairness: 'Balanced', // or 'Skewed'
         avgConsecutiveDays: '3.4',
     };
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            {/* Expanded width to max-w-6xl for 3 columns */}
-            <div
-                className="bg-white rounded-xl shadow-2xl w-full max-w-6xl overflow-hidden animate-in zoom-in-95 duration-200">
+        // 1. Replaced the entire backdrop div with ModalContainer
+        <ModalContainer isOpen={isOpen} onClose={onClose} contentClassName="max-w-6xl">
+            {/* 2. Content starts directly with the outermost content div,
+               which no longer needs transition classes. */}
+            <div className="bg-white rounded-xl shadow-2xl w-full overflow-hidden">
+
+                {/* HEADER */}
                 <div className="border-b p-4 flex justify-between items-center bg-indigo-600 text-white">
                     <div className="flex items-center space-x-2">
                         <ListChecks size={24}/>
                         <h3 className="font-bold text-xl">Monthly Schedule Summary</h3>
                     </div>
+                    {/* Close Button relies on onClose prop */}
                     <button onClick={onClose} className="hover:bg-indigo-700 p-1 rounded-full"><X size={20}/></button>
                 </div>
 
@@ -124,7 +134,7 @@ export const ScheduleSummaryModal = ({settings, isOpen, onClose}: ScheduleSummar
                             <div className="flex justify-between p-3 bg-white rounded-lg border border-gray-200">
                                 <span className="text-gray-700 font-medium">Overtime %</span>
                                 <span
-                                    className={`font-bold text-xl ${metrics.overtimePercentage > '5.0%' ? 'text-red-600' : 'text-green-600'}`}>
+                                    className={`font-bold text-xl ${metrics.overtimeNumerical > 5.0 ? 'text-red-600' : 'text-green-600'}`}>
                                     {metrics.overtimePercentage}
                                 </span>
                             </div>
@@ -138,10 +148,10 @@ export const ScheduleSummaryModal = ({settings, isOpen, onClose}: ScheduleSummar
                         </div>
                     </div>
 
-                    {/* COLUMN 3: Wellbeing Metrics (NEW) */}
+                    {/* COLUMN 3: Wellbeing Metrics */}
                     <div>
                         <h4 className="text-lg font-semibold text-pink-600 border-b pb-2 mb-4 flex items-center gap-2">
-                            <Heart size={18} fill="currentColor" className="text-pink-100 stroke-pink-600"/>
+                            <Heart size={18} className="text-pink-600"/>
                             Staff Wellbeing
                         </h4>
                         <div className="space-y-3">
@@ -155,7 +165,7 @@ export const ScheduleSummaryModal = ({settings, isOpen, onClose}: ScheduleSummar
                                 </div>
                                 <div className="w-full bg-pink-200 rounded-full h-2">
                                     <div className="bg-pink-500 h-2 rounded-full"
-                                         style={{width: metrics.preferenceMatch}}></div>
+                                         style={{width: `${metrics.preferenceMatchNumerical}%`}}></div>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1">Ratio of shift/off requests granted.</p>
                             </div>
@@ -211,6 +221,6 @@ export const ScheduleSummaryModal = ({settings, isOpen, onClose}: ScheduleSummar
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalContainer>
     );
 };

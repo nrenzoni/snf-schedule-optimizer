@@ -1,7 +1,8 @@
 import React, {useState} from "react";
 import {Activity, ArrowRight, DollarSign, PieChart, Play, TrendingUp, Users} from "lucide-react";
 import {ModalType} from "@/types/ModalType";
-import {SimulationConfigModal} from "@/components/SimulationConfigModal";
+import {SimulationConfigModal} from "@/components/modals/SimulationConfigModal";
+import {SimulationResults} from "@/components/SimulationResults";
 
 // 2. Define the interface for the modalConfig state
 interface ModalConfig {
@@ -18,10 +19,6 @@ interface SimulationResult {
         efficiency: string;
     };
     insight: string;
-}
-
-function SimulationResults(props: { result: SimulationResult, onClear: () => void }) {
-    return null;
 }
 
 // --- COMPONENT: ScenarioAnalyzerDashboard (Existing) ---
@@ -49,6 +46,8 @@ export const ScenarioAnalyzerDashboard = () => {
     const closeSimulation = () => setModalConfig({...modalConfig, isOpen: false});
 
     const runSimulation = (type: ModalType | null, params: SimulationParams) => {
+        console.log("Running simulation of type:", type, "with params:", params);
+
         // Mock calculation logic for demo purposes
         let result: SimulationResult = {
             name: '',
@@ -98,6 +97,8 @@ export const ScenarioAnalyzerDashboard = () => {
                 insight: 'Converting 50% of agency usage to internal OT yields significant savings.'
             };
         }
+
+        console.log("Simulation result:", result);
 
         setSimulationResult(result);
     };

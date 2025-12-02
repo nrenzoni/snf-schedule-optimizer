@@ -1,22 +1,21 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
-import {CalendarDay, DaySchedule as UIDaySchedule, Nurse, Shift as UIShift} from '@/types/scheduling';
+import {UICalendarDay, UIDaySchedule as UIDaySchedule, UINurse, UIShift} from '@/types/scheduling';
 import {
     formatDate,
     FOURTEEN_DAYS_AHEAD,
-    generateMockScheduleMap,
     getStartOfMonth,
     getStartOfWeek,
     SHIFT_NAMES,
     TODAY,
     TODAY_STRING
 } from '@/utils/scheduling-logic';
-import {useSchedules} from './useSchedules';
 import {DaySchedule, Shift} from "@/gen/schema/scheduling_pb";
 import {schedulingClient} from "@/api/scheduling-client";
+import {useMockScheduling} from "@/hooks/useSchedules";
 
 // Convert a protobuf DaySchedule/Shift into the UI DaySchedule/Shift shape
 const protoShiftToUI = (p: Shift): UIShift => ({
-    shiftName: (p.shiftName as any) as 'Morning' | 'Afternoon' | 'Night',
+    shiftName: (p.shiftName as string) as 'Morning' | 'Afternoon' | 'Night',
     patientCount: p.patientCount,
     requiredHPRD: (p.requiredHrpd ?? 0),
     requiredHours: p.requiredHours,
@@ -35,114 +34,82 @@ const protoDayToUI = (d: DaySchedule): UIDaySchedule => ({
     shifts: (d.shifts || []).map(protoShiftToUI)
 });
 
-// Structure for the received schedules (Map from YYYY-MM-DD string to DaySchedule)
-type ScheduleMap = Map<string, UIDaySchedule>;
-
-// Helper to generate calendar days
-const generateCalendarDays = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const days: CalendarDay[] = [];
-
-    // Padding for days before the 1st
-    for (let i = 0; i < firstDay.getDay(); i++) {
-        days.push({
-            dayHPRDPercentage: 0,
-            isCurrentMonth: false,
-            isDayHPRDMet: false,
-            isSelectable: false,
-            isToday: false,
-            schedule: null,
-            date: null,
-            dateString: '',
-            dayOfMonth: 0,
-            isPadding: true,
-            coverage: 0
-        })
-    }
-
-    // Actual days
-    for (let i = 1; i <= lastDay.getDate(); i++) {
-        // Mock coverage logic
-        const coverage = Math.random() > 0.3 ? 100 : Math.floor(Math.random() * 99);
-        days.push({
-            dayHPRDPercentage: 0,
-            isCurrentMonth: false,
-            isDayHPRDMet: false,
-            isSelectable: false,
-            isToday: false,
-            schedule: null,
-            date: new Date(year, month, i),
-            dateString: new Date(year, month, i).toISOString().split('T')[0],
-            dayOfMonth: i,
-            isPadding: false,
-            coverage: coverage
-        });
-    }
-    return days;
-};
-
 interface UseSchedulingReturn {
     currentDate: Date;
-    calendarDays: CalendarDay[];
-    selectedDay: CalendarDay | null;
+    calendarDays: UICalendarDay[];
+    selectedDay: UICalendarDay | null;
     selectedShift: UIShift | null;
-    selectedNurse: Nurse | null;
+    selectedNurse: UINurse | null;
     isModalVisible: boolean;
     isTwoWeekView: boolean;
     toggleCalendarView: () => void;
     changeMonth: (offset: number) => void;
-    openShiftDetails: (day: CalendarDay) => void;
+    openShiftDetails: (day: UICalendarDay) => void;
     selectShift: (shift: UIShift) => void;
-    openNurseDetails: (nurse: Nurse) => void;
+    openNurseDetails: (nurse: UINurse) => void;
     closeNurseDetails: () => void;
     closeModal: () => void;
-    removeNurseFromShift: (nurse: Nurse) => Promise<void>;
+    removeNurseFromShift: (nurse: UINurse) => Promise<void>;
     addNurseToShift: () => void;
+    triggerOptimization: () => void;
     SHIFT_NAMES: typeof SHIFT_NAMES;
 }
 
-export const useScheduling = (): UseSchedulingReturn => {
+export const useScheduling = (optimizationCount: number): UseSchedulingReturn => {
     // --- State Hooks ---
-    const [currentDate, setCurrentDate] = useState(getStartOfWeek(TODAY));
-    const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
+    const [currentViewAnchorDate, setCurrentViewAnchorDate] = useState(getStartOfMonth(TODAY));
+    const [startOfWeek, setStartOfWeek] = useState(getStartOfWeek(TODAY));
+    const [selectedDay, setSelectedDay] = useState<UICalendarDay | null>(null);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [selectedShift, setSelectedShift] = useState<UIShift | null>(null);
-    const [selectedNurse, setSelectedNurse] = useState<Nurse | null>(null);
+    const [selectedNurse, setSelectedNurse] = useState<UINurse | null>(null);
     const [isTwoWeekView, setIsTwoWeekView] = useState(true);
 
     // --- Data Fetching Logic (moved to useSchedules) ---
-    const { schedules, isLoading, fetchSchedule } = useSchedules(currentDate);
+    // const { schedules, isLoading, fetchSchedule } = useSchedules(currentDate);
+    const {
+        schedules,
+        isLoading,
+        fetchSchedule,
+        triggerOptimization
+    } = useMockScheduling(currentViewAnchorDate, optimizationCount);
 
     // 1. Memoized schedule map generated based on the current month
     const scheduleMap = useMemo(() => {
         return schedules;
     }, [schedules]);
 
+    const currentDate = useMemo(() => {
+        return isTwoWeekView ? TODAY : currentViewAnchorDate;
+    }, [isTwoWeekView, currentViewAnchorDate]);
 
     // 2. Computed calendar days array for the grid
     // Determine the *actual* starting date for the calendar grid display.
     // If it's a 2-week view, start from the `currentDate` (which is the start of the week).
     // If it's a full month view, calculate the first Sunday of the month's grid.
-    const calendarDays = useMemo<CalendarDay[]>(() => {
+    const calendarDays = useMemo<UICalendarDay[]>(() => {
+        // Guard Clause: Do not render calendar days until loading is explicitly complete.
+        if (isLoading) {
+            return [];
+        }
+
         // Determine the *actual* starting date for the calendar grid display.
         // If it's a 2-week view, start from the `currentDate` (which is the start of the week).
         // If it's a full month view, calculate the first Sunday of the month's grid.
         const startDate = isTwoWeekView
-            ? currentDate // Already set to the start of the current week (Sunday)
+            ? getStartOfWeek(TODAY)
+            // 💡 If month view, calculate the start of the grid based on the ANCHOR DATE (Dec 1st).
             : (() => {
-                const year = currentDate.getFullYear();
-                const month = currentDate.getMonth();
+                const year = currentViewAnchorDate.getFullYear();
+                const month = currentViewAnchorDate.getMonth();
                 const firstDayOfMonth = new Date(year, month, 1);
-                const startOffset = firstDayOfMonth.getDay(); // 0-6 (Sunday to Saturday)
-                // Start on the Sunday before the 1st of the month (or the 1st if it's a Sunday)
+                const startOffset = firstDayOfMonth.getDay();
                 return new Date(year, month, 1 - startOffset);
             })();
 
-
-        const days: CalendarDay[] = [];
+        // Make a mutable copy of the START DATE for iteration
+        const iterationDay = new Date(startDate);
+        const days: UICalendarDay[] = [];
         const todayStart = new Date(TODAY);
         todayStart.setHours(0, 0, 0, 0);
         const todayStartMs = todayStart.getTime();
@@ -152,24 +119,21 @@ export const useScheduling = (): UseSchedulingReturn => {
         // We no longer need the 'year' and 'month' variables from the currentDate for determining
         // `isCurrentMonth` since we want the 2-week view to not be constrained by the month.
         // However, we need to pass a context month for `isSelectable` logic if we want to keep it.
-        const contextMonth = currentDate.getMonth();
+        const contextMonth = startOfWeek.getMonth();
 
         for (let i = 0; i < totalDaysToRender; i++) {
-            const dayDate = new Date(startDate);
-            dayDate.setDate(startDate.getDate() + i);
+            const dayDate = new Date(iterationDay);
+            // dayDate.setDate(startDate.getDate() + i);
 
             const dayDateString = formatDate(dayDate);
             const schedule: UIDaySchedule | null = scheduleMap.get(dayDateString) || null;
             const dayDateMs = dayDate.getTime();
 
-            let isDayHPRDMet = false;
             let dayHPRDPercentage = 0;
 
             if (schedule) {
-                isDayHPRDMet = schedule.shifts.every(s => s.isHPRDMet);
                 const totalRequiredHours = schedule.shifts.reduce((sum, s) => sum + s.requiredHours, 0);
                 const totalActualHours = schedule.shifts.reduce((sum, s) => sum + s.actualHours, 0);
-
                 if (totalRequiredHours > 0) {
                     dayHPRDPercentage = Math.min(100, (totalActualHours / totalRequiredHours) * 100);
                 }
@@ -194,12 +158,14 @@ export const useScheduling = (): UseSchedulingReturn => {
                 isCurrentMonth: !isTwoWeekView && dayDate.getMonth() === contextMonth,
                 isSelectable: isSelectable,
                 schedule,
-                isDayHPRDMet: isDayHPRDMet,
                 dayHPRDPercentage: dayHPRDPercentage
             });
+
+            iterationDay.setDate(iterationDay.getDate() + 1);
         }
+        console.log(`Generated ${totalDaysToRender}-day calendar grid starting from ${formatDate(startDate)}`);
         return days;
-    }, [currentDate, scheduleMap, isTwoWeekView]);
+    }, [startOfWeek, scheduleMap, isTwoWeekView, isLoading]);
 
     // --- Utility Functions ---
 
@@ -222,11 +188,11 @@ export const useScheduling = (): UseSchedulingReturn => {
         setIsTwoWeekView(prev => !prev);
         // When switching TO month view, reset to the current month's start date
         if (!isTwoWeekView) {
-            setCurrentDate(getStartOfMonth(TODAY));
+            setCurrentViewAnchorDate(getStartOfMonth(TODAY));
         }
         // When switching TO 2-week view, reset to the current week's start date (Sunday)
         else {
-            setCurrentDate(getStartOfWeek(TODAY));
+            setCurrentViewAnchorDate(TODAY);
         }
         // NOTE: Must include getStartOfWeek in the dependency array or define it outside
         // the component or inside with useCallback/useMemo. Since it's a simple helper,
@@ -234,13 +200,13 @@ export const useScheduling = (): UseSchedulingReturn => {
     }, [isTwoWeekView]);
 
     const changeMonth = useCallback((direction: number): void => {
-        setCurrentDate(date => {
+        setStartOfWeek(date => {
             closeModalImmediately();
             return new Date(date.getFullYear(), date.getMonth() + direction, 1);
         });
     }, [closeModalImmediately]);
 
-    const openShiftDetails = useCallback((day: CalendarDay): void => {
+    const openShiftDetails = useCallback((day: UICalendarDay): void => {
         if (!day.schedule) return;
         setSelectedDay(day);
         setSelectedShift(day.schedule.shifts[0] as any); // UI Shift
@@ -252,7 +218,7 @@ export const useScheduling = (): UseSchedulingReturn => {
         setSelectedNurse(null);
     }, []);
 
-    const openNurseDetails = useCallback((nurse: Nurse): void => {
+    const openNurseDetails = useCallback((nurse: UINurse): void => {
         setSelectedNurse(nurse);
     }, []);
 
@@ -268,7 +234,7 @@ export const useScheduling = (): UseSchedulingReturn => {
     //     setSelectedNurse(null);
     // }, [selectedDay, selectedShift]);
 
-    const removeNurseFromShift = useCallback(async (nurse: Nurse): Promise<void> => {
+    const removeNurseFromShift = useCallback(async (nurse: UINurse): Promise<void> => {
         if (!selectedDay || !selectedShift) return;
 
         const request = {
@@ -317,6 +283,7 @@ export const useScheduling = (): UseSchedulingReturn => {
 
     // Modal Fade-in and Scroll Lock
     useEffect(() => {
+        console.log("useEffect: selectedDay changed:", selectedDay);
         const isDaySelected = !!selectedDay;
         document.body.style.overflow = isDaySelected ? 'hidden' : '';
 
@@ -337,6 +304,7 @@ export const useScheduling = (): UseSchedulingReturn => {
 
     // Escape Key Handler
     useEffect(() => {
+        console.log("useEffect: Setting up Escape key handler.");
         const handleEscapeKey = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 if (selectedNurse) {
@@ -371,6 +339,7 @@ export const useScheduling = (): UseSchedulingReturn => {
         closeModal,
         removeNurseFromShift,
         addNurseToShift,
+        triggerOptimization,
         SHIFT_NAMES,
     };
 };

@@ -1,5 +1,6 @@
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import {AlertTriangle, Clock, DollarSign, Settings, Sliders, X} from "lucide-react";
+import {ModalContainer} from "@/components/ModalContainer";
 
 interface SchedulingSettings {
     useMLForecast: boolean;
@@ -20,12 +21,16 @@ interface SchedulingConfigModalProps {
     onUpdate: (key: keyof SchedulingSettings, value: SchedulingSettings[keyof SchedulingSettings]) => void;
 }
 
-// --- COMPONENT: SchedulingConfigModal ---
 export const SchedulingConfigModal: React.FC<SchedulingConfigModalProps> = ({settings, isOpen, onClose, onUpdate}) => {
-    if (!isOpen) return null;
-
-    // Internal state for unsaved changes
+    // Internal state for unsaved changes (kept for form management)
     const [draftSettings, setDraftSettings] = useState<SchedulingSettings>(settings);
+
+    // Update internal state when external settings prop changes
+    useEffect(() => {
+        if (isOpen) {
+            setDraftSettings(settings);
+        }
+    }, [settings, isOpen]);
 
     const handleUpdate = (key: keyof SchedulingSettings, value: SchedulingSettings[keyof SchedulingSettings]) => {
         setDraftSettings(prev => ({...prev, [key]: value}));
@@ -42,10 +47,13 @@ export const SchedulingConfigModal: React.FC<SchedulingConfigModalProps> = ({set
     };
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div
-                className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        // 1. Replaced the entire backdrop div with ModalContainer
+        <ModalContainer isOpen={isOpen} onClose={onClose} contentClassName="max-w-2xl">
+            {/* 2. Content starts directly with the modal's main content div,
+               which no longer needs external transition classes. */}
+            <div className="bg-white rounded-xl shadow-2xl w-full overflow-hidden">
+
+                {/* HEADER */}
                 <div className="border-b p-4 flex justify-between items-center bg-indigo-50">
                     <div className="flex items-center space-x-2 text-indigo-800">
                         <Settings size={20}/>
@@ -190,6 +198,6 @@ export const SchedulingConfigModal: React.FC<SchedulingConfigModalProps> = ({set
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalContainer>
     );
 };

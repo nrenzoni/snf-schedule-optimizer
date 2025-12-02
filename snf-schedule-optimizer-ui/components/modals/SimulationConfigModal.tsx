@@ -1,6 +1,7 @@
 import {Activity, Play, X} from "lucide-react";
 import React, {useState} from "react";
 import {ModalType} from "@/types/ModalType";
+import {ModalContainer} from "../ModalContainer";
 
 interface SimulationConfigModalProps {
     type: ModalType | null;
@@ -15,8 +16,8 @@ interface SimulationConfigModalProps {
 }
 
 // --- COMPONENT: SimulationConfigModal (Scenario Analyzer Modal) ---
-export const SimulationConfigModal = ({type, isOpen, onClose, onRun}: SimulationConfigModalProps) => {
-    if (!isOpen) return null;
+export const SimulationConfigModal = (
+    {type, isOpen, onClose, onRun}: SimulationConfigModalProps) => {
 
     const [params, setParams] = useState({
         wageIncrease: 5,
@@ -99,31 +100,39 @@ export const SimulationConfigModal = ({type, isOpen, onClose, onRun}: Simulation
     }
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95 duration-200">
+        // 1. Replaced the entire backdrop div with ModalContainer
+        <ModalContainer isOpen={isOpen} onClose={onClose} contentClassName="max-w-md">
+            {/* 2. Content starts directly with the modal's main content div */}
+            <div className="bg-white rounded-xl shadow-2xl w-full">
+
+                {/* HEADER */}
                 <div className="border-b p-4 flex justify-between items-center">
                     <div className="flex items-center space-x-2 text-indigo-700">
+                        {/* Assuming Activity, title, and X are available via props/imports */}
                         <Activity size={20}/>
                         <h3 className="font-bold text-lg">{title}</h3>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
                 </div>
+
+                {/* BODY / CONTENT */}
                 <div className="p-6">
-                    {content}
+                    {content} {/* Dynamic content is rendered here */}
                 </div>
-                <div className="bg-gray-50 p-4 rounded-b-xl flex justify-end space-x-3">
+
+                {/* FOOTER / ACTIONS */}
+                <div className="bg-gray-50 p-4 rounded-b-xl flex justify-end space-x-3 border-t">
                     <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel
                     </button>
                     <button
                         onClick={handleRun}
-                        className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md"
+                        className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md transition"
                     >
                         <Play size={16} fill="currentColor"/>
                         <span>Run Simulation</span>
                     </button>
                 </div>
             </div>
-        </div>
+        </ModalContainer>
     );
 };

@@ -21,7 +21,7 @@ interface SimulationResultsProps {
 }
 
 // --- COMPONENT: SimulationResults ---
-const SimulationResults = ({result, onClear}: SimulationResultsProps) => {
+export const SimulationResults = ({result, onClear}: SimulationResultsProps) => {
     if (!result) return null;
 
     return (
