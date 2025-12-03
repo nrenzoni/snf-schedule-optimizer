@@ -16,6 +16,7 @@ from snf_schedule_optimizer.models import (
     StaffShiftPreference,
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderImpl
 
 from .builders import OptimizerTestBuilder
 from .fakes import (
@@ -90,15 +91,13 @@ def test_financial_hero_ot_vs_agency() -> None:
         shift_custom_preferences=[],
     )
 
-    optimizer = (
+    test_builder = (
         OptimizerTestBuilder()
         .with_employees([nurse_a, nurse_b], [profile_a, profile_b])
         .with_financials([comp_a, comp_b])
         .with_history({"STAFF_A": 38.0})  # Specific setup for this test
-        .build()
     )
 
-    # 5. Setup Context
     context = FacilityScenarioContext(
         facility_id="FAC_1",
         shifts=[shift],
@@ -124,13 +123,20 @@ def test_financial_hero_ot_vs_agency() -> None:
         ),
     )
 
-    # 6. Solve
-    result = optimizer.solve(
+    assert test_builder.factory is not None
+    data_provider = test_builder.factory.create(
         org_id="ORG_1",
         facility_contexts={"FAC_1": context},
-        preference_weights=PreferenceWeights(),
         pay_period_start=ref_date.start_of("week"),
         optimization_start_time=ref_date,
+    )
+
+    optimizer = test_builder.build()
+
+    # 6. Solve
+    result = optimizer.solve(
+        data_provider,
+        preference_weights=PreferenceWeights(),
     )
 
     # 7. Assertion
@@ -237,14 +243,13 @@ def test_compliance_safety_net() -> None:
         }
     )
 
-    optimizer = (
+    optimizer_builder = (
         OptimizerTestBuilder()
         .with_employees([nurse_a, nurse_b], [profile_a, profile_b])
         .with_financials([comp_a, comp_b])
         # This map tells the Fake Processor: "If you see RN_SUE on SHIFT_CRITICAL, return 50.0 penalty"
         .with_preference_penalties({"RN_SUE:SHIFT_CRITICAL": 50.0})
         .with_hprd_calculator(fake_hprd_calc)
-        .build()
     )
 
     # 5. Setup Context
@@ -267,12 +272,19 @@ def test_compliance_safety_net() -> None:
         min_mandates=None,
     )
 
-    # 6. Solve
-    result = optimizer.solve(
+    assert optimizer_builder.factory is not None
+    data_provider = optimizer_builder.factory.create(
         org_id="ORG_1",
         facility_contexts={"FAC_1": context},
-        preference_weights=PreferenceWeights(custom_preference_penalty=50.0),
         pay_period_start=ref_date.start_of("week"),
+        optimization_start_time=ref_date,
+    )
+
+    optimizer = optimizer_builder.build()
+
+    result = optimizer.solve(
+        data_provider=data_provider,
+        preference_weights=PreferenceWeights(),
     )
 
     # 7. Assertion

@@ -44,8 +44,19 @@ class InfeasibilityReasonResult:
 
 
 @dataclass(frozen=True)
+class ScheduleOptimizationStats:
+    """Performance and complexity statistics for the optimization run."""
+
+    execution_time_ms: float
+    total_variables: int
+    total_constraints: int
+    objective_value: float | None = None
+
+
+@dataclass(frozen=True)
 class ScheduleOptimizationResults:
     success: bool
     optimal_schedule: Schedule | None
     constraint_slacks: dict[str, float] | None
     infeasibility_reason: InfeasibilityReasonResult | None
+    statistics: ScheduleOptimizationStats | None = None

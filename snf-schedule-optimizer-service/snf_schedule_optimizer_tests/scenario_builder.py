@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import random
-import uuid
 from typing import cast
 
 import pendulum
@@ -152,7 +151,10 @@ class ScenarioBuilder:
     ) -> None:
         for i in range(count):
             is_agency = self.rng.random() < agency_pct
-            emp_id = f"{role}_{'AGY' if is_agency else 'STF'}_{uuid.uuid4().hex[:6]}"
+
+            # Use seeded RNG for ID generation instead of non-deterministic uuid.uuid4()
+            rand_hex = f"{self.rng.getrandbits(24):06x}"
+            emp_id = f"{role}_{'AGY' if is_agency else 'STF'}_{rand_hex}"
 
             # 1. Pay Band
             band_roll = self.rng.random()
@@ -222,3 +224,88 @@ class ScenarioBuilder:
                     shift_custom_preferences=prefs,
                 )
             )
+
+
+class ScenarioDebugPrinter:
+    """Helper to visualize generated scenarios for debugging/demos."""
+
+    @staticmethod
+    def print_summary(result: ScenarioResult) -> None:
+        print("\n" + "=" * 60)
+        print("SCENARIO DEBUG SUMMARY")
+        print("=" * 60)
+
+        # 1. Shifts
+        print(f"\n[SHIFTS] Total: {len(result.shifts)}")
+        if result.shifts:
+            sorted_shifts = sorted(result.shifts, key=lambda s: s.shift_start_dt)
+            start = sorted_shifts[0].shift_start_dt
+            end = sorted_shifts[-1].shift_end_dt
+            print(f"  Time Range:   {start.to_date_string()} to {end.to_date_string()}")
+            duration_days = (end - start).in_days()
+            print(f"  Duration:     {duration_days} days")
+
+            day_shifts = sum(1 for s in result.shifts if s.day_shift)
+            night_shifts = len(result.shifts) - day_shifts
+            print(f"  Distribution: Day ({day_shifts}) | Night ({night_shifts})")
+
+        # 2. Workforce
+        total_emps = len(result.employees)
+        print(f"\n[WORKFORCE] Total Employees: {total_emps}")
+
+        # Build maps for lookup
+        fin_map = {r.employee_id: r for r in result.financials}
+        by_role: dict[str, list[Employee]] = {}
+        for emp in result.employees:
+            by_role.setdefault(emp.job_title, []).append(emp)
+
+        for role, emps in by_role.items():
+            count = len(emps)
+            agency_count = 0
+            avg_rate = 0.0
+
+            for e in emps:
+                rec = fin_map.get(e.employee_id)
+                if rec:
+                    if rec.is_agency:
+                        agency_count += 1
+                    avg_rate += rec.base_rate_effective
+
+            if count > 0:
+                avg_rate /= count
+
+            print(f"  {role}: {count}")
+            print(f"    - Staff:    {count - agency_count}")
+            print(f"    - Agency:   {agency_count} ({agency_count / count * 100:.1f}%)")
+            print(f"    - Avg Rate: ${avg_rate:.2f}/hr")
+
+        # 3. History Accumulation
+        print("\n[HISTORY / OT RISK STATUS]")
+        ot_risk = 0
+        fresh = 0
+        mid = 0
+
+        for hrs in result.history_map.values():
+            if hrs == 0:
+                fresh += 1
+            elif hrs > 30:
+                ot_risk += 1
+            else:
+                mid += 1
+
+        print(f"  Fresh (0 hrs):       {fresh:<3} ({fresh / total_emps * 100:.1f}%)")
+        print(f"  Mid-Week (>0, <30):  {mid:<3}")
+        print(
+            f"  OT Risk (>30 hrs):   {ot_risk:<3} ({ot_risk / total_emps * 100:.1f}%)"
+        )
+
+        # 4. Preferences
+        print("\n[PREFERENCES]")
+        pref_count = 0
+        for n in result.nurses:
+            if n.shift_custom_preferences:
+                pref_count += 1
+        pct_pref = (pref_count / total_emps * 100) if total_emps > 0 else 0
+        print(f"  Nurses with Preferences: {pref_count} ({pct_pref:.1f}%)")
+
+        print("=" * 60 + "\n")

@@ -10,9 +10,10 @@ from snf_schedule_optimizer.models import (
     MinMandates,
     Shift,
 )
+from snf_schedule_optimizer.optimizer.lp_helpers import build_lp_variable_name
 
 
-@dataclass
+@dataclass(frozen=True)
 class FacilityScenarioContext:
     """Grouping of inputs specific to a single facility for a scenario run."""
 
@@ -23,28 +24,36 @@ class FacilityScenarioContext:
     # Future: Facility-specific acuity data, etc.
 
 
+@dataclass(frozen=True)
+class LpShiftKey:
+    facility_id: str
+    employee_id: str
+    shift_id: str
+
+
 class LpNurseShiftVariableHolder:
     def __init__(self) -> None:
-        # Key is Tuple: (employee_id, shift_id)
-        self._assignment_vars: dict[tuple[str, str], LpVariable] = {}
+        self._assignment_vars: dict[LpShiftKey, LpVariable] = {}
 
         # Key is Tuple: (employee_id, bucket_type) -> bucket_type is 'reg' or 'ot'
         self._pay_vars: dict[tuple[str, str], LpVariable] = {}
 
     def add_variable(
         self,
+        facility_id: str,
         employee_id: str,
         shift_id: str,
     ) -> LpVariable:
-        # 1. Store using the Tuple (Robust)
-        key = (employee_id, shift_id)
+        key = LpShiftKey(facility_id, employee_id, shift_id)
 
-        # Create a safe name for the Solver
-        # We sanitize the IDs just to ensure valid LP file syntax,
-        # but we will NEVER parse this string back.
-        safe_emp = self._sanitize(employee_id)
-        safe_shift = self._sanitize(shift_id)
-        var_name = f"X_{safe_emp}_{safe_shift}"
+        if key in self._assignment_vars:
+            raise ValueError(
+                f"Variable for Facility {facility_id}, Employee {employee_id}, Shift {shift_id} already exists."
+            )
+
+        # Include Facility ID in the variable name to ensure uniqueness in PuLP
+        # will NEVER parse this string back.
+        var_name = build_lp_variable_name(facility_id, employee_id, shift_id)
 
         var = LpVariable(var_name, cat=pulp.LpBinary)
 
@@ -53,21 +62,29 @@ class LpNurseShiftVariableHolder:
 
     def get_variable(
         self,
+        facility_id: str,
         employee_id: str,
         shift_id: str,
     ) -> LpVariable | None:
-        return self._assignment_vars.get((employee_id, shift_id))
+        return self._assignment_vars.get(LpShiftKey(facility_id, employee_id, shift_id))
 
     def add_pay_variables(self, employee_id: str) -> None:
         """Creates the bucket variables for Volume-based OT."""
-        safe_emp = self._sanitize(employee_id)
 
         # Regular Hours
-        reg_var = LpVariable(f"Pay_Reg_{safe_emp}", lowBound=0, cat=pulp.LpContinuous)
+        reg_var = LpVariable(
+            build_lp_variable_name("Pay", "Reg", employee_id),
+            lowBound=0,
+            cat=pulp.LpContinuous,
+        )
         self._pay_vars[(employee_id, "reg")] = reg_var
 
         # OT Hours
-        ot_var = LpVariable(f"Pay_OT_{safe_emp}", lowBound=0, cat=pulp.LpContinuous)
+        ot_var = LpVariable(
+            build_lp_variable_name("Pay", "OT", employee_id),
+            lowBound=0,
+            cat=pulp.LpContinuous,
+        )
         self._pay_vars[(employee_id, "ot")] = ot_var
 
     def get_pay_variables(self, employee_id: str) -> dict[str, LpVariable] | None:
@@ -79,18 +96,14 @@ class LpNurseShiftVariableHolder:
             return {"reg": reg, "ot": ot}
         return None
 
-    def get_all_assignments(self) -> dict[tuple[str, str], LpVariable]:
+    def get_all_assignments(self) -> dict[LpShiftKey, LpVariable]:
         """Expose the raw dictionary for efficient iteration during result extraction."""
         return self._assignment_vars
 
     def get_all_employees(self) -> set[str]:
         """Returns a set of all employee IDs with assignment variables."""
-        return set(emp_id for emp_id, _ in self._assignment_vars.keys())
-
-    @staticmethod
-    def _sanitize(name: str) -> str:
-        """Ensures IDs are clean for LP file formats (optional but recommended)."""
-        return name.replace("-", "_").replace(" ", "_").replace("__", "_")
+        # Unpack 3 keys: facility_id, employee_id, shift_id
+        return set(var.employee_id for var in self._assignment_vars.keys())
 
 
 class HprdShiftNurseRequirementHolder:

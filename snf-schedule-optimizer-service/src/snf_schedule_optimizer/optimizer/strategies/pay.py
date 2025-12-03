@@ -37,7 +37,11 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
             nurses = data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
-                var = lp_holder.get_variable(nurse.employee_id, shift.shift_id)
+                var = lp_holder.get_variable(
+                    shift.facility_id,
+                    nurse.employee_id,
+                    shift.shift_id,
+                )
                 if not var:
                     continue
 
@@ -151,7 +155,11 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
             assigned_hours = []
             for shift in data_provider.get_all_shifts():
                 try:
-                    var = lp_holder.get_variable(emp_id, shift.shift_id)
+                    var = lp_holder.get_variable(
+                        shift.facility_id,
+                        emp_id,
+                        shift.shift_id,
+                    )
                     if not var:
                         continue
                     assigned_hours.append(var * shift.duration_hours)
@@ -180,7 +188,11 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
             nurses = data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
-                variable = lp_holder.get_variable(nurse.employee_id, shift.shift_id)
+                variable = lp_holder.get_variable(
+                    nurse.employee_id,
+                    shift.shift_id,
+                    shift.facility_id,
+                )
                 if not variable:
                     continue
 
@@ -295,7 +307,11 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
             nurses = data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
-                var = lp_holder.get_variable(nurse.employee_id, shift.shift_id)
+                var = lp_holder.get_variable(
+                    nurse.employee_id,
+                    shift.shift_id,
+                    shift.facility_id,
+                )
                 if not var:
                     continue
 

@@ -46,7 +46,11 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
 
                 # Get the Variable
                 try:
-                    lp_var = lp_holder.get_variable(nurse.employee_id, shift.shift_id)
+                    lp_var = lp_holder.get_variable(
+                        shift.facility_id,
+                        nurse.employee_id,
+                        shift.shift_id,
+                    )
                 except KeyError:
                     continue
                 if not lp_var:

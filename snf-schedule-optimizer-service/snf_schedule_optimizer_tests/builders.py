@@ -32,11 +32,15 @@ from snf_schedule_optimizer.optimizer.strategies.penalties import QualityOfLifeS
 from snf_schedule_optimizer.optimizer.strategies.variables import (
     CoreVariableGenerationStrategy,
 )
+from snf_schedule_optimizer.schedule_cost_evaluator import ScheduleCostEvaluator
 from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
     ShiftPayProcessor,
 )
 from snf_schedule_optimizer.services.payroll.calculations.shift_slicers import (
     TimeOverlapShiftSlicer,
+)
+from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
+    WorkforceSchedulerService,
 )
 
 from .fakes import (
@@ -75,6 +79,7 @@ class OptimizerTestBuilder:
         # 3. EXPOSED ARTIFACTS (Available after build/solve)
         self.pay_processor: ShiftPayProcessor | None = None
         self.created_provider: IScenarioDataProvider | None = None
+        self.factory: ScenarioDataProviderFactory | None = None
 
     # --- FLUENT CONFIGURATION METHODS ---
 
@@ -226,9 +231,8 @@ class OptimizerTestBuilder:
                 )
             ]
 
-        # 5. Create Factory with Side Effects
-        # We capture the current state of self._accumulated_hours in the closure
-        factory = ScenarioDataProviderFactory(
+        # 5. Create Factory (Needed by Facade)
+        self.factory = ScenarioDataProviderFactory(
             employee_retriever=fake_emp_retriever,
             nurse_retriever=fake_nurse_retriever,
             hprd_calculator=hprd_calc,
@@ -237,29 +241,43 @@ class OptimizerTestBuilder:
             work_history_service=fake_history_service,
         )
 
+        # 5b. Patch Factory to act as Spy and inject History Logic
         hours_snapshot = self._accumulated_hours
-        original_create = factory.create
+        original_create = self.factory.create
 
         def side_effect_create(*args: Any, **kwargs: Any) -> IScenarioDataProvider:
             provider = original_create(*args, **kwargs)
-
-            provider.get_accumulated_hours_for_pay_period = (
-                lambda emp_id: hours_snapshot.get(emp_id, 0.0)
+            setattr(
+                provider,
+                "get_accumulated_hours_for_pay_period",
+                lambda emp_id: hours_snapshot.get(emp_id, 0.0),
             )
 
-            # Capture the provider instance for the test to use later
+            # Spy: Capture provider
             self.created_provider = provider
-
             return provider
 
-        factory.create = side_effect_create
+        setattr(self.factory, "create", side_effect_create)
 
         # 6. Instantiate Optimizer
         return NurseShiftScheduleOptimizer(
-            provider_factory=factory,
             core_variable_strategy=CoreVariableGenerationStrategy(),
             global_pay_strategies=global_pay_strategies,
             facility_constraint_strategies=facility_constraint_strategies,
             facility_rule_strategies=self._facility_rule_strategies,
             penalty_strategies=penalty_strategies,
+        )
+
+    def build_facade(self) -> WorkforceSchedulerService:
+        """Helper to assemble the full application layer for testing."""
+        optimizer = self.build()
+
+        # We know build() populates these
+        assert self.pay_processor is not None
+        assert self.factory is not None
+
+        evaluator = ScheduleCostEvaluator(self.pay_processor)
+
+        return WorkforceSchedulerService(
+            provider_factory=self.factory, optimizer=optimizer, cost_evaluator=evaluator
         )

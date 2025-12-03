@@ -117,7 +117,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         facility_id: str,
     ) -> HprdShiftNurseRequirementHolder:
         if facility_id not in self._cached_hprd_reqs:
-            print("Calculating heavy HPRD math...")
+            print(f"Calculating heavy HPRD math for fac {facility_id}...")
             context = self._facility_contexts[facility_id]
             self._cached_hprd_reqs[facility_id] = (
                 self._hprd_calculator.calculate_requirements(context)

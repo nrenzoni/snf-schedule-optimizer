@@ -8,6 +8,7 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     INurseHardBlockChecker,
     IScenarioDataProvider,
 )
+from snf_schedule_optimizer.optimizer.lp_helpers import build_lp_variable_name
 from snf_schedule_optimizer.optimizer.models import InfeasibilityReasonResult
 
 
@@ -20,7 +21,7 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
 
     def apply_constraints(
         self,
-        problem: LpProblem,
+        problem: pulp.LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
         facility_id: str,
@@ -51,13 +52,22 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
                     # Note: We enforce blocks by NOT adding the variable to the sum,
                     # OR by explicitly adding x = 0 constraint.
                     # Explicit constraint is safer for transparency.
-                    lp_var = lp_holder.get_variable(nurse.employee_id, shift.shift_id)
+                    lp_var = lp_holder.get_variable(
+                        facility_id,
+                        nurse.employee_id,
+                        shift.shift_id,
+                    )
+
+                    if not lp_var:
+                        continue
 
                     if self.hard_block_checker.check(nurse, shift):
                         # HARD BLOCK: Force variable to 0
                         problem += (
                             lp_var == 0,
-                            f"HardBlock_{nurse.employee_id}_{shift.shift_id}",
+                            build_lp_variable_name(
+                                "HardBlock", nurse.employee_id, shift.shift_id
+                            ),
                         )
                         continue
 
@@ -75,7 +85,9 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
                 # Add the HPRD Sum Constraint
                 problem += (
                     pulp.lpSum(available_vars) >= required_count,
-                    f"MinStaff_{shift.shift_id}_{role.value}",
+                    build_lp_variable_name(
+                        "MinStaff", shift.facility_id, shift.shift_id, role.value
+                    ),
                 )
 
         return None
@@ -110,8 +122,8 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
                 common = nurses_s1.intersection(nurses_s2)
 
                 for emp_id in common:
-                    v1 = lp_holder.get_variable(emp_id, s1.shift_id)
-                    v2 = lp_holder.get_variable(emp_id, s2.shift_id)
+                    v1 = lp_holder.get_variable(facility_id, emp_id, s1.shift_id)
+                    v2 = lp_holder.get_variable(facility_id, emp_id, s2.shift_id)
                     if v1 is None or v2 is None:
                         continue
                     problem += v1 + v2 <= 1, f"Fatigue_{emp_id}_{s1.shift_id}"

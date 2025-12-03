@@ -13,7 +13,6 @@ class CoreVariableGenerationStrategy:
     ) -> None:
         shifts = data_provider.get_shifts_for_facility(facility_id)
         for shift in shifts:
-            # Use the provider!
             nurses = data_provider.get_nurses_for_shift(shift)
             for nurse in nurses:
-                lp_holder.add_variable(nurse.employee_id, shift.shift_id)
+                lp_holder.add_variable(facility_id, nurse.employee_id, shift.shift_id)

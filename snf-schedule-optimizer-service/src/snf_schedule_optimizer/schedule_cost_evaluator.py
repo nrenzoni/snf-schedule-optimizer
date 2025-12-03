@@ -47,7 +47,7 @@ class ScheduleCostEvaluator:
         # 4. Initialize Accumulators
         facility_costs: dict[str, CostBreakdown] = defaultdict(CostBreakdown)
         role_costs: dict[str, CostBreakdown] = defaultdict(CostBreakdown)
-        total_cost = 0.0
+        total_enterprise_cost = 0.0
 
         # 5. Calculate Cost per Employee (Time-Ordered)
         for emp_id, shifts in emp_workload.items():
@@ -62,9 +62,8 @@ class ScheduleCostEvaluator:
             # This ensures we know if the very first shift is already OT
             current_hours = data_provider.get_accumulated_hours_for_pay_period(emp_id)
 
-            # Fetch compensation record once per employee (optimization)
-            # (Assuming rate is constant for the week, otherwise move inside loop)
-            # comp_record = data_provider.get_compensation_service()...
+            # Helper for comp lookup
+            comp_service = data_provider.get_compensation_service()
 
             for shift in shifts:
                 # Calculate cost for this specific shift, knowing current accumulated hours
@@ -72,6 +71,21 @@ class ScheduleCostEvaluator:
                 # or perform the math here.
                 facility_config = data_provider.get_facility_config(shift.facility_id)
 
+                # B. Determine Status (Agency vs Staff) for this specific date
+                # We fetch the record again here to determine how to bucket the costs.
+                comp_record = comp_service.get_record_for_date(
+                    employee.employee_id, shift.shift_start_dt
+                )
+
+                # If no record exists, we can't accurately cost.
+                # Skip or log error depending on strictness.
+                if not comp_record:
+                    # print(f"Warning: No comp record for {emp_id} on {shift.shift_start_dt}")
+                    continue
+
+                is_agency = comp_record.is_agency
+
+                # C. Calculate Cost
                 cost_result = self.shift_pay_processor.calculate_detailed_cost(
                     employee=employee,
                     shift=shift,
@@ -83,15 +97,7 @@ class ScheduleCostEvaluator:
                 duration = shift.duration_hours
                 current_hours += duration
 
-                # 4. Map Results to Reporting Buckets
-                # If employee is Agency, we bucket their 'base_wage' into 'agency_spend'.
-                # We assume agency staff don't get 401k/Health (benefits_burden), but checking the
-                # breakdown result is safer if the calculator handles that logic.
-
-                # todo: pull from compensation record or another way
-                # is_agency = getattr(employee, "is_agency", False)
-                is_agency = False
-
+                # E. Map Results to Reporting Buckets
                 if is_agency:
                     # For Agency, usually everything is "Agency Spend"
                     # But we can split OT if desired. Here we bundle base into agency_spend.
@@ -110,12 +116,11 @@ class ScheduleCostEvaluator:
                 )
 
                 facility_costs[shift.facility_id] += breakdown
-                job_title = getattr(employee, "job_title", "Unknown")
-                role_costs[job_title] += breakdown
-                total_cost += breakdown.total_cost
+                role_costs[employee.job_title] += breakdown
+                total_enterprise_cost += breakdown.total_cost
 
         return ScheduleFinancialReport(
-            total_enterprise_cost=total_cost,
+            total_enterprise_cost=total_enterprise_cost,
             breakdown_per_facility=dict(facility_costs),
             breakdown_per_role=dict(role_costs),
         )
