@@ -68,15 +68,10 @@ class ScheduleResultAnalyzer:
         unfilled = []
 
         # Pre-fetch for performance
-        all_shifts = {s.shift_id: s for s in self.provider.get_all_shifts()}
         facility_ids = self.provider.get_facility_ids()
 
         # 1. Analyze Assignments & Preferences (Soft Constraints)
-        for shift_id, emp_ids in schedule.shift_assignments.items():
-            shift = all_shifts.get(shift_id)
-            if not shift:
-                continue
-
+        for shift, emp_ids in schedule.shift_assignments.items():
             for emp_id in emp_ids:
                 emp = self.provider.get_employee_by_id(emp_id)
                 # We need the nurse profile for preferences
@@ -97,7 +92,7 @@ class ScheduleResultAnalyzer:
                         ConstraintViolation(
                             category="Wellbeing",
                             rule_name="Preference Violation",
-                            entity_id=f"{emp.name} on {shift_id}",
+                            entity_id=f"{emp.name} on {shift}",
                             details=conflict,
                             severity="Soft",
                         )
@@ -126,7 +121,7 @@ class ScheduleResultAnalyzer:
             shifts = self.provider.get_shifts_for_facility(fac_id)
 
             for shift in shifts:
-                assigned_emp_ids = schedule.shift_assignments.get(shift.shift_id, [])
+                assigned_emp_ids = schedule.shift_assignments.get(shift, [])
                 assigned_emps = [
                     self.provider.get_employee_by_id(eid) for eid in assigned_emp_ids
                 ]
@@ -152,12 +147,14 @@ class ScheduleResultAnalyzer:
                             ConstraintViolation(
                                 category="Compliance",
                                 rule_name="Minimum Staffing / HPRD",
-                                entity_id=shift.shift_id,
+                                entity_id=f"{shift.facility_id}_{shift.shift_id}",
                                 details=msg,
                                 severity="Hard",
                             )
                         )
-                        unfilled.append(f"{shift.shift_id} ({role.value})")
+                        unfilled.append(
+                            f"{shift.facility_id}_{shift.shift_id} ({role.value})"
+                        )
 
         return ScheduleAnalysisReport(
             assignments=assignments_detail,

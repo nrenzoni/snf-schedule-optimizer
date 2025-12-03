@@ -16,6 +16,7 @@ from snf_schedule_optimizer.models import (
     StaffShiftPreference,
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
+
 from .builders import OptimizerTestBuilder
 from .fakes import (
     FakeHprdRequirementCalculator,
@@ -140,7 +141,7 @@ def test_financial_hero_ot_vs_agency() -> None:
     # 7. Assertion
     assert result.success is True
     assert result.optimal_schedule is not None
-    assigned_ids = result.optimal_schedule.shift_assignments["SHIFT_1"]
+    assigned_ids = result.optimal_schedule.shift_assignments[shift]
 
     print("\n--- TEST 1: FINANCIAL HERO ---")
     if "STAFF_A" in assigned_ids:
@@ -291,7 +292,7 @@ def test_compliance_safety_net() -> None:
     assert result.optimal_schedule is not None
 
     # Check for assignment safely
-    assignments = result.optimal_schedule.shift_assignments.get("SHIFT_CRITICAL", [])
+    assignments = result.optimal_schedule.shift_assignments.get(shift, [])
 
     if result.success and "RN_SUE" in assignments:
         print("SUCCESS: Solver assigned RN Sue despite her preference.")

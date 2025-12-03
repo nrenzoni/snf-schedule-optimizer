@@ -1,6 +1,5 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 from snf_schedule_optimizer.models import HprdEnforcedRole
 from snf_schedule_optimizer.optimizer.calculators import NurseHardBlockCheckerImpl
@@ -49,14 +48,14 @@ class SchedulerInfeasibilityDiagnoser:
 
         return "\n".join(report)
 
-    def _analyze_global_capacity(self, facility_id: str) -> List[str]:
+    def _analyze_global_capacity(self, facility_id: str) -> list[str]:
         output = []
         shifts = self.provider.get_shifts_for_facility(facility_id)
         reqs = self.provider.get_hprd_requirements_for_facility(facility_id)
 
-        total_req_hours: Dict[HprdEnforcedRole, float] = {
-            role: 0.0 for role in HprdEnforcedRole
-        }
+        total_req_hours: dict[HprdEnforcedRole, float] = dict.fromkeys(
+            HprdEnforcedRole, 0.0
+        )
 
         # Calculate Total Demand (Hours)
         for shift in shifts:
@@ -70,9 +69,9 @@ class SchedulerInfeasibilityDiagnoser:
         # We sum up every employee's potential hours.
         # Note: This assumes employees in the context are available for this facility.
         employees = self.provider.get_all_employees()
-        total_supply_hours: Dict[HprdEnforcedRole, float] = {
-            role: 0.0 for role in HprdEnforcedRole
-        }
+        total_supply_hours: dict[HprdEnforcedRole, float] = dict.fromkeys(
+            HprdEnforcedRole, 0.0
+        )
 
         for emp in employees:
             if role := self._map_job_to_role(emp.job_title):
@@ -94,7 +93,7 @@ class SchedulerInfeasibilityDiagnoser:
 
         return output
 
-    def _analyze_shift_bottlenecks(self, facility_id: str) -> List[str]:
+    def _analyze_shift_bottlenecks(self, facility_id: str) -> list[str]:
         output = []
         shifts = self.provider.get_shifts_for_facility(facility_id)
         reqs = self.provider.get_hprd_requirements_for_facility(facility_id)
@@ -108,8 +107,8 @@ class SchedulerInfeasibilityDiagnoser:
             nurses = self.provider.get_nurses_for_shift(shift)
 
             # Bucket available nurses by role for THIS specific shift
-            available_by_role: Dict[HprdEnforcedRole, int] = defaultdict(int)
-            blocked_by_role: Dict[HprdEnforcedRole, int] = defaultdict(int)
+            available_by_role: dict[HprdEnforcedRole, int] = defaultdict(int)
+            blocked_by_role: dict[HprdEnforcedRole, int] = defaultdict(int)
 
             for nurse in nurses:
                 emp = self.provider.get_employee_by_id(nurse.employee_id)
@@ -155,7 +154,7 @@ class SchedulerInfeasibilityDiagnoser:
 
         return output
 
-    def _map_job_to_role(self, job_title: str) -> Optional[HprdEnforcedRole]:
+    def _map_job_to_role(self, job_title: str) -> HprdEnforcedRole | None:
         """Maps specific job titles (RN_Supervisor) to generic HPRD roles (RN)."""
         jt = job_title.upper()
         if "RN" in jt:

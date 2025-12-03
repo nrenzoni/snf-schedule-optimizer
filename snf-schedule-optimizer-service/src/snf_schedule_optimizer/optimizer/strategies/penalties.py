@@ -44,16 +44,11 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
                 if not employee:
                     continue
 
-                # Get the Variable
-                try:
-                    lp_var = lp_holder.get_variable(
-                        shift.facility_id,
-                        nurse.employee_id,
-                        shift.shift_id,
-                    )
-                except KeyError:
-                    continue
-                if not lp_var:
+                lp_var = lp_holder.get_variable(
+                    shift,
+                    nurse.employee_id,
+                )
+                if lp_var is None:
                     continue
 
                 # 1. Calculate Preference Penalty (The "Soft" Constraints)

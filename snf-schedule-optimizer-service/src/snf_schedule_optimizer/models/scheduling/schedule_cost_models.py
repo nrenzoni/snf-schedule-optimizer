@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class CostBreakdown:
     """
     Accumulator class for reporting aggregated costs (e.g., per facility or per role).
@@ -29,7 +29,7 @@ class CostBreakdown:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class ScheduleFinancialReport:
     """The final report structure."""
 

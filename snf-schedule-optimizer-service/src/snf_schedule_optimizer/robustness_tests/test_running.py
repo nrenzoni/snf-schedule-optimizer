@@ -294,7 +294,6 @@ class TestRunner:
 
         optimal_cost: float = self._calculate_cost(
             optimal_schedule_call_out_adjusted.schedule,
-            shifts_per_id,
         )
 
         baseline_schedule_generator = BaselineScheduleGenerator(
@@ -313,7 +312,6 @@ class TestRunner:
 
         baseline_cost: float = self._calculate_cost(
             baseline_schedule_with_callouts,
-            shifts_per_id,
         )
 
         optimal_risk_metrics = self._calc_risk_metrics(
@@ -350,7 +348,7 @@ class TestRunner:
     @dataclass(frozen=True)
     class ScheduleWithCallOut:
         schedule: Schedule
-        call_outs: dict[str, list[str]]  # {Shift: [employee_ids who called out]}
+        call_outs: dict[Shift, list[str]]  # {Shift: [employee_ids who called out]}
 
     def _simulate_call_out_rate_in_schedule(
         self,
@@ -358,15 +356,15 @@ class TestRunner:
         call_out_rate: float,
     ) -> ScheduleWithCallOut:
         """Simulates staff call-outs in the given schedule based on the call-out rate."""
-        shift_assignments_with_call_out: dict[str, list[str]] = {}
-        called_out_per_shift: dict[str, list[str]] = {}
-        for shift_id, staff_ids in schedule.shift_assignments.items():
+        shift_assignments_with_call_out: dict[Shift, list[str]] = {}
+        called_out_per_shift: dict[Shift, list[str]] = {}
+        for shift, staff_ids in schedule.shift_assignments.items():
             adjusted_staff_ids = [
                 staff_id for staff_id in staff_ids if self.rng.random() > call_out_rate
             ]
             called_out_staff = list(set(staff_ids) - set(adjusted_staff_ids))
-            called_out_per_shift[shift_id] = called_out_staff
-            shift_assignments_with_call_out[shift_id] = adjusted_staff_ids
+            called_out_per_shift[shift] = called_out_staff
+            shift_assignments_with_call_out[shift] = adjusted_staff_ids
 
         return self.ScheduleWithCallOut(
             schedule=Schedule(shift_assignments_with_call_out),
@@ -382,7 +380,6 @@ class TestRunner:
     def _calculate_cost(
         self,
         schedule: Schedule,
-        shifts: dict[str, Shift],
     ) -> float:
         """
         Calculates the total dollar total_cost based on assignments and pay rates.
@@ -391,8 +388,7 @@ class TestRunner:
 
         employees = set(self.employee_retriever.get_all_employees())
 
-        for shift_id, assigned_employee_ids in schedule.shift_assignments.items():
-            shift = shifts[shift_id]
+        for shift, assigned_employee_ids in schedule.shift_assignments.items():
             assigned_employees = [
                 ee for ee in employees if ee.employee_id in assigned_employee_ids
             ]
@@ -432,7 +428,7 @@ class TestRunner:
             )
             nurses = self.nurse_retriever.get_nurses(shift)
 
-            assigned_nurse_ids = schedule.shift_assignments[shift.shift_id]
+            assigned_nurse_ids = schedule.shift_assignments[shift]
             assigned_nurses = [n for n in nurses if n.employee_id in assigned_nurse_ids]
 
             employee_map = {

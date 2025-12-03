@@ -9,7 +9,6 @@ from snf_schedule_optimizer.models import (
     NurseProfile,
     ShiftSpecificRequirements,
     StaffCompensationRecord,
-    WorkedShiftSegment,
 )
 from snf_schedule_optimizer.optimizer.calculators import (
     HprdRequirementCalculatorImpl,
@@ -227,17 +226,15 @@ class OptimizerTestBuilder:
 
         def side_effect_create(*args: Any, **kwargs: Any) -> IScenarioDataProvider:
             provider = original_create(*args, **kwargs)
-            setattr(
-                provider,
-                "get_accumulated_hours_for_pay_period",
-                lambda emp_id: hours_snapshot.get(emp_id, 0.0),
+            provider.get_accumulated_hours_for_pay_period = (
+                lambda emp_id: hours_snapshot.get(emp_id, 0.0)
             )
 
             # Spy: Capture provider
             self.created_provider = provider
             return provider
 
-        setattr(self.factory, "create", side_effect_create)
+        self.factory.create = side_effect_create
 
         # 6. Instantiate Optimizer
         return NurseShiftScheduleOptimizer(

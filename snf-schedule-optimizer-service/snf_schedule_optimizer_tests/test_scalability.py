@@ -105,8 +105,10 @@ def test_stress_multi_facility_optimization() -> None:
     Demonstrates a massive multi-facility stress test (10 Facilities).
     Manually configures every aspect of the ScenarioBuilder to show full client usage.
     """
+    n_facilities = 5
+
     print("\n" + "=" * 80)
-    print("STARTING MULTI-FACILITY STRESS TEST (10 FACILITIES)")
+    print(f"STARTING MULTI-FACILITY STRESS TEST ({n_facilities} FACILITIES)")
     print("=" * 80)
 
     # --- 1. Aggregators for the Enterprise ---
@@ -120,7 +122,6 @@ def test_stress_multi_facility_optimization() -> None:
     start_date = pendulum.datetime(2025, 6, 1, tz="America/New_York")
 
     # --- 2. Generate Data for n Facilities ---
-    n_facilities = 1
     for i in range(1, n_facilities + 1):
         fac_id = f"FAC_{i:02d}"  # FAC_01, FAC_02...
 
@@ -146,8 +147,8 @@ def test_stress_multi_facility_optimization() -> None:
         is_troubled_facility = i == 5
         builder.with_workforce(
             WorkforceConfig(
-                count_rn=40,
-                count_cna=80,
+                count_rn=10,
+                count_cna=20,
                 percent_agency_rn=0.50 if is_troubled_facility else 0.10,
                 percent_agency_cna=0.40 if is_troubled_facility else 0.15,
                 # Pay Distribution probabilities

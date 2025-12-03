@@ -19,7 +19,6 @@ from snf_schedule_optimizer.models import (
     WorkedTimeBlock,
 )
 
-
 # region Payroll Service Interfaces
 
 

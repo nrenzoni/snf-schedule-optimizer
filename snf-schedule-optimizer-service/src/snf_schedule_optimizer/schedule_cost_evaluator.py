@@ -29,18 +29,11 @@ class ScheduleCostEvaluator:
         # Assuming provider has cached this efficiently
         employee_map = {e.employee_id: e for e in data_provider.get_all_employees()}
 
-        # 2. Performance: Pre-fetch shifts map
-        all_shifts = {s.shift_id: s for s in data_provider.get_all_shifts()}
-
         # 3. Regroup Data: Group assignments by Employee to handle OT Logic
         # Structure: { employee_id: [Shift, Shift, ...] }
         emp_workload: dict[str, list[Shift]] = defaultdict(list)
 
-        for shift_id, emp_ids in schedule.shift_assignments.items():
-            shift = all_shifts.get(shift_id)
-            if not shift:
-                continue
-
+        for shift, emp_ids in schedule.shift_assignments.items():
             for emp_id in emp_ids:
                 emp_workload[emp_id].append(shift)
 
@@ -49,6 +42,8 @@ class ScheduleCostEvaluator:
         role_costs: dict[str, CostBreakdown] = defaultdict(CostBreakdown)
         total_enterprise_cost = 0.0
 
+        comp_service = data_provider.get_compensation_service()
+
         # 5. Calculate Cost per Employee (Time-Ordered)
         for emp_id, shifts in emp_workload.items():
             employee = employee_map.get(emp_id)
@@ -56,14 +51,13 @@ class ScheduleCostEvaluator:
                 continue
 
             # CRITICAL: Sort shifts by time to calculate OT correctly
+            # This ensures if a nurse works Facility A Mon-Wed and Facility B Thu-Fri,
+            # Facility B correctly absorbs the Overtime cost.
             shifts.sort(key=lambda s: s.shift_start_dt)
 
             # Get history (hours worked BEFORE this schedule starts)
             # This ensures we know if the very first shift is already OT
             current_hours = data_provider.get_accumulated_hours_for_pay_period(emp_id)
-
-            # Helper for comp lookup
-            comp_service = data_provider.get_compensation_service()
 
             for shift in shifts:
                 # Calculate cost for this specific shift, knowing current accumulated hours
@@ -71,16 +65,18 @@ class ScheduleCostEvaluator:
                 # or perform the math here.
                 facility_config = data_provider.get_facility_config(shift.facility_id)
 
-                # B. Determine Status (Agency vs Staff) for this specific date
-                # We fetch the record again here to determine how to bucket the costs.
+                # 5b. Check Agency Status for THIS specific shift date
+                # (Handles employees who convert from Agency -> Staff mid-period)
                 comp_record = comp_service.get_record_for_date(
                     employee.employee_id, shift.shift_start_dt
                 )
 
                 # If no record exists, we can't accurately cost.
                 # Skip or log error depending on strictness.
-                if not comp_record:
-                    # print(f"Warning: No comp record for {emp_id} on {shift.shift_start_dt}")
+                if comp_record is None:
+                    print(
+                        f"Warning: No comp record for {emp_id} on {shift.shift_start_dt}"
+                    )
                     continue
 
                 is_agency = comp_record.is_agency

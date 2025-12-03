@@ -9,7 +9,10 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     IScenarioDataProvider,
 )
 from snf_schedule_optimizer.optimizer.lp_helpers import build_lp_variable_name
-from snf_schedule_optimizer.optimizer.models import InfeasibilityReasonResult
+from snf_schedule_optimizer.optimizer.models import (
+    InfeasibilityReason,
+    InfeasibilityReasonResult,
+)
 
 
 class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
@@ -53,12 +56,11 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
                     # OR by explicitly adding x = 0 constraint.
                     # Explicit constraint is safer for transparency.
                     lp_var = lp_holder.get_variable(
-                        facility_id,
+                        shift,
                         nurse.employee_id,
-                        shift.shift_id,
                     )
 
-                    if not lp_var:
+                    if lp_var is None:
                         continue
 
                     if self.hard_block_checker.check(nurse, shift):
@@ -81,6 +83,12 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
 
                     # Available: Add to the pool
                     available_vars.append(lp_var)
+
+                if len(available_vars) == 0:
+                    return InfeasibilityReasonResult(
+                        reason=InfeasibilityReason.NO_AVAILABLE_NURSES,
+                        details=f"No available nurses for role {role.value} in shift {shift.shift_id} at facility {facility_id}.",
+                    )
 
                 # Add the HPRD Sum Constraint
                 problem += (
@@ -122,8 +130,8 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
                 common = nurses_s1.intersection(nurses_s2)
 
                 for emp_id in common:
-                    v1 = lp_holder.get_variable(facility_id, emp_id, s1.shift_id)
-                    v2 = lp_holder.get_variable(facility_id, emp_id, s2.shift_id)
+                    v1 = lp_holder.get_variable(s1, emp_id)
+                    v2 = lp_holder.get_variable(s2, emp_id)
                     if v1 is None or v2 is None:
                         continue
                     problem += v1 + v2 <= 1, f"Fatigue_{emp_id}_{s1.shift_id}"

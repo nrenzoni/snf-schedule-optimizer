@@ -117,7 +117,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         facility_id: str,
     ) -> HprdShiftNurseRequirementHolder:
         if facility_id not in self._cached_hprd_reqs:
-            print(f"Calculating heavy HPRD math for fac {facility_id}...")
+            # print(f"Calculating heavy HPRD math for fac {facility_id}...")
             context = self._facility_contexts[facility_id]
             self._cached_hprd_reqs[facility_id] = (
                 self._hprd_calculator.calculate_requirements(context)
@@ -128,7 +128,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
     def get_nurses_for_shift(self, shift: Shift) -> list[NurseProfile]:
         # Use shift_id as the cache key
         if shift.shift_id not in self._shift_nurses_cache:
-            print(f"Fetching nurses for shift {shift.shift_id}...")
+            # print(f"Fetching nurses for shift {shift.shift_id}...")
             # Call the raw retriever
             nurses = self._nurse_retriever.get_nurses(shift)
             self._shift_nurses_cache[shift.shift_id] = nurses

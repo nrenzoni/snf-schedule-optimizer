@@ -26,9 +26,8 @@ class FacilityScenarioContext:
 
 @dataclass(frozen=True)
 class LpShiftKey:
-    facility_id: str
+    shift: Shift
     employee_id: str
-    shift_id: str
 
 
 class LpNurseShiftVariableHolder:
@@ -40,11 +39,12 @@ class LpNurseShiftVariableHolder:
 
     def add_variable(
         self,
-        facility_id: str,
+        shift: Shift,
         employee_id: str,
-        shift_id: str,
     ) -> LpVariable:
-        key = LpShiftKey(facility_id, employee_id, shift_id)
+        facility_id = shift.facility_id
+        shift_id = shift.shift_id
+        key = LpShiftKey(shift, employee_id)
 
         if key in self._assignment_vars:
             raise ValueError(
@@ -62,11 +62,10 @@ class LpNurseShiftVariableHolder:
 
     def get_variable(
         self,
-        facility_id: str,
+        shift: Shift,
         employee_id: str,
-        shift_id: str,
     ) -> LpVariable | None:
-        return self._assignment_vars.get(LpShiftKey(facility_id, employee_id, shift_id))
+        return self._assignment_vars.get(LpShiftKey(shift, employee_id))
 
     def add_pay_variables(self, employee_id: str) -> None:
         """Creates the bucket variables for Volume-based OT."""

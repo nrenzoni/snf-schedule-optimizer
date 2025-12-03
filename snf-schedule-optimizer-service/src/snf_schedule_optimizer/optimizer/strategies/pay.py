@@ -38,9 +38,8 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
 
             for nurse in nurses:
                 var = lp_holder.get_variable(
-                    shift.facility_id,
+                    shift,
                     nurse.employee_id,
-                    shift.shift_id,
                 )
                 if not var:
                     continue
@@ -156,11 +155,10 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
             for shift in data_provider.get_all_shifts():
                 try:
                     var = lp_holder.get_variable(
-                        shift.facility_id,
+                        shift,
                         emp_id,
-                        shift.shift_id,
                     )
-                    if not var:
+                    if var is None:
                         continue
                     assigned_hours.append(var * shift.duration_hours)
                 except KeyError:
@@ -189,15 +187,14 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
 
             for nurse in nurses:
                 variable = lp_holder.get_variable(
+                    shift,
                     nurse.employee_id,
-                    shift.shift_id,
-                    shift.facility_id,
                 )
-                if not variable:
+                if variable is None:
                     continue
 
                 employee = data_provider.get_employee_by_id(nurse.employee_id)
-                if not employee:
+                if employee is None:
                     continue
 
                 # Calculate "Straight Time" Cost
@@ -308,9 +305,8 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
 
             for nurse in nurses:
                 var = lp_holder.get_variable(
-                    nurse.employee_id,
+                    shift,
                     shift.shift_id,
-                    shift.facility_id,
                 )
                 if not var:
                     continue
