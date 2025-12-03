@@ -53,6 +53,11 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
                 self.shift_requirements_retriever.get_shift_requirements(shift)
             )
             hours_in_shift = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
+            if hours_in_shift <= 0:
+                raise ValueError(
+                    f"Invalid shift duration for shift {shift.shift_id} in facility {context.facility_id}."
+                )
+
             residents_acuity = self.resident_acuity_retriever.get_resident_acuity_list(
                 shift
             )

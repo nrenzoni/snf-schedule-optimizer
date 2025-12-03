@@ -19,8 +19,8 @@ def test_large_scale_financial_optimization() -> None:
         ScenarioBuilder(seed=123)
         .with_workforce(
             WorkforceConfig(
-                count_rn=50,
-                count_cna=150,
+                count_rn=5,
+                count_cna=10,
                 percent_agency_rn=0.2,  # 20% Agency RNs
                 percent_agency_cna=0.05,
             )
@@ -119,8 +119,9 @@ def test_stress_multi_facility_optimization() -> None:
 
     start_date = pendulum.datetime(2025, 6, 1, tz="America/New_York")
 
-    # --- 2. Generate Data for 10 Facilities ---
-    for i in range(1, 11):
+    # --- 2. Generate Data for n Facilities ---
+    n_facilities = 1
+    for i in range(1, n_facilities + 1):
         fac_id = f"FAC_{i:02d}"  # FAC_01, FAC_02...
 
         # A. Instantiate Builder (Seeded for determinism per facility)

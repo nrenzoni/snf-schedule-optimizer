@@ -15,7 +15,6 @@ from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation i
     ThresholdOvertimeRule,
 )
 from snf_schedule_optimizer.services.payroll.interfaces import (
-    IRateCalculator,
     IShiftSlicer,
 )
 from snf_schedule_optimizer.services.payroll.rules.rule_eligibility_service import (
@@ -37,14 +36,12 @@ class ShiftPayProcessor:
         eligibility_service: RuleEligibilityService,
         # ot_calculator: IOvertimeCalculator,
         slicer: IShiftSlicer,
-        rate_calculator: IRateCalculator,
         compensation_service: IStaffCompensationService,
         # work_history_service: IEmployeeWorkHistoryService,
     ):
         self.eligibility_service = eligibility_service
         # self.ot_calculator = ot_calculator
         self.slicer = slicer
-        self.rate_calculator = rate_calculator
         self.compensation_service = compensation_service
         # self.work_history_service = work_history_service
 

@@ -180,29 +180,9 @@ class OptimizerTestBuilder:
             [],
         )  # No diffs/OT rules by default
 
-        # Create a simple Rate Calculator that returns base_rate * duration
-        # (This avoids needing the full DifferentialAndOvertimeRateCalculator implementation)
-        mock_rate_calc = MagicMock()
-
-        # We need this mock to return sensible data, otherwise costs are 0
-        # This lambda mimics: cost = rate * hours
-        # Note: This ignores differentials, but works for base testing
-        # To strictly type this, we'd make a FakeRateCalculator class
-        # But for brevity in the builder:
-        def simple_rate_calc(
-            record: StaffCompensationRecord,
-            segment: WorkedShiftSegment,
-        ) -> float:
-            # Fallback to 0 if record missing
-            rate = record.base_rate_effective if record else 0.0
-            return rate * segment.duration_hours  # Return float cost
-
-        mock_rate_calc.calculate_effective_rate.side_effect = simple_rate_calc
-
         self.pay_processor = ShiftPayProcessor(
             eligibility_service=mock_eligibility,
             slicer=TimeOverlapShiftSlicer(),
-            rate_calculator=mock_rate_calc,
             compensation_service=fake_comp_service,
         )
 

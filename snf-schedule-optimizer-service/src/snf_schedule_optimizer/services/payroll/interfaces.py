@@ -14,11 +14,11 @@ from snf_schedule_optimizer.models import (
     OvertimeInterval,
     PunchType,
     Shift,
-    StaffCompensationRecord,
     TimePunch,
     WorkedShiftSegment,
     WorkedTimeBlock,
 )
+
 
 # region Payroll Service Interfaces
 
@@ -36,18 +36,6 @@ class IShiftSlicer(abc.ABC):
         differential_intervals: list[DifferentialDateInterval],
         overtime_intervals: list[OvertimeInterval],
     ) -> list[WorkedShiftSegment]:
-        pass
-
-
-class IRateCalculator(abc.ABC):
-    """Calculates the final effective rate for a single segment."""
-
-    @abc.abstractmethod
-    def calculate_effective_rate(
-        self,
-        compensation_record: StaffCompensationRecord,
-        segment: WorkedShiftSegment,
-    ) -> float:
         pass
 
 

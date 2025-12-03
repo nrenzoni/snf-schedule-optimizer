@@ -44,9 +44,6 @@ from snf_schedule_optimizer.robustness_tests import (
 from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
     OvertimeCalculatorImpl,
 )
-from snf_schedule_optimizer.services.payroll.calculations.rate_calculations import (
-    DifferentialAndOvertimeRateCalculator,
-)
 from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
     ShiftPayProcessor,
 )
@@ -319,8 +316,6 @@ class Container(containers.DeclarativeContainer):
 
     shift_slicer = providers.Singleton(TimeOverlapShiftSlicer)
 
-    rate_calculator = providers.Singleton(DifferentialAndOvertimeRateCalculator)
-
     staff_compensation_service = providers.Singleton(
         StaffCompensationServiceStaticListImpl,
         records=config.STAFF_COMPENSATION_RECORDS.provided,
@@ -331,7 +326,7 @@ class Container(containers.DeclarativeContainer):
         eligibility_service=rule_eligibility_service,
         ot_calculator=ot_calculator,
         slicer=shift_slicer,
-        rate_calculator=rate_calculator,
+        # rate_calculator=rate_calculator,
         compensation_service=staff_compensation_service,
         work_history_service=work_history_service,
     )

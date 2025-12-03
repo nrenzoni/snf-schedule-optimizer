@@ -16,8 +16,6 @@ from snf_schedule_optimizer.models import (
     StaffShiftPreference,
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderImpl
-
 from .builders import OptimizerTestBuilder
 from .fakes import (
     FakeHprdRequirementCalculator,
