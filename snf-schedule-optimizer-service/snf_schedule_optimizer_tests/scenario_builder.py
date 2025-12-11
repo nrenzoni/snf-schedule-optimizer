@@ -8,6 +8,7 @@ import pendulum
 from snf_schedule_optimizer.models import (
     Employee,
     NurseProfile,
+    PreferenceType,
     Shift,
     StaffCompensationRecord,
     StaffShiftPreference,
@@ -67,7 +68,8 @@ class ScenarioBuilder:
             nurses=nurses,
             financials=financials,
             history_map=history,
-            preference_penalties={},  # Can be populated if using the Fake Processor logic
+            preference_penalties={},
+            acuity_data=[],
         )
 
     def _generate_shifts(self) -> list[Shift]:
@@ -192,9 +194,32 @@ class ScenarioBuilder:
 
             # 3. Preferences
             prefs: list[StaffShiftPreference] = []
-            pref_roll = self.rng.random()
-            # Logic to add specific preference objects based on config...
-            # (Simplified for brevity)
+
+            # Check configuration probabilities
+
+            # Chance for Specific Day Off
+            if self.rng.random() < self.pref_cfg.prob_specific_day_off:
+                # Pick a random day (0=Monday to 6=Sunday)
+                day_off = self.rng.randint(0, 6)
+                prefs.append(
+                    StaffShiftPreference(
+                        preference_type=PreferenceType.SPECIFIC_DAY_OFF,
+                        specific_value=str(day_off),
+                        penalty_weight=5.0,  # Standard weight
+                        is_hard_block=False,
+                    )
+                )
+
+            # Chance for No Weekends
+            if self.rng.random() < self.pref_cfg.prob_no_weekends:
+                prefs.append(
+                    StaffShiftPreference(
+                        preference_type=PreferenceType.WEEKEND_OFF,
+                        specific_value=None,
+                        penalty_weight=10.0,
+                        is_hard_block=False,
+                    )
+                )
 
             # 4. Objects
             emps.append(

@@ -181,7 +181,7 @@ class Shift:
 
 @dataclass(frozen=True)
 class Schedule:
-    shift_assignments: dict[Shift, list[str]]  # {Shift: [employee_ids]}
+    shift_assignments: dict[str, list[str]]  # {shift_id: [employee_ids]}
 
 
 @dataclass(frozen=True)

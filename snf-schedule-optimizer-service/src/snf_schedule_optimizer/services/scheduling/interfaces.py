@@ -4,6 +4,7 @@ from snf_schedule_optimizer.models import (
     Employee,
     NurseProfile,
     PreferenceWeights,
+    Schedule,
     Shift,
     ShiftSpecificRequirements,
 )
@@ -29,5 +30,19 @@ class IPreferencePenaltyProcessor(abc.ABC):
         """
         Calculates the non-financial penalty cost if the assignment violates a soft preference.
         This cost is added to the LP objective function.
+        """
+        pass
+
+
+class IScheduleRetriever(abc.ABC):
+    """
+    Interface for retrieving Schedule objects (assignments) from persistence.
+    """
+
+    @abc.abstractmethod
+    def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
+        """
+        Retrieves the schedule assignments for a specific schedule ID.
+        Returns None if not found.
         """
         pass

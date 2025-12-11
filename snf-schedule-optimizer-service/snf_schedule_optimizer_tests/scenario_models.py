@@ -7,6 +7,7 @@ import pendulum
 from snf_schedule_optimizer.models import (
     Employee,
     NurseProfile,
+    ResidentAcuity,
     Shift,
     StaffCompensationRecord,
 )
@@ -62,6 +63,17 @@ class TimeConfig:
 
 
 @dataclass
+class AcuityConfig:
+    """Controls generation of resident census and acuity levels."""
+
+    base_census: int = 100
+    high_acuity_probability: float = 0.15  # Chance of score 15 vs 5
+    high_acuity_score: int = 15
+    low_acuity_score: int = 5
+    admission_surge_factor: float = 0.0  # Increase census by %
+
+
+@dataclass
 class ScenarioResult:
     """The output container holding all generated objects."""
 
@@ -71,3 +83,4 @@ class ScenarioResult:
     financials: list[StaffCompensationRecord]
     history_map: dict[str, float]  # employee_id -> hours
     preference_penalties: dict[str, float]  # pre-calculated penalties
+    acuity_data: list[ResidentAcuity]

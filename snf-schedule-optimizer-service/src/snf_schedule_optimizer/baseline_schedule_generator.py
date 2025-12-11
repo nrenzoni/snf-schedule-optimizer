@@ -22,7 +22,7 @@ class BaselineScheduleGenerator:
         Generates a baseline schedule using a simple heuristic approach.
         placeholder implementation
         """
-        shift_assignments: dict[Shift, list[str]] = {}
+        shift_assignments: dict[str, list[str]] = {}
 
         for i, shift in enumerate(shifts):
             nurses = self.nurse_retriever.get_nurses(shift)
@@ -34,7 +34,7 @@ class BaselineScheduleGenerator:
             n_staff_to_assign = census
             for j in range(n_staff_to_assign):
                 assigned_staff = nurses[(i + j) % staff_count]
-                shift_assignments.setdefault(shift, []).append(
+                shift_assignments.setdefault(shift.shift_id, []).append(
                     assigned_staff.employee_id
                 )
 

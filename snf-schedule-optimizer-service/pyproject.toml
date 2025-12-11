@@ -24,6 +24,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "mypy>=1.18.2",
+    "pip>=25.3",
     "pytest>=9.0.1",
     "ruff>=0.14.7",
 ]
@@ -108,8 +109,9 @@ select = ["E", "F"]
 extend-select = ["B", "I", "UP", "C4", "SIM"]
 # Ignore specific rules project-wide (optional)
 ignore = [
-    "E501", # ignore line length rule if needed
-    "SIM102" # disable Combine `if` statements using `and
+    "E501",
+    "SIM102",
+    "B010",  # mypy doesn't like assignment to functions in tests
 ]
 
 [tool.ruff.format]

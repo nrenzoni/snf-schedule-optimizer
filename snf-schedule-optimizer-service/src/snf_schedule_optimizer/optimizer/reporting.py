@@ -67,11 +67,17 @@ class ScheduleResultAnalyzer:
         violations = []
         unfilled = []
 
-        # Pre-fetch for performance
+        # Pre-fetch shifts map for O(1) lookup
+        all_shifts = {s.shift_id: s for s in self.provider.get_all_shifts()}
         facility_ids = self.provider.get_facility_ids()
 
         # 1. Analyze Assignments & Preferences (Soft Constraints)
-        for shift, emp_ids in schedule.shift_assignments.items():
+        for shift_id, emp_ids in schedule.shift_assignments.items():
+            shift = all_shifts.get(shift_id)
+            if shift is None:
+                raise ValueError(
+                    f"Shift ID {shift_id} in schedule not found in data provider."
+                )
             for emp_id in emp_ids:
                 emp = self.provider.get_employee_by_id(emp_id)
                 # We need the nurse profile for preferences
@@ -92,7 +98,7 @@ class ScheduleResultAnalyzer:
                         ConstraintViolation(
                             category="Wellbeing",
                             rule_name="Preference Violation",
-                            entity_id=f"{emp.name} on {shift}",
+                            entity_id=f"{emp.name} on {shift_id}",
                             details=conflict,
                             severity="Soft",
                         )
@@ -106,7 +112,7 @@ class ScheduleResultAnalyzer:
 
                 assignments_detail.append(
                     ShiftAssignmentDetail(
-                        shift_id=shift.shift_id,
+                        shift_id=shift_id,
                         shift_date=shift.shift_start_dt.to_date_string(),
                         employee_name=emp.name,
                         employee_role=emp.job_title,
@@ -121,7 +127,7 @@ class ScheduleResultAnalyzer:
             shifts = self.provider.get_shifts_for_facility(fac_id)
 
             for shift in shifts:
-                assigned_emp_ids = schedule.shift_assignments.get(shift, [])
+                assigned_emp_ids = schedule.shift_assignments.get(shift.shift_id, [])
                 assigned_emps = [
                     self.provider.get_employee_by_id(eid) for eid in assigned_emp_ids
                 ]

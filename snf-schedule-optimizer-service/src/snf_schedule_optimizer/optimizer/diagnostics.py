@@ -74,10 +74,10 @@ class SchedulerInfeasibilityDiagnoser:
         )
 
         for emp in employees:
-            if role := self._map_job_to_role(emp.job_title):
+            if role2 := self._map_job_to_role(emp.job_title):
                 # Heuristic: Assume ~40h available per employee per week
                 # A more advanced check would look at NurseProfile.available_hours
-                total_supply_hours[role] += 40.0
+                total_supply_hours[role2] += 40.0
 
         output.append("  Global Supply vs Demand (Heuristic - Weekly):")
         for role in HprdEnforcedRole:

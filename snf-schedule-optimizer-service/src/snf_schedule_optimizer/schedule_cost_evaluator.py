@@ -29,11 +29,20 @@ class ScheduleCostEvaluator:
         # Assuming provider has cached this efficiently
         employee_map = {e.employee_id: e for e in data_provider.get_all_employees()}
 
+        # 2. Performance: Pre-fetch shifts map (ID -> Object)
+        all_shifts = {s.shift_id: s for s in data_provider.get_all_shifts()}
+
         # 3. Regroup Data: Group assignments by Employee to handle OT Logic
         # Structure: { employee_id: [Shift, Shift, ...] }
         emp_workload: dict[str, list[Shift]] = defaultdict(list)
 
-        for shift, emp_ids in schedule.shift_assignments.items():
+        # FIX: Iterate over string IDs, then look up the actual object
+        for shift_id, emp_ids in schedule.shift_assignments.items():
+            shift = all_shifts.get(shift_id)
+            if not shift:
+                # If the schedule references a shift not in our current context, skip it.
+                continue
+
             for emp_id in emp_ids:
                 emp_workload[emp_id].append(shift)
 

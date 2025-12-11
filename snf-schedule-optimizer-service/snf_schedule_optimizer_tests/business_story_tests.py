@@ -122,15 +122,15 @@ def test_financial_hero_ot_vs_agency() -> None:
         ),
     )
 
-    assert test_builder.factory is not None
+    # side effect: creates factory
+    optimizer = test_builder.build_optimizer()
+
     data_provider = test_builder.factory.create(
         org_id="ORG_1",
         facility_contexts={"FAC_1": context},
         pay_period_start=ref_date.start_of("week"),
         optimization_start_time=ref_date,
     )
-
-    optimizer = test_builder.build()
 
     # 6. Solve
     result = optimizer.solve(
@@ -141,7 +141,7 @@ def test_financial_hero_ot_vs_agency() -> None:
     # 7. Assertion
     assert result.success is True
     assert result.optimal_schedule is not None
-    assigned_ids = result.optimal_schedule.shift_assignments[shift]
+    assigned_ids = result.optimal_schedule.shift_assignments[shift.shift_id]
 
     print("\n--- TEST 1: FINANCIAL HERO ---")
     if "STAFF_A" in assigned_ids:
@@ -271,15 +271,14 @@ def test_compliance_safety_net() -> None:
         min_mandates=None,
     )
 
-    assert optimizer_builder.factory is not None
+    optimizer = optimizer_builder.build_optimizer()
+
     data_provider = optimizer_builder.factory.create(
         org_id="ORG_1",
         facility_contexts={"FAC_1": context},
         pay_period_start=ref_date.start_of("week"),
         optimization_start_time=ref_date,
     )
-
-    optimizer = optimizer_builder.build()
 
     result = optimizer.solve(
         data_provider=data_provider,
@@ -292,7 +291,7 @@ def test_compliance_safety_net() -> None:
     assert result.optimal_schedule is not None
 
     # Check for assignment safely
-    assignments = result.optimal_schedule.shift_assignments.get(shift, [])
+    assignments = result.optimal_schedule.shift_assignments.get(shift.shift_id, [])
 
     if result.success and "RN_SUE" in assignments:
         print("SUCCESS: Solver assigned RN Sue despite her preference.")

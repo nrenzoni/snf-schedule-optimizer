@@ -7,6 +7,8 @@ from snf_schedule_optimizer.models import (
     Employee,
     MlModelOutputs,
     NurseProfile,
+    ResidentAcuity,
+    Schedule,
     ShiftSpecificRequirements,
     StaffCompensationRecord,
 )
@@ -31,6 +33,9 @@ from snf_schedule_optimizer.optimizer.strategies.penalties import QualityOfLifeS
 from snf_schedule_optimizer.optimizer.strategies.variables import (
     CoreVariableGenerationStrategy,
 )
+from snf_schedule_optimizer.resident_acuity_retrievers import (
+    ResidentAcuityPerShiftRetrieverImpl,
+)
 from snf_schedule_optimizer.schedule_cost_evaluator import ScheduleCostEvaluator
 from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
     ShiftPayProcessor,
@@ -38,6 +43,7 @@ from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor im
 from snf_schedule_optimizer.services.payroll.calculations.shift_slicers import (
     TimeOverlapShiftSlicer,
 )
+from snf_schedule_optimizer.services.scheduling.interfaces import IScheduleRetriever
 from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
     WorkforceSchedulerService,
 )
@@ -53,6 +59,17 @@ from .fakes import (
 )
 
 
+class FakeScheduleRetriever(IScheduleRetriever):
+    """InMemory implementation of IScheduleRetriever for testing."""
+
+    def __init__(self, schedules: dict[tuple[str, str], Schedule] | None = None):
+        # Key: (schedule_id, org_id) -> Schedule
+        self._schedules = schedules or {}
+
+    def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
+        return self._schedules.get((schedule_id, org_id))
+
+
 class OptimizerTestBuilder:
     def __init__(self) -> None:
         # 1. DATA DEFAULTS (Empty/Safe Defaults)
@@ -61,6 +78,8 @@ class OptimizerTestBuilder:
         self._comp_records: list[StaffCompensationRecord] = []
         self._accumulated_hours: dict[str, float] = {}
         self._preference_penalties: dict[str, float] = {}
+        self._stored_schedules: dict[tuple[str, str], Schedule] = {}
+        self._acuity_data: list[ResidentAcuity] = []
 
         # 2. LOGIC DEFAULTS (The "Standard" Configuration)
         self._hprd_calculator: IHprdRequirementCalculator | None = None
@@ -78,7 +97,15 @@ class OptimizerTestBuilder:
         # 3. EXPOSED ARTIFACTS (Available after build/solve)
         self.pay_processor: ShiftPayProcessor | None = None
         self.created_provider: IScenarioDataProvider | None = None
-        self.factory: ScenarioDataProviderFactory | None = None
+        self._factory: ScenarioDataProviderFactory | None = None
+
+    @property
+    def factory(self) -> ScenarioDataProviderFactory:
+        if self._factory is None:
+            raise ValueError(
+                "Factory has not been built yet. Call build_optimizer() first."
+            )
+        return self._factory
 
     # --- FLUENT CONFIGURATION METHODS ---
 
@@ -109,6 +136,13 @@ class OptimizerTestBuilder:
         self._preference_penalties = penalties
         return self
 
+    def with_schedule(
+        self, schedule: Schedule, schedule_id: str, org_id: str
+    ) -> OptimizerTestBuilder:
+        """Pre-loads a schedule into the mock database for retrieval."""
+        self._stored_schedules[(schedule_id, org_id)] = schedule
+        return self
+
     def with_hprd_calculator(
         self,
         calculator: IHprdRequirementCalculator,
@@ -129,9 +163,13 @@ class OptimizerTestBuilder:
             self._facility_constraint_strategies = constraints
         return self
 
+    def with_acuity_data(self, data: list[ResidentAcuity]) -> OptimizerTestBuilder:
+        self._acuity_data = data
+        return self
+
     # --- THE BUILD METHOD ---
 
-    def build(self) -> NurseShiftScheduleOptimizer:
+    def build_optimizer(self) -> NurseShiftScheduleOptimizer:
         # 1. Instantiate Fakes using the accumulated state
         fake_emp_retriever = FakeEmployeeRetriever(self._employees)
         fake_nurse_retriever = FakeNurseRetriever(self._nurses)
@@ -155,8 +193,9 @@ class OptimizerTestBuilder:
             hprd_calc = self._hprd_calculator
         else:
             # Construct the default "Zero/Passthrough" calculator
-            mock_acuity_retriever = MagicMock()
-            mock_acuity_retriever.get_resident_acuity_list.return_value = []
+            fake_acuity_retriever = ResidentAcuityPerShiftRetrieverImpl(
+                self._acuity_data
+            )
 
             fake_req_retriever = FakeShiftRequirementsRetriever(
                 default_requirements=ShiftSpecificRequirements(
@@ -166,7 +205,7 @@ class OptimizerTestBuilder:
                 )
             )
             hprd_calc = HprdRequirementCalculatorImpl(
-                mock_acuity_retriever,
+                fake_acuity_retriever,
                 fake_req_retriever,
             )
 
@@ -211,7 +250,7 @@ class OptimizerTestBuilder:
             ]
 
         # 5. Create Factory (Needed by Facade)
-        self.factory = ScenarioDataProviderFactory(
+        self._factory = ScenarioDataProviderFactory(
             employee_retriever=fake_emp_retriever,
             nurse_retriever=fake_nurse_retriever,
             hprd_calculator=hprd_calc,
@@ -222,19 +261,25 @@ class OptimizerTestBuilder:
 
         # 5b. Patch Factory to act as Spy and inject History Logic
         hours_snapshot = self._accumulated_hours
-        original_create = self.factory.create
+        original_create = self._factory.create
 
         def side_effect_create(*args: Any, **kwargs: Any) -> IScenarioDataProvider:
             provider = original_create(*args, **kwargs)
-            provider.get_accumulated_hours_for_pay_period = (
-                lambda emp_id: hours_snapshot.get(emp_id, 0.0)
+            setattr(
+                provider,
+                "get_accumulated_hours_for_pay_period",
+                lambda emp_id: hours_snapshot.get(emp_id, 0.0),
             )
 
             # Spy: Capture provider
             self.created_provider = provider
             return provider
 
-        self.factory.create = side_effect_create
+        setattr(  # noqa: B010
+            self._factory,
+            "create",
+            side_effect_create,
+        )
 
         # 6. Instantiate Optimizer
         return NurseShiftScheduleOptimizer(
@@ -247,14 +292,20 @@ class OptimizerTestBuilder:
 
     def build_facade(self) -> WorkforceSchedulerService:
         """Helper to assemble the full application layer for testing."""
-        optimizer = self.build()
+        optimizer = self.build_optimizer()
 
         # We know build() populates these
         assert self.pay_processor is not None
-        assert self.factory is not None
+        assert self._factory is not None
 
         evaluator = ScheduleCostEvaluator(self.pay_processor)
 
+        # Instantiate the Fake Retriever with any schedules configured in the builder
+        fake_schedule_retriever = FakeScheduleRetriever(self._stored_schedules)
+
         return WorkforceSchedulerService(
-            provider_factory=self.factory, optimizer=optimizer, cost_evaluator=evaluator
+            provider_factory=self._factory,
+            optimizer=optimizer,
+            cost_evaluator=evaluator,
+            schedule_retriever=fake_schedule_retriever,
         )

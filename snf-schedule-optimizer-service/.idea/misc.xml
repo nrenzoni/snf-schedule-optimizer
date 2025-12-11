@@ -3,8 +3,11 @@
   <component name="Black">
     <option name="sdkName" value="uv (snf-schedule-optimizer)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 virtualenv at C:\dev\snf-schedule-optimizer\snf-schedule-optimizer-service\.venv" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Python 3.13 (snf-schedule-optimizer-service)" project-jdk-type="Python SDK" />
   <component name="PythonCompatibilityInspectionAdvertiser">
     <option name="version" value="3" />
+  </component>
+  <component name="RuffConfiguration">
+    <option name="enabled" value="true" />
   </component>
 </project>

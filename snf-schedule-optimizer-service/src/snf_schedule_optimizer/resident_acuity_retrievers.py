@@ -25,4 +25,8 @@ class ResidentAcuityPerShiftRetrieverImpl(IResidentAcuityPerShiftRetriever):
         self,
         shift: Shift,
     ) -> list[ResidentAcuity]:
-        return self.stressed_residents
+        return [
+            r
+            for r in self.stressed_residents
+            if r.census_day.date() == shift.shift_start_dt.date()
+        ]
