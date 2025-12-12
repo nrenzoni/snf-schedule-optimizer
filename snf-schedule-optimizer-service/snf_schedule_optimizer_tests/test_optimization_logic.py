@@ -9,6 +9,7 @@ from snf_schedule_optimizer.models import (
     NurseProfile,
     PreferenceWeights,
     Shift,
+    ShiftKey,
     StaffCompensationRecord,
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
@@ -36,11 +37,15 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
     """
     ref_date = pendulum.datetime(2025, 1, 1, tz="America/New_York")
 
+    or_id = "ORG_1"
+
     # 1. Setup Shifts (Back-to-Back)
     shift_1 = Shift(
-        org_id="ORG_1",
-        facility_id="FAC_1",
-        shift_id="SHIFT_1",
+        org_id=or_id,
+        shift_key=ShiftKey(
+            facility_id="FAC_1",
+            shift_id="SHIFT_1",
+        ),
         shift_start_dt=ref_date.add(hours=7),
         shift_end_dt=ref_date.add(hours=15),  # 7am - 3pm
         shift_number=1,
@@ -50,9 +55,11 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
     )
 
     shift_2 = Shift(
-        org_id="ORG_1",
-        facility_id="FAC_1",
-        shift_id="SHIFT_2",
+        org_id=or_id,
+        shift_key=ShiftKey(
+            facility_id="FAC_1",
+            shift_id="SHIFT_2",
+        ),
         shift_start_dt=ref_date.add(hours=15),
         shift_end_dt=ref_date.add(hours=23),  # 3pm - 11pm (0 gap)
         shift_number=2,
@@ -152,13 +159,15 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
         min_mandates=None,  # Handled by fake HPRD
     )
 
+    data_provider = optimize_builder.factory.create(  # Use internal factory pattern or pass manually
+        org_id="ORG_1",
+        facility_contexts={"FAC_1": context},
+        pay_period_start=ref_date.start_of("week"),
+        optimization_start_time=ref_date,
+    )
+
     result = optimizer.solve(
-        data_provider=optimize_builder.factory.create(  # Use internal factory pattern or pass manually
-            org_id="ORG_1",
-            facility_contexts={"FAC_1": context},
-            pay_period_start=ref_date.start_of("week"),
-            optimization_start_time=ref_date,
-        ),
+        data_provider=data_provider,
         preference_weights=PreferenceWeights(),
     )
 
@@ -167,14 +176,18 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
     assert result.optimal_schedule is not None
     assignments = result.optimal_schedule.shift_assignments
 
+    org_id = data_provider.get_org_id()
+
     # Verify Shift 1 went to cheapest
-    assert "N_15" in assignments["SHIFT_1"], (
+    assert "N_15" in assignments[ShiftKey(org_id, "SHIFT_1")], (
         "Shift 1 should go to cheapest nurse (N_15)"
     )
 
     # Verify Shift 2 went to next cheapest (N_15 blocked by fatigue)
-    assert "N_20" in assignments["SHIFT_2"], "Shift 2 should go to next cheapest (N_20)"
+    assert "N_20" in assignments[ShiftKey(org_id, "SHIFT_2")], (
+        "Shift 2 should go to next cheapest (N_20)"
+    )
 
     # Verify Expensive nurse unused
-    assert "N_25" not in assignments.get("SHIFT_1", [])
-    assert "N_25" not in assignments.get("SHIFT_2", [])
+    assert "N_25" not in assignments.get(ShiftKey(org_id, "SHIFT_1"), [])
+    assert "N_25" not in assignments.get(ShiftKey(org_id, "SHIFT_2"), [])

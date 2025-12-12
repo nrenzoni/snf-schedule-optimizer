@@ -6,7 +6,7 @@ import pendulum
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session, joinedload
 
-from snf_schedule_optimizer.models import Shift, TimePunch
+from snf_schedule_optimizer.models import Shift, ShiftKey, TimePunch
 from snf_schedule_optimizer.services.timekeeping.interfaces import IRawHistoryRetriever
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
@@ -147,8 +147,10 @@ class SQLARawHistoryRetriever(IRawHistoryRetriever):
         # We assume Shift only holds identity and basic time data for history purposes.
         return Shift(
             org_id=shift_model.org_id,
-            facility_id=shift_model.facility_id,
-            shift_id=str(shift_model.shift_id),
+            shift_key=ShiftKey(
+                shift_model.facility_id,
+                shift_model.shift_id,
+            ),
             shift_start_dt=pendulum.instance(shift_model.shift_start_dt),
             shift_end_dt=pendulum.instance(shift_model.shift_end_dt),
             shift_number=int(shift_model.shift_number)
@@ -180,8 +182,10 @@ class SQLARawHistoryRetriever(IRawHistoryRetriever):
         now = pendulum.now()
         return Shift(
             org_id="UNKNOWN",
-            facility_id="UNKNOWN",
-            shift_id="UNASSIGNED",
+            shift_key=ShiftKey(
+                facility_id="UNKNOWN",
+                shift_id="UNASSIGNED",
+            ),
             shift_start_dt=now.subtract(days=365).start_of("day"),
             shift_end_dt=now.add(days=1).end_of("day"),
             shift_number=99,

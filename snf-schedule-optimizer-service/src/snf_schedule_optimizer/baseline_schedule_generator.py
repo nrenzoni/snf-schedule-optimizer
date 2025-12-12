@@ -1,4 +1,8 @@
-from snf_schedule_optimizer.models import Schedule, Shift
+from snf_schedule_optimizer.models import (
+    Schedule,
+    Shift,
+    ShiftAssignmentsType,
+)
 from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.resident_acuity_retrievers import (
     IResidentAcuityPerShiftRetriever,
@@ -22,7 +26,10 @@ class BaselineScheduleGenerator:
         Generates a baseline schedule using a simple heuristic approach.
         placeholder implementation
         """
-        shift_assignments: dict[str, list[str]] = {}
+        if len(shifts) == 0:
+            raise ValueError("No shifts provided for baseline schedule generation.")
+
+        shift_assignments: ShiftAssignmentsType = {}
 
         for i, shift in enumerate(shifts):
             nurses = self.nurse_retriever.get_nurses(shift)
@@ -34,8 +41,14 @@ class BaselineScheduleGenerator:
             n_staff_to_assign = census
             for j in range(n_staff_to_assign):
                 assigned_staff = nurses[(i + j) % staff_count]
-                shift_assignments.setdefault(shift.shift_id, []).append(
-                    assigned_staff.employee_id
-                )
+                shift_assignments.setdefault(
+                    shift.shift_key,
+                    [],
+                ).append(assigned_staff.employee_id)
 
-        return Schedule(shift_assignments)
+        return Schedule(
+            org_id="baseline_org",
+            facility_id=shifts[0].facility_id,
+            schedule_id="1",
+            shift_assignments=shift_assignments,
+        )

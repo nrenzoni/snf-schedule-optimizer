@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from snf_schedule_optimizer.models import Schedule, Shift
+from snf_schedule_optimizer.models import Schedule, Shift, ShiftKey
 from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
     CostBreakdown,
     ScheduleFinancialReport,
@@ -30,7 +30,10 @@ class ScheduleCostEvaluator:
         employee_map = {e.employee_id: e for e in data_provider.get_all_employees()}
 
         # 2. Performance: Pre-fetch shifts map (ID -> Object)
-        all_shifts = {s.shift_id: s for s in data_provider.get_all_shifts()}
+        all_shifts = {
+            ShiftKey(s.facility_id, s.shift_id): s
+            for s in data_provider.get_all_shifts()
+        }
 
         # 3. Regroup Data: Group assignments by Employee to handle OT Logic
         # Structure: { employee_id: [Shift, Shift, ...] }

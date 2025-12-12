@@ -113,13 +113,16 @@ class NurseShiftScheduleOptimizer:
 
         problem += pulp.lpSum(obj_terms)
 
+        org_id = data_provider.get_org_id()
         return self._solve_finalize(
+            org_id,
             problem,
             lp_vars,
         )
 
     def _solve_finalize(
         self,
+        org_id: str,
         problem: pulp.LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
     ) -> ScheduleOptimizationResults:
@@ -174,7 +177,11 @@ class NurseShiftScheduleOptimizer:
         }
 
         # Use the extracted component
-        schedule = self._extractor.extract(lp_holder)
+        schedule = self._extractor.extract(
+            lp_holder,
+            org_id,
+            None,
+        )
 
         return ScheduleOptimizationResults(
             success=True,

@@ -10,6 +10,7 @@ from snf_schedule_optimizer.models import (
     NurseProfile,
     PreferenceType,
     Shift,
+    ShiftKey,
     StaffCompensationRecord,
     StaffShiftPreference,
 )
@@ -90,8 +91,10 @@ class ScenarioBuilder:
                 shifts.append(
                     Shift(
                         org_id=self.org_id,
-                        facility_id=self.facility_id,
-                        shift_id=f"S_D{day}_N{s_num}",
+                        shift_key=ShiftKey(
+                            facility_id=self.facility_id,
+                            shift_id=f"S_D{day}_N{s_num}",
+                        ),
                         shift_number=s_num,
                         day_shift=is_day,
                         day_of_week=shift_start.day_of_week,

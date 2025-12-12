@@ -1,6 +1,6 @@
 import pulp
 
-from snf_schedule_optimizer.models import Schedule
+from snf_schedule_optimizer.models import Schedule, ShiftKey
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IFacilityScopedConstraintStrategy,
@@ -38,7 +38,8 @@ class PinnedScheduleConstraintStrategy(IFacilityScopedConstraintStrategy):
             # 2. Check if this assignment exists in the target schedule
             # shift_assignments is Dict[shift_id, List[employee_id]]
             assigned_employees = self.target_schedule.shift_assignments.get(
-                shift_key.shift.shift_id, []
+                ShiftKey(shift_key.shift.facility_id, shift_key.shift.shift_id),
+                [],
             )
 
             is_assigned = shift_key.employee_id in assigned_employees

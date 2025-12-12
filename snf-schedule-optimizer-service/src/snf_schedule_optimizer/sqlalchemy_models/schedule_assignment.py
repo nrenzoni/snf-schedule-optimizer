@@ -14,5 +14,6 @@ class ScheduleAssignmentModel(SQLABase):
     # Composite PK often useful here
     schedule_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
     org_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
+    facility_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
     shift_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
     employee_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)

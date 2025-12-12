@@ -4,7 +4,11 @@ from dataclasses import dataclass
 import pendulum
 
 from api.dtos import MoveEmployeeRequest
-from snf_schedule_optimizer.models import PreferenceWeights, Schedule
+from snf_schedule_optimizer.models import (
+    PreferenceWeights,
+    Schedule,
+    ShiftKey,
+)
 from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
     ScheduleFinancialReport,
 )
@@ -222,8 +226,12 @@ class WorkforceSchedulerService:
             from_shift_assigned = next(
                 (
                     assigned
-                    for (shift_id, assigned) in schedule.shift_assignments.items()
-                    if shift_id == request.from_shift_id
+                    for (
+                        shift_assignment_key,
+                        assigned,
+                    ) in schedule.shift_assignments.items()
+                    if shift_assignment_key
+                    == ShiftKey(request.facility_id, request.from_shift_id)
                 ),
                 None,
             )
@@ -239,8 +247,11 @@ class WorkforceSchedulerService:
             to_shift_assigned = next(
                 (
                     assigned
-                    for (shift_id, assigned) in schedule.shift_assignments.items()
-                    if shift_id == request.to_shift_id
+                    for (
+                        shift_assigned_key,
+                        assigned,
+                    ) in schedule.shift_assignments.items()
+                    if shift_assigned_key.shift_id == request.to_shift_id
                 ),
                 None,
             )

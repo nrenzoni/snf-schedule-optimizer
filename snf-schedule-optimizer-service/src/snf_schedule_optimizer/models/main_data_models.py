@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 from uuid import UUID
 
 import pendulum
@@ -158,11 +158,19 @@ class FacilityConfig:
     night_shift_multiplier: float
 
 
+type FacilityIdKey = str
+type ShiftIdKey = str
+
+
+class ShiftKey(NamedTuple):
+    facility_id: FacilityIdKey
+    shift_id: ShiftIdKey
+
+
 @dataclass(frozen=True)
 class Shift:
     org_id: str
-    facility_id: str
-    shift_id: str
+    shift_key: ShiftKey
 
     shift_number: int
     day_shift: bool
@@ -175,13 +183,41 @@ class Shift:
     def duration_hours(self) -> float:
         return (self.shift_end_dt - self.shift_start_dt).total_hours()
 
-    def __hash__(self) -> int:
-        return hash((self.org_id, self.facility_id, self.shift_id))
+    # def __hash__(self) -> int:
+    #     return hash((self.org_id, self.facility_id, self.shift_id))
+
+    @property
+    def facility_id(self) -> str:
+        return self.shift_key.facility_id
+
+    @property
+    def shift_id(self) -> str:
+        return self.shift_key.shift_id
+
+
+type ShiftAssignmentsType = dict[ShiftKey, list[str]]
 
 
 @dataclass(frozen=True)
 class Schedule:
-    shift_assignments: dict[str, list[str]]  # {shift_id: [employee_ids]}
+    """
+    Represents the final output of the scheduling process.
+    """
+
+    org_id: str
+
+    # facility_id is Optional because an "Enterprise Optimization" might return a Schedule containing assignments for multiple facilities.
+    facility_id: str | None = None
+    schedule_id: str | None = None  # Persistence ID
+
+    # composite key prevents collisions in multi-facility reports. org_id not needed as this exists within an org context, i.e., class contains org_id
+    shift_assignments: ShiftAssignmentsType = dataclasses.field(
+        default_factory=dict
+    )  # {(facility_id, shift_id): [employee_ids]}
+
+    def get_assigned_employees(self, facility_id: str, shift_id: str) -> list[str]:
+        key = ShiftKey(facility_id, shift_id)
+        return self.shift_assignments.get(key, [])
 
 
 @dataclass(frozen=True)

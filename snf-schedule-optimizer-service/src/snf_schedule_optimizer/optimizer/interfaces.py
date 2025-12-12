@@ -174,6 +174,11 @@ class IScenarioDataProvider(abc.ABC):
     optimization run. Implementations must handle lazy loading and caching within the run scope.
     """
 
+    @abc.abstractmethod
+    def get_org_id(self) -> str:
+        """Returns the organization ID for this optimization run."""
+        pass
+
     # --- Global Methods (Enterprise Level) ---
 
     @abc.abstractmethod

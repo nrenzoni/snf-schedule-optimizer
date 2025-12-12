@@ -97,6 +97,10 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self._cached_hprd_reqs: dict[str, HprdShiftNurseRequirementHolder] = {}
         self._accumulated_hours_cache: dict[str, float] = {}
 
+    def get_org_id(self) -> str:
+        """Returns the organization ID for this optimization run."""
+        return self.target_org_id
+
     # FIX 13: Removed @cached_property, used manual caching to match interface signature
     def get_all_employees(self) -> list[Employee]:
         if self._cached_all_employees is None:

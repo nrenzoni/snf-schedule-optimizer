@@ -12,6 +12,7 @@ from snf_schedule_optimizer.models import (
     PreferenceType,
     PreferenceWeights,
     Shift,
+    ShiftKey,
     StaffCompensationRecord,
     StaffShiftPreference,
 )
@@ -34,8 +35,10 @@ def test_financial_hero_ot_vs_agency() -> None:
     # 2. Setup 12-Hour Shift
     shift = Shift(
         org_id="ORG_1",
-        facility_id="FAC_1",
-        shift_id="SHIFT_1",
+        shift_key=ShiftKey(
+            facility_id="FAC_1",
+            shift_id="SHIFT_1",
+        ),
         shift_start_dt=ref_date.add(hours=7),
         shift_end_dt=ref_date.add(hours=19),  # 12 Hours
         shift_number=1,
@@ -141,7 +144,7 @@ def test_financial_hero_ot_vs_agency() -> None:
     # 7. Assertion
     assert result.success is True
     assert result.optimal_schedule is not None
-    assigned_ids = result.optimal_schedule.shift_assignments[shift.shift_id]
+    assigned_ids = result.optimal_schedule.shift_assignments[shift.shift_key]
 
     print("\n--- TEST 1: FINANCIAL HERO ---")
     if "STAFF_A" in assigned_ids:
@@ -168,8 +171,10 @@ def test_compliance_safety_net() -> None:
     # 2. Setup Shift
     shift = Shift(
         org_id="ORG_1",
-        facility_id="FAC_1",
-        shift_id="SHIFT_CRITICAL",
+        shift_key=ShiftKey(
+            facility_id="FAC_1",
+            shift_id="SHIFT_CRITICAL",
+        ),
         shift_number=1,
         day_shift=True,
         day_of_week=ref_date.day_of_week,
@@ -291,7 +296,7 @@ def test_compliance_safety_net() -> None:
     assert result.optimal_schedule is not None
 
     # Check for assignment safely
-    assignments = result.optimal_schedule.shift_assignments.get(shift.shift_id, [])
+    assignments = result.optimal_schedule.shift_assignments.get(shift.shift_key, [])
 
     if result.success and "RN_SUE" in assignments:
         print("SUCCESS: Solver assigned RN Sue despite her preference.")
