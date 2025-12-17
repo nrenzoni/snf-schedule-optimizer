@@ -3,7 +3,7 @@
 # import itertools
 # from collections import defaultdict
 # import numpy as np
-# import pendulum
+# import whenever
 # from dataclasses import dataclass
 #
 # from snf_schedule_optimizer.services.hr.interfaces import (
@@ -88,8 +88,8 @@
 #                             return True
 #                     elif pref.preference_type == PreferenceType.WEEKEND_OFF:
 #                         if shift.day_of_week in {
-#                             pendulum.WeekDay.SATURDAY,
-#                             pendulum.WeekDay.SUNDAY,
+#                             whenever.Weekday.SATURDAY,
+#                             whenever.Weekday.SUNDAY,
 #                         }:
 #                             return True
 #         return False
@@ -357,7 +357,7 @@
 #         #         for i in range(len(shifts) - 1):
 #         #             current_shift = shifts[i]
 #         #             next_shift = shifts[i + 1]
-#         #             hours_between_shifts = (next_shift.shift_start_time - current_shift.shift_end_time).total_hours()
+#         #             hours_between_shifts = (next_shift.shift_start_time - current_shift.shift_end_time).in_hours()
 #         #             if hours_between_shifts < min_rest_hours_between_shifts:
 #         #                 problem += (
 #         #                     lp_variables_holder.get_variable(nurse.employee_id, current_shift.shift_id)
@@ -462,7 +462,7 @@
 #                 self.shift_requirements_retriever.get_shift_requirements(shift)
 #             )
 #
-#             hours_in_shift = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
+#             hours_in_shift = (shift.shift_end_dt - shift.shift_start_dt).in_hours()
 #
 #             residents_acuity = self.resident_acuity_retriever.get_resident_acuity_list(
 #                 shift

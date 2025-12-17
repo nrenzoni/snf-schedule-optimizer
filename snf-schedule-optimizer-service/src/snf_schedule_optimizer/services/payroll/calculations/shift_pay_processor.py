@@ -1,4 +1,4 @@
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     DifferentialType,
@@ -60,7 +60,7 @@ class ShiftPayProcessor:
         if comp_record is None:
             raise ValueError(
                 f"No compensation record found for employee {employee.employee_id} on "
-                f"{shift.shift_start_dt.to_date_string()}"
+                f"{shift.shift_start_dt.format_iso()}"
             )
 
         # Determine Overtime Split (The "Projective" Logic)
@@ -79,7 +79,7 @@ class ShiftPayProcessor:
         overtime_intervals = []
         if ot_hours > 0:
             ot_start = shift.shift_end_dt.subtract(
-                seconds=pendulum.duration(hours=ot_hours).total_seconds(),
+                seconds=whenever.DateTimeDelta(hours=ot_hours).time_part().in_seconds(),
             )
             ot_end = shift.shift_end_dt
             synthetic_ot_rule = ThresholdOvertimeRule(

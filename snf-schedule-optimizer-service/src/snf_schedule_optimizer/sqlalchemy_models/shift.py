@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import datetime
 import typing
 
-from sqlalchemy import Boolean, DateTime, Integer, String
+import whenever
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from ..utils.sqlalchemy_types.instant_type import InstantType
 from .base import SQLABase
 
 if typing.TYPE_CHECKING:
@@ -27,12 +28,10 @@ class ShiftModel(SQLABase):
     shift_id: Mapped[str] = mapped_column(String, primary_key=True)
 
     # --- Core Identity & Time ---
-    shift_start_dt: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
+    shift_start_dt: Mapped[whenever.Instant] = mapped_column(
+        InstantType, nullable=False
     )
-    shift_end_dt: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    shift_end_dt: Mapped[whenever.Instant] = mapped_column(InstantType, nullable=False)
 
     # --- Contextual Data (Required by Mapping and Rules Engine) ---
 
@@ -46,9 +45,6 @@ class ShiftModel(SQLABase):
     day_of_week: Mapped[int] = mapped_column(
         Integer, nullable=False
     )  # e.g., pendulum.MONDAY (0), used for calculating weekend differential
-    timezone: Mapped[str] = mapped_column(
-        String(50), nullable=False
-    )  # The facility/shift's specific timezone (e.g., 'America/New_York')
 
     # 2. Scheduling & Role Data
     # Used for filtering rules by facility/unit

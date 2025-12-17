@@ -118,7 +118,7 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
         for i in range(len(shifts) - 1):
             s1, s2 = shifts[i], shifts[i + 1]
             # Simple check: if < 8 hours gap
-            gap = (s2.shift_start_dt - s1.shift_end_dt).total_hours()
+            gap = (s2.shift_start_dt - s1.shift_end_dt).in_hours()
             if gap < 8.0:
                 # Find common nurses
                 nurses_s1 = {
@@ -140,7 +140,7 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
 
     # example
     def _check_gap(self, s1: Shift, s2: Shift) -> bool:
-        gap = (s2.shift_start_dt - s1.shift_end_dt).total_hours()
+        gap = (s2.shift_start_dt - s1.shift_end_dt).in_hours()
 
         if s1.facility_id == s2.facility_id:
             # Same building: Check standard rest (e.g., 8 hours)

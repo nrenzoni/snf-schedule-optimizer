@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     HprdEnforcedRole,
@@ -117,7 +117,7 @@ class ScheduleResultAnalyzer:
                 assignments_detail.append(
                     ShiftAssignmentDetail(
                         shift_id=key.shift_id,
-                        shift_date=shift.shift_start_dt.to_date_string(),
+                        shift_date=shift.shift_start_dt.format_iso(),
                         employee_name=emp.name,
                         employee_role=emp.job_title,
                         is_agency=is_agency,
@@ -193,7 +193,7 @@ class ScheduleResultAnalyzer:
 
             # Check Weekend Off
             elif pref.preference_type == PreferenceType.WEEKEND_OFF:
-                if shift.day_of_week in [pendulum.SATURDAY, pendulum.SUNDAY]:
+                if shift.day_of_week in [whenever.SATURDAY, whenever.SUNDAY]:
                     conflicts.append("Worked on weekend preference")
 
             # Add other preference checks here (Night shift, etc.)

@@ -3,12 +3,13 @@ from __future__ import annotations
 import abc
 from typing import TYPE_CHECKING
 
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
     LookbackPeriod,
     Shift,
+    ShiftKey,
     TimePunch,
     WorkedShiftSegment,
 )
@@ -43,11 +44,11 @@ class IEmployeeWorkHistoryService(abc.ABC):
         self,
         employee: Employee,
         current_shift: Shift,
-        history: dict[Shift, list[WorkedShiftSegment]],
+        history: dict[ShiftKey, list[WorkedShiftSegment]],
         threshold_hours: float,
         lookback_period: LookbackPeriod,
-        work_period_start_day: int | None = None,  # pendulum.DayOfWeek
-        work_period_start_time: pendulum.Time | None = None,
+        work_period_start_day: whenever.Weekday | None = None,  # pendulum.DayOfWeek
+        work_period_start_time: whenever.Time | None = None,
     ) -> float:
         """
         Calculates total non-OT hours accumulated by the employee
@@ -62,20 +63,22 @@ class IEmployeeWorkHistoryService(abc.ABC):
         current_shift: Shift,
         history: dict[Shift, list[WorkedShiftSegment]],
         max_consecutive_days: int,
-    ) -> list[pendulum.Date]:
+    ) -> list[whenever.Date]:
         """
         Calculates the number of consecutive calendar days worked immediately
         leading up to the current shift's start date.
-        Returns a list of pendulum.Date objects representing the consecutive days worked.
+        Returns a list of whenever.Date objects representing the consecutive days worked.
         """
         pass
 
     @abc.abstractmethod
     def get_processed_history_for_period(
         self,
+        org_id: str,
         employee_id: str,
-        up_to_check_date: pendulum.DateTime,
-    ) -> dict[Shift, list[WorkedShiftSegment]]:
+        check_date: whenever.Instant,
+        facility_id: str | None = None,
+    ) -> dict[ShiftKey, list[WorkedShiftSegment]]:
         """
         Retrieves all previously processed shifts and their segments for the employee
         that fall within the relevant lookback period (e.g., the last 7 days/last 24 hours
@@ -90,9 +93,12 @@ class IRawHistoryRetriever(abc.ABC):
     @abc.abstractmethod
     def get_raw_inputs_for_period(
         self,
+        org_id: str,
         employee_id: str,
-        check_date: pendulum.DateTime,
-    ) -> dict[Shift, list[TimePunch]]:
+        check_date: whenever.Instant,
+        facility_timezones: dict[str, str],
+        facility_id: str | None = None,
+    ) -> dict[ShiftKey, list[TimePunch]]:
         """
         Retrieves all scheduled Shifts and their corresponding raw TimePunches
         for the period relevant to the check_date. (The structure ensures pairing

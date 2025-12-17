@@ -1,6 +1,6 @@
 import datetime
 
-import pendulum
+import whenever
 from sqlalchemy import Boolean, Date, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,13 +44,17 @@ class EmployeeCertificationModel(SQLABase):
             f"expires='{self.expiration_date}')>"
         )
 
-    def is_valid_on_date(self, check_date: pendulum.DateTime) -> bool:
+    def is_valid_on_date(self, check_date: whenever.ZonedDateTime) -> bool:
         """
         Helper method to check if the certification is valid on a specific date.
         """
-        # Convert pendulum.DateTime to Python datetime.date for comparison
+        # Convert whenever.Instant to Python datetime.date for comparison
         check_date_dt = check_date.date()
 
         # Certification is valid if the expiration date is greater than or equal to the check date.
         # AND the acquired date is less than or equal to the check date.
-        return self.expiration_date >= check_date_dt >= self.acquired_date
+        return (
+            whenever.Date.from_py_date(self.expiration_date)
+            >= check_date_dt
+            >= whenever.Date.from_py_date(self.acquired_date)
+        )

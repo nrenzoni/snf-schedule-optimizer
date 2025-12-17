@@ -1,4 +1,4 @@
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
@@ -106,7 +106,7 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
         boundary_times = {shift.shift_start_dt, shift.shift_end_dt}
 
         # Map: Rule -> OT Start Time
-        rule_ot_start_map: dict[IOvertimeRule, pendulum.DateTime] = {}
+        rule_ot_start_map: dict[IOvertimeRule, whenever.ZonedDateTime] = {}
 
         # --- 1. Process Threshold and Tiered Rules (Daily/Weekly) ---
 
@@ -168,7 +168,7 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
 
             # Check the midpoint of the segment to see which rules apply
             midpoint = interval_start.add(
-                seconds=(interval_end - interval_start).total_seconds() / 2
+                seconds=(interval_end - interval_start).in_seconds() / 2
             )
 
             segment_rules: list[IOvertimeRule] = []
@@ -195,12 +195,12 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
         self,
         shift: Shift,
         remaining_hours: float,
-    ) -> pendulum.DateTime:
+    ) -> whenever.ZonedDateTime:
         """Calculates the exact DateTime when OT starts on the current shift."""
         if remaining_hours <= 0:
             return shift.shift_start_dt
 
-        duration_delta = pendulum.duration(hours=remaining_hours)
+        duration_delta = whenever.DateTimeDelta(hours=remaining_hours)
 
         # OT starts only after the remaining non-OT hours are worked
         return shift.shift_start_dt + duration_delta

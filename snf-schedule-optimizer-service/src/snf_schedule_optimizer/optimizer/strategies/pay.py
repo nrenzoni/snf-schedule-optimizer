@@ -33,7 +33,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
         terms = []
 
         for shift in data_provider.get_all_shifts():
-            duration = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
+            duration = (shift.shift_end_dt - shift.shift_start_dt).in_hours()
             nurses = data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
@@ -51,7 +51,8 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
                 # --- 1. Base Calculations ---
                 comp_record = (
                     data_provider.get_compensation_service().get_record_for_date(
-                        nurse.employee_id, shift.shift_start_dt
+                        nurse.employee_id,
+                        shift.shift_start_dt,
                     )
                 )
                 if not comp_record:
@@ -67,7 +68,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
                 diff_rate = 0.0
                 if not shift.day_shift:
                     diff_rate += 2.00
-                if is_weekend(shift.shift_start_dt.day_of_week):
+                if is_weekend(shift.shift_start_dt.date().day_of_week()):
                     diff_rate += 1.50
                 shift_diff_cost = diff_rate * duration
 
@@ -237,7 +238,8 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                 continue
 
             comp_record = data_provider.get_compensation_service().get_record_for_date(
-                emp_id, reference_date
+                emp_id,
+                reference_date,
             )
             if not comp_record:
                 continue

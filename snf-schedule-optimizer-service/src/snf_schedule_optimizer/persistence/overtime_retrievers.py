@@ -1,9 +1,9 @@
 import datetime
 from collections.abc import Iterable
 
-import pendulum
 import sqlalchemy
 import sqlalchemy.orm
+import whenever
 
 from snf_schedule_optimizer.models import Employee, OvertimeTrigger, Shift
 from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
@@ -35,10 +35,10 @@ class SQLAOvertimeRuleRetriever(IOvertimeRuleRetrieverService):
         """
 
         # Helper to convert SQLA Time/Date to pendulum types safely
-        def to_pendulum_time(t: datetime.time | None) -> pendulum.Time | None:
+        def to_pendulum_time(t: datetime.time | None) -> whenever.Time | None:
             if t is None:
                 return None
-            return pendulum.time(t.hour, t.minute, t.second)
+            return whenever.Time(t.hour, t.minute, t.second)
 
         # 1. Create the OvertimeTrigger object from the record data
         trigger = OvertimeTrigger(
@@ -50,7 +50,7 @@ class SQLAOvertimeRuleRetriever(IOvertimeRuleRetrieverService):
             consecutive_hours_threshold=record.consecutive_hours_threshold,
             # Assuming days_of_week_trigger is stored as a delimited string or array in the DB
             days_of_week_trigger=[
-                pendulum.WeekDay(d) for d in record.days_of_week_trigger
+                whenever.Weekday(d) for d in record.days_of_week_trigger
             ]
             if record.days_of_week_trigger is not None
             else None,

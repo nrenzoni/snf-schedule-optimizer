@@ -1,8 +1,9 @@
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
     Shift,
+    ShiftKey,
     TimePunch,
     WorkedShiftSegment,
     WorkedTimeBlock,
@@ -12,6 +13,10 @@ from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation i
     ThresholdOvertimeRule,
 )
 from snf_schedule_optimizer.services.payroll.interfaces import IShiftReconcilerService
+from snf_schedule_optimizer.services.repositories import (
+    IFacilityRepository,
+    IShiftRetriever,
+)
 from snf_schedule_optimizer.services.timekeeping.interfaces import (
     IEmployeeWorkHistoryService,
     IRawHistoryRetriever,
@@ -27,12 +32,16 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
     def __init__(
         self,
         history_retriever: IRawHistoryRetriever,
+        shift_retriever: IShiftRetriever,
         shift_reconciler: IShiftReconcilerService,
+        facility_config_repo: IFacilityRepository,
     ) -> None:
         # Dependencies like facility config for standard work period start times
         # could be injected here if not provided via the threshold rule.
         self.history_retriever = history_retriever
+        self.shift_retriever = shift_retriever
         self.shift_reconciler = shift_reconciler
+        self.facility_config_repo = facility_config_repo
 
     def get_remaining_non_ot_hours(
         self,
@@ -45,11 +54,27 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         checking all supplied daily and weekly rules.
         """
 
-        raw_history_data = self.history_retriever.get_raw_inputs_for_period(
-            employee.employee_id, current_shift.shift_start_dt
+        facility_configs = self.facility_config_repo.get_configs(current_shift.org_id)
+        facility_tzs = {fc.facility_id: fc.tz for fc in facility_configs}
+
+        raw_history_data_per_key = self.history_retriever.get_raw_inputs_for_period(
+            org_id=current_shift.org_id,
+            employee_id=employee.employee_id,
+            check_date=current_shift.shift_start_dt.to_instant(),
+            facility_timezones=facility_tzs,
+            facility_id=current_shift.facility_id,
         )
 
-        processed_history = self._convert_raw_history_to_segments(raw_history_data)
+        shifts: dict[ShiftKey, Shift] = self.shift_retriever.get_shifts_by_keys(
+            list(raw_history_data_per_key.keys()),
+            facility_timezones=facility_tzs,
+            org_id=current_shift.org_id,
+        )
+
+        processed_history = self._convert_raw_history_to_segments(
+            raw_history_data_per_key,
+            shifts,
+        )
 
         remaining_hours = {
             LookbackPeriod.DAILY: float("inf"),
@@ -103,11 +128,11 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         self,
         employee: Employee,
         current_shift: Shift,
-        history: dict[Shift, list[WorkedShiftSegment]],
+        history: dict[ShiftKey, list[WorkedShiftSegment]],
         threshold_hours: float,
         lookback_period: LookbackPeriod,
-        work_period_start_day: int | None = None,
-        work_period_start_time: pendulum.Time | None = None,
+        work_period_start_day: whenever.Weekday | None = None,
+        work_period_start_time: whenever.Time | None = None,
     ) -> float:
         # Determine the start boundary for the lookback period
         period_start_dt = self._get_work_period_start(
@@ -119,8 +144,26 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
         total_non_ot_hours_accumulated = 0.0
 
+        # Retrieve facility timezones to hydrate shift objects
+        facility_ids = list({k.facility_id for k in history})
+        configs = self.facility_config_repo.get_configs(
+            current_shift.org_id, facility_ids
+        )
+        tz_map = {c.facility_id: c.tz for c in configs}
+
+        shifts = self.shift_retriever.get_shifts_by_keys(
+            list(history.keys()),
+            facility_timezones=tz_map,
+            org_id=current_shift.org_id,
+        )
+
         # Iterate through shift history
-        for shift, segments in history.items():
+        for shift_key, segments in history.items():
+            shift = shifts.get(shift_key)
+            if not shift:
+                raise ValueError(
+                    f"Shift not found for key {shift_key} while calculating accumulated hours."
+                )
             # Only consider shifts that occurred before the current shift started
             if shift.shift_end_dt <= current_shift.shift_start_dt:
                 for component in segments:
@@ -143,7 +186,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         current_shift: Shift,
         history: dict[Shift, list[WorkedShiftSegment]],
         max_consecutive_days: int,
-    ) -> list[pendulum.Date]:
+    ) -> list[whenever.Date]:
         if not history:
             return []
 
@@ -170,54 +213,73 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
     def get_processed_history_for_period(
         self,
+        org_id: str,
         employee_id: str,
-        check_date: pendulum.DateTime,
-    ) -> dict[Shift, list[WorkedShiftSegment]]:
+        check_date: whenever.Instant,
+        facility_id: str | None = None,
+    ) -> dict[ShiftKey, list[WorkedShiftSegment]]:
+        facility_ids = [facility_id] if facility_id else None
+        configs = self.facility_config_repo.get_configs(org_id, facility_ids)
+
+        facility_tzs = {c.facility_id: c.tz for c in configs}
+
         # 1. Fetch Raw Inputs (Shifts and Punches)
-        raw_history_data: dict[Shift, list[TimePunch]] = (
-            self.history_retriever.get_raw_inputs_for_period(employee_id, check_date)
+        raw_history_data: dict[ShiftKey, list[TimePunch]] = (
+            self.history_retriever.get_raw_inputs_for_period(
+                org_id=org_id,
+                employee_id=employee_id,
+                check_date=check_date,
+                facility_timezones=facility_tzs,
+                facility_id=facility_id,
+            )
         )
 
-        processed_history: dict[Shift, list[WorkedShiftSegment]] = {}
+        if not raw_history_data:
+            return {}
 
-        # 2. Reconcile Each Shift (The Core Integration Point)
-        for shift, raw_punches in raw_history_data.items():
-            # Use the Reconciler to convert raw inputs into clean blocks of time.
-            worked_blocks: list[WorkedTimeBlock] = (
-                self.shift_reconciler.reconcile_shift_to_blocks(shift, raw_punches)
-            )
+        tz_map = {c.facility_id: c.tz for c in configs}
 
-            segments = self._convert_blocks_to_initial_segments(shift, worked_blocks)
+        shifts = self.shift_retriever.get_shifts_by_keys(
+            shift_keys=list(raw_history_data.keys()),
+            facility_timezones=tz_map,
+            org_id=org_id,
+        )
 
-            processed_history[shift] = segments
+        processed_history = self._convert_raw_history_to_segments(
+            raw_history_data, shifts
+        )
 
         return processed_history
 
     def _get_work_period_start(
         self,
-        shift_dt: pendulum.DateTime,
+        shift_dt: whenever.ZonedDateTime,
         period_type: LookbackPeriod,
-        start_day: int | None,
-        start_time: pendulum.Time | None,
-        daily_reset_time: pendulum.Time | None = None,
-    ) -> pendulum.DateTime:
-        """Determines the exact start time of the work period (day or week)."""
+        start_day: whenever.Weekday | None,
+        period_start_time: whenever.Time | None = None,
+    ) -> whenever.ZonedDateTime:
+        """
+        Determines the exact start datetime of the work period (day or week) relative to the shift.
 
-        # Use shift's timezone for all calculations
-        tz = shift_dt.timezone
-        assert isinstance(tz, pendulum.Timezone)
+        Args:
+            shift_dt: The timestamp of the shift being evaluated.
+            period_type: Whether to calculate the start of the Day or the Week.
+            start_day: (Weekly only) The day of the week the work week begins (e.g., Sunday).
+            period_start_time: The time of day the period begins.
+                               For DAILY: The start of the workday (e.g., 7:00 AM).
+                               For WEEKLY: The time on start_day the week begins (e.g., Sun 11:00 PM).
+        """
 
         if period_type == LookbackPeriod.DAILY:
-            reset_time = (
-                daily_reset_time if daily_reset_time else pendulum.time(0, 0, 1)
-            )
-            period_start = (
-                shift_dt.start_of("day")
-                .at(reset_time.hour, reset_time.minute, reset_time.second)
-                .in_tz(tz)
-            )
+            # For daily calculation, we determine when the "work day" containing this shift started.
+            # If period_start_time is None, assume midnight (00:00:00).
+            reset_time = period_start_time or whenever.Time(0, 0, 0)
 
-            # If shift started before the reset time, the period started the day before
+            # Use 'replace_time' to set time on the date
+            period_start = shift_dt.replace_time(reset_time)
+
+            # If shift started before the reset time (e.g. shift at 3am, reset at 7am),
+            # this shift belongs to the *previous* operational day.
             if shift_dt < period_start:
                 period_start = period_start.subtract(days=1)
 
@@ -226,20 +288,24 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         elif period_type == LookbackPeriod.WEEKLY:
             if start_day is None:
                 # Default to Sunday if not specified (common FLSA default)
-                start_day = pendulum.SUNDAY
+                start_day = whenever.SUNDAY
 
-                # Weekly period calculation
-            period_start = (
-                shift_dt.start_of("week")
-                .add(days=start_day - pendulum.MONDAY)
-                .in_tz(tz)
-            )
+            # Reset to start of the current day at 00:00
+            period_start = shift_dt.replace_time(whenever.Time(0, 0, 0))
 
-            # If a specific start time is defined (e.g., Sunday 11:00 PM)
-            if start_time:
-                period_start = period_start.at(
-                    start_time.hour, start_time.minute, start_time.second
-                ).in_tz(tz)
+            # Walk back to the start day
+            while period_start.date().day_of_week() != start_day:
+                period_start = period_start.subtract(days=1)
+
+            # 3. Apply the specific start time (e.g., 11:00 PM on that start day)
+            if period_start_time:
+                period_start = period_start.replace_time(period_start_time)
+
+                # Edge case: If the shift is on the Start Day but BEFORE the Start Time
+                # (e.g., Shift is Sunday 8pm, Week starts Sunday 11pm),
+                # then this shift belongs to the *previous* week.
+                if shift_dt < period_start:
+                    period_start = period_start.subtract(weeks=1)
 
             return period_start
 
@@ -283,11 +349,18 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
     def _convert_raw_history_to_segments(
         self,
-        raw_history: dict[Shift, list[TimePunch]],
-    ) -> dict[Shift, list[WorkedShiftSegment]]:
-        processed_history: dict[Shift, list[WorkedShiftSegment]] = {}
+        raw_history: dict[ShiftKey, list[TimePunch]],
+        shifts: dict[ShiftKey, Shift],
+    ) -> dict[ShiftKey, list[WorkedShiftSegment]]:
+        processed_history: dict[ShiftKey, list[WorkedShiftSegment]] = {}
 
-        for shift, punches in raw_history.items():
+        for shift_key, punches in raw_history.items():
+            shift = shifts.get(shift_key)
+            if not shift:
+                raise ValueError(
+                    f"Shift not found for key {shift_key} while processing history."
+                )
+
             # Use the Reconciler to clean the punches and apply rounding/deductions
             worked_blocks: list[WorkedTimeBlock] = (
                 self.shift_reconciler.reconcile_shift_to_blocks(shift, punches)
@@ -328,6 +401,6 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
                     )
                 )
 
-            processed_history[shift] = segments
+            processed_history[shift.shift_key] = segments
 
         return processed_history

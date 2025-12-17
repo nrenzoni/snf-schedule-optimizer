@@ -1,6 +1,6 @@
 from typing import Protocol
 
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import Employee, Shift
 from snf_schedule_optimizer.services.hr.interfaces import ICertificationService
@@ -118,14 +118,16 @@ class RuleEligibilityService:
         employee_id: str,
         required_certs: list[str],
         match_type: str,
-        check_date: pendulum.DateTime,
+        check_date: whenever.ZonedDateTime,
     ) -> bool:
         """Helper function to perform the actual lookup and validation."""
 
         # 1. Get the status of all required certifications for the employee at the shift start time
         cert_statuses = [
             self.certification_service.is_certification_active(
-                employee_id, cert_name, check_date
+                employee_id,
+                cert_name,
+                check_date,
             )
             for cert_name in required_certs
         ]

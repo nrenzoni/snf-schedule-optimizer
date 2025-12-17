@@ -1,12 +1,14 @@
 import copy
+from collections import defaultdict
 from dataclasses import dataclass
 
-import pendulum
+import whenever
 
 from api.dtos import MoveEmployeeRequest
 from snf_schedule_optimizer.models import (
     PreferenceWeights,
     Schedule,
+    Shift,
     ShiftKey,
 )
 from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
@@ -29,6 +31,10 @@ from snf_schedule_optimizer.optimizer.strategies.fixing import (
     PinnedScheduleConstraintStrategy,
 )
 from snf_schedule_optimizer.schedule_cost_evaluator import ScheduleCostEvaluator
+from snf_schedule_optimizer.services.repositories import (
+    IFacilityRepository,
+    IShiftRetriever,
+)
 from snf_schedule_optimizer.services.scheduling.interfaces import IScheduleRetriever
 
 
@@ -56,24 +62,30 @@ class WorkforceSchedulerService:
         optimizer: NurseShiftScheduleOptimizer,
         cost_evaluator: ScheduleCostEvaluator,
         schedule_retriever: IScheduleRetriever,
+        facility_repository: IFacilityRepository,
+        shift_retriever: IShiftRetriever,
     ):
         self.provider_factory = provider_factory
         self.optimizer = optimizer
         self.cost_evaluator = cost_evaluator
         self.schedule_retriever = schedule_retriever
+        self.facility_repository = facility_repository
+        self.shift_retriever = shift_retriever
 
     def optimize_schedule(
         self,
         org_id: str,
         facility_contexts: dict[str, FacilityScenarioContext],
         preference_weights: PreferenceWeights,
-        pay_period_start: pendulum.DateTime,
-        optimization_start_time: pendulum.DateTime | None = None,
+        pay_period_start: whenever.Instant,
+        optimization_start_time: whenever.Instant | None = None,
     ) -> OptimizationOutput:
         # should never be after data in the provider.
         # todo: add check somewhere that no history data is after this time
         optimization_start_time = (
-            optimization_start_time if optimization_start_time else pendulum.now()
+            optimization_start_time
+            if optimization_start_time
+            else whenever.Instant.now()
         )
 
         # 1. Create the Data Provider Scope (Outside the Engine)
@@ -95,9 +107,8 @@ class WorkforceSchedulerService:
 
     def validate_shift_move(
         self,
-        facility_contexts: dict[str, FacilityScenarioContext],
         move_request: MoveEmployeeRequest,
-        pay_period_start: pendulum.DateTime,
+        pay_period_start: whenever.Instant,
     ) -> OptimizationOutput:
         """
         Validates if a specific move (drag & drop) is feasible against all rules.
@@ -121,7 +132,14 @@ class WorkforceSchedulerService:
                 error_details=f"Schedule {schedule_id} not found for org {org_id}",
             )
 
-        # 1. Mutate Schedule In-Memory (The "What-If" State)
+        # Rehydrate Context (Load Configs and Shifts needed for logic)
+        facility_contexts = self._rehydrate_facility_contexts(
+            org_id,
+            current_schedule,
+            move_request,
+        )
+
+        # Mutate Schedule In-Memory (The "What-If" State)
         proposed_schedule = copy.deepcopy(current_schedule)
         self._apply_move_to_schedule(
             proposed_schedule,
@@ -149,7 +167,7 @@ class WorkforceSchedulerService:
             org_id=org_id,
             facility_contexts=facility_contexts,
             pay_period_start=pay_period_start,
-            optimization_start_time=pendulum.now(),
+            optimization_start_time=whenever.Instant.now(),
         )
 
         # 4. Solve (Validation)
@@ -259,3 +277,62 @@ class WorkforceSchedulerService:
                 raise ValueError(f"Shift {request.to_shift_id} not found in schedule.")
             if request.employee_id not in to_shift_assigned:
                 to_shift_assigned.append(request.employee_id)
+
+    def _rehydrate_facility_contexts(
+        self,
+        org_id: str,
+        schedule: Schedule,
+        request: MoveEmployeeRequest,
+    ) -> dict[str, FacilityScenarioContext]:
+        """
+        Rebuilds the FacilityScenarioContexts needed for optimization by fetching
+        Configs and Shifts based on the Schedule and the Move Request.
+        """
+        # 1. Identify all relevant Shift Keys (Facility + ShiftID)
+        # Start with all assignments in the current schedule
+        keys_to_fetch = set(schedule.shift_assignments.keys())
+
+        # Add the specific shifts involved in the move (even if currently empty/unassigned)
+        if request.from_shift_id:
+            keys_to_fetch.add(ShiftKey(request.facility_id, request.from_shift_id))
+        if request.to_shift_id:
+            keys_to_fetch.add(ShiftKey(request.facility_id, request.to_shift_id))
+
+        if not keys_to_fetch:
+            return {}
+
+        # 2. Fetch Facility Configurations (needed for Timezones)
+        facility_ids = {k.facility_id for k in keys_to_fetch}
+        configs = self.facility_repository.get_configs(org_id, list(facility_ids))
+
+        # Create lookups
+        config_map = {c.facility_id: c for c in configs}
+        tz_map = {c.facility_id: c.tz for c in configs}
+
+        # 3. Fetch Shift Objects (Hydrated with Timezones)
+        shifts_map = self.shift_retriever.get_shifts_by_keys(
+            list(keys_to_fetch),
+            tz_map,
+            org_id,
+        )
+
+        # 4. Group into Contexts
+        # Group shifts by facility
+        shifts_by_fac: dict[str, list[Shift]] = defaultdict(list)
+        for s in shifts_map.values():
+            shifts_by_fac[s.facility_id].append(s)
+
+        contexts = {}
+        for fac_id, shifts in shifts_by_fac.items():
+            if fac_id not in config_map:
+                raise ValueError(f"Facility config not found for facility_id: {fac_id}")
+
+            contexts[fac_id] = FacilityScenarioContext(
+                facility_id=fac_id,
+                shifts=shifts,
+                config=config_map[fac_id],
+                # Mandates would be fetched here if available in repo
+                min_mandates=None,
+            )
+
+        return contexts

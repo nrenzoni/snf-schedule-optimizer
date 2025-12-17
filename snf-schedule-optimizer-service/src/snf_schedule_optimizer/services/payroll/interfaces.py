@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     Differential,
@@ -222,16 +222,16 @@ class IFacilityRulesService(abc.ABC):
     @abc.abstractmethod
     def apply_rounding(
         self,
-        raw_time: pendulum.DateTime,
+        raw_time: whenever.ZonedDateTime,
         punch_type: PunchType,
-    ) -> pendulum.DateTime:
+    ) -> whenever.ZonedDateTime:
         """
         Applies facility-specific rounding rules (e.g., 6-minute rule, 15-minute rule)
         to a raw punch time.
 
         :param raw_time: The raw punch time (IN or OUT).
         :param punch_type: 'in' or 'out'.
-        :return: The rounded pendulum.DateTime object.
+        :return: The rounded whenever.Instant object.
         """
         pass
 
@@ -239,7 +239,7 @@ class IFacilityRulesService(abc.ABC):
     def get_time_settings(
         self,
         employee_id: str,
-        check_dt: pendulum.DateTime,
+        check_dt: whenever.ZonedDateTime,
     ) -> EmployeeTimeSettings:
         """
         Retrieves complex time-related payroll settings (pairing threshold,
@@ -250,7 +250,7 @@ class IFacilityRulesService(abc.ABC):
     @abc.abstractmethod
     def get_meal_deduction_rules(
         self,
-        check_dt: pendulum.DateTime,
+        check_dt: whenever.ZonedDateTime,
     ) -> MealDeductionRules | None:
         """
         Retrieves the mandatory meal deduction rules applicable on the given date/time,

@@ -1,11 +1,14 @@
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import FacilityConfig, MinMandates, PreferenceWeights
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
+from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
 from .builders import OptimizerTestBuilder
 from .scenario_builder import ScenarioBuilder, ScenarioDebugPrinter
 from .scenario_models import HistoryConfig, PayBandConfig, TimeConfig, WorkforceConfig
+
+ny_tz = "America/New_York"
 
 
 def test_large_scale_financial_optimization() -> None:
@@ -54,11 +57,12 @@ def test_large_scale_financial_optimization() -> None:
             facility_id="FAC_1",
             shifts_per_day=3,
             overtime_threshold_hours_per_week=40,
-            start_of_work_week_day=pendulum.WeekDay.MONDAY,
-            start_of_work_day_time=pendulum.Time(7, 0, 0),
-            pay_period=pendulum.Duration(weeks=1),
+            start_of_work_week_day=whenever.Weekday.MONDAY,
+            start_of_work_day_time=whenever.Time(7, 0, 0),
+            pay_period=whenever.DateTimeDelta(weeks=1),
             weekend_multiplier=1.5,
             night_shift_multiplier=2.0,
+            tz=ny_tz,
         ),
         min_mandates=MinMandates(
             min_rn_hprd=0.5,  # Realistic mandate
@@ -80,7 +84,9 @@ def test_large_scale_financial_optimization() -> None:
         org_id="ORG_1",
         facility_contexts={"FAC_1": context},
         preference_weights=PreferenceWeights(),
-        pay_period_start=scenario_data.shifts[0].shift_start_dt.start_of("week"),
+        pay_period_start=TimeRoundingUtility.start_of_week_zoned(
+            scenario_data.shifts[0].shift_start_dt.to_tz(ny_tz)
+        ).to_instant(),
     )
 
     # 5. Assertions
@@ -119,7 +125,7 @@ def test_stress_multi_facility_optimization() -> None:
     full_history_map = {}
     facility_contexts = {}
 
-    start_date = pendulum.datetime(2025, 6, 1, tz="America/New_York")
+    start_date = whenever.ZonedDateTime(2025, 6, 1, tz=ny_tz)
 
     # --- 2. Generate Data for n Facilities ---
     for i in range(1, n_facilities + 1):
@@ -192,11 +198,12 @@ def test_stress_multi_facility_optimization() -> None:
                 facility_id=fac_id,
                 shifts_per_day=3,
                 overtime_threshold_hours_per_week=40,
-                start_of_work_week_day=pendulum.WeekDay.SUNDAY,
-                start_of_work_day_time=pendulum.Time(7, 0, 0),
-                pay_period=pendulum.Duration(weeks=1),
+                start_of_work_week_day=whenever.Weekday.SUNDAY,
+                start_of_work_day_time=whenever.Time(7, 0, 0),
+                pay_period=whenever.DateTimeDelta(weeks=1),
                 weekend_multiplier=1.25,
                 night_shift_multiplier=1.5,
+                tz=ny_tz,
             ),
             min_mandates=MinMandates(
                 min_rn_hprd=0.6,
@@ -236,7 +243,9 @@ def test_stress_multi_facility_optimization() -> None:
             ot_avoidance_penalty=10.0,
             # agency_usage_penalty=50.0,  # Try to minimize agency
         ),
-        pay_period_start=start_date.start_of("week"),
+        pay_period_start=TimeRoundingUtility.start_of_week_zoned(
+            start_date.to_tz(ny_tz)
+        ).to_instant(),
     )
 
     # --- 5. Assertions & Reporting ---

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
@@ -56,7 +56,7 @@ class PreferenceConfig:
 
 @dataclass
 class TimeConfig:
-    start_date: pendulum.DateTime
+    start_date: whenever.ZonedDateTime
     num_days: int = 3
     shifts_per_day: int = 3
     shift_duration_hours: int = 8

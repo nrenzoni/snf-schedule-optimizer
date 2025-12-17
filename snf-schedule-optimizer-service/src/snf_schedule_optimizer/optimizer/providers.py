@@ -1,4 +1,4 @@
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.ml_output_retrievers import IMLModelOutputsRetriever
 from snf_schedule_optimizer.models import (
@@ -44,8 +44,8 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         staff_comp_service: IStaffCompensationService,
         ml_model_retriever: IMLModelOutputsRetriever,
         work_history_service: IEmployeeWorkHistoryService,
-        pay_period_start: pendulum.DateTime,
-        optimization_start_time: pendulum.DateTime,
+        pay_period_start: whenever.Instant,
+        optimization_start_time: whenever.Instant,
         # min_mandates: "MinMandates",
     ):
         self.target_org_id = target_org_id
@@ -151,7 +151,10 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
 
         # 1. Fetch the raw history segments from your existing service
         history = self._work_history_service.get_processed_history_for_period(
-            employee_id=employee_id, up_to_check_date=self.opt_start
+            org_id=self.target_org_id,
+            employee_id=employee_id,
+            check_date=self.opt_start,
+            facility_id=None,
         )
 
         # 2. Calculate the total hours (You can use the service's calculator or sum it manually here)
@@ -209,8 +212,8 @@ class ScenarioDataProviderFactory:
         self,
         org_id: str,
         facility_contexts: dict[str, FacilityScenarioContext],
-        pay_period_start: pendulum.DateTime,
-        optimization_start_time: pendulum.DateTime,
+        pay_period_start: whenever.Instant,
+        optimization_start_time: whenever.Instant,
     ) -> IScenarioDataProvider:
         return ScenarioDataProviderImpl(
             target_org_id=org_id,

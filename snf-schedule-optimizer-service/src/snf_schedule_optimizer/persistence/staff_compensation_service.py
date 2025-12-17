@@ -1,4 +1,4 @@
-import pendulum
+import whenever
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -38,7 +38,7 @@ class StaffCompensationServiceStaticListImpl(IStaffCompensationService):
     def get_record_for_date(
         self,
         employee_id: str,
-        check_date: pendulum.DateTime,
+        check_date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
         """
         Retrieves the one StaffCompensationRecord whose validity period
@@ -79,7 +79,7 @@ class SQLAStaffCompensationService(IStaffCompensationService):
     def get_record_for_date(
         self,
         employee_id: str,
-        check_date: pendulum.DateTime,
+        check_date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
         """
         Retrieves the StaffCompensationRecord whose validity period covers the check_date.
@@ -131,9 +131,11 @@ class SQLAStaffCompensationService(IStaffCompensationService):
             base_rate_effective=record.base_rate_effective,
             ot_multiplier=record.ot_multiplier,
             is_agency=record.is_agency,
-            # Map datetime.date from DB to pendulum.DateTime
-            effective_start_date=pendulum.instance(record.effective_start_date),
-            effective_end_date=pendulum.instance(record.effective_end_date)
+            # Map datetime.date from DB to whenever.Instant
+            effective_start_date=whenever.Date.from_py_date(
+                record.effective_start_date
+            ),
+            effective_end_date=whenever.Date.from_py_date(record.effective_end_date)
             if record.effective_end_date
             else None,
             union_contract_id=record.union_contract_id,

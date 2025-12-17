@@ -136,7 +136,7 @@ class SchedulerInfeasibilityDiagnoser:
 
                 if available < required:
                     issues_found = True
-                    time_str = shift.shift_start_dt.format("ddd MM/DD HH:mm")
+                    time_str = shift.shift_start_dt.format_iso()
                     output.append(f"    [CRITICAL] {shift.shift_id} ({time_str})")
                     output.append(
                         f"      Role {role.value}: Need {required:.1f}, Have {available}"

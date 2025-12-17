@@ -1,6 +1,4 @@
-from typing import cast
-
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
@@ -16,9 +14,12 @@ from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
     ConsecutiveShiftFatigueStrategy,
 )
+from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
 from .builders import OptimizerTestBuilder
 from .fakes import FakeHprdRequirementCalculator
+
+tz_ny = "America/New_York"
 
 
 def test_cheapest_nurse_selection_with_fatigue() -> None:
@@ -35,7 +36,7 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
     - Shift 2: Assigned to Nurse 2 ($20) - The next cheapest (since N1 is tired).
     - Nurse 3 ($25) is left unassigned.
     """
-    ref_date = pendulum.datetime(2025, 1, 1, tz="America/New_York")
+    ref_date = whenever.ZonedDateTime(2025, 1, 1, tz=tz_ny)
 
     or_id = "ORG_1"
 
@@ -50,8 +51,7 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
         shift_end_dt=ref_date.add(hours=15),  # 7am - 3pm
         shift_number=1,
         day_shift=True,
-        day_of_week=ref_date.day_of_week,
-        timezone=cast(pendulum.Timezone, ref_date.timezone),
+        day_of_week=ref_date.date().day_of_week(),
     )
 
     shift_2 = Shift(
@@ -64,13 +64,17 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
         shift_end_dt=ref_date.add(hours=23),  # 3pm - 11pm (0 gap)
         shift_number=2,
         day_shift=False,
-        day_of_week=ref_date.day_of_week,
-        timezone=cast(pendulum.Timezone, ref_date.timezone),
+        day_of_week=ref_date.date().day_of_week(),
     )
 
     # 2. Setup Nurses (Sorted by Cost)
     # Nurse 1: $15 (Cheapest)
-    n1 = Employee(employee_id="N_15", name="Cheap", job_title="CNA", hire_date=ref_date)
+    n1 = Employee(
+        employee_id="N_15",
+        name="Cheap",
+        job_title="CNA",
+        hire_date=ref_date.date(),
+    )
     c1 = StaffCompensationRecord(
         employee_id="N_15",
         base_rate_effective=15.0,
@@ -86,7 +90,12 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
     )
 
     # Nurse 2: $20 (Mid)
-    n2 = Employee(employee_id="N_20", name="Mid", job_title="CNA", hire_date=ref_date)
+    n2 = Employee(
+        employee_id="N_20",
+        name="Mid",
+        job_title="CNA",
+        hire_date=ref_date.date(),
+    )
     c2 = StaffCompensationRecord(
         employee_id="N_20",
         base_rate_effective=20.0,
@@ -102,11 +111,16 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
     )
 
     # Nurse 3: $25 (Expensive)
-    n3 = Employee(employee_id="N_25", name="Exp", job_title="CNA", hire_date=ref_date)
+    n3 = Employee(
+        employee_id="N_25",
+        name="Exp",
+        job_title="CNA",
+        hire_date=ref_date.date(),
+    )
     c3 = StaffCompensationRecord(
         employee_id="N_25",
         base_rate_effective=25.0,
-        effective_start_date=ref_date.date(),
+        effective_start_date=ref_date.to_tz(tz_ny).date(),
         ot_multiplier=1.5,
         is_agency=False,
     )
@@ -150,11 +164,12 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
             facility_id="FAC_1",
             shifts_per_day=3,
             overtime_threshold_hours_per_week=40,
-            start_of_work_week_day=pendulum.MONDAY,
-            start_of_work_day_time=pendulum.Time(7, 0, 0),
-            pay_period=pendulum.Duration(weeks=1),
+            start_of_work_week_day=whenever.MONDAY,
+            start_of_work_day_time=whenever.Time(7, 0, 0),
+            pay_period=whenever.DateTimeDelta(weeks=1),
             weekend_multiplier=1.0,
             night_shift_multiplier=1.0,
+            tz=tz_ny,
         ),
         min_mandates=None,  # Handled by fake HPRD
     )
@@ -162,8 +177,10 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
     data_provider = optimize_builder.factory.create(  # Use internal factory pattern or pass manually
         org_id="ORG_1",
         facility_contexts={"FAC_1": context},
-        pay_period_start=ref_date.start_of("week"),
-        optimization_start_time=ref_date,
+        pay_period_start=TimeRoundingUtility.start_of_week_zoned(
+            ref_date.to_tz(tz_ny)
+        ).to_instant(),
+        optimization_start_time=ref_date.to_instant(),
     )
 
     result = optimizer.solve(

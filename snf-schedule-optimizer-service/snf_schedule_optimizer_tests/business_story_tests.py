@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import pendulum
-from pendulum import WeekDay
+import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
@@ -17,11 +16,14 @@ from snf_schedule_optimizer.models import (
     StaffShiftPreference,
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
+from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
 from .builders import OptimizerTestBuilder
 from .fakes import (
     FakeHprdRequirementCalculator,
 )
+
+tz_ny = "America/New_York"
 
 
 def test_financial_hero_ot_vs_agency() -> None:
@@ -30,7 +32,7 @@ def test_financial_hero_ot_vs_agency() -> None:
     even when the internal nurse is about to hit the weekly cap.
     """
     # 1. Setup Dates
-    ref_date = pendulum.datetime(2025, 11, 10, tz="America/New_York")
+    ref_date = whenever.ZonedDateTime(2025, 11, 10, tz=tz_ny)
 
     # 2. Setup 12-Hour Shift
     shift = Shift(
@@ -43,8 +45,7 @@ def test_financial_hero_ot_vs_agency() -> None:
         shift_end_dt=ref_date.add(hours=19),  # 12 Hours
         shift_number=1,
         day_shift=True,
-        day_of_week=ref_date.day_of_week,
-        timezone=pendulum.timezone("America/New_York"),
+        day_of_week=ref_date.date().day_of_week(),
     )
 
     # 3. Setup Employees
@@ -53,7 +54,7 @@ def test_financial_hero_ot_vs_agency() -> None:
     nurse_a = Employee(
         employee_id="STAFF_A",
         name="Alice Staff",
-        hire_date=ref_date.subtract(years=1),
+        hire_date=ref_date.subtract(years=1).date(),
         job_title="RN",
         # base_rate=30.0,
     )
@@ -76,7 +77,7 @@ def test_financial_hero_ot_vs_agency() -> None:
     nurse_b = Employee(
         employee_id="AGENCY_B",
         name="Bob Agency",
-        hire_date=ref_date.subtract(months=1),
+        hire_date=ref_date.subtract(months=1).date(),
         job_title="RN",
     )
     comp_b = StaffCompensationRecord(
@@ -108,11 +109,12 @@ def test_financial_hero_ot_vs_agency() -> None:
             facility_id="FAC_1",
             overtime_threshold_hours_per_week=40,
             shifts_per_day=2,
-            start_of_work_week_day=WeekDay.MONDAY,
-            start_of_work_day_time=pendulum.Time(7, 0, 0),
-            pay_period=pendulum.Duration(weeks=1),
+            start_of_work_week_day=whenever.Weekday.MONDAY,
+            start_of_work_day_time=whenever.Time(7, 0, 0),
+            pay_period=whenever.DateTimeDelta(weeks=1),
             weekend_multiplier=1.5,
             night_shift_multiplier=2.0,
+            tz=tz_ny,
         ),
         min_mandates=MinMandates(
             min_rn_hprd=0.0,
@@ -131,8 +133,8 @@ def test_financial_hero_ot_vs_agency() -> None:
     data_provider = test_builder.factory.create(
         org_id="ORG_1",
         facility_contexts={"FAC_1": context},
-        pay_period_start=ref_date.start_of("week"),
-        optimization_start_time=ref_date,
+        pay_period_start=TimeRoundingUtility.start_of_week_zoned(ref_date).to_instant(),
+        optimization_start_time=ref_date.to_instant(),
     )
 
     # 6. Solve
@@ -166,7 +168,7 @@ def test_compliance_safety_net() -> None:
     to prevent an HPRD violation (Hard/Heavy constraint).
     """
     # 1. Setup Dates
-    ref_date = pendulum.datetime(2025, 11, 11, tz="America/New_York")
+    ref_date = whenever.ZonedDateTime(2025, 11, 11, tz=tz_ny)
 
     # 2. Setup Shift
     shift = Shift(
@@ -177,10 +179,9 @@ def test_compliance_safety_net() -> None:
         ),
         shift_number=1,
         day_shift=True,
-        day_of_week=ref_date.day_of_week,
+        day_of_week=ref_date.date().day_of_week(),
         shift_start_dt=ref_date.add(hours=7),
         shift_end_dt=ref_date.add(hours=15),  # 8 Hours
-        timezone=pendulum.timezone("America/New_York"),
     )
 
     # 3. Setup Employees
@@ -188,7 +189,7 @@ def test_compliance_safety_net() -> None:
     nurse_a = Employee(
         employee_id="RN_SUE",
         name="Sue RN",
-        hire_date=ref_date,
+        hire_date=ref_date.date(),
         job_title="RN",
     )
     # Note: StaffCompensationRecord arguments simplified for readability if defaults allow,
@@ -211,7 +212,7 @@ def test_compliance_safety_net() -> None:
         shift_custom_preferences=[
             StaffShiftPreference(
                 preference_type=PreferenceType.SPECIFIC_DAY_OFF,
-                specific_value=str(ref_date.day_of_week),
+                specific_value=str(ref_date.date().day_of_week()),
                 penalty_weight=10,
                 is_hard_block=False,
             ),
@@ -220,7 +221,10 @@ def test_compliance_safety_net() -> None:
 
     # Nurse B: A CNA (Cannot fill RN slot).
     nurse_b = Employee(
-        employee_id="CNA_BOB", name="Bob CNA", hire_date=ref_date, job_title="CNA"
+        employee_id="CNA_BOB",
+        name="Bob CNA",
+        hire_date=ref_date.date(),
+        job_title="CNA",
     )
     comp_b = StaffCompensationRecord(
         employee_id="CNA_BOB",
@@ -265,11 +269,12 @@ def test_compliance_safety_net() -> None:
             facility_id="FAC_1",
             shifts_per_day=3,
             overtime_threshold_hours_per_week=40,
-            start_of_work_week_day=WeekDay.MONDAY,
-            start_of_work_day_time=pendulum.Time(7, 0, 0),
-            pay_period=pendulum.Duration(weeks=1),
+            start_of_work_week_day=whenever.Weekday.MONDAY,
+            start_of_work_day_time=whenever.Time(7, 0, 0),
+            pay_period=whenever.DateTimeDelta(weeks=1),
             weekend_multiplier=1.5,
             night_shift_multiplier=2.0,
+            tz=tz_ny,
         ),
         # Since we injected fake_hprd_calc, these specific numbers are actually ignored
         # but required for the context object validity.
@@ -281,8 +286,8 @@ def test_compliance_safety_net() -> None:
     data_provider = optimizer_builder.factory.create(
         org_id="ORG_1",
         facility_contexts={"FAC_1": context},
-        pay_period_start=ref_date.start_of("week"),
-        optimization_start_time=ref_date,
+        pay_period_start=TimeRoundingUtility.start_of_week_zoned(ref_date).to_instant(),
+        optimization_start_time=ref_date.to_instant(),
     )
 
     result = optimizer.solve(

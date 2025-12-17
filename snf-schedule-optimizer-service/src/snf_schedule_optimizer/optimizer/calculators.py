@@ -1,4 +1,4 @@
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
@@ -7,6 +7,7 @@ from snf_schedule_optimizer.models import (
     PreferenceType,
     Shift,
 )
+from snf_schedule_optimizer.optimizer.clocks import IClock
 from snf_schedule_optimizer.optimizer.context import (
     FacilityScenarioContext,
     HprdShiftNurseRequirementHolder,
@@ -52,7 +53,7 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
             shift_requirements = (
                 self.shift_requirements_retriever.get_shift_requirements(shift)
             )
-            hours_in_shift = (shift.shift_end_dt - shift.shift_start_dt).total_hours()
+            hours_in_shift = (shift.shift_end_dt - shift.shift_start_dt).in_hours()
             if hours_in_shift <= 0:
                 raise ValueError(
                     f"Invalid shift duration for shift {shift.shift_id} in facility {context.facility_id}."
@@ -115,8 +116,8 @@ class NurseHardBlockCheckerImpl(INurseHardBlockChecker):
                             return True
                     elif pref.preference_type == PreferenceType.WEEKEND_OFF:
                         if shift.day_of_week in {
-                            pendulum.WeekDay.SATURDAY,
-                            pendulum.WeekDay.SUNDAY,
+                            whenever.Weekday.SATURDAY,
+                            whenever.Weekday.SUNDAY,
                         }:
                             return True
         return False
@@ -160,13 +161,15 @@ class StandardLaborBurdenCalculator(ILaborBurdenCalculator):
 class ConfigurableIncentiveManager(IIncentiveManager):
     def __init__(
         self,
-        holidays: set[pendulum.Date],
+        holidays: set[whenever.Date],
         urgency_threshold_days: int,
         pickup_bonus: float,
+        clock: IClock,
     ):
         self.holidays = holidays
         self.urgency_threshold_days = urgency_threshold_days  # e.g., 2 days
         self.pickup_bonus_amount = pickup_bonus  # e.g., $50 flat
+        self.clock = clock
 
     def calculate_incentives(
         self,
@@ -186,7 +189,16 @@ class ConfigurableIncentiveManager(IIncentiveManager):
 
         # 2. Urgent "Pick-up" Bonus
         # If scheduling for "Tomorrow", add bonus cost
-        days_until_shift = (shift.shift_start_dt.date() - pendulum.Date.today()).days
+
+        now_instant = self.clock.now()
+        now_local = now_instant.to_tz(shift.shift_start_dt.tz)
+
+        shift_date = shift.shift_start_dt.date()
+        today_date = now_local.date()
+
+        delta = shift_date - today_date
+        days_until_shift = delta.in_months_days()[1]
+
         if 0 <= days_until_shift <= self.urgency_threshold_days:
             total_incentive += self.pickup_bonus_amount
 

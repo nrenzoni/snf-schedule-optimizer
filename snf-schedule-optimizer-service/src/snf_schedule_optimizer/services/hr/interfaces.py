@@ -1,6 +1,6 @@
 import abc
 
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import Employee, StaffCompensationRecord
 
@@ -26,7 +26,7 @@ class IStaffCompensationService(abc.ABC):
     def get_record_for_date(
         self,
         employee_id: str,
-        check_date: pendulum.DateTime,
+        check_date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
         """
         Retrieves the one StaffCompensationRecord whose validity period
@@ -41,7 +41,7 @@ class ICertificationService(abc.ABC):
         self,
         employee_id: str,
         certification_name: str,
-        check_date: pendulum.DateTime,
+        check_date: whenever.ZonedDateTime,
     ) -> bool:
         """Checks if the named certification is valid/unexpired on the check_date."""
         pass

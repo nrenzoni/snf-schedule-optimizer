@@ -1,4 +1,4 @@
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     DifferentialDateInterval,
@@ -26,7 +26,7 @@ class TimeOverlapShiftSlicer(IShiftSlicer):
         # 1. Collect All Unique Boundary Points
 
         # Start with the shift's boundaries
-        boundaries: set[pendulum.DateTime] = {shift_start, shift_end}
+        boundaries: set[whenever.ZonedDateTime] = {shift_start, shift_end}
 
         # Add all start/end points from differential intervals
         for diff_interval in differential_intervals:
@@ -64,8 +64,8 @@ class TimeOverlapShiftSlicer(IShiftSlicer):
 
             # The midpoint is used to check which continuous rule sets apply to this segment
             duration = segment_end - segment_start
-            # Use total_seconds/2 to get the precise midpoint time
-            midpoint = segment_start.add(seconds=duration.total_seconds() / 2)
+            # Use in_seconds/2 to get the precise midpoint time
+            midpoint = segment_start.add(seconds=duration.in_seconds() / 2)
 
             # --- 4. Assign Applicable Rules to the Segment ---
 
@@ -104,9 +104,9 @@ class TimeOverlapShiftSlicer(IShiftSlicer):
         # This check helps catch off-by-one errors or missed boundaries.
         if final_segments:
             calculated_duration = sum(
-                (s.end_time - s.start_time).total_seconds() for s in final_segments
+                (s.end_time - s.start_time).in_seconds() for s in final_segments
             )
-            original_duration = (shift_end - shift_start).total_seconds()
+            original_duration = (shift_end - shift_start).in_seconds()
 
             # Use a small tolerance for float comparison
             if abs(calculated_duration - original_duration) > 0.001:

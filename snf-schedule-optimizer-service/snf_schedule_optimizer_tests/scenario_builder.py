@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import random
-from typing import cast
 
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
@@ -39,7 +38,7 @@ class ScenarioBuilder:
         self.history_cfg = HistoryConfig()
         self.pref_cfg = PreferenceConfig()
         self.time_cfg = TimeConfig(
-            start_date=pendulum.datetime(2025, 1, 1, tz="America/New_York")
+            start_date=whenever.ZonedDateTime(2025, 1, 1, tz="America/New_York")
         )
         self.facility_id = "FAC_1"
         self.org_id = "ORG_1"
@@ -81,7 +80,7 @@ class ScenarioBuilder:
             for s_num in range(1, self.time_cfg.shifts_per_day + 1):
                 # Simple logic to stagger start times
                 start_hour = 7 + ((s_num - 1) * 8)  # 7, 15, 23
-                shift_start = current_dt.add(days=day).set(
+                shift_start = current_dt.add(days=day).replace(
                     hour=start_hour % 24, minute=0, second=0
                 )
                 shift_end = shift_start.add(hours=self.time_cfg.shift_duration_hours)
@@ -97,12 +96,9 @@ class ScenarioBuilder:
                         ),
                         shift_number=s_num,
                         day_shift=is_day,
-                        day_of_week=shift_start.day_of_week,
+                        day_of_week=shift_start.date().day_of_week(),
                         shift_start_dt=shift_start,
                         shift_end_dt=shift_end,
-                        timezone=cast(
-                            pendulum.Timezone, self.time_cfg.start_date.timezone
-                        ),
                     )
                 )
         return shifts
@@ -230,7 +226,7 @@ class ScenarioBuilder:
                     employee_id=emp_id,
                     name=f"{role} User {i}",
                     job_title=role,
-                    hire_date=self.time_cfg.start_date.subtract(days=100),
+                    hire_date=self.time_cfg.start_date.subtract(days=100).date(),
                 )
             )
 
@@ -269,8 +265,8 @@ class ScenarioDebugPrinter:
             sorted_shifts = sorted(result.shifts, key=lambda s: s.shift_start_dt)
             start = sorted_shifts[0].shift_start_dt
             end = sorted_shifts[-1].shift_end_dt
-            print(f"  Time Range:   {start.to_date_string()} to {end.to_date_string()}")
-            duration_days = (end - start).in_days()
+            print(f"  Time Range:   {start.format_iso()} to {end.format_iso()}")
+            duration_days = (end - start).in_days_of_24h()
             print(f"  Duration:     {duration_days} days")
 
             day_shifts = sum(1 for s in result.shifts if s.day_shift)

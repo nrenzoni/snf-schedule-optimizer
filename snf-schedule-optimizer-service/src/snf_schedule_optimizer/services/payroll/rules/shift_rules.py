@@ -28,7 +28,7 @@ class DailyPatternDifferentialRule(IDifferentialRule):
         self,
         shift: Shift,
     ) -> list[DifferentialDateInterval]:
-        if is_weekend(shift.shift_start_dt.day_of_week):
+        if is_weekend(shift.shift_start_dt.date().day_of_week()):
             return [
                 DifferentialDateInterval(shift.shift_start_dt, shift.shift_end_dt, self)
             ]

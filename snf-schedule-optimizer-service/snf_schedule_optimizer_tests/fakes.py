@@ -1,4 +1,4 @@
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.ml_output_retrievers import IMLModelOutputsRetriever
 
@@ -11,6 +11,7 @@ from snf_schedule_optimizer.models import (
     NurseProfile,
     PreferenceWeights,
     Shift,
+    ShiftKey,
     ShiftSpecificRequirements,
     StaffCompensationRecord,
     WorkedShiftSegment,
@@ -66,11 +67,12 @@ class FakeNurseRetriever(INurseRetriever):
 class FakeStaffCompensationService(IStaffCompensationService):
     def __init__(self, records: list[StaffCompensationRecord]):
         self._records = records
+        self.tz = "America/New_York"
 
     def get_record_for_date(
         self,
         employee_id: str,
-        date: pendulum.Date,
+        date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
         # Simple Fake: finds the record matching ID.
         # (Ignores date logic for simplicity, or implement strict logic if needed)
@@ -78,7 +80,10 @@ class FakeStaffCompensationService(IStaffCompensationService):
 
     def get_base_rate(self, employee_id: str) -> float:
         # Fallback method if used
-        rec = self.get_record_for_date(employee_id, pendulum.now().date())
+        rec = self.get_record_for_date(
+            employee_id,
+            whenever.Instant.now().to_tz(self.tz),
+        )
         return rec.base_rate_effective if rec else 0.0
 
     def get_hours_worked_in_period(self, employee_id: str) -> float:
@@ -91,9 +96,11 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
 
     def get_processed_history_for_period(
         self,
+        org_id: str,
         employee_id: str,
-        up_to_check_date: pendulum.DateTime,
-    ) -> dict[Shift, list[WorkedShiftSegment]]:
+        check_date: whenever.Instant,
+        facility_id: str | None = None,
+    ) -> dict[ShiftKey, list[WorkedShiftSegment]]:
         # We don't need to return complex segments if we override the provider logic,
         # but to satisfy the type checker:
         return {}
@@ -110,11 +117,11 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
         self,
         employee: Employee,
         current_shift: Shift,
-        history: dict[Shift, list[WorkedShiftSegment]],
+        history: dict[ShiftKey, list[WorkedShiftSegment]],
         threshold_hours: float,
         lookback_period: LookbackPeriod,
-        work_period_start_day: int | None = None,
-        work_period_start_time: pendulum.Time | None = None,
+        work_period_start_day: whenever.Weekday | None = None,
+        work_period_start_time: whenever.Time | None = None,
     ) -> float:
         return self._hours_map.get(employee.employee_id, 0.0)
 
@@ -124,7 +131,7 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
         current_shift: Shift,
         history: dict[Shift, list[WorkedShiftSegment]],
         max_consecutive_days: int,
-    ) -> list[pendulum.Date]:
+    ) -> list[whenever.Date]:
         return []
 
 

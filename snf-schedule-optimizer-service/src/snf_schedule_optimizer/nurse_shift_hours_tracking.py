@@ -56,7 +56,7 @@
 #             )
 #             return [component]
 #
-#         remaining_non_ot_duration = pendulum.Duration(hours=remaining_non_ot_hours)
+#         remaining_non_ot_duration = whenever.DateTimeDelta(hours=remaining_non_ot_hours)
 #
 #         components = []
 #

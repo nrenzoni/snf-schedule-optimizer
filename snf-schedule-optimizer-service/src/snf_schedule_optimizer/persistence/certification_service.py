@@ -1,7 +1,8 @@
-import pendulum
+import whenever
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
+from snf_schedule_optimizer.models import FacilityConfig
 from snf_schedule_optimizer.models.testing import MockCertificationRecord
 from snf_schedule_optimizer.services.hr.interfaces import ICertificationService
 from snf_schedule_optimizer.sqlalchemy_models.employee_certification import (
@@ -15,7 +16,11 @@ class CertificationServiceStaticListImpl(ICertificationService):
     in-memory dictionary for testing validity and expiration.
     """
 
-    def __init__(self, records: list[tuple[str, MockCertificationRecord]]):
+    def __init__(
+        self,
+        records: list[tuple[str, MockCertificationRecord]],
+        facility_config: FacilityConfig,
+    ) -> None:
         """
         Initializes the service with a list of (employee_id, record) tuples.
 
@@ -32,11 +37,13 @@ class CertificationServiceStaticListImpl(ICertificationService):
                 self.employee_certs[employee_id] = []
             self.employee_certs[employee_id].append(record)
 
+        self.facility_config = facility_config
+
     def is_certification_active(
         self,
         employee_id: str,
         certification_name: str,
-        check_date: pendulum.DateTime,
+        check_date: whenever.ZonedDateTime,
     ) -> bool:
         """
         Checks if the named certification is valid/unexpired for the employee
@@ -74,7 +81,7 @@ class SQLACertificationService(ICertificationService):
         self,
         employee_id: str,
         certification_name: str,
-        check_date: pendulum.DateTime,
+        check_date: whenever.ZonedDateTime,
     ) -> bool:
         """
         Checks if the employee holds an unexpired certification on the required date.

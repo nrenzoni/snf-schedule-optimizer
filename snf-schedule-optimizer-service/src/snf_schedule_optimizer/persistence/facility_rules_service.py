@@ -1,6 +1,6 @@
 from typing import Any
 
-import pendulum
+import whenever
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -27,9 +27,9 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
     def __init__(self) -> None:
         # Hardcode the essential parameters for internal use
         self.DEFAULT_ROUNDING_UNIT = 6
-        self.DEFAULT_PAIRING_THRESHOLD = pendulum.duration(hours=10)
-        self.DEFAULT_SPLIT_TIME = pendulum.time(3, 0, 0)
-        self.DEFAULT_GRACE_WINDOW = pendulum.duration(minutes=15)
+        self.DEFAULT_PAIRING_THRESHOLD = whenever.DateTimeDelta(hours=10)
+        self.DEFAULT_SPLIT_TIME = whenever.Time(3, 0, 0)
+        self.DEFAULT_GRACE_WINDOW = whenever.DateTimeDelta(minutes=15)
 
         # Instantiate the deduction rules once
         self.default_meal_rules = MealDeductionRules(
@@ -40,20 +40,21 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
 
     def apply_rounding(
         self,
-        raw_time: pendulum.DateTime,
+        raw_time: whenever.ZonedDateTime,
         punch_type: PunchType,
-    ) -> pendulum.DateTime:
+    ) -> whenever.ZonedDateTime:
         """
         Applies a standard nearest-interval rounding (e.g., 6-minute rule).
         """
         return TimeRoundingUtility.round_to_nearest_unit(
-            raw_time, self.DEFAULT_ROUNDING_UNIT
+            raw_time,
+            self.DEFAULT_ROUNDING_UNIT,
         )
 
     def get_time_settings(
         self,
         employee_id: str,
-        check_dt: pendulum.DateTime,
+        check_dt: whenever.ZonedDateTime,
     ) -> EmployeeTimeSettings:
         """
         Retrieves hardcoded time settings, ignoring employee_id and date for simplicity.
@@ -70,7 +71,7 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
         )
 
     def get_meal_deduction_rules(
-        self, check_dt: pendulum.DateTime
+        self, check_dt: whenever.ZonedDateTime
     ) -> MealDeductionRules | None:
         """
         Retrieves the standard 6-hour threshold/30-minute mandatory deduction rules.
@@ -92,8 +93,10 @@ class SQLAFacilityRulesService(IFacilityRulesService):
         self.rounding_unit_minutes = self.rules_config.get("rounding_unit_minutes", 6)
 
     def apply_rounding(
-        self, raw_time: pendulum.DateTime, punch_type: PunchType
-    ) -> pendulum.DateTime:
+        self,
+        raw_time: whenever.ZonedDateTime,
+        punch_type: PunchType,
+    ) -> whenever.ZonedDateTime:
         """Applies the nearest-interval rounding rule."""
         # For simplicity, we apply standard nearest-interval rounding.
         return TimeRoundingUtility.round_to_nearest_unit(
@@ -101,12 +104,14 @@ class SQLAFacilityRulesService(IFacilityRulesService):
         )
 
     def get_time_settings(
-        self, employee_id: str, check_dt: pendulum.DateTime
+        self,
+        employee_id: str,
+        check_dt: whenever.ZonedDateTime,
     ) -> EmployeeTimeSettings:
         raise NotImplementedError()
 
     def get_meal_deduction_rules(
-        self, check_dt: pendulum.DateTime
+        self, check_dt: whenever.ZonedDateTime
     ) -> MealDeductionRules | None:
         raise NotImplementedError()
 

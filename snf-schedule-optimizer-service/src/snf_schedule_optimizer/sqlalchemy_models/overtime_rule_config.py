@@ -58,7 +58,7 @@ class OvertimeRuleConfig(SQLABase):
 
     # --- OvertimeTrigger Fields (Period Definitions) ---
 
-    # Weekly Period Start: Stored as integer (pendulum.WeekDay value)
+    # Weekly Period Start: Stored as integer (whenever.Weekday value)
     work_period_start_day: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Weekly Period Start Time: Stored as separate hour/minute/second fields

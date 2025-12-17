@@ -1,6 +1,6 @@
 import dataclasses
 
-import pendulum
+import whenever
 
 from snf_schedule_optimizer.datetime_utils import is_between
 from snf_schedule_optimizer.models import (
@@ -95,13 +95,11 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
                     # Check for CheckOut type
                     if punch2.punch_type in [None, "CheckOut"]:
-                        duration: pendulum.Duration = (
-                            punch2.punch_time - punch1.punch_time
-                        )
+                        duration = punch2.punch_time - punch1.punch_time
 
                         # 2. DURATION THRESHOLD CHECK
                         # We use the pairing_threshold from settings.
-                        if duration <= settings.pairing_threshold:
+                        if duration <= settings.pairing_threshold.time_part():
                             is_pairable = True
 
                             # 3. INTERMEDIATE PUNCH CHECK
@@ -174,9 +172,7 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         # Convert the reset time (e.g., 3:00 AM) to a concrete DateTime on the IN day
         # We use start_of("day") to get midnight, then add the reset time components.
         # Note: start_of("day") returns a timezone-aware DateTime instance.
-        reset_dt = block.start_time.start_of("day").at(
-            reset_time.hour, reset_time.minute, reset_time.second
-        )
+        reset_dt = block.start_time.start_of_day().replace_time(reset_time)
 
         # ADJUST FOR PREVIOUS DAY TYPE: If the block started *after* the reset time
         # but the rule says to associate it with the previous day (C# logic using DayType.Previous)
@@ -268,7 +264,7 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
         if deduction_rules and deduction_rules.is_mandatory:
             # Only check if the rounded duration exceeds the minimum threshold
-            rounded_duration = (rounded_end - rounded_start).total_hours()
+            rounded_duration = (rounded_end - rounded_start).in_hours()
 
             if rounded_duration >= deduction_rules.meal_threshold_hours:
                 # Delegate the splitting logic to the helper method
@@ -287,17 +283,17 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         from the center of the block.
         """
         duration = block.end_time - block.start_time
-        deduction_duration = pendulum.duration(
+        deduction_duration = whenever.DateTimeDelta(
             hours=deduction_rules.meal_duration_hours
         )
 
         # Calculate where the deduction sits (usually near the midpoint or after 5 hours)
 
         # We assume placement is at the midpoint for simplicity, unless meal_placement_hours is set.
-        placement_start_dt = block.start_time.add(seconds=duration.total_seconds() / 2)
+        placement_start_dt = block.start_time.add(seconds=duration.in_seconds() / 2)
 
         # Calculate the start and end of the deduction gap
-        duration_div_2 = deduction_duration / 2
+        duration_div_2 = deduction_duration.time_part() / 2
         deduction_gap_start = placement_start_dt - duration_div_2
         deduction_gap_end = placement_start_dt + duration_div_2
 
@@ -325,9 +321,9 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
     def _is_separated_by_shift(
         self,
-        punch_in_local_time: pendulum.DateTime,
-        punch_out_local_time: pendulum.DateTime,
-        shift_separator_time: pendulum.Time,  # Should be part of EmployeeTimeSettings
+        punch_in_local_time: whenever.ZonedDateTime,
+        punch_out_local_time: whenever.ZonedDateTime,
+        shift_separator_time: whenever.Time,  # Should be part of EmployeeTimeSettings
     ) -> bool:
         """
         Checks if the time block spans across the configured daily shift separator time.
@@ -338,10 +334,8 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
         # 1. Determine the separator time's concrete DateTime on the IN day
         # C#: var seperatorTime = new DateTime(punchInLocalTime.Year, ..., shiftSeperator.Hours, ...);
-        separator_dt = punch_in_local_time.start_of("day").at(
-            shift_separator_time.hour,
-            shift_separator_time.minute,
-            shift_separator_time.second,
+        separator_dt = punch_in_local_time.start_of_day().replace_time(
+            shift_separator_time
         )
 
         # 2. Adjust Separator to Next Day if Punch-In is AFTER the Separator Time

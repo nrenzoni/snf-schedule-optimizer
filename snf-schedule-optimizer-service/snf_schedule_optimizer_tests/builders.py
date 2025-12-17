@@ -5,10 +5,13 @@ from unittest.mock import MagicMock
 
 from snf_schedule_optimizer.models import (
     Employee,
+    FacilityConfig,
     MlModelOutputs,
     NurseProfile,
     ResidentAcuity,
     Schedule,
+    Shift,
+    ShiftKey,
     ShiftSpecificRequirements,
     StaffCompensationRecord,
 )
@@ -43,6 +46,10 @@ from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor im
 from snf_schedule_optimizer.services.payroll.calculations.shift_slicers import (
     TimeOverlapShiftSlicer,
 )
+from snf_schedule_optimizer.services.repositories import (
+    IFacilityRepository,
+    IShiftRetriever,
+)
 from snf_schedule_optimizer.services.scheduling.interfaces import IScheduleRetriever
 from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
     WorkforceSchedulerService,
@@ -70,6 +77,54 @@ class FakeScheduleRetriever(IScheduleRetriever):
         return self._schedules.get((schedule_id, org_id))
 
 
+class FakeFacilityRepository(IFacilityRepository):
+    """InMemory implementation of IFacilityRepository for testing."""
+
+    def __init__(self, configs: list[FacilityConfig] | None = None):
+        self._configs = {c.facility_id: c for c in (configs or [])}
+
+    def get_configs(
+        self, org_id: str, facility_ids: list[str] | None = None
+    ) -> list[FacilityConfig]:
+        if facility_ids is None:
+            return [c for c in self._configs.values() if c.org_id == org_id]
+        return [
+            self._configs[fid]
+            for fid in facility_ids
+            if fid in self._configs and self._configs[fid].org_id == org_id
+        ]
+
+
+class FakeShiftRetriever(IShiftRetriever):
+    """InMemory implementation of IShiftRetriever for testing."""
+
+    def __init__(self, shifts: list[Shift] | None = None):
+        self._shifts = shifts or []
+
+    def get_shifts_for_org(
+        self, org_id: str, facility_timezones: dict[str, str]
+    ) -> list[Shift]:
+        # Simple filtering. In real implementation, this might hydrate timezones.
+        return [s for s in self._shifts if s.org_id == org_id]
+
+    def get_shifts_by_keys(
+        self,
+        shift_keys: list[ShiftKey],
+        facility_timezones: dict[str, str],
+        org_id: str,
+    ) -> dict[ShiftKey, Shift]:
+        # Filter shifts matching the keys
+        # We assume Shift objects in self._shifts already have the correct properties
+        key_set = set(shift_keys)
+        result = {}
+        for s in self._shifts:
+            # Construct key from shift
+            s_key = ShiftKey(s.facility_id, s.shift_id)
+            if s_key in key_set and s.org_id == org_id:
+                result[s_key] = s
+        return result
+
+
 class OptimizerTestBuilder:
     def __init__(self) -> None:
         # 1. DATA DEFAULTS (Empty/Safe Defaults)
@@ -80,6 +135,8 @@ class OptimizerTestBuilder:
         self._preference_penalties: dict[str, float] = {}
         self._stored_schedules: dict[tuple[str, str], Schedule] = {}
         self._acuity_data: list[ResidentAcuity] = []
+        self._shifts: list[Shift] = []
+        self._facility_configs: list[FacilityConfig] = []
 
         # 2. LOGIC DEFAULTS (The "Standard" Configuration)
         self._hprd_calculator: IHprdRequirementCalculator | None = None
@@ -302,10 +359,14 @@ class OptimizerTestBuilder:
 
         # Instantiate the Fake Retriever with any schedules configured in the builder
         fake_schedule_retriever = FakeScheduleRetriever(self._stored_schedules)
+        fake_facility_repo = FakeFacilityRepository(self._facility_configs)
+        fake_shift_retriever = FakeShiftRetriever(self._shifts)
 
         return WorkforceSchedulerService(
             provider_factory=self._factory,
             optimizer=optimizer,
             cost_evaluator=evaluator,
             schedule_retriever=fake_schedule_retriever,
+            facility_repository=fake_facility_repo,
+            shift_retriever=fake_shift_retriever,
         )
