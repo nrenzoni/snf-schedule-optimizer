@@ -1,6 +1,6 @@
 import whenever
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.models import StaffCompensationRecord
 from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationService
@@ -35,7 +35,7 @@ class StaffCompensationServiceStaticListImpl(IStaffCompensationService):
                 key=lambda r: r.effective_start_date, reverse=True
             )
 
-    def get_record_for_date(
+    async def get_record_for_date(
         self,
         employee_id: str,
         check_date: whenever.ZonedDateTime,
@@ -73,10 +73,10 @@ class SQLAStaffCompensationService(IStaffCompensationService):
     Retrieves the one valid rate record for a given date.
     """
 
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    def get_record_for_date(
+    async def get_record_for_date(
         self,
         employee_id: str,
         check_date: whenever.ZonedDateTime,
@@ -111,7 +111,7 @@ class SQLAStaffCompensationService(IStaffCompensationService):
         )
 
         # 2. Execute and Retrieve
-        result = self.db_session.execute(stmt).scalar_one_or_none()
+        result = (await self.db_session.execute(stmt)).scalar_one_or_none()
 
         if result is None:
             return None

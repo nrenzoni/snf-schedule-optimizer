@@ -22,7 +22,7 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
     ):
         self.hard_block_checker = hard_block_checker
 
-    def apply_constraints(
+    async def apply_constraints(
         self,
         problem: pulp.LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
@@ -74,7 +74,7 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
                         continue
 
                     # Filter by Role
-                    employee = data_provider.get_employee_by_id(nurse.employee_id)
+                    employee = await data_provider.get_employee_by_id(nurse.employee_id)
                     if not employee:
                         continue  # todo: should this be an error?
 
@@ -102,7 +102,7 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
 
 
 class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
-    def apply_constraints(
+    async def apply_constraints(
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,

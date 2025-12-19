@@ -26,7 +26,7 @@ from .fakes import (
 tz_ny = "America/New_York"
 
 
-def test_financial_hero_ot_vs_agency() -> None:
+async def test_financial_hero_ot_vs_agency() -> None:
     """
     Demonstrates ROI: Solver chooses internal OT over expensive Agency
     even when the internal nurse is about to hit the weekly cap.
@@ -138,7 +138,7 @@ def test_financial_hero_ot_vs_agency() -> None:
     )
 
     # 6. Solve
-    result = optimizer.solve(
+    result = await optimizer.solve(
         data_provider,
         preference_weights=PreferenceWeights(),
     )
@@ -162,7 +162,7 @@ def test_financial_hero_ot_vs_agency() -> None:
     assert "STAFF_A" in assigned_ids
 
 
-def test_compliance_safety_net() -> None:
+async def test_compliance_safety_net() -> None:
     """
     Demonstrates Safety: Solver violates a nurse's soft preference
     to prevent an HPRD violation (Hard/Heavy constraint).
@@ -290,7 +290,7 @@ def test_compliance_safety_net() -> None:
         optimization_start_time=ref_date.to_instant(),
     )
 
-    result = optimizer.solve(
+    result = await optimizer.solve(
         data_provider=data_provider,
         preference_weights=PreferenceWeights(),
     )

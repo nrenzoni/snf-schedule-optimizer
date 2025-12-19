@@ -20,14 +20,16 @@ class ScheduleCostEvaluator:
     ):
         self.shift_pay_processor = shift_pay_processor
 
-    def evaluate_schedule(
+    async def evaluate_schedule(
         self,
         schedule: Schedule,
         data_provider: IScenarioDataProvider,
     ) -> ScheduleFinancialReport:
         # 1. Performance: Lookup Map for Employees (O(1) access)
         # Assuming provider has cached this efficiently
-        employee_map = {e.employee_id: e for e in data_provider.get_all_employees()}
+        employee_map = {
+            e.employee_id: e for e in await data_provider.get_all_employees()
+        }
 
         # 2. Performance: Pre-fetch shifts map (ID -> Object)
         all_shifts = {
@@ -69,7 +71,9 @@ class ScheduleCostEvaluator:
 
             # Get history (hours worked BEFORE this schedule starts)
             # This ensures we know if the very first shift is already OT
-            current_hours = data_provider.get_accumulated_hours_for_pay_period(emp_id)
+            current_hours = await data_provider.get_accumulated_hours_for_pay_period(
+                emp_id
+            )
 
             for shift in shifts:
                 # Calculate cost for this specific shift, knowing current accumulated hours
@@ -79,7 +83,7 @@ class ScheduleCostEvaluator:
 
                 # 5b. Check Agency Status for THIS specific shift date
                 # (Handles employees who convert from Agency -> Staff mid-period)
-                comp_record = comp_service.get_record_for_date(
+                comp_record = await comp_service.get_record_for_date(
                     employee.employee_id,
                     shift.shift_start_dt,
                 )
@@ -95,7 +99,7 @@ class ScheduleCostEvaluator:
                 is_agency = comp_record.is_agency
 
                 # C. Calculate Cost
-                cost_result = self.shift_pay_processor.calculate_detailed_cost(
+                cost_result = await self.shift_pay_processor.calculate_detailed_cost(
                     employee=employee,
                     shift=shift,
                     current_weekly_hours=current_hours,

@@ -18,7 +18,7 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
     ):
         self.staff_compensation_service = staff_compensation_service
 
-    def calculate_penalty_cost(
+    async def calculate_penalty_cost(
         self,
         employee: Employee,
         nurse: NurseProfile,
@@ -69,7 +69,7 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
         # FIX: The ot_multiplier is not on NurseProfile. Delegate the multiplier check
         # to the ShiftPayProcessor or assume a standard rate for soft penalty calculation.
         # Here, we assume the base_rate is enough proxy cost.
-        comp_record = self.staff_compensation_service.get_record_for_date(
+        comp_record = await self.staff_compensation_service.get_record_for_date(
             employee.employee_id, shift.shift_start_dt
         )
         if comp_record is None:

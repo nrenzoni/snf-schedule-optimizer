@@ -44,10 +44,17 @@ class FakeEmployeeRetriever(IEmployeeRetriever):
     def __init__(self, employees: list[Employee]):
         self._employees = employees
 
-    def get_all_employees(self) -> list[Employee]:
+    async def get_all_employees(
+        self,
+        org_id: str,
+    ) -> list[Employee]:
         return self._employees
 
-    def get_employee_by_id(self, employee_id: str) -> Employee | None:
+    async def get_employee_by_id(
+        self,
+        org_id: str,
+        employee_id: str,
+    ) -> Employee | None:
         return next((e for e in self._employees if e.employee_id == employee_id), None)
 
 
@@ -69,7 +76,7 @@ class FakeStaffCompensationService(IStaffCompensationService):
         self._records = records
         self.tz = "America/New_York"
 
-    def get_record_for_date(
+    async def get_record_for_date(
         self,
         employee_id: str,
         date: whenever.ZonedDateTime,
@@ -78,9 +85,9 @@ class FakeStaffCompensationService(IStaffCompensationService):
         # (Ignores date logic for simplicity, or implement strict logic if needed)
         return next((r for r in self._records if r.employee_id == employee_id), None)
 
-    def get_base_rate(self, employee_id: str) -> float:
+    async def get_base_rate(self, employee_id: str) -> float:
         # Fallback method if used
-        rec = self.get_record_for_date(
+        rec = await self.get_record_for_date(
             employee_id,
             whenever.Instant.now().to_tz(self.tz),
         )
@@ -94,7 +101,7 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
     def __init__(self, accumulated_hours_map: dict[str, float]):
         self._hours_map = accumulated_hours_map
 
-    def get_processed_history_for_period(
+    async def get_processed_history_for_period(
         self,
         org_id: str,
         employee_id: str,
@@ -105,7 +112,7 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
         # but to satisfy the type checker:
         return {}
 
-    def get_remaining_non_ot_hours(
+    async def get_remaining_non_ot_hours(
         self,
         employee: Employee,
         current_shift: Shift,
@@ -113,7 +120,7 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
     ) -> dict[LookbackPeriod, float]:
         raise NotImplementedError()
 
-    def get_accumulated_hours(
+    async def get_accumulated_hours(
         self,
         employee: Employee,
         current_shift: Shift,
@@ -151,7 +158,7 @@ class FakePreferencePenaltyProcessor(IPreferencePenaltyProcessor):
         """
         self._penalty_map = penalty_map or {}
 
-    def calculate_penalty_cost(
+    async def calculate_penalty_cost(
         self,
         employee: Employee,
         nurse: NurseProfile,

@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
 from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from snf_schedule_optimizer.api.grpc.scheduler_handler import SchedulingServiceHandler
@@ -12,16 +13,16 @@ from snf_schedule_optimizer.generated.scheduling.v1.scheduling_connect import (
 from snf_schedule_optimizer.infrastructure.composition import compose_scheduler_service
 
 # 1. Database Setup (Infrastructure)
-DB_URL = "postgresql://user:pass@localhost/dbname"
-engine = create_engine(DB_URL, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine)
+DB_URL = "postgresql+asyncpg://user:pass@localhost/dbname"
+engine = create_async_engine(DB_URL, pool_pre_ping=True)
+SessionLocal = async_sessionmaker(bind=engine)
 
 
 @contextlib.asynccontextmanager
 async def lifespan(app_param: FastAPI) -> AsyncIterator[None]:
     """Handles startup and shutdown logic."""
     yield
-    engine.dispose()
+    await engine.dispose()
 
 
 # 2. Initialize FastAPI

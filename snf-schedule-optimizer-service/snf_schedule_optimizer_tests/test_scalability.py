@@ -11,7 +11,7 @@ from .scenario_models import HistoryConfig, PayBandConfig, TimeConfig, Workforce
 ny_tz = "America/New_York"
 
 
-def test_large_scale_financial_optimization() -> None:
+async def test_large_scale_financial_optimization() -> None:
     """
     Generates a realistic large-scale scenario (300 shifts, 200 nurses)
     and verifies the optimizer can find a solution.
@@ -80,7 +80,7 @@ def test_large_scale_financial_optimization() -> None:
         f"Solving for {len(scenario_data.shifts)} shifts and {len(scenario_data.employees)} employees..."
     )
 
-    optimization_output = service.optimize_schedule(
+    optimization_output = await service.optimize_schedule(
         org_id="ORG_1",
         facility_contexts={"FAC_1": context},
         preference_weights=PreferenceWeights(),
@@ -106,7 +106,7 @@ def test_large_scale_financial_optimization() -> None:
     print(f"Variables: {optimization_output.stats.total_variables}")
 
 
-def test_stress_multi_facility_optimization() -> None:
+async def test_stress_multi_facility_optimization() -> None:
     """
     Demonstrates a massive multi-facility stress test (10 Facilities).
     Manually configures every aspect of the ScenarioBuilder to show full client usage.
@@ -236,7 +236,7 @@ def test_stress_multi_facility_optimization() -> None:
 
     # --- 4. Solve ---
     print("\nStarting Optimization (This may take a moment)...")
-    result = service.optimize_schedule(
+    result = await service.optimize_schedule(
         org_id="ORG_ENTERPRISE",
         facility_contexts=facility_contexts,
         preference_weights=PreferenceWeights(

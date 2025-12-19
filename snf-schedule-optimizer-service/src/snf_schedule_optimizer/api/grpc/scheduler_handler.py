@@ -39,7 +39,7 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
 
         # 2. Call Application Layer (Facade)
         # We pass absolute Instant for cross-facility coordination
-        result: OptimizationOutput = self.scheduler_service.validate_shift_move(
+        result: OptimizationOutput = await self.scheduler_service.validate_shift_move(
             move_request=domain_request,
             pay_period_start=whenever.Instant.from_timestamp(
                 request.pay_period_start_ts

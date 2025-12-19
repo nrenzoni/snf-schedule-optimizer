@@ -45,14 +45,14 @@ class ShiftPayProcessor:
         self.compensation_service = compensation_service
         # self.work_history_service = work_history_service
 
-    def calculate_detailed_cost(
+    async def calculate_detailed_cost(
         self,
         employee: Employee,
         shift: Shift,
         current_weekly_hours: float,
         facility_config: FacilityConfig,
     ) -> ShiftCostBreakdown:
-        comp_record = self.compensation_service.get_record_for_date(
+        comp_record = await self.compensation_service.get_record_for_date(
             employee.employee_id,
             shift.shift_start_dt,  # The date the shift begins
         )

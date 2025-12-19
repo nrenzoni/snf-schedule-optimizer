@@ -26,7 +26,7 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
         # self.employee_retriever = employee_retriever
         # self.ml_model_retriever = ml_model_retriever
 
-    def get_penalty_terms(
+    async def get_penalty_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
@@ -40,7 +40,7 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
             nurses = data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
-                employee = data_provider.get_employee_by_id(nurse.employee_id)
+                employee = await data_provider.get_employee_by_id(nurse.employee_id)
                 if not employee:
                     continue
 
@@ -53,7 +53,7 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
 
                 # 1. Calculate Preference Penalty (The "Soft" Constraints)
                 # (Delegates to your service from Turn 2)
-                pref_penalty = self.preference_processor.calculate_penalty_cost(
+                pref_penalty = await self.preference_processor.calculate_penalty_cost(
                     employee, nurse, shift, weights
                 )
 

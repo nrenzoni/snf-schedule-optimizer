@@ -42,7 +42,7 @@ class IOvertimeCalculator(abc.ABC):
     """Determines which hours of a shift are subject to an OT multiplier."""
 
     @abc.abstractmethod
-    def get_overtime_intervals(
+    async def get_overtime_intervals(
         self,
         shift: Shift,
         employee: Employee,

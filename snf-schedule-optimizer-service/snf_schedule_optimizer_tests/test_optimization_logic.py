@@ -22,7 +22,7 @@ from .fakes import FakeHprdRequirementCalculator
 tz_ny = "America/New_York"
 
 
-def test_cheapest_nurse_selection_with_fatigue() -> None:
+async def test_cheapest_nurse_selection_with_fatigue() -> None:
     """
     Replaces: test_two_shifts_cheapest_nurse_selected_each_refactored
 
@@ -183,7 +183,7 @@ def test_cheapest_nurse_selection_with_fatigue() -> None:
         optimization_start_time=ref_date.to_instant(),
     )
 
-    result = optimizer.solve(
+    result = await optimizer.solve(
         data_provider=data_provider,
         preference_weights=PreferenceWeights(),
     )

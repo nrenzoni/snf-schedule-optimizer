@@ -56,7 +56,7 @@ class WorkforceSchedulerService:
         self.facility_repository = facility_repository
         self.shift_retriever = shift_retriever
 
-    def optimize_schedule(
+    async def optimize_schedule(
         self,
         org_id: str,
         facility_contexts: dict[str, FacilityScenarioContext],
@@ -82,14 +82,14 @@ class WorkforceSchedulerService:
         )
 
         # 2. Run Optimization (Injecting the Provider)
-        result = self.optimizer.solve(
+        result = await self.optimizer.solve(
             data_provider=data_provider,
             preference_weights=preference_weights,
         )
 
-        return self._process_results(result, data_provider)
+        return await self._process_results(result, data_provider)
 
-    def validate_shift_move(
+    async def validate_shift_move(
         self,
         move_request: MoveEmployeeRequest,
         pay_period_start: whenever.Instant,
@@ -101,7 +101,7 @@ class WorkforceSchedulerService:
         org_id = move_request.org_id
         schedule_id = move_request.schedule_id
 
-        current_schedule = self.schedule_retriever.get_schedule(
+        current_schedule = await self.schedule_retriever.get_schedule(
             schedule_id,
             org_id,
         )
@@ -117,7 +117,7 @@ class WorkforceSchedulerService:
             )
 
         # Rehydrate Context (Load Configs and Shifts needed for logic)
-        facility_contexts = self._rehydrate_facility_contexts(
+        facility_contexts = await self._rehydrate_facility_contexts(
             org_id,
             current_schedule,
             move_request,
@@ -156,14 +156,14 @@ class WorkforceSchedulerService:
 
         # 4. Solve (Validation)
         # We pass default weights because we primarily care about Feasibility here
-        result = validator_optimizer.solve(
+        result = await validator_optimizer.solve(
             data_provider=data_provider,
             preference_weights=PreferenceWeights(),
         )
 
-        return self._process_results(result, data_provider)
+        return await self._process_results(result, data_provider)
 
-    def _process_results(
+    async def _process_results(
         self,
         result: ScheduleOptimizationResults,
         data_provider: IScenarioDataProvider,
@@ -175,7 +175,7 @@ class WorkforceSchedulerService:
 
             # Since we have the provider context, we can run the diagnostics
             diagnoser = SchedulerInfeasibilityDiagnoser(data_provider)
-            diagnostic_report = diagnoser.generate_report_string()
+            diagnostic_report = await diagnoser.generate_report_string()
 
             # Append diagnostics to the error details
             full_error_details = f"{error_msg}\n{diagnostic_report}"
@@ -195,10 +195,10 @@ class WorkforceSchedulerService:
 
         # 3. Run Analysis (Constraints, Preferences, Compliance)
         analyzer = ScheduleResultAnalyzer(data_provider)
-        analysis_report = analyzer.analyze(result.optimal_schedule)
+        analysis_report = await analyzer.analyze(result.optimal_schedule)
 
         # 4. Run Financial Reporting (Costs)
-        financial_report = self.cost_evaluator.evaluate_schedule(
+        financial_report = await self.cost_evaluator.evaluate_schedule(
             result.optimal_schedule, data_provider
         )
 
@@ -262,7 +262,7 @@ class WorkforceSchedulerService:
             if request.employee_id not in to_shift_assigned:
                 to_shift_assigned.append(request.employee_id)
 
-    def _rehydrate_facility_contexts(
+    async def _rehydrate_facility_contexts(
         self,
         org_id: str,
         schedule: Schedule,
@@ -294,7 +294,7 @@ class WorkforceSchedulerService:
         tz_map = {c.facility_id: c.tz for c in configs}
 
         # 3. Fetch Shift Objects (Hydrated with Timezones)
-        shifts_map = self.shift_retriever.get_shifts_by_keys(
+        shifts_map = await self.shift_retriever.get_shifts_by_keys(
             list(keys_to_fetch),
             tz_map,
             org_id,

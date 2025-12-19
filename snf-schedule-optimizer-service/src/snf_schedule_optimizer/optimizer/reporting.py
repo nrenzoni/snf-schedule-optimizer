@@ -63,7 +63,7 @@ class ScheduleResultAnalyzer:
     def __init__(self, data_provider: IScenarioDataProvider):
         self.provider = data_provider
 
-    def analyze(self, schedule: Schedule) -> ScheduleAnalysisReport:
+    async def analyze(self, schedule: Schedule) -> ScheduleAnalysisReport:
         assignments_detail = []
         violations = []
         unfilled = []
@@ -83,7 +83,7 @@ class ScheduleResultAnalyzer:
                     f"Shift ID {key} in schedule not found in data provider."
                 )
             for emp_id in emp_ids:
-                emp = self.provider.get_employee_by_id(emp_id)
+                emp = await self.provider.get_employee_by_id(emp_id)
                 # We need the nurse profile for preferences
                 # Assuming provider can bridge Employee -> NurseProfile logic
                 # (or we iterate nurses_for_shift to find the profile)
@@ -109,8 +109,10 @@ class ScheduleResultAnalyzer:
                     )
 
                 # Retrieve Agency Status from Compensation Record
-                comp_rec = self.provider.get_compensation_service().get_record_for_date(
-                    emp.employee_id, shift.shift_start_dt
+                comp_rec = (
+                    await self.provider.get_compensation_service().get_record_for_date(
+                        emp.employee_id, shift.shift_start_dt
+                    )
                 )
                 is_agency = comp_rec.is_agency if comp_rec else False
 
@@ -136,7 +138,8 @@ class ScheduleResultAnalyzer:
                     [],
                 )
                 assigned_emps = [
-                    self.provider.get_employee_by_id(eid) for eid in assigned_emp_ids
+                    await self.provider.get_employee_by_id(eid)
+                    for eid in assigned_emp_ids
                 ]
                 # Filter out Nones just in case
                 valid_emps = [e for e in assigned_emps if e]

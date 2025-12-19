@@ -43,7 +43,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         self.shift_reconciler = shift_reconciler
         self.facility_config_repo = facility_config_repo
 
-    def get_remaining_non_ot_hours(
+    async def get_remaining_non_ot_hours(
         self,
         employee: Employee,
         current_shift: Shift,
@@ -57,15 +57,17 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         facility_configs = self.facility_config_repo.get_configs(current_shift.org_id)
         facility_tzs = {fc.facility_id: fc.tz for fc in facility_configs}
 
-        raw_history_data_per_key = self.history_retriever.get_raw_inputs_for_period(
-            org_id=current_shift.org_id,
-            employee_id=employee.employee_id,
-            check_date=current_shift.shift_start_dt.to_instant(),
-            facility_timezones=facility_tzs,
-            facility_id=current_shift.facility_id,
+        raw_history_data_per_key = (
+            await self.history_retriever.get_raw_inputs_for_period(
+                org_id=current_shift.org_id,
+                employee_id=employee.employee_id,
+                check_date=current_shift.shift_start_dt.to_instant(),
+                facility_timezones=facility_tzs,
+                facility_id=current_shift.facility_id,
+            )
         )
 
-        shifts: dict[ShiftKey, Shift] = self.shift_retriever.get_shifts_by_keys(
+        shifts: dict[ShiftKey, Shift] = await self.shift_retriever.get_shifts_by_keys(
             list(raw_history_data_per_key.keys()),
             facility_timezones=facility_tzs,
             org_id=current_shift.org_id,
@@ -86,7 +88,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
             # Process all daily threshold rules
             if trigger.daily_threshold is not None:
-                remaining_daily = self.get_accumulated_hours(
+                remaining_daily = await self.get_accumulated_hours(
                     employee,
                     current_shift,
                     processed_history,
@@ -102,7 +104,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
             # Process all weekly threshold rules
             if trigger.weekly_threshold is not None:
-                remaining_weekly = self.get_accumulated_hours(
+                remaining_weekly = await self.get_accumulated_hours(
                     employee,
                     current_shift,
                     processed_history,
@@ -124,7 +126,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
         return remaining_hours
 
-    def get_accumulated_hours(
+    async def get_accumulated_hours(
         self,
         employee: Employee,
         current_shift: Shift,
@@ -151,7 +153,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         )
         tz_map = {c.facility_id: c.tz for c in configs}
 
-        shifts = self.shift_retriever.get_shifts_by_keys(
+        shifts = await self.shift_retriever.get_shifts_by_keys(
             list(history.keys()),
             facility_timezones=tz_map,
             org_id=current_shift.org_id,
@@ -211,7 +213,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
         return consecutive_dates
 
-    def get_processed_history_for_period(
+    async def get_processed_history_for_period(
         self,
         org_id: str,
         employee_id: str,
@@ -224,14 +226,14 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         facility_tzs = {c.facility_id: c.tz for c in configs}
 
         # 1. Fetch Raw Inputs (Shifts and Punches)
-        raw_history_data: dict[ShiftKey, list[TimePunch]] = (
-            self.history_retriever.get_raw_inputs_for_period(
-                org_id=org_id,
-                employee_id=employee_id,
-                check_date=check_date,
-                facility_timezones=facility_tzs,
-                facility_id=facility_id,
-            )
+        raw_history_data: dict[
+            ShiftKey, list[TimePunch]
+        ] = await self.history_retriever.get_raw_inputs_for_period(
+            org_id=org_id,
+            employee_id=employee_id,
+            check_date=check_date,
+            facility_timezones=facility_tzs,
+            facility_id=facility_id,
         )
 
         if not raw_history_data:
@@ -239,7 +241,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
         tz_map = {c.facility_id: c.tz for c in configs}
 
-        shifts = self.shift_retriever.get_shifts_by_keys(
+        shifts = await self.shift_retriever.get_shifts_by_keys(
             shift_keys=list(raw_history_data.keys()),
             facility_timezones=tz_map,
             org_id=org_id,

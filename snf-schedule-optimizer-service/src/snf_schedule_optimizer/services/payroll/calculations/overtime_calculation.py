@@ -70,7 +70,7 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
     ):
         self.work_history_service = work_history_service
 
-    def get_overtime_intervals(
+    async def get_overtime_intervals(
         self,
         shift: Shift,
         employee: Employee,
@@ -96,7 +96,7 @@ class OvertimeCalculatorImpl(IOvertimeCalculator):
             return []
 
             # Calculate the required remaining non-OT hours for all rules
-        remaining_non_ot = self.work_history_service.get_remaining_non_ot_hours(
+        remaining_non_ot = await self.work_history_service.get_remaining_non_ot_hours(
             employee, shift, threshold_rules
         )
 

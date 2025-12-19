@@ -61,7 +61,7 @@ class IPayModelStrategy(abc.ABC):
     """
 
     @abc.abstractmethod
-    def create_variables(
+    async def create_variables(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
@@ -70,7 +70,7 @@ class IPayModelStrategy(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def apply_constraints(
+    async def apply_constraints(
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
@@ -80,7 +80,7 @@ class IPayModelStrategy(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_objective_terms(
+    async def get_objective_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
@@ -110,7 +110,7 @@ class IFacilityScopedConstraintStrategy(abc.ABC):
     """
 
     @abc.abstractmethod
-    def apply_constraints(
+    async def apply_constraints(
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
@@ -146,7 +146,7 @@ class IObjectivePenaltyStrategy(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_penalty_terms(
+    async def get_penalty_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
@@ -182,12 +182,12 @@ class IScenarioDataProvider(abc.ABC):
     # --- Global Methods (Enterprise Level) ---
 
     @abc.abstractmethod
-    def get_all_employees(self) -> list[Employee]:
+    async def get_all_employees(self) -> list[Employee]:
         """Returns all employees active for this scenario horizon."""
         pass
 
     @abc.abstractmethod
-    def get_employee_by_id(self, employee_id: str) -> Employee | None:
+    async def get_employee_by_id(self, employee_id: str) -> Employee | None:
         """Returns a specific employee by ID."""
         pass
 
@@ -230,7 +230,7 @@ class IScenarioDataProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_accumulated_hours_for_pay_period(self, employee_id: str) -> float:
+    async def get_accumulated_hours_for_pay_period(self, employee_id: str) -> float:
         """
         Returns the total hours worked by the employee in the current pay week
         BEFORE the optimization window starts.

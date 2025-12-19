@@ -51,7 +51,7 @@ class NurseShiftScheduleOptimizer:
         # Internal helper
         self._extractor = ScheduleExtractor()
 
-    def solve(
+    async def solve(
         self,
         data_provider: IScenarioDataProvider,
         preference_weights: PreferenceWeights,
@@ -65,7 +65,7 @@ class NurseShiftScheduleOptimizer:
 
         # A. Global variables (e.g., Pay buckets for employees spanning facilities)
         for pay_strategy in self.global_pay_strategies:
-            pay_strategy.create_variables(lp_vars, data_provider)
+            await pay_strategy.create_variables(lp_vars, data_provider)
 
         # B. Facility-scoped variables (The actual shift assignments)
         for facility_id in facility_ids:
@@ -80,33 +80,37 @@ class NurseShiftScheduleOptimizer:
         for facility_id in facility_ids:
             # 1. Apply Rules (e.g. Fatigue, Patterns)
             for rule_strategy in self.facility_rule_strategies:
-                rule_strategy.apply_constraints(
+                await rule_strategy.apply_constraints(
                     problem, lp_vars, data_provider, facility_id
                 )
 
             # 2. Apply Constraints (e.g. HPRD, Min Staffing)
             for constraint_strategy in self.facility_constraint_strategies:
-                constraint_strategy.apply_constraints(
+                await constraint_strategy.apply_constraints(
                     problem, lp_vars, data_provider, facility_id
                 )
 
         # Apply Global Constraints (Pay/OT linkage across facilities)
         for pay_strategy in self.global_pay_strategies:
-            pay_strategy.apply_constraints(problem, lp_vars, data_provider)  # OT Math
+            await pay_strategy.apply_constraints(
+                problem, lp_vars, data_provider
+            )  # OT Math
 
         # --- Phase 3: Objective Function ---
 
         obj_terms = []
         # Pay is usually global
         for pay_strategy in self.global_pay_strategies:
-            obj_terms.extend(pay_strategy.get_objective_terms(lp_vars, data_provider))
+            obj_terms.extend(
+                await pay_strategy.get_objective_terms(lp_vars, data_provider)
+            )
 
         # Penalties might need facility scoping if weights differ per facility,
         # but usually iterating over all shifts globally is fine for preferences.
         # If needed, loop through facilities here too.
         for penalty_strategy in self.penalty_strategies:
             obj_terms.extend(
-                penalty_strategy.get_penalty_terms(
+                await penalty_strategy.get_penalty_terms(
                     lp_vars, data_provider, preference_weights
                 )
             )

@@ -4,7 +4,8 @@ from collections.abc import Iterable
 
 import whenever
 from sqlalchemy import and_, select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from snf_schedule_optimizer.models import Shift, ShiftKey, TimePunch
 from snf_schedule_optimizer.services.timekeeping.interfaces import IRawHistoryRetriever
@@ -29,7 +30,7 @@ class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
         for employee_id, shift, punches in records:
             self.shift_assignment_map[employee_id].append((shift, punches))
 
-    def get_raw_inputs_for_period(
+    async def get_raw_inputs_for_period(
         self,
         org_id: str,
         employee_id: str,
@@ -73,10 +74,10 @@ class SQLARawHistoryRetriever(IRawHistoryRetriever):
     via the direct FK from TimePunch to Shift.
     """
 
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    def get_raw_inputs_for_period(
+    async def get_raw_inputs_for_period(
         self,
         org_id: str,
         employee_id: str,
@@ -107,8 +108,8 @@ class SQLARawHistoryRetriever(IRawHistoryRetriever):
         )
 
         punch_models: Iterable[TimePunchModel] = (
-            self.db_session.execute(punch_stmt).scalars().all()
-        )
+            await self.db_session.scalars(punch_stmt)
+        ).all()
 
         if not punch_models:
             return {}

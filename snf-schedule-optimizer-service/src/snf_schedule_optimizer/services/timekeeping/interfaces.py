@@ -26,7 +26,7 @@ class IEmployeeWorkHistoryService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_remaining_non_ot_hours(
+    async def get_remaining_non_ot_hours(
         self,
         employee: Employee,
         current_shift: Shift,
@@ -40,7 +40,7 @@ class IEmployeeWorkHistoryService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_accumulated_hours(
+    async def get_accumulated_hours(
         self,
         employee: Employee,
         current_shift: Shift,
@@ -72,7 +72,7 @@ class IEmployeeWorkHistoryService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_processed_history_for_period(
+    async def get_processed_history_for_period(
         self,
         org_id: str,
         employee_id: str,
@@ -91,7 +91,7 @@ class IRawHistoryRetriever(abc.ABC):
     """Defines the contract for fetching raw, unprocessed historical inputs."""
 
     @abc.abstractmethod
-    def get_raw_inputs_for_period(
+    async def get_raw_inputs_for_period(
         self,
         org_id: str,
         employee_id: str,

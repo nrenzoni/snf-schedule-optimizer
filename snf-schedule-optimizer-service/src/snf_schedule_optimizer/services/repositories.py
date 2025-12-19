@@ -5,7 +5,7 @@ from snf_schedule_optimizer.models import FacilityConfig, Shift, ShiftKey
 
 class IShiftRetriever(abc.ABC):
     @abc.abstractmethod
-    def get_shifts_for_org(
+    async def get_shifts_for_org(
         self,
         org_id: str,
         facility_timezones: dict[str, str],
@@ -17,7 +17,7 @@ class IShiftRetriever(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_shifts_by_keys(
+    async def get_shifts_by_keys(
         self,
         shift_keys: list[ShiftKey],
         facility_timezones: dict[str, str],

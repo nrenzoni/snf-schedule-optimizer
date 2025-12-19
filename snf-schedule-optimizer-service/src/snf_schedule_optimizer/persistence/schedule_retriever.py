@@ -2,7 +2,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.models import (
     Schedule,
@@ -16,10 +16,10 @@ from snf_schedule_optimizer.sqlalchemy_models.schedule_assignment import (
 
 
 class SQLAlchemyScheduleRetriever(IScheduleRetriever):
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
+    async def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
         """
         Fetches assignments from the DB and reconstructs the Domain Schedule object.
         """
@@ -29,8 +29,8 @@ class SQLAlchemyScheduleRetriever(IScheduleRetriever):
         )
 
         results: Sequence[ScheduleAssignmentModel] | None = (
-            self.db_session.execute(stmt).scalars().all()
-        )
+            await self.db_session.scalars(stmt)
+        ).all()
 
         if not results:
             return None

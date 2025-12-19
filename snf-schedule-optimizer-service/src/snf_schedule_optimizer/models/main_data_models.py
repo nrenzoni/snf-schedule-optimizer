@@ -61,7 +61,7 @@ class EmployeeCertification:
 
 @dataclass(frozen=True)
 class Employee:
-    """Represents a single staff member."""
+    """Represents a single staff member, tied to org."""
 
     employee_id: str
     name: str

@@ -27,7 +27,7 @@ class SchedulerInfeasibilityDiagnoser:
         # We instantiate a checker directly to test static constraints (preferences, skills)
         self.block_checker = NurseHardBlockCheckerImpl()
 
-    def generate_report_string(self) -> str:
+    async def generate_report_string(self) -> str:
         """Returns a formatted string report of potential infeasibility causes."""
         report: list[str] = [
             "\n" + "!" * 60,
@@ -41,14 +41,14 @@ class SchedulerInfeasibilityDiagnoser:
             report.append(f"\n[Facility: {fac_id}]")
 
             # 1. Global Capacity Analysis
-            report.extend(self._analyze_global_capacity(fac_id))
+            report.extend(await self._analyze_global_capacity(fac_id))
 
             # 2. Shift-Level Bottle Neck Analysis
-            report.extend(self._analyze_shift_bottlenecks(fac_id))
+            report.extend(await self._analyze_shift_bottlenecks(fac_id))
 
         return "\n".join(report)
 
-    def _analyze_global_capacity(self, facility_id: str) -> list[str]:
+    async def _analyze_global_capacity(self, facility_id: str) -> list[str]:
         output = []
         shifts = self.provider.get_shifts_for_facility(facility_id)
         reqs = self.provider.get_hprd_requirements_for_facility(facility_id)
@@ -68,7 +68,7 @@ class SchedulerInfeasibilityDiagnoser:
         # Calculate Total Theoretical Supply (Hours)
         # We sum up every employee's potential hours.
         # Note: This assumes employees in the context are available for this facility.
-        employees = self.provider.get_all_employees()
+        employees = await self.provider.get_all_employees()
         total_supply_hours: dict[HprdEnforcedRole, float] = dict.fromkeys(
             HprdEnforcedRole, 0.0
         )
@@ -93,7 +93,7 @@ class SchedulerInfeasibilityDiagnoser:
 
         return output
 
-    def _analyze_shift_bottlenecks(self, facility_id: str) -> list[str]:
+    async def _analyze_shift_bottlenecks(self, facility_id: str) -> list[str]:
         output = []
         shifts = self.provider.get_shifts_for_facility(facility_id)
         reqs = self.provider.get_hprd_requirements_for_facility(facility_id)
@@ -111,7 +111,7 @@ class SchedulerInfeasibilityDiagnoser:
             blocked_by_role: dict[HprdEnforcedRole, int] = defaultdict(int)
 
             for nurse in nurses:
-                emp = self.provider.get_employee_by_id(nurse.employee_id)
+                emp = await self.provider.get_employee_by_id(nurse.employee_id)
                 if not emp:
                     continue
 

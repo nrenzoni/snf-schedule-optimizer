@@ -19,7 +19,7 @@ class PinnedScheduleConstraintStrategy(IFacilityScopedConstraintStrategy):
     def __init__(self, target_schedule: Schedule):
         self.target_schedule = target_schedule
 
-    def apply_constraints(
+    async def apply_constraints(
         self,
         problem: pulp.LpProblem,
         lp_holder: LpNurseShiftVariableHolder,

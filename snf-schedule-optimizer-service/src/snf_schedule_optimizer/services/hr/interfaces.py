@@ -9,12 +9,21 @@ class IEmployeeRetriever(abc.ABC):
     """Defines the contract for retrieving core Employee identity records."""
 
     @abc.abstractmethod
-    def get_employee_by_id(self, employee_id: str) -> Employee | None:
-        """Retrieves a single Employee record by their unique ID."""
+    async def get_employee_by_id(
+        self,
+        org_id: str,
+        employee_id: str,
+    ) -> Employee | None:
+        """
+        Retrieves a single Employee record by their unique ID.
+        """
         pass
 
     @abc.abstractmethod
-    def get_all_employees(self) -> list[Employee]:
+    async def get_all_employees(
+        self,
+        org_id: str,
+    ) -> list[Employee]:
         """Retrieves all active Employee records."""
         pass
 
@@ -23,7 +32,7 @@ class IStaffCompensationService(abc.ABC):
     """Defines the contract for retrieving the active financial rate for an employee."""
 
     @abc.abstractmethod
-    def get_record_for_date(
+    async def get_record_for_date(
         self,
         employee_id: str,
         check_date: whenever.ZonedDateTime,

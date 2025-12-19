@@ -75,7 +75,7 @@ class FakeScheduleRetriever(IScheduleRetriever):
         # Key: (schedule_id, org_id) -> Schedule
         self._schedules = schedules or {}
 
-    def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
+    async def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
         return self._schedules.get((schedule_id, org_id))
 
 
@@ -103,13 +103,13 @@ class FakeShiftRetriever(IShiftRetriever):
     def __init__(self, shifts: list[Shift] | None = None):
         self._shifts = shifts or []
 
-    def get_shifts_for_org(
+    async def get_shifts_for_org(
         self, org_id: str, facility_timezones: dict[str, str]
     ) -> list[Shift]:
         # Simple filtering. In real implementation, this might hydrate timezones.
         return [s for s in self._shifts if s.org_id == org_id]
 
-    def get_shifts_by_keys(
+    async def get_shifts_by_keys(
         self,
         shift_keys: list[ShiftKey],
         facility_timezones: dict[str, str],

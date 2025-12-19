@@ -1,6 +1,6 @@
 import whenever
 from sqlalchemy import and_, select, tuple_
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.models import Shift, ShiftKey
 from snf_schedule_optimizer.services.repositories import IShiftRetriever
@@ -8,15 +8,15 @@ from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 
 
 class SQLAlchemyShiftRetriever(IShiftRetriever):
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
-    def get_shifts_for_org(
+    async def get_shifts_for_org(
         self, org_id: str, facility_timezones: dict[str, str]
     ) -> list[Shift]:
         # 1. Single DB Query for the whole Org
         stmt = select(ShiftModel).where(ShiftModel.org_id == org_id)
-        results = self.session.execute(stmt).scalars().all()
+        results = (await self.session.scalars(stmt)).all()
 
         domain_shifts = []
 
@@ -28,7 +28,7 @@ class SQLAlchemyShiftRetriever(IShiftRetriever):
 
         return domain_shifts
 
-    def get_shifts_by_keys(
+    async def get_shifts_by_keys(
         self,
         shift_keys: list[ShiftKey],
         facility_timezones: dict[str, str],
@@ -50,7 +50,7 @@ class SQLAlchemyShiftRetriever(IShiftRetriever):
             )
         )
 
-        results = self.session.execute(stmt).scalars().all()
+        results = (await self.session.scalars(stmt)).all()
 
         shift_map: dict[ShiftKey, Shift] = {}
 

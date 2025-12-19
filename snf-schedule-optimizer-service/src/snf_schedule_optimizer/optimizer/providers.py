@@ -102,15 +102,19 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         return self.target_org_id
 
     # FIX 13: Removed @cached_property, used manual caching to match interface signature
-    def get_all_employees(self) -> list[Employee]:
+    async def get_all_employees(self) -> list[Employee]:
         if self._cached_all_employees is None:
             print("Fetching all employees from source...")
-            self._cached_all_employees = self._employee_retriever.get_all_employees()
+            self._cached_all_employees = (
+                await self._employee_retriever.get_all_employees(
+                    org_id=self.target_org_id
+                )
+            )
         return self._cached_all_employees
 
-    def get_employee_by_id(self, employee_id: str) -> Employee | None:
+    async def get_employee_by_id(self, employee_id: str) -> Employee | None:
         # Simple lookup from pre-fetched list
-        for emp in self.get_all_employees():
+        for emp in await self.get_all_employees():
             if emp.employee_id == employee_id:
                 return emp
         return None
@@ -145,12 +149,12 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
     def get_ml_model_outputs(self, shift: Shift) -> MlModelOutputs:
         return self._ml_model_retriever.get_model_outputs(shift)
 
-    def get_accumulated_hours_for_pay_period(self, employee_id: str) -> float:
+    async def get_accumulated_hours_for_pay_period(self, employee_id: str) -> float:
         if employee_id in self._accumulated_hours_cache:
             return self._accumulated_hours_cache[employee_id]
 
         # 1. Fetch the raw history segments from your existing service
-        history = self._work_history_service.get_processed_history_for_period(
+        history = await self._work_history_service.get_processed_history_for_period(
             org_id=self.target_org_id,
             employee_id=employee_id,
             check_date=self.opt_start,

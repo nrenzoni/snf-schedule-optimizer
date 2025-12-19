@@ -25,7 +25,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
         self.incentive_mgr = incentive_mgr
         # self.nurse_retriever = nurse_retriever
 
-    def get_objective_terms(
+    async def get_objective_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
@@ -44,13 +44,13 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
                 if not var:
                     continue
 
-                employee = data_provider.get_employee_by_id(nurse.employee_id)
+                employee = await data_provider.get_employee_by_id(nurse.employee_id)
                 if not employee:
                     continue
 
                 # --- 1. Base Calculations ---
                 comp_record = (
-                    data_provider.get_compensation_service().get_record_for_date(
+                    await data_provider.get_compensation_service().get_record_for_date(
                         nurse.employee_id,
                         shift.shift_start_dt,
                     )
@@ -72,7 +72,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
                     diff_rate += 1.50
                 shift_diff_cost = diff_rate * duration
 
-                employee = data_provider.get_employee_by_id(nurse.employee_id)
+                employee = await data_provider.get_employee_by_id(nurse.employee_id)
                 if not employee:
                     continue
 
@@ -104,7 +104,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
     ) -> None:
         pass
 
-    def apply_constraints(
+    async def apply_constraints(
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
@@ -126,16 +126,16 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
         self.shift_pay_processor = shift_pay_processor
         self.threshold = threshold
 
-    def create_variables(
+    async def create_variables(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
     ) -> None:
         # Create Reg/OT buckets for everyone
-        for emp in data_provider.get_all_employees():
+        for emp in await data_provider.get_all_employees():
             lp_holder.add_pay_variables(emp.employee_id)
 
-    def apply_constraints(
+    async def apply_constraints(
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
@@ -148,7 +148,9 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
             if not pay_vars:
                 continue
 
-            worked_hours = data_provider.get_accumulated_hours_for_pay_period(emp_id)
+            worked_hours = await data_provider.get_accumulated_hours_for_pay_period(
+                emp_id
+            )
             remaining_cap = max(0.0, self.threshold - worked_hours)
 
             # Sum assigned hours
@@ -173,7 +175,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                 # 2. Reg Cap
                 problem += pay_vars["reg"] <= remaining_cap
 
-    def get_objective_terms(
+    async def get_objective_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
@@ -194,7 +196,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                 if variable is None:
                     continue
 
-                employee = data_provider.get_employee_by_id(nurse.employee_id)
+                employee = await data_provider.get_employee_by_id(nurse.employee_id)
                 if employee is None:
                     continue
 
@@ -203,7 +205,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                 # as if it were the first shift of the week (no automatic OT).
                 # The OT Buckets will handle the premium if this pushes them over.
                 straight_time_breakdown = (
-                    self.shift_pay_processor.calculate_detailed_cost(
+                    await self.shift_pay_processor.calculate_detailed_cost(
                         employee=employee,
                         shift=shift,
                         current_weekly_hours=0.0,
@@ -237,9 +239,11 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
             if not pay_vars:
                 continue
 
-            comp_record = data_provider.get_compensation_service().get_record_for_date(
-                emp_id,
-                reference_date,
+            comp_record = (
+                await data_provider.get_compensation_service().get_record_for_date(
+                    emp_id,
+                    reference_date,
+                )
             )
             if not comp_record:
                 continue
@@ -281,7 +285,7 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
         # No buckets needed for daily OT! Costs are on the shifts themselves.
         pass
 
-    def apply_constraints(
+    async def apply_constraints(
         self,
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
@@ -290,7 +294,7 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
         # No complex linking constraints needed for daily OT
         pass
 
-    def get_objective_terms(
+    async def get_objective_terms(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
@@ -313,11 +317,11 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
                 if not var:
                     continue
 
-                employee = data_provider.get_employee_by_id(nurse.employee_id)
+                employee = await data_provider.get_employee_by_id(nurse.employee_id)
                 if not employee:
                     continue
 
-                cost_breakdown = self.shift_pay_processor.calculate_detailed_cost(
+                cost_breakdown = await self.shift_pay_processor.calculate_detailed_cost(
                     employee=employee,
                     shift=shift,
                     current_weekly_hours=0.0,  # Irrelevant for Daily Rule

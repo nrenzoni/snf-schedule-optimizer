@@ -20,7 +20,7 @@ class IPreferencePenaltyProcessor(abc.ABC):
     """Defines the service for calculating non-financial penalties for soft constraints."""
 
     @abc.abstractmethod
-    def calculate_penalty_cost(
+    async def calculate_penalty_cost(
         self,
         employee: Employee,
         nurse: NurseProfile,
@@ -40,7 +40,7 @@ class IScheduleRetriever(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
+    async def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
         """
         Retrieves the schedule assignments for a specific schedule ID.
         Returns None if not found.
