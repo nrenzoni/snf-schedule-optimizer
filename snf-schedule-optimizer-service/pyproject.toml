@@ -8,25 +8,28 @@ authors = [
 requires-python = "==3.13.*"
 
 dependencies = [
-    "asyncpg>=0.30.0",
-    "connect-python>=0.5.0",
+    "asyncpg>=0.31.0",
+    "connect-python==0.6.0",
     "dependency-injector>=4.48.2",
+    "fastapi>=0.125.0",
     "grpcio>=1.76.0",
     "hexaly>=14.0.20251112",
+    "hypercorn",
     "numpy>=2.3.4",
     "polars>=1.35.2",
-    "protobuf>=6.33.1",
+    "protobuf>=6.33.2",
     "pulp>=3.3.0",
-    "sqlalchemy[mypy]>=2.0.44",
-    "whenever>=0.9.3",
+    "sqlalchemy[mypy]>=2.0.45",
+    "uvicorn>=0.38.0",
+    "whenever>=0.9.4",
 ]
 
 [dependency-groups]
 dev = [
-    "mypy>=1.18.2",
+    "mypy>=1.19.1",
     "pip>=25.3",
-    "pytest>=9.0.1",
-    "ruff>=0.14.7",
+    "pytest>=9.0.2",
+    "ruff>=0.14.10",
 ]
 
 [tool.mypy]
@@ -111,7 +114,7 @@ extend-select = ["B", "I", "UP", "C4", "SIM"]
 ignore = [
     "E501",
     "SIM102",
-    "B010",  # mypy doesn't like assignment to functions in tests
+    "B010", # mypy doesn't like assignment to functions in tests
 ]
 
 [tool.ruff.format]
@@ -120,3 +123,5 @@ indent-style = "space"
 
 [tool.uv.sources]
 hexaly = { index = "hexaly" }
+hypercorn = { git = "https://github.com/tsubakiky/hypercorn.git" }
+connect-python = { git = "https://github.com/connectrpc/connect-python" }

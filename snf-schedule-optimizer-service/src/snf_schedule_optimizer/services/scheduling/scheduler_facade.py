@@ -1,18 +1,14 @@
 import copy
 from collections import defaultdict
-from dataclasses import dataclass
 
 import whenever
 
-from api.dtos import MoveEmployeeRequest
+from snf_schedule_optimizer.api import MoveEmployeeRequest, OptimizationOutput
 from snf_schedule_optimizer.models import (
     PreferenceWeights,
     Schedule,
     Shift,
     ShiftKey,
-)
-from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
-    ScheduleFinancialReport,
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.diagnostics import SchedulerInfeasibilityDiagnoser
@@ -20,34 +16,22 @@ from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
 from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
 from snf_schedule_optimizer.optimizer.models import (
     ScheduleOptimizationResults,
-    ScheduleOptimizationStats,
 )
 from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.reporting import (
-    ScheduleAnalysisReport,
     ScheduleResultAnalyzer,
 )
 from snf_schedule_optimizer.optimizer.strategies.fixing import (
     PinnedScheduleConstraintStrategy,
 )
-from snf_schedule_optimizer.schedule_cost_evaluator import ScheduleCostEvaluator
+from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluator import (
+    ScheduleCostEvaluator,
+)
 from snf_schedule_optimizer.services.repositories import (
     IFacilityRepository,
     IShiftRetriever,
 )
 from snf_schedule_optimizer.services.scheduling.interfaces import IScheduleRetriever
-
-
-@dataclass(frozen=True)
-class OptimizationOutput:
-    """The complete package returned to the client."""
-
-    is_success: bool
-    schedule: Schedule | None
-    analysis: ScheduleAnalysisReport | None
-    financials: ScheduleFinancialReport | None
-    stats: ScheduleOptimizationStats | None
-    error_details: str | None = None
 
 
 class WorkforceSchedulerService:

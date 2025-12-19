@@ -13,5 +13,5 @@ plugins:
   - remote: buf.build/protocolbuffers/pyi
     out: ../snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated
 
-  - remote: buf.build/connectrpc/python:v0.5.0
+  - remote: buf.build/connectrpc/python:v0.6.0
     out: ../snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated

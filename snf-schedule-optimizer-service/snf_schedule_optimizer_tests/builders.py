@@ -39,7 +39,9 @@ from snf_schedule_optimizer.optimizer.strategies.variables import (
 from snf_schedule_optimizer.resident_acuity_retrievers import (
     ResidentAcuityPerShiftRetrieverImpl,
 )
-from snf_schedule_optimizer.schedule_cost_evaluator import ScheduleCostEvaluator
+from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluator import (
+    ScheduleCostEvaluator,
+)
 from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
     ShiftPayProcessor,
 )
