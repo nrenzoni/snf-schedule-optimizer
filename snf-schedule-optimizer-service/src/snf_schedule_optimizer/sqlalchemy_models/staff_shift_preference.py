@@ -1,9 +1,13 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Boolean, Float, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from snf_schedule_optimizer.models import PreferenceType, StaffShiftPreference
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
-from snf_schedule_optimizer.sqlalchemy_models.nurse_profile import NurseProfileModel
+
+if TYPE_CHECKING:
+    from snf_schedule_optimizer.sqlalchemy_models.nurse_profile import NurseProfileModel
 
 
 class StaffShiftPreferenceModel(SQLABase):
@@ -21,8 +25,9 @@ class StaffShiftPreferenceModel(SQLABase):
     penalty_weight: Mapped[float] = mapped_column(Float, default=10.0)
     is_hard_block: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    nurse: Mapped[NurseProfileModel] = relationship(
-        "NurseProfileModel", back_populates="preferences"
+    nurse: Mapped["NurseProfileModel"] = relationship(
+        "NurseProfileModel",
+        back_populates="preferences",
     )
 
     def to_domain(self) -> StaffShiftPreference:

@@ -1,11 +1,15 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Float, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from snf_schedule_optimizer.models import NurseProfile
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
-from snf_schedule_optimizer.sqlalchemy_models.staff_shift_preference import (
-    StaffShiftPreferenceModel,
-)
+
+if TYPE_CHECKING:
+    from snf_schedule_optimizer.sqlalchemy_models.staff_shift_preference import (
+        StaffShiftPreferenceModel,
+    )
 
 
 class NurseProfileModel(SQLABase):
@@ -22,7 +26,7 @@ class NurseProfileModel(SQLABase):
     skills_csv: Mapped[str] = mapped_column(String, default="")
 
     # One-to-many relationship with preferences
-    preferences: Mapped[list[StaffShiftPreferenceModel]] = relationship(
+    preferences: Mapped[list["StaffShiftPreferenceModel"]] = relationship(
         "StaffShiftPreferenceModel",
         back_populates="nurse",
         cascade="all, delete-orphan",
