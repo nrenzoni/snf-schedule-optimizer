@@ -31,16 +31,20 @@ class ThresholdOvertimeRule(IOvertimeRule):
         name: str,
         multiplier: float,
         trigger: OvertimeTrigger,
-        priority: int,  # Higher number means checked first if conflicts exist
+        priority: int,
         applicable_job_titles: list[str] | None = None,
-        required_certificates: list[str] | None = None,
+        required_certifications: list[str] | None = None,
+        certification_match_type: str = "ALL",
+        contract_id: str | None = None,
     ):
         self.name = name
         self._multiplier = multiplier
         self.trigger = trigger
         self._priority = priority
         self._applicable_job_titles = applicable_job_titles
-        self.required_certificates = required_certificates
+        self._required_certifications = required_certifications
+        self._certification_match_type = certification_match_type
+        self._contract_id = contract_id
 
     @property
     def multiplier(self) -> float:
@@ -49,7 +53,6 @@ class ThresholdOvertimeRule(IOvertimeRule):
 
     @property
     def priority(self) -> int:
-        """Returns the priority of this rule for conflict resolution."""
         return self._priority
 
     @property
@@ -57,8 +60,16 @@ class ThresholdOvertimeRule(IOvertimeRule):
         return self._applicable_job_titles
 
     @property
+    def required_certifications(self) -> list[str] | None:
+        return self._required_certifications
+
+    @property
+    def certification_match_type(self) -> str:
+        return self._certification_match_type
+
+    @property
     def contract_id(self) -> str | None:
-        raise NotImplementedError()
+        return self._contract_id
 
 
 class OvertimeCalculatorImpl(IOvertimeCalculator):

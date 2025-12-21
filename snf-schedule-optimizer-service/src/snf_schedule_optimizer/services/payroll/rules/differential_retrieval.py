@@ -24,7 +24,7 @@ class NurseDifferentialRetrieverImpl(INurseDifferentialRetriever):
             return [
                 Differential(
                     name="Weekend Shift Differential",
-                    type=DifferentialType.MULTIPLIER,
+                    d_type=DifferentialType.MULTIPLIER,
                     multiplier=self.facility_config.weekend_multiplier,
                 )
             ]
@@ -32,7 +32,7 @@ class NurseDifferentialRetrieverImpl(INurseDifferentialRetriever):
             return [
                 Differential(
                     name="Night Shift Differential",
-                    type=DifferentialType.MULTIPLIER,
+                    d_type=DifferentialType.MULTIPLIER,
                     multiplier=self.facility_config.night_shift_multiplier,
                 )
             ]

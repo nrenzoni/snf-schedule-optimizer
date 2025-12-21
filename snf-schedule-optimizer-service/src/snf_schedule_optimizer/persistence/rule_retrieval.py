@@ -11,7 +11,10 @@ from snf_schedule_optimizer.models import (
     OvertimeTrigger,
     Shift,
 )
-from snf_schedule_optimizer.models.data import DifferentialRuleData, OvertimeRuleData
+from snf_schedule_optimizer.models.persistence_dtos import (
+    DifferentialRuleData,
+    OvertimeRuleData,
+)
 from snf_schedule_optimizer.services.payroll.interfaces import (
     IDifferentialRule,
     IDifferentialRuleRetriever,

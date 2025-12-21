@@ -6,6 +6,7 @@ from snf_schedule_optimizer.models import (
     FacilityConfig,
     OvertimeInterval,
     OvertimeTrigger,
+    OvertimeTriggerType,
     Shift,
     WorkedShiftSegment,
 )
@@ -85,7 +86,12 @@ class ShiftPayProcessor:
             synthetic_ot_rule = ThresholdOvertimeRule(
                 name="Projected Weekly OT",
                 multiplier=1.5,
-                trigger=OvertimeTrigger(weekly_threshold=threshold),
+                trigger=OvertimeTrigger(
+                    trigger_type=OvertimeTriggerType.WEEKLY_HOURS,
+                    weekly_threshold=threshold,
+                    work_period_start_day=facility_config.start_of_work_week_day,
+                    work_period_start_time=facility_config.start_of_work_day_time,
+                ),
                 priority=1,
             )
             overtime_intervals.append(

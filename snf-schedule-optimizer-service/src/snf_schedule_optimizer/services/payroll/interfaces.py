@@ -18,7 +18,10 @@ from snf_schedule_optimizer.models import (
     WorkedShiftSegment,
     WorkedTimeBlock,
 )
-from snf_schedule_optimizer.models.data import DifferentialRuleData, OvertimeRuleData
+from snf_schedule_optimizer.models.persistence_dtos import (
+    DifferentialRuleData,
+    OvertimeRuleData,
+)
 
 # region Payroll Service Interfaces
 
@@ -154,24 +157,6 @@ class IDifferentialRule(abc.ABC):
     def certification_match_type(self) -> str:
         """Type of match: 'ALL' (AND) or 'ANY' (OR). Defaults to 'ALL'."""
         return "ALL"
-
-
-class IOvertimeRuleRetrieverService(abc.ABC):
-    """
-    Defines the contract for fetching IOvertimeRule objects applicable to a specific context.
-    """
-
-    @abc.abstractmethod
-    def get_applicable_rules(
-        self,
-        employee: Employee,
-        shift: Shift,
-    ) -> list[IOvertimeRule]:
-        """
-        Retrieves all active and eligible IOvertimeRule objects for the given
-        employee and shift, often factoring in union/contract ID.
-        """
-        pass
 
 
 class INurseDifferentialRetriever(abc.ABC):

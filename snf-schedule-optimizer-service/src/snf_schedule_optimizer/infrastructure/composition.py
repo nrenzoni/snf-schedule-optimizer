@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from snf_schedule_optimizer.ml_output_retrievers import MLModelOutputsRetrieverImpl
 from snf_schedule_optimizer.optimizer.calculators import (
-    HprdRequirementCalculatorImpl,
+    HprdRequirementCalculator,
     NurseHardBlockCheckerImpl,
 )
 
@@ -111,7 +111,7 @@ def compose_scheduler_service(
     )  # Assuming no DB dependency for ML client
 
     # 3. Calculation Services
-    hprd_calculator = HprdRequirementCalculatorImpl(
+    hprd_calculator = HprdRequirementCalculator(
         resident_acuity_retriever=acuity_retriever,
         shift_requirements_retriever=shift_req_retriever,
     )

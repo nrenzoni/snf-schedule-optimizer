@@ -21,7 +21,10 @@ class FacilityScenarioContext:
     shifts: list[Shift]
     config: FacilityConfig
     min_mandates: MinMandates | None = None
-    # Future: Facility-specific acuity data, etc.
+
+    default_hprd_rn: float = 0.5
+    default_hprd_cna: float = 2.4
+    default_hprd_total: float = 3.5
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,14 @@
+import asyncio
+from dataclasses import replace
+
 import whenever
 
-from snf_schedule_optimizer.models import EmployeeTimeSettings, MealDeductionRules
+from snf_schedule_optimizer.models import (
+    EmployeeTimeSettings,
+    MealDeductionRules,
+    RoundingType,
+    SplitDayType,
+)
 from snf_schedule_optimizer.services.payroll.interfaces import (
     IEmployeeRulesRetriever,
     IFacilityRulesRetriever,
@@ -10,8 +18,9 @@ from snf_schedule_optimizer.services.payroll.interfaces import (
 
 class FacilityRulesService(IFacilityRulesService):
     """
-    DOMAIN SERVICE: Contains pure business logic.
-    Uses a Retriever to get the raw config, but constructs the Domain Objects.
+    DOMAIN SERVICE: Orchestrates the resolution of payroll and timekeeping rules.
+    It resolves the hierarchy of rules (System -> Facility -> Employee) to create
+    immutable configuration objects for time reconciliation.
     """
 
     def __init__(
@@ -37,11 +46,17 @@ class FacilityRulesService(IFacilityRulesService):
             raw_time,
         )
 
-        rounding_unit = config.rounding_unit_minutes if config else 6
+        # Default to 6-minute rounding if no config exists
+        unit = config.rounding_unit_minutes if config else 6
 
-        # In a real app, TimeRoundingUtility would be a domain helper
-        # return TimeRoundingUtility.round_to_nearest_unit(raw_time, rounding_unit)
-        return raw_time  # Placeholder for logic
+        # Rounding logic implementation
+        # (Assuming a domain utility exists for the math)
+        minutes = raw_time.minute
+        rounded_minutes = (round(minutes / unit) * unit) % 60
+
+        if rounded_minutes == 0 and minutes > 30:
+            return raw_time.add(hours=1).replace(minute=0, second=0)
+        return raw_time.replace(minute=rounded_minutes, second=0)
 
     async def get_time_settings(
         self,
@@ -51,35 +66,59 @@ class FacilityRulesService(IFacilityRulesService):
         check_dt: whenever.ZonedDateTime,
     ) -> EmployeeTimeSettings:
         """
-        Combines facility-level defaults with employee-specific overrides
-        to provide the Reconciler with a complete set of rules.
+        Calculates the effective timekeeping settings for an employee.
+        Orchestrates parallel retrieval and applies override precedence.
         """
-        fac_config = self.facility_rule_retriever.get_active_config(
+        # 1. Fetch data in parallel to avoid sequential blocking
+        fac_task = self.facility_rule_retriever.get_active_config(
             org_id,
             facility_id,
             check_dt,
         )
-        emp_overrides = await self.employee_rule_retriever.get_employee_rule_overrides(
+        emp_task = self.employee_rule_retriever.get_employee_rule_overrides(
             org_id,
             employee_id,
             check_dt,
         )
 
-        # Merge logic: Employee overrides take precedence over Facility defaults
-        settings_data = EmployeeTimeSettings(
+        fac_config, emp_override = await asyncio.gather(fac_task, emp_task)
+
+        # 2. Layer 1: System Defaults
+        # Start with a hardcoded baseline representing global company policy.
+        settings = EmployeeTimeSettings(
+            pairing_threshold=whenever.DateTimeDelta(hours=14),
+            split_day_threshold_time=whenever.Time(3, 0, 0),
+            split_day_day_type=SplitDayType.CURRENT,
+            shift_separator_time=whenever.Time(7, 0, 0),
+            shift_grace_window=whenever.DateTimeDelta(minutes=15),
             rounding_unit_minutes=6,
-            auto_meal_deduction_enabled=True,
-            grace_period_minutes=5,
+            rounding_type=RoundingType.NEAREST,
+            shift_seperator_enabled=True,
         )
 
+        # Layer 2: Facility Overrides
         if fac_config:
-            settings_data.update(fac_config)
-        if emp_overrides:
-            settings_data.update(emp_overrides)
+            settings = replace(
+                settings,
+                rounding_unit_minutes=fac_config.rounding_unit_minutes,
+                # Map other specific fields from the facility DB model DTO
+                # shift_separator_time=fac_config.shift_separator_time,
+            )
 
-        # Map to Domain Object (EmployeeTimeSettings)
-        # return EmployeeTimeSettings(**settings_data)
-        return settings_data
+        # Layer 3: Employee Overrides (Highest Precedence)
+        if emp_override:
+            # We explicitly check for None to allow partial overrides
+            if emp_override.rounding_unit_minutes is not None:
+                settings = replace(
+                    settings, rounding_unit_minutes=emp_override.rounding_unit_minutes
+                )
+
+        # Example of boolean toggle override
+        # if emp_override.auto_meal_deduction_enabled is not None:
+        #     settings = replace(settings, ...)
+
+        # 5. Return Immutable Domain Object
+        return settings
 
     async def get_meal_deduction_rules(
         self,
@@ -88,7 +127,7 @@ class FacilityRulesService(IFacilityRulesService):
         check_dt: whenever.ZonedDateTime,
     ) -> MealDeductionRules | None:
         """
-        Extracts specific meal logic from the active configuration.
+        Extracts specific meal logic from the active facility configuration.
         """
         config = await self.facility_rule_retriever.get_active_config(
             org_id,

@@ -16,7 +16,7 @@ from snf_schedule_optimizer.models import (
     StaffCompensationRecord,
 )
 from snf_schedule_optimizer.optimizer.calculators import (
-    HprdRequirementCalculatorImpl,
+    HprdRequirementCalculator,
     NurseHardBlockCheckerImpl,
 )
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
@@ -263,7 +263,7 @@ class OptimizerTestBuilder:
                     target_total_hprd=0.0,
                 )
             )
-            hprd_calc = HprdRequirementCalculatorImpl(
+            hprd_calc = HprdRequirementCalculator(
                 fake_acuity_retriever,
                 fake_req_retriever,
             )

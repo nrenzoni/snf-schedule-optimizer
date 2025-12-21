@@ -50,3 +50,16 @@ class RoundingType(StrEnum):
     NEAREST = "Nearest"
     IN_FORWARD = "InForward"
     OUT_BACKWARD = "OutBackward"
+
+
+class OvertimeTriggerType(StrEnum):
+    DAILY_HOURS = "DAILY_HOURS"
+    WEEKLY_HOURS = "WEEKLY_HOURS"
+    CONSECUTIVE_DAYS = "CONSECUTIVE_DAYS"
+
+
+class DifferentialRuleType(StrEnum):
+    WEEKEND = "WEEKEND"
+    NIGHT_SHIFT = "NIGHT_SHIFT"
+    FIXED_TIME = "FIXED_TIME"
+    ALL_HOURS = "ALL_HOURS"  # e.g., Float Pool or Lead Pay

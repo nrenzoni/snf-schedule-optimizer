@@ -9,6 +9,7 @@ import whenever
 
 from snf_schedule_optimizer.models import (
     DifferentialType,
+    OvertimeTriggerType,
     PreferenceType,
     PunchType,
     RoundingType,
@@ -157,6 +158,10 @@ class FacilityConfig:
     weekend_multiplier: float
     night_shift_multiplier: float
     tz: str
+
+    default_hprd_rn: float = 0.5
+    default_hprd_cna: float = 2.4
+    default_hprd_total: float = 3.5
 
 
 type FacilityIdKey = str
@@ -307,19 +312,19 @@ class Differential:
     def __init__(
         self,
         name: str,
-        type: DifferentialType,
+        d_type: DifferentialType,
         multiplier: float | None = None,
         flat: float | None = None,
     ):
         if (multiplier is None) == (flat is None):
             raise ValueError("Provide either multiplier or flat, not both or neither.")
-        if type == DifferentialType.MULTIPLIER and multiplier is None:
+        if d_type == DifferentialType.MULTIPLIER and multiplier is None:
             raise ValueError("Multiplier type requires a multiplier value.")
-        if type == DifferentialType.FLAT and flat is None:
+        if d_type == DifferentialType.FLAT and flat is None:
             raise ValueError("flat type requires a flat value.")
 
         self.name = name
-        self.type = type
+        self.type = d_type
         self.multiplier = multiplier
         self.flat = flat
 
@@ -334,6 +339,8 @@ class OvertimeInterval:
 @dataclass(frozen=True)
 class OvertimeTrigger:
     """Defines the condition for the rule to activate."""
+
+    trigger_type: OvertimeTriggerType
 
     # --- Existing Fields (Required for basic FLSA/State OT) ---
     daily_threshold: float | None = None  # e.g., 8.0 hours

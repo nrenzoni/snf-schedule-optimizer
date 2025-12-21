@@ -2,6 +2,7 @@ import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
+    FacilityConfig,
     HprdEnforcedRole,
     NurseProfile,
     PreferenceType,
@@ -27,7 +28,12 @@ from snf_schedule_optimizer.services.scheduling.interfaces import (
 )
 
 
-class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
+class HprdRequirementCalculator(IHprdRequirementCalculator):
+    """
+    Calculates staffing requirements by merging facility budgets
+    with shift-specific overrides and census data.
+    """
+
     def __init__(
         self,
         resident_acuity_retriever: IResidentAcuityPerShiftRetriever,
@@ -39,6 +45,7 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
     async def calculate_requirements(
         self, context: FacilityScenarioContext
     ) -> HprdShiftNurseRequirementHolder:
+        # 1. Initialize result holder
         hprd_shift_nurse_requirements = HprdShiftNurseRequirementHolder(
             [s.shift_id for s in context.shifts],
             [HprdEnforcedRole.RN, HprdEnforcedRole.CNA],
@@ -50,28 +57,31 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
                 "MinMandates is missing from context."
             )
 
+        # 2. Iterate through shifts and resolve requirements
         for shift in context.shifts:
-            shift_requirements = (
-                await self.shift_requirements_retriever.get_shift_requirements(shift)
-            )
-            if not shift_requirements:
-                shift_requirements = ShiftSpecificRequirements()
-            hours_in_shift = (shift.shift_end_dt - shift.shift_start_dt).in_hours()
-            if hours_in_shift <= 0:
-                raise ValueError(
-                    f"Invalid shift duration for shift {shift.shift_id} in facility {context.facility_id}."
-                )
+            # Step A: Resolve Staffing Targets (Hierarchy: Override -> Facility Default)
+            targets = await self._resolve_staffing_targets(shift, context.config)
 
+            # Step B: Get Census/Acuity
+            # Census is the primary driver of labor demand in SNFs.
             residents_acuity = (
                 await self.resident_acuity_retriever.get_resident_acuity_list(shift)
             )
             shift_census = len(residents_acuity)
 
-            # Calculation Logic
-            required_rn_hours = shift_requirements.target_hprd_rn * shift_census
-            required_cna_hours = shift_requirements.target_hprd_cna * shift_census
-            required_total_hours = shift_requirements.target_total_hprd * shift_census
+            hours_in_shift = shift.duration_hours
+            if hours_in_shift <= 0:
+                continue
 
+            # Step C: Calculate Required Headcount
+            # Demand = (Target HPRD * Census) / Shift Duration
+            # Example: (0.5 RN_HPRD * 100 Residents) / 8 Hours = 6.25 RNs required
+            required_rn_hours = targets.target_hprd_rn * shift_census
+            required_cna_hours = targets.target_hprd_cna * shift_census
+            required_total_hours = targets.target_total_hprd * shift_census
+
+            # Step D: Apply "Bodies on the Floor" Minimums (Min Mandates)
+            # We never schedule fewer than the mandated minimum, even if HPRD math allows it.
             req_rn_count = max(
                 (required_rn_hours / hours_in_shift),
                 float(context.min_mandates.min_staff_per_shift_rn),
@@ -82,18 +92,40 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
                 float(context.min_mandates.min_staff_per_shift_cna),
             )
 
-            # Convert to Shift Hours
+            # Step E: Commit to Requirements Holder for the Solver
             hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.RN] = (
                 req_rn_count
             )
             hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.CNA] = (
                 req_cna_count
             )
+
+            # Add total constraint (used by the enterprise solver for global budget balancing)
             hprd_shift_nurse_requirements.add_total_req(
                 shift, required_total_hours / hours_in_shift
             )
 
         return hprd_shift_nurse_requirements
+
+    async def _resolve_staffing_targets(
+        self, shift: Shift, facility_config: FacilityConfig
+    ) -> ShiftSpecificRequirements:
+        """
+        Internal logic to resolve the staffing target hierarchy.
+        Provides a robust fallback mechanism to the facility baseline.
+        """
+        # Level 1: Check for Shift-Specific Override in DB (e.g., high acuity surge)
+        override = await self.shift_requirements_retriever.get_shift_requirements(shift)
+
+        if override:
+            return override
+
+        # Level 2: Fallback to Facility Baseline (Budget)
+        return ShiftSpecificRequirements(
+            target_hprd_rn=facility_config.default_hprd_rn,
+            target_hprd_cna=facility_config.default_hprd_cna,
+            target_total_hprd=facility_config.default_hprd_total,
+        )
 
 
 class NurseHardBlockCheckerImpl(INurseHardBlockChecker):
