@@ -21,11 +21,9 @@ class ThresholdOvertimeRule(IOvertimeRule):
     """
     Implements a pay rule based on hours worked threshold (daily or weekly).
 
+    - This rule is the source of truth for a specific OT type (e.g., 'CA State OT' or 'Union Local 123 OT').
 
-    This rule is the source of truth for a specific OT type (e.g., 'CA State OT' or 'Union Local 123 OT').
-
-
-    This class is purely the definition/metadata source.
+    - This class is purely the definition/metadata source.
     """
 
     def __init__(

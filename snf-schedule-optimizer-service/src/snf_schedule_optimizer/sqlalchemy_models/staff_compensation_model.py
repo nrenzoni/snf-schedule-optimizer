@@ -1,8 +1,10 @@
 import datetime
 
+import whenever
 from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from ..models import StaffCompensationRecord
 from .base import SQLABase
 from .employee import EmployeeModel
 
@@ -50,4 +52,19 @@ class StaffCompensationModel(SQLABase):
             f"id={self.id}, employee_id='{self.employee_id}', "
             f"rate={self.base_rate_effective}, "
             f"start_date={self.effective_start_date})>"
+        )
+
+    def to_data(self) -> StaffCompensationRecord:
+        return StaffCompensationRecord(
+            employee_id=self.employee_id,
+            base_rate_effective=self.base_rate_effective,
+            ot_multiplier=self.ot_multiplier,
+            is_agency=self.is_agency,
+            # Map datetime.date from DB to whenever.Instant
+            effective_start_date=whenever.Date.from_py_date(self.effective_start_date),
+            effective_end_date=whenever.Date.from_py_date(self.effective_end_date)
+            if self.effective_end_date
+            else None,
+            union_contract_id=self.union_contract_id,
+            pay_grade_or_step=self.pay_grade_or_step,
         )

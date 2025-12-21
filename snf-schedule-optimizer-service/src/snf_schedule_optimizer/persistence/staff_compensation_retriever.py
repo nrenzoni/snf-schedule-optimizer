@@ -111,33 +111,12 @@ class SQLStaffCompensationRetriever(IStaffCompensationRetriever):
         )
 
         # 2. Execute and Retrieve
-        result = (await self.db_session.execute(stmt)).scalar_one_or_none()
+        result: StaffCompensationModel | None = (
+            await self.db_session.execute(stmt)
+        ).scalar_one_or_none()
 
         if result is None:
             return None
 
         # 3. Map and Return
-        return self._map_db_record_to_dataclass(result)
-
-    def _map_db_record_to_dataclass(
-        self,
-        record: StaffCompensationModel,
-    ) -> StaffCompensationRecord:
-        """Translates the SQLAlchemy ORM object into the application dataclass."""
-
-        # Note: We use cast(float, ...) for safety as the DB stores NUMERIC/Float
-        return StaffCompensationRecord(
-            employee_id=record.employee_id,
-            base_rate_effective=record.base_rate_effective,
-            ot_multiplier=record.ot_multiplier,
-            is_agency=record.is_agency,
-            # Map datetime.date from DB to whenever.Instant
-            effective_start_date=whenever.Date.from_py_date(
-                record.effective_start_date
-            ),
-            effective_end_date=whenever.Date.from_py_date(record.effective_end_date)
-            if record.effective_end_date
-            else None,
-            union_contract_id=record.union_contract_id,
-            pay_grade_or_step=record.pay_grade_or_step,
-        )
+        return result.to_data()

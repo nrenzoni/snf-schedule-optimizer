@@ -1,7 +1,6 @@
 import whenever
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 
 from snf_schedule_optimizer.models import FacilityConfig
 from snf_schedule_optimizer.models.testing import MockCertificationRecord

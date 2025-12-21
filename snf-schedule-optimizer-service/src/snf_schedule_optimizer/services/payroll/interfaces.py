@@ -1,7 +1,4 @@
-from __future__ import annotations
-
 import abc
-from typing import Any
 
 import whenever
 
@@ -21,6 +18,7 @@ from snf_schedule_optimizer.models import (
     WorkedShiftSegment,
     WorkedTimeBlock,
 )
+from snf_schedule_optimizer.models.data import DifferentialRuleData, OvertimeRuleData
 
 # region Payroll Service Interfaces
 
@@ -50,7 +48,7 @@ class IOvertimeCalculator(abc.ABC):
         shift: Shift,
         employee: Employee,
         work_shift_history: dict[Shift, list[WorkedShiftSegment]],
-        overtime_rules: list[IOvertimeRule],
+        overtime_rules: list["IOvertimeRule"],
     ) -> list[OvertimeInterval]:
         """Returns list of overtime intervals applicable to the given shift and employee."""
         pass
@@ -186,6 +184,18 @@ class INurseDifferentialRetriever(abc.ABC):
         pass
 
 
+class IDifferentialRuleRetriever(abc.ABC):
+    @abc.abstractmethod
+    async def get_all_rules(self, org_id: str) -> list[DifferentialRuleData]:
+        pass
+
+
+class IOvertimeRuleRetriever(abc.ABC):
+    @abc.abstractmethod
+    async def get_all_rules(self, org_id: str) -> list[OvertimeRuleData]:
+        pass
+
+
 class IRuleRetrievalService(abc.ABC):
     """
     Defines the contract for efficiently retrieving all potentially applicable
@@ -193,7 +203,7 @@ class IRuleRetrievalService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_differential_rules_by_context(
+    async def get_differential_rules_by_context(
         self,
         employee: Employee,
         shift: Shift,
@@ -205,7 +215,7 @@ class IRuleRetrievalService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_overtime_rules_by_context(
+    async def get_overtime_rules_by_context(
         self,
         employee: Employee,
         shift: Shift,

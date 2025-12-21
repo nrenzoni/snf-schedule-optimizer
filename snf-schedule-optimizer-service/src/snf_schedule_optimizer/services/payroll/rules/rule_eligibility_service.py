@@ -55,14 +55,16 @@ class RuleEligibilityService:
 
         # Differential rules (Used for eligibility and slicing)
         potential_diff_rules = (
-            self.rule_retrieval_service.get_differential_rules_by_context(
+            await self.rule_retrieval_service.get_differential_rules_by_context(
                 employee, shift
             )
         )
 
         # Overtime rules (Used for threshold calculation)
-        potential_ot_rules = self.rule_retrieval_service.get_overtime_rules_by_context(
-            employee, shift
+        potential_ot_rules = (
+            await self.rule_retrieval_service.get_overtime_rules_by_context(
+                employee, shift
+            )
         )
 
         # Filter Differential Rules (requires job title/cert checks)

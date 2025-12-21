@@ -1,7 +1,9 @@
 from snf_schedule_optimizer.models import Employee, Shift
 from snf_schedule_optimizer.services.payroll.interfaces import (
     IDifferentialRule,
+    IDifferentialRuleRetriever,
     IOvertimeRule,
+    IOvertimeRuleRetriever,
     IRuleRetrievalService,
 )
 from snf_schedule_optimizer.services.payroll.rules.shift_rules import (

@@ -2,9 +2,7 @@ import contextlib
 from collections.abc import AsyncIterator
 
 from fastapi import FastAPI
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.orm import sessionmaker
 
 from snf_schedule_optimizer.api.grpc.scheduler_handler import SchedulingServiceHandler
 from snf_schedule_optimizer.generated.scheduling.v1.scheduling_connect import (

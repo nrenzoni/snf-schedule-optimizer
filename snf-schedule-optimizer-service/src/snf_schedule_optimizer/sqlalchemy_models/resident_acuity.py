@@ -1,5 +1,5 @@
 import whenever
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from snf_schedule_optimizer.models import ResidentAcuity

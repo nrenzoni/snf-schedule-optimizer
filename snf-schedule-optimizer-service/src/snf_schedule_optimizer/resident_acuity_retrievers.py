@@ -5,7 +5,7 @@ from snf_schedule_optimizer.models import ResidentAcuity, Shift
 
 class IResidentAcuityPerShiftRetriever(abc.ABC):
     @abc.abstractmethod
-    def get_resident_acuity_list(
+    async def get_resident_acuity_list(
         self,
         shift: Shift,
     ) -> list[ResidentAcuity]:
@@ -21,7 +21,7 @@ class ResidentAcuityPerShiftRetrieverImpl(IResidentAcuityPerShiftRetriever):
     ):
         self.stressed_residents: list[ResidentAcuity] = predefined_acuity_data
 
-    def get_resident_acuity_list(
+    async def get_resident_acuity_list(
         self,
         shift: Shift,
     ) -> list[ResidentAcuity]:

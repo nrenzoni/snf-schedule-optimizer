@@ -21,7 +21,9 @@ from snf_schedule_optimizer.optimizer.strategies.variables import (
 )
 from snf_schedule_optimizer.persistence import (
     SQLCertificationService,
+    SQLDifferentialRuleRetriever,
     SQLNurseRetriever,
+    SQLOvertimeRuleRetriever,
     SQLShiftRequirementsRetriever,
 )
 from snf_schedule_optimizer.persistence.employee_retriever import (
@@ -47,11 +49,11 @@ from snf_schedule_optimizer.persistence.shift_retriever import SQLShiftRetriever
 from snf_schedule_optimizer.persistence.staff_compensation_retriever import (
     SQLStaffCompensationRetriever,
 )
-from snf_schedule_optimizer.resident_acuity_retrievers import (
-    ResidentAcuityPerShiftRetrieverImpl,
-)
 from snf_schedule_optimizer.services.payroll.calculations.facility_rules_service import (
     FacilityRulesService,
+)
+from snf_schedule_optimizer.services.payroll.calculations.rule_retrieval_service import (
+    RuleRetrievalService,
 )
 from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluator import (
     ScheduleCostEvaluator,
@@ -89,20 +91,20 @@ def compose_scheduler_service(
     Wires up the Hexagon by connecting Infrastructure Adapters to Domain Ports.
     """
     # Create a database session for the duration of the service construction
-    db: AsyncSession = session_factory()
+    db_session: AsyncSession = session_factory()
 
     # 1. Low-Level Infrastructure Adapters (Persistence)
-    shift_retriever = SQLShiftRetriever(db)
-    schedule_retriever = SQLScheduleRetriever(db)
-    facility_retriever = SQLFacilityRetriever(db)
-    history_retriever = SQLRawHistoryRetriever(db)
-    employee_retriever = SQLEmployeeRetriever(db)
-    nurse_retriever = SQLNurseRetriever(db)
-    compensation_repo = SQLStaffCompensationRetriever(db)
+    shift_retriever = SQLShiftRetriever(db_session)
+    schedule_retriever = SQLScheduleRetriever(db_session)
+    facility_retriever = SQLFacilityRetriever(db_session)
+    history_retriever = SQLRawHistoryRetriever(db_session)
+    employee_retriever = SQLEmployeeRetriever(db_session)
+    nurse_retriever = SQLNurseRetriever(db_session)
+    compensation_repo = SQLStaffCompensationRetriever(db_session)
 
     # 2. Specialized Domain Data Access
-    shift_req_retriever = SQLShiftRequirementsRetriever(db)
-    acuity_retriever = SQLResidentAcuityPerShiftRetriever(db)
+    shift_req_retriever = SQLShiftRequirementsRetriever(db_session)
+    acuity_retriever = SQLResidentAcuityPerShiftRetriever(db_session)
 
     ml_retriever = (
         MLModelOutputsRetrieverImpl()
@@ -114,8 +116,8 @@ def compose_scheduler_service(
         shift_requirements_retriever=shift_req_retriever,
     )
 
-    facility_rule_retriever = SQLFacilityRulesRetriever(db)
-    employee_rule_retriever = SQLEmployeeRulesRetriever(db)
+    facility_rule_retriever = SQLFacilityRulesRetriever(db_session)
+    employee_rule_retriever = SQLEmployeeRulesRetriever(db_session)
 
     facility_rules_service = FacilityRulesService(
         facility_rule_retriever=facility_rule_retriever,
@@ -134,11 +136,19 @@ def compose_scheduler_service(
 
     # 4. Payroll & Costing Logic
     # (Assuming a simple eligibility service for now or mock it)
-    certification_service = SQLCertificationService(db)
+    certification_service = SQLCertificationService(db_session)
+
+    sql_differential_rule_retriever = SQLDifferentialRuleRetriever(db_session)
+    sql_overtime_rule_retriever = SQLOvertimeRuleRetriever(db_session)
+
+    rule_retriever_service = RuleRetrievalService(
+        diff_retriever=sql_differential_rule_retriever,
+        ot_retriever=sql_overtime_rule_retriever,
+    )
 
     rule_eligibility_service = RuleEligibilityService(
         certification_service=certification_service,
-        rule_retriever_service=...,
+        rule_retriever_service=rule_retriever_service,
     )
 
     pay_processor = ShiftPayProcessor(

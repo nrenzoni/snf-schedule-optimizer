@@ -62,8 +62,8 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
                     f"Invalid shift duration for shift {shift.shift_id} in facility {context.facility_id}."
                 )
 
-            residents_acuity = self.resident_acuity_retriever.get_resident_acuity_list(
-                shift
+            residents_acuity = (
+                await self.resident_acuity_retriever.get_resident_acuity_list(shift)
             )
             shift_census = len(residents_acuity)
 

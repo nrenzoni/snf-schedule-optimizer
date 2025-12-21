@@ -1,3 +1,8 @@
+from collections.abc import Sequence
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from snf_schedule_optimizer.models import (
     Differential,
     DifferentialDateInterval,
@@ -6,11 +11,18 @@ from snf_schedule_optimizer.models import (
     OvertimeTrigger,
     Shift,
 )
+from snf_schedule_optimizer.models.data import DifferentialRuleData, OvertimeRuleData
 from snf_schedule_optimizer.services.payroll.interfaces import (
     IDifferentialRule,
+    IDifferentialRuleRetriever,
     IOvertimeRule,
+    IOvertimeRuleRetriever,
     IRuleRetrievalService,
 )
+from snf_schedule_optimizer.sqlalchemy_models.differential_rule import (
+    DifferentialRuleModel,
+)
+from snf_schedule_optimizer.sqlalchemy_models.overtime_rule import OvertimeRuleModel
 
 # --- Assumed Interfaces & Models ---
 # Assuming these interfaces and models are available:
@@ -122,7 +134,7 @@ class RuleRetrievalServiceStaticListImpl(IRuleRetrievalService):
         self.diff_rules = diff_rules
         self.overtime_rules = overtime_rules
 
-    def get_differential_rules_by_context(
+    async def get_differential_rules_by_context(
         self,
         employee: Employee,
         shift: Shift,
@@ -139,7 +151,7 @@ class RuleRetrievalServiceStaticListImpl(IRuleRetrievalService):
 
         return diff_rules
 
-    def get_overtime_rules_by_context(
+    async def get_overtime_rules_by_context(
         self,
         employee: Employee,
         shift: Shift,
@@ -164,3 +176,25 @@ class RuleRetrievalServiceStaticListImpl(IRuleRetrievalService):
                 ot_rules.append(rule)
 
         return ot_rules
+
+
+class SQLDifferentialRuleRetriever(IDifferentialRuleRetriever):
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_all_rules(self, org_id: str) -> list[DifferentialRuleData]:
+        stmt = select(DifferentialRuleModel).where(
+            DifferentialRuleModel.org_id == org_id
+        )
+        result = await self.session.scalars(stmt)
+        return [m.to_data() for m in result.all()]
+
+
+class SQLOvertimeRuleRetriever(IOvertimeRuleRetriever):
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_all_rules(self, org_id: str) -> list[OvertimeRuleData]:
+        stmt = select(OvertimeRuleModel).where(OvertimeRuleModel.org_id == org_id)
+        result: Sequence[OvertimeRuleModel] = (await self.session.scalars(stmt)).all()
+        return [m.to_data() for m in result]

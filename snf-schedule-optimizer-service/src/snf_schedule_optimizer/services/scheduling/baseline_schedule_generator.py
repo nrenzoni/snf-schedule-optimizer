@@ -35,7 +35,7 @@ class BaselineScheduleGenerator:
             nurses = await self.nurse_retriever.get_nurses(shift)
             staff_count = len(nurses)
             curr_shift_residents_acuity = (
-                self.resident_acuity_retriever.get_resident_acuity_list(shift)
+                await self.resident_acuity_retriever.get_resident_acuity_list(shift)
             )
             census = len(curr_shift_residents_acuity)
             n_staff_to_assign = census
