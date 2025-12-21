@@ -10,7 +10,6 @@ requires-python = "==3.13.*"
 dependencies = [
     "asyncpg>=0.31.0",
     "connect-python==0.6.0",
-    "dependency-injector>=4.48.2",
     "fastapi>=0.125.0",
     "grpcio>=1.76.0",
     "hexaly>=14.0.20251112",
@@ -20,6 +19,7 @@ dependencies = [
     "protobuf>=6.33.2",
     "pulp>=3.3.0",
     "sqlalchemy[mypy]>=2.0.45",
+    "that-depends>=3.9.1",
     "uvicorn>=0.38.0",
     "whenever>=0.9.4",
 ]
