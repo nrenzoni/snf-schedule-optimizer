@@ -163,6 +163,10 @@ class WorkforceSchedulerService:
 
         return await self._process_results(result, data_provider)
 
+    async def close(self) -> None:
+        """Cleans up any resources held by the service."""
+        pass
+
     async def _process_results(
         self,
         result: ScheduleOptimizationResults,

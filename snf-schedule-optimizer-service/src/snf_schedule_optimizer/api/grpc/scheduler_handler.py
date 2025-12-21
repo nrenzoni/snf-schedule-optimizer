@@ -15,6 +15,16 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
     def __init__(self, scheduler_service: WorkforceSchedulerService):
         self.scheduler_service = scheduler_service
 
+    async def get_monthly_schedule(
+        self,
+        request: scheduling_pb2.GetMonthlyScheduleRequest,
+        ctx: RequestContext[
+            scheduling_pb2.GetMonthlyScheduleRequest,
+            scheduling_pb2.GetMonthlyScheduleResponse,
+        ],
+    ) -> scheduling_pb2.GetMonthlyScheduleResponse:
+        return scheduling_pb2.GetMonthlyScheduleResponse()
+
     async def validate_shift_move(
         self,
         request: scheduling_pb2.ValidateShiftMoveRequest,
