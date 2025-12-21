@@ -28,7 +28,7 @@ from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluato
     ScheduleCostEvaluator,
 )
 from snf_schedule_optimizer.services.repositories import (
-    IFacilityRepository,
+    IFacilityRetriever,
     IShiftRetriever,
 )
 from snf_schedule_optimizer.services.scheduling.interfaces import IScheduleRetriever
@@ -46,7 +46,7 @@ class WorkforceSchedulerService:
         optimizer: NurseShiftScheduleOptimizer,
         cost_evaluator: ScheduleCostEvaluator,
         schedule_retriever: IScheduleRetriever,
-        facility_repository: IFacilityRepository,
+        facility_repository: IFacilityRetriever,
         shift_retriever: IShiftRetriever,
     ):
         self.provider_factory = provider_factory
@@ -287,7 +287,7 @@ class WorkforceSchedulerService:
 
         # 2. Fetch Facility Configurations (needed for Timezones)
         facility_ids = {k.facility_id for k in keys_to_fetch}
-        configs = self.facility_repository.get_configs(org_id, list(facility_ids))
+        configs = await self.facility_repository.get_configs(org_id, list(facility_ids))
 
         # Create lookups
         config_map = {c.facility_id: c for c in configs}

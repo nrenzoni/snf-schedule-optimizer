@@ -30,13 +30,13 @@ class IShiftRetriever(abc.ABC):
         pass
 
 
-class IFacilityRepository(abc.ABC):
+class IFacilityRetriever(abc.ABC):
     """
     Interface for retrieving Facility Configurations.
     """
 
     @abc.abstractmethod
-    def get_configs(
+    async def get_configs(
         self,
         org_id: str,
         facility_ids: list[str] | None = None,

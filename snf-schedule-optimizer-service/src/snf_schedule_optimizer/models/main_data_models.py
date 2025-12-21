@@ -79,7 +79,7 @@ class NurseProfile:
     # role: NurseRole  # moved to job_title in Employee
     # base_rate: float  # Base wage, agency adjusted here
     # ot_multiplier: float  # non-exempt OT pay multiplier, if exempt set to 1.0
-    available_hours_weekly: int
+    available_hours_weekly: float
     # is_agency: bool
     skills: (
         list[str] | None
@@ -527,3 +527,22 @@ class MealDeductionRules:
 
     # Flag to indicate if the deduction is automatic, even if the employee did not punch out for it
     is_mandatory: bool = True
+
+
+@dataclass(frozen=True)
+class FacilityRulesConfig:
+    """Strongly typed domain configuration for facility-wide rules."""
+
+    rounding_unit_minutes: int
+    meal_deduction_threshold_hours: float
+    meal_deduction_duration_hours: float
+    meal_is_mandatory: bool
+
+
+@dataclass(frozen=True)
+class EmployeeRuleOverride:
+    """Strongly typed overrides specific to an individual employee."""
+
+    employee_id: str
+    rounding_unit_minutes: int | None = None
+    auto_meal_deduction_enabled: bool | None = None

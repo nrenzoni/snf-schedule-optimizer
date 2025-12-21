@@ -31,7 +31,7 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
     ) -> InfeasibilityReasonResult | None:
         # todo: Add infeasibility checks (e.g., no available nurses for a required role)
 
-        requirements_holder = data_provider.get_hprd_requirements_for_facility(
+        requirements_holder = await data_provider.get_hprd_requirements_for_facility(
             facility_id
         )
         shifts = data_provider.get_shifts_for_facility(facility_id)
@@ -48,7 +48,7 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
                     continue
 
                 available_vars = []
-                nurses = data_provider.get_nurses_for_shift(shift)
+                nurses = await data_provider.get_nurses_for_shift(shift)
 
                 for nurse in nurses:
                     # Filter by Hard Blocks (Time off, etc.)
@@ -122,10 +122,10 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
             if gap < 8.0:
                 # Find common nurses
                 nurses_s1 = {
-                    n.employee_id for n in data_provider.get_nurses_for_shift(s1)
+                    n.employee_id for n in await data_provider.get_nurses_for_shift(s1)
                 }
                 nurses_s2 = {
-                    n.employee_id for n in data_provider.get_nurses_for_shift(s2)
+                    n.employee_id for n in await data_provider.get_nurses_for_shift(s2)
                 }
                 common = nurses_s1.intersection(nurses_s2)
 

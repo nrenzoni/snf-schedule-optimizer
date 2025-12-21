@@ -19,7 +19,7 @@ from snf_schedule_optimizer.optimizer.context import (
     LpNurseShiftVariableHolder,
 )
 from snf_schedule_optimizer.optimizer.models import InfeasibilityReasonResult
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationService
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRetriever
 
 
 class INurseHardBlockChecker(abc.ABC):
@@ -161,7 +161,7 @@ class IObjectivePenaltyStrategy(abc.ABC):
 
 class IHprdRequirementCalculator(abc.ABC):
     @abc.abstractmethod
-    def calculate_requirements(
+    async def calculate_requirements(
         self,
         context: FacilityScenarioContext,
     ) -> HprdShiftNurseRequirementHolder:
@@ -192,7 +192,7 @@ class IScenarioDataProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_compensation_service(self) -> IStaffCompensationService:
+    def get_compensation_service(self) -> IStaffCompensationRetriever:
         """Provides access to financial data scoped for this run."""
         pass
 
@@ -213,12 +213,12 @@ class IScenarioDataProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_nurses_for_shift(self, shift: Shift) -> list[NurseProfile]:
+    async def get_nurses_for_shift(self, shift: Shift) -> list[NurseProfile]:
         """Returns available nurses for a specific shift, cached per shift."""
         pass
 
     @abc.abstractmethod
-    def get_hprd_requirements_for_facility(
+    async def get_hprd_requirements_for_facility(
         self,
         facility_id: str,
     ) -> HprdShiftNurseRequirementHolder:

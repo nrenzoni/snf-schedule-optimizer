@@ -18,7 +18,7 @@ class BaselineScheduleGenerator:
         self.resident_acuity_retriever = resident_acuity_retriever
         self.nurse_retriever = nurse_retriever
 
-    def generate_baseline_schedule(
+    async def generate_baseline_schedule(
         self,
         shifts: list[Shift],
     ) -> Schedule:
@@ -32,7 +32,7 @@ class BaselineScheduleGenerator:
         shift_assignments: ShiftAssignmentsType = {}
 
         for i, shift in enumerate(shifts):
-            nurses = self.nurse_retriever.get_nurses(shift)
+            nurses = await self.nurse_retriever.get_nurses(shift)
             staff_count = len(nurses)
             curr_shift_residents_acuity = (
                 self.resident_acuity_retriever.get_resident_acuity_list(shift)

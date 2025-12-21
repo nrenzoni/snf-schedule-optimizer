@@ -5,7 +5,7 @@ from snf_schedule_optimizer.models import (
     PreferenceWeights,
     Shift,
 )
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationService
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRetriever
 from snf_schedule_optimizer.services.scheduling.interfaces import (
     IPreferencePenaltyProcessor,
 )
@@ -14,9 +14,9 @@ from snf_schedule_optimizer.services.scheduling.interfaces import (
 class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
     def __init__(
         self,
-        staff_compensation_service: IStaffCompensationService,
+        staff_compensation_retriever: IStaffCompensationRetriever,
     ):
-        self.staff_compensation_service = staff_compensation_service
+        self.staff_compensation_retriever = staff_compensation_retriever
 
     async def calculate_penalty_cost(
         self,
@@ -69,7 +69,7 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
         # FIX: The ot_multiplier is not on NurseProfile. Delegate the multiplier check
         # to the ShiftPayProcessor or assume a standard rate for soft penalty calculation.
         # Here, we assume the base_rate is enough proxy cost.
-        comp_record = await self.staff_compensation_service.get_record_for_date(
+        comp_record = await self.staff_compensation_retriever.get_record_for_date(
             employee.employee_id, shift.shift_start_dt
         )
         if comp_record is None:

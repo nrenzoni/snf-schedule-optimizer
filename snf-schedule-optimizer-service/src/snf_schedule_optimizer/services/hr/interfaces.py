@@ -28,7 +28,7 @@ class IEmployeeRetriever(abc.ABC):
         pass
 
 
-class IStaffCompensationService(abc.ABC):
+class IStaffCompensationRetriever(abc.ABC):
     """Defines the contract for retrieving the active financial rate for an employee."""
 
     @abc.abstractmethod
@@ -46,7 +46,7 @@ class IStaffCompensationService(abc.ABC):
 
 class ICertificationService(abc.ABC):
     @abc.abstractmethod
-    def is_certification_active(
+    async def is_certification_active(
         self,
         employee_id: str,
         certification_name: str,

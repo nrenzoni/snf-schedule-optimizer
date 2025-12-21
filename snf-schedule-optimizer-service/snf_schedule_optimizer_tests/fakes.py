@@ -5,14 +5,19 @@ from snf_schedule_optimizer.ml_output_retrievers import IMLModelOutputsRetriever
 # Import Models
 from snf_schedule_optimizer.models import (
     Employee,
+    EmployeeTimeSettings,
     HprdEnforcedRole,
     LookbackPeriod,
+    MealDeductionRules,
     MlModelOutputs,
     NurseProfile,
     PreferenceWeights,
+    PunchType,
+    RoundingType,
     Shift,
     ShiftKey,
     ShiftSpecificRequirements,
+    SplitDayType,
     StaffCompensationRecord,
     WorkedShiftSegment,
 )
@@ -26,11 +31,12 @@ from snf_schedule_optimizer.optimizer.interfaces import IHprdRequirementCalculat
 from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
 from snf_schedule_optimizer.services.hr.interfaces import (
     IEmployeeRetriever,
-    IStaffCompensationService,
+    IStaffCompensationRetriever,
 )
 from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
     ThresholdOvertimeRule,
 )
+from snf_schedule_optimizer.services.payroll.interfaces import IFacilityRulesService
 from snf_schedule_optimizer.services.scheduling.interfaces import (
     IPreferencePenaltyProcessor,
     IShiftRequirementsRetriever,
@@ -38,6 +44,7 @@ from snf_schedule_optimizer.services.scheduling.interfaces import (
 from snf_schedule_optimizer.services.timekeeping.interfaces import (
     IEmployeeWorkHistoryService,
 )
+from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
 
 class FakeEmployeeRetriever(IEmployeeRetriever):
@@ -62,16 +69,16 @@ class FakeNurseRetriever(INurseRetriever):
     def __init__(self, nurses: list[NurseProfile]):
         self._nurses = nurses
 
-    def get_nurses(self, shift: Shift) -> list[NurseProfile]:
+    async def get_nurses(self, shift: Shift) -> list[NurseProfile]:
         # Simple Fake: Returns all configured nurses regardless of shift
         # You could add filtering logic here if you wanted smarter tests
         return self._nurses
 
-    def get_nurse(self, employee_id: str) -> NurseProfile | None:
+    async def get_nurse(self, employee_id: str) -> NurseProfile | None:
         return next((n for n in self._nurses if n.employee_id == employee_id), None)
 
 
-class FakeStaffCompensationService(IStaffCompensationService):
+class FakeStaffCompensationRetriever(IStaffCompensationRetriever):
     def __init__(self, records: list[StaffCompensationRecord]):
         self._records = records
         self.tz = "America/New_York"
@@ -189,7 +196,9 @@ class FakeShiftRequirementsRetriever(IShiftRequirementsRetriever):
             target_hprd_rn=0.0, target_hprd_cna=0.0, target_total_hprd=0.0
         )
 
-    def get_shift_requirements(self, shift: Shift) -> ShiftSpecificRequirements:
+    async def get_shift_requirements(
+        self, shift: Shift
+    ) -> ShiftSpecificRequirements | None:
         return self._map.get(shift.shift_id, self._default)
 
 
@@ -203,7 +212,7 @@ class FakeHprdRequirementCalculator(IHprdRequirementCalculator):
         """
         self._map = requirements_map or {}
 
-    def calculate_requirements(
+    async def calculate_requirements(
         self, context: FacilityScenarioContext
     ) -> HprdShiftNurseRequirementHolder:
         # 1. Create the REAL holder data structure
@@ -219,3 +228,71 @@ class FakeHprdRequirementCalculator(IHprdRequirementCalculator):
                 holder[shift_id, role] = count
 
         return holder
+
+
+class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
+    """
+    Concrete implementation providing static, hardcoded payroll rules for testing
+    the Shift Reconciler and other services.
+    """
+
+    def __init__(self) -> None:
+        # Hardcode the essential parameters for internal use
+        self.DEFAULT_ROUNDING_UNIT = 6
+        self.DEFAULT_PAIRING_THRESHOLD = whenever.DateTimeDelta(hours=10)
+        self.DEFAULT_SPLIT_TIME = whenever.Time(3, 0, 0)
+        self.DEFAULT_GRACE_WINDOW = whenever.DateTimeDelta(minutes=15)
+
+        # Instantiate the deduction rules once
+        self.default_meal_rules = MealDeductionRules(
+            meal_threshold_hours=6.0,
+            meal_duration_hours=0.5,  # 30 minutes
+            is_mandatory=True,
+        )
+
+    async def apply_rounding(
+        self,
+        org_id: str,
+        raw_time: whenever.ZonedDateTime,
+        punch_type: PunchType,
+    ) -> whenever.ZonedDateTime:
+        """
+        Applies a standard nearest-interval rounding (e.g., 6-minute rule).
+        """
+        return TimeRoundingUtility.round_to_nearest_unit(
+            raw_time,
+            self.DEFAULT_ROUNDING_UNIT,
+        )
+
+    async def get_time_settings(
+        self,
+        org_id: str,
+        employee_id: str,
+        facility_id: str,
+        check_dt: whenever.ZonedDateTime,
+    ) -> EmployeeTimeSettings:
+        """
+        Retrieves hardcoded time settings, ignoring employee_id and date for simplicity.
+        """
+        # In production, this would filter by union contract/facility rules active on check_dt.
+        return EmployeeTimeSettings(
+            pairing_threshold=self.DEFAULT_PAIRING_THRESHOLD,
+            split_day_threshold_time=self.DEFAULT_SPLIT_TIME,
+            shift_separator_time=self.DEFAULT_SPLIT_TIME,  # Using the split time as separator for simplicity
+            shift_grace_window=self.DEFAULT_GRACE_WINDOW,
+            rounding_unit_minutes=self.DEFAULT_ROUNDING_UNIT,
+            split_day_day_type=SplitDayType.CURRENT,
+            rounding_type=RoundingType.NEAREST,
+        )
+
+    async def get_meal_deduction_rules(
+        self,
+        org_id: str,
+        facility_id: str,
+        check_dt: whenever.ZonedDateTime,
+    ) -> MealDeductionRules | None:
+        """
+        Retrieves the standard 6-hour threshold/30-minute mandatory deduction rules.
+        """
+        # In production, this would check state/federal laws and return the applicable rule.
+        return self.default_meal_rules

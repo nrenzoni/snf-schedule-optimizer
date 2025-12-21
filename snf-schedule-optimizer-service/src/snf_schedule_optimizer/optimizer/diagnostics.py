@@ -51,7 +51,7 @@ class SchedulerInfeasibilityDiagnoser:
     async def _analyze_global_capacity(self, facility_id: str) -> list[str]:
         output = []
         shifts = self.provider.get_shifts_for_facility(facility_id)
-        reqs = self.provider.get_hprd_requirements_for_facility(facility_id)
+        reqs = await self.provider.get_hprd_requirements_for_facility(facility_id)
 
         total_req_hours: dict[HprdEnforcedRole, float] = dict.fromkeys(
             HprdEnforcedRole, 0.0
@@ -96,7 +96,7 @@ class SchedulerInfeasibilityDiagnoser:
     async def _analyze_shift_bottlenecks(self, facility_id: str) -> list[str]:
         output = []
         shifts = self.provider.get_shifts_for_facility(facility_id)
-        reqs = self.provider.get_hprd_requirements_for_facility(facility_id)
+        reqs = await self.provider.get_hprd_requirements_for_facility(facility_id)
 
         output.append("\n  Shift Bottleneck Analysis (Hard Constraints):")
 
@@ -104,7 +104,7 @@ class SchedulerInfeasibilityDiagnoser:
 
         # Sort by time for readability
         for shift in sorted(shifts, key=lambda s: s.shift_start_dt):
-            nurses = self.provider.get_nurses_for_shift(shift)
+            nurses = await self.provider.get_nurses_for_shift(shift)
 
             # Bucket available nurses by role for THIS specific shift
             available_by_role: dict[HprdEnforcedRole, int] = defaultdict(int)

@@ -6,6 +6,7 @@ from snf_schedule_optimizer.models import (
     NurseProfile,
     PreferenceType,
     Shift,
+    ShiftSpecificRequirements,
 )
 from snf_schedule_optimizer.optimizer.clocks import IClock
 from snf_schedule_optimizer.optimizer.context import (
@@ -35,7 +36,7 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
         self.resident_acuity_retriever = resident_acuity_retriever
         self.shift_requirements_retriever = shift_requirements_retriever
 
-    def calculate_requirements(
+    async def calculate_requirements(
         self, context: FacilityScenarioContext
     ) -> HprdShiftNurseRequirementHolder:
         hprd_shift_nurse_requirements = HprdShiftNurseRequirementHolder(
@@ -51,8 +52,10 @@ class HprdRequirementCalculatorImpl(IHprdRequirementCalculator):
 
         for shift in context.shifts:
             shift_requirements = (
-                self.shift_requirements_retriever.get_shift_requirements(shift)
+                await self.shift_requirements_retriever.get_shift_requirements(shift)
             )
+            if not shift_requirements:
+                shift_requirements = ShiftSpecificRequirements()
             hours_in_shift = (shift.shift_end_dt - shift.shift_start_dt).in_hours()
             if hours_in_shift <= 0:
                 raise ValueError(

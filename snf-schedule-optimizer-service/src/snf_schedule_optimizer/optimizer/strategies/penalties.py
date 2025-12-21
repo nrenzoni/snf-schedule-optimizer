@@ -37,7 +37,7 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
         for shift in data_provider.get_all_shifts():
             # Get Context
             ml_outputs = data_provider.get_ml_model_outputs(shift)
-            nurses = data_provider.get_nurses_for_shift(shift)
+            nurses = await data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
                 employee = await data_provider.get_employee_by_id(nurse.employee_id)

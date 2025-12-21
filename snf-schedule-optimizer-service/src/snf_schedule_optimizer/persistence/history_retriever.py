@@ -68,7 +68,7 @@ class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
         return history_map
 
 
-class SQLARawHistoryRetriever(IRawHistoryRetriever):
+class SQLRawHistoryRetriever(IRawHistoryRetriever):
     """
     Concrete implementation using SQLAlchemy to fetch raw Shifts and Punches
     via the direct FK from TimePunch to Shift.

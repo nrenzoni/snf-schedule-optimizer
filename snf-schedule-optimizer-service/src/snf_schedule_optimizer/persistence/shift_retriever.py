@@ -7,7 +7,7 @@ from snf_schedule_optimizer.services.repositories import IShiftRetriever
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 
 
-class SQLAlchemyShiftRetriever(IShiftRetriever):
+class SQLShiftRetriever(IShiftRetriever):
     def __init__(self, session: AsyncSession):
         self.session = session
 

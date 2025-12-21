@@ -14,6 +14,9 @@ class FacilityRulesConfigModel(SQLABase):
     __tablename__ = "facility_rules_config"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    org_id: Mapped[str] = mapped_column(
+        ForeignKey("organization.id"), index=True, nullable=False
+    )
     facility_id: Mapped[int] = mapped_column(
         ForeignKey("facility.id"), index=True, nullable=False
     )

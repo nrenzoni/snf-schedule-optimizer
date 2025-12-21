@@ -10,7 +10,7 @@ from snf_schedule_optimizer.models import (
     WorkedShiftSegment,
 )
 from snf_schedule_optimizer.optimizer.models import ShiftCostBreakdown
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationService
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRetriever
 from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
     ThresholdOvertimeRule,
 )
@@ -36,7 +36,7 @@ class ShiftPayProcessor:
         eligibility_service: RuleEligibilityService,
         # ot_calculator: IOvertimeCalculator,
         slicer: IShiftSlicer,
-        compensation_service: IStaffCompensationService,
+        compensation_service: IStaffCompensationRetriever,
         # work_history_service: IEmployeeWorkHistoryService,
     ):
         self.eligibility_service = eligibility_service
@@ -98,7 +98,7 @@ class ShiftPayProcessor:
 
         # 4. Get Differentials (Night/Weekend)
         # This remains the same, assuming eligibility_service is fast
-        differential_rules, _ = self.eligibility_service.get_applicable_rules(
+        differential_rules, _ = await self.eligibility_service.get_applicable_rules(
             employee, shift
         )
 

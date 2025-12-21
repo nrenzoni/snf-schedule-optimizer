@@ -19,28 +19,39 @@ from snf_schedule_optimizer.optimizer.strategies.penalties import QualityOfLifeS
 from snf_schedule_optimizer.optimizer.strategies.variables import (
     CoreVariableGenerationStrategy,
 )
+from snf_schedule_optimizer.persistence import (
+    SQLCertificationService,
+    SQLNurseRetriever,
+    SQLShiftRequirementsRetriever,
+)
 from snf_schedule_optimizer.persistence.employee_retriever import (
     SQLEmployeeRetriever,
 )
-from snf_schedule_optimizer.persistence.facility_repository import (
-    SQLAlchemyFacilityRepository,
+from snf_schedule_optimizer.persistence.employee_rule_retriever import (
+    SQLEmployeeRulesRetriever,
+)
+from snf_schedule_optimizer.persistence.facility_retriever import SQLFacilityRetriever
+from snf_schedule_optimizer.persistence.facility_rules_retriever import (
+    SQLFacilityRulesRetriever,
 )
 
 # Persistence Implementations
-from snf_schedule_optimizer.persistence.history_retriever import SQLARawHistoryRetriever
-from snf_schedule_optimizer.persistence.nurse_retrievers import SQLANurseRetriever
+from snf_schedule_optimizer.persistence.history_retriever import SQLRawHistoryRetriever
+from snf_schedule_optimizer.persistence.resident_acuity_per_shift_retriever import (
+    SQLResidentAcuityPerShiftRetriever,
+)
 from snf_schedule_optimizer.persistence.schedule_retriever import (
-    SQLAlchemyScheduleRetriever,
+    SQLScheduleRetriever,
 )
-from snf_schedule_optimizer.persistence.shift_requirements_retriever import (
-    SQLAShiftRequirementsRetriever,
-)
-from snf_schedule_optimizer.persistence.shift_retriever import SQLAlchemyShiftRetriever
-from snf_schedule_optimizer.persistence.staff_compensation_service import (
-    SQLAStaffCompensationService,
+from snf_schedule_optimizer.persistence.shift_retriever import SQLShiftRetriever
+from snf_schedule_optimizer.persistence.staff_compensation_retriever import (
+    SQLStaffCompensationRetriever,
 )
 from snf_schedule_optimizer.resident_acuity_retrievers import (
     ResidentAcuityPerShiftRetrieverImpl,
+)
+from snf_schedule_optimizer.services.payroll.calculations.facility_rules_service import (
+    FacilityRulesService,
 )
 from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluator import (
     ScheduleCostEvaluator,
@@ -63,7 +74,7 @@ from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
     WorkforceSchedulerService,
 )
 from snf_schedule_optimizer.services.timekeeping.shift_reconciliation import (
-    ShiftReconcilerServiceImpl,
+    ShiftReconcilerService,
 )
 from snf_schedule_optimizer.services.timekeeping.work_history_service import (
     EmployeeWorkHistoryServiceImpl,
@@ -81,17 +92,18 @@ def compose_scheduler_service(
     db: AsyncSession = session_factory()
 
     # 1. Low-Level Infrastructure Adapters (Persistence)
-    shift_retriever = SQLAlchemyShiftRetriever(db)
-    schedule_retriever = SQLAlchemyScheduleRetriever(db)
-    facility_repo = SQLAlchemyFacilityRepository(db)
-    history_retriever = SQLARawHistoryRetriever(db)
+    shift_retriever = SQLShiftRetriever(db)
+    schedule_retriever = SQLScheduleRetriever(db)
+    facility_retriever = SQLFacilityRetriever(db)
+    history_retriever = SQLRawHistoryRetriever(db)
     employee_retriever = SQLEmployeeRetriever(db)
-    nurse_retriever = SQLANurseRetriever(db)
-    compensation_repo = SQLAStaffCompensationService(db)
+    nurse_retriever = SQLNurseRetriever(db)
+    compensation_repo = SQLStaffCompensationRetriever(db)
 
     # 2. Specialized Domain Data Access
-    shift_req_retriever = SQLAShiftRequirementsRetriever(db)
-    acuity_retriever = ResidentAcuityPerShiftRetrieverImpl(db)
+    shift_req_retriever = SQLShiftRequirementsRetriever(db)
+    acuity_retriever = SQLResidentAcuityPerShiftRetriever(db)
+
     ml_retriever = (
         MLModelOutputsRetrieverImpl()
     )  # Assuming no DB dependency for ML client
@@ -102,20 +114,31 @@ def compose_scheduler_service(
         shift_requirements_retriever=shift_req_retriever,
     )
 
-    shift_reconciler = ShiftReconcilerServiceImpl(
-        facility_rules_service=...,
+    facility_rule_retriever = SQLFacilityRulesRetriever(db)
+    employee_rule_retriever = SQLEmployeeRulesRetriever(db)
+
+    facility_rules_service = FacilityRulesService(
+        facility_rule_retriever=facility_rule_retriever,
+        employee_rule_retriever=employee_rule_retriever,
+    )
+
+    shift_reconciler = ShiftReconcilerService(
+        facility_rules_service=facility_rules_service,
     )
     work_history_service = EmployeeWorkHistoryServiceImpl(
         history_retriever=history_retriever,
         shift_retriever=shift_retriever,
-        facility_config_repo=facility_repo,
+        facility_config_retriever=facility_retriever,
         shift_reconciler=shift_reconciler,
     )
 
     # 4. Payroll & Costing Logic
     # (Assuming a simple eligibility service for now or mock it)
+    certification_service = SQLCertificationService(db)
+
     rule_eligibility_service = RuleEligibilityService(
-        certification_service=..., rule_retriever_service=...
+        certification_service=certification_service,
+        rule_retriever_service=...,
     )
 
     pay_processor = ShiftPayProcessor(
@@ -127,7 +150,7 @@ def compose_scheduler_service(
 
     # 5. Optimization Strategies
     penalty_processor = PreferencePenaltyProcessorImpl(
-        staff_compensation_service=...,
+        staff_compensation_retriever=compensation_repo,
     )
 
     optimizer = NurseShiftScheduleOptimizer(
@@ -162,6 +185,6 @@ def compose_scheduler_service(
         optimizer=optimizer,
         cost_evaluator=cost_evaluator,
         schedule_retriever=schedule_retriever,
-        facility_repository=facility_repo,
+        facility_repository=facility_retriever,
         shift_retriever=shift_retriever,
     )

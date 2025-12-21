@@ -34,7 +34,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
 
         for shift in data_provider.get_all_shifts():
             duration = (shift.shift_end_dt - shift.shift_start_dt).in_hours()
-            nurses = data_provider.get_nurses_for_shift(shift)
+            nurses = await data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
                 var = lp_holder.get_variable(
@@ -97,7 +97,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
 
         return terms
 
-    def create_variables(
+    async def create_variables(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
@@ -186,7 +186,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
         shifts = data_provider.get_all_shifts()
         for shift in shifts:
             config = data_provider.get_facility_config(shift.facility_id)
-            nurses = data_provider.get_nurses_for_shift(shift)
+            nurses = await data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
                 variable = lp_holder.get_variable(
@@ -277,7 +277,7 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
     ) -> None:
         self.shift_pay_processor = shift_pay_processor
 
-    def create_variables(
+    async def create_variables(
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
@@ -307,7 +307,7 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
             # (Assuming the FacilityConfig passed has the 8h daily threshold configured).
 
             config = data_provider.get_facility_config(shift.facility_id)
-            nurses = data_provider.get_nurses_for_shift(shift)
+            nurses = await data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
                 var = lp_holder.get_variable(

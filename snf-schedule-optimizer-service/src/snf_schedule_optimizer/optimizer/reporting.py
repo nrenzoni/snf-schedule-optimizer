@@ -87,7 +87,7 @@ class ScheduleResultAnalyzer:
                 # We need the nurse profile for preferences
                 # Assuming provider can bridge Employee -> NurseProfile logic
                 # (or we iterate nurses_for_shift to find the profile)
-                nurses = self.provider.get_nurses_for_shift(shift)
+                nurses = await self.provider.get_nurses_for_shift(shift)
                 nurse_profile = next(
                     (n for n in nurses if n.employee_id == emp_id), None
                 )
@@ -129,7 +129,7 @@ class ScheduleResultAnalyzer:
 
         # 2. Analyze Compliance (Hard Constraints - HPRD/Min Staffing)
         for fac_id in facility_ids:
-            reqs = self.provider.get_hprd_requirements_for_facility(fac_id)
+            reqs = await self.provider.get_hprd_requirements_for_facility(fac_id)
             shifts = self.provider.get_shifts_for_facility(fac_id)
 
             for shift in shifts:

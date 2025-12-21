@@ -1,5 +1,6 @@
 import whenever
 from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
 from snf_schedule_optimizer.models import FacilityConfig
@@ -39,7 +40,7 @@ class CertificationServiceStaticListImpl(ICertificationService):
 
         self.facility_config = facility_config
 
-    def is_certification_active(
+    async def is_certification_active(
         self,
         employee_id: str,
         certification_name: str,
@@ -69,15 +70,15 @@ class CertificationServiceStaticListImpl(ICertificationService):
         return False
 
 
-class SQLACertificationService(ICertificationService):
+class SQLCertificationService(ICertificationService):
     """
     Concrete implementation using SQLAlchemy to query the Postgres employee_certification table.
     """
 
-    def __init__(self, db_session: Session):
+    def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    def is_certification_active(
+    async def is_certification_active(
         self,
         employee_id: str,
         certification_name: str,
@@ -106,7 +107,7 @@ class SQLACertificationService(ICertificationService):
         )
 
         # Execute the query
-        result = self.db_session.execute(stmt).scalar_one_or_none()
+        result = (await self.db_session.execute(stmt)).scalar_one_or_none()
 
         # If a record is found, it means the certification exists and is valid
         # (unexpired) on the specified check_date.

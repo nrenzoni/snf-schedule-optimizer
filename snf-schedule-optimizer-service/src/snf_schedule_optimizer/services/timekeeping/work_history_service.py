@@ -14,7 +14,7 @@ from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation i
 )
 from snf_schedule_optimizer.services.payroll.interfaces import IShiftReconcilerService
 from snf_schedule_optimizer.services.repositories import (
-    IFacilityRepository,
+    IFacilityRetriever,
     IShiftRetriever,
 )
 from snf_schedule_optimizer.services.timekeeping.interfaces import (
@@ -34,14 +34,14 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         history_retriever: IRawHistoryRetriever,
         shift_retriever: IShiftRetriever,
         shift_reconciler: IShiftReconcilerService,
-        facility_config_repo: IFacilityRepository,
+        facility_config_retriever: IFacilityRetriever,
     ) -> None:
         # Dependencies like facility config for standard work period start times
         # could be injected here if not provided via the threshold rule.
         self.history_retriever = history_retriever
         self.shift_retriever = shift_retriever
         self.shift_reconciler = shift_reconciler
-        self.facility_config_repo = facility_config_repo
+        self.facility_config_retriever = facility_config_retriever
 
     async def get_remaining_non_ot_hours(
         self,
@@ -54,7 +54,9 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         checking all supplied daily and weekly rules.
         """
 
-        facility_configs = self.facility_config_repo.get_configs(current_shift.org_id)
+        facility_configs = await self.facility_config_retriever.get_configs(
+            current_shift.org_id
+        )
         facility_tzs = {fc.facility_id: fc.tz for fc in facility_configs}
 
         raw_history_data_per_key = (
@@ -73,7 +75,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
             org_id=current_shift.org_id,
         )
 
-        processed_history = self._convert_raw_history_to_segments(
+        processed_history = await self._convert_raw_history_to_segments(
             raw_history_data_per_key,
             shifts,
         )
@@ -148,7 +150,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
         # Retrieve facility timezones to hydrate shift objects
         facility_ids = list({k.facility_id for k in history})
-        configs = self.facility_config_repo.get_configs(
+        configs = await self.facility_config_retriever.get_configs(
             current_shift.org_id, facility_ids
         )
         tz_map = {c.facility_id: c.tz for c in configs}
@@ -221,7 +223,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
         facility_id: str | None = None,
     ) -> dict[ShiftKey, list[WorkedShiftSegment]]:
         facility_ids = [facility_id] if facility_id else None
-        configs = self.facility_config_repo.get_configs(org_id, facility_ids)
+        configs = await self.facility_config_retriever.get_configs(org_id, facility_ids)
 
         facility_tzs = {c.facility_id: c.tz for c in configs}
 
@@ -247,7 +249,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
             org_id=org_id,
         )
 
-        processed_history = self._convert_raw_history_to_segments(
+        processed_history = await self._convert_raw_history_to_segments(
             raw_history_data, shifts
         )
 
@@ -349,7 +351,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
             for block in blocks
         ]
 
-    def _convert_raw_history_to_segments(
+    async def _convert_raw_history_to_segments(
         self,
         raw_history: dict[ShiftKey, list[TimePunch]],
         shifts: dict[ShiftKey, Shift],
@@ -364,9 +366,9 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
                 )
 
             # Use the Reconciler to clean the punches and apply rounding/deductions
-            worked_blocks: list[WorkedTimeBlock] = (
-                self.shift_reconciler.reconcile_shift_to_blocks(shift, punches)
-            )
+            worked_blocks: list[
+                WorkedTimeBlock
+            ] = await self.shift_reconciler.reconcile_shift_to_blocks(shift, punches)
 
             # Convert clean time blocks into the segment structure expected by calculation logic
             segments: list[WorkedShiftSegment] = []

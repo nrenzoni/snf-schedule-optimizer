@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from typing import Any
 
 import whenever
 
@@ -8,7 +9,9 @@ from snf_schedule_optimizer.models import (
     Differential,
     DifferentialDateInterval,
     Employee,
+    EmployeeRuleOverride,
     EmployeeTimeSettings,
+    FacilityRulesConfig,
     MealDeductionRules,
     NurseProfile,
     OvertimeInterval,
@@ -60,7 +63,7 @@ class IShiftReconcilerService(abc.ABC):
     """
 
     @abc.abstractmethod
-    def reconcile_shift_to_blocks(
+    async def reconcile_shift_to_blocks(
         self,
         scheduled_shift: Shift,
         raw_punches: list[TimePunch],
@@ -214,14 +217,44 @@ class IRuleRetrievalService(abc.ABC):
         pass
 
 
+class IFacilityRulesRetriever(abc.ABC):
+    """
+    PORT: Interface for fetching raw rule configurations from persistence.
+    """
+
+    @abc.abstractmethod
+    async def get_active_config(
+        self,
+        org_id: str,
+        facility_id: str,
+        check_date: whenever.ZonedDateTime,
+    ) -> FacilityRulesConfig | None:
+        pass
+
+
+class IEmployeeRulesRetriever:
+    """
+    Interface for fetching employee-specific rule overrides.
+    """
+
+    async def get_employee_rule_overrides(
+        self,
+        org_id: str,
+        employee_id: str,
+        check_date: whenever.ZonedDateTime,
+    ) -> EmployeeRuleOverride | None:
+        pass
+
+
 class IFacilityRulesService(abc.ABC):
     """
     Defines the contract for retrieving time-based payroll rules (rounding, deductions).
     """
 
     @abc.abstractmethod
-    def apply_rounding(
+    async def apply_rounding(
         self,
+        org_id: str,
         raw_time: whenever.ZonedDateTime,
         punch_type: PunchType,
     ) -> whenever.ZonedDateTime:
@@ -236,9 +269,11 @@ class IFacilityRulesService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_time_settings(
+    async def get_time_settings(
         self,
+        org_id: str,
         employee_id: str,
+        facility_id: str,
         check_dt: whenever.ZonedDateTime,
     ) -> EmployeeTimeSettings:
         """
@@ -248,8 +283,10 @@ class IFacilityRulesService(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_meal_deduction_rules(
+    async def get_meal_deduction_rules(
         self,
+        org_id: str,
+        facility_id: str,
         check_dt: whenever.ZonedDateTime,
     ) -> MealDeductionRules | None:
         """

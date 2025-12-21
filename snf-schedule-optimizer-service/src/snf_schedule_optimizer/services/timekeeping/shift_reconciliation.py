@@ -18,7 +18,7 @@ from snf_schedule_optimizer.services.payroll.interfaces import (
 )
 
 
-class ShiftReconcilerServiceImpl(IShiftReconcilerService):
+class ShiftReconcilerService(IShiftReconcilerService):
     """
     Applies complex business logic (rounding, meal deduction) to raw punches
     to create precise WorkedTimeBlock segments.
@@ -31,7 +31,7 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         # This service provides rounding rules, auto-deduction times, etc.
         self.rules_service = facility_rules_service
 
-    def reconcile_shift_to_blocks(
+    async def reconcile_shift_to_blocks(
         self,
         scheduled_shift: Shift,
         raw_punches: list[TimePunch],
@@ -41,8 +41,11 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
         # NOTE: We need the employee's specific time settings (e.g., pairing threshold).
         # Assuming the rules service can provide this based on employee/date.
-        settings = self.rules_service.get_time_settings(
-            raw_punches[0].employee_id, scheduled_shift.shift_start_dt
+        settings = await self.rules_service.get_time_settings(
+            scheduled_shift.org_id,
+            raw_punches[0].employee_id,
+            scheduled_shift.facility_id,
+            scheduled_shift.shift_start_dt,
         )
 
         # 2. Punch Pairing ('Pair' logic)
@@ -57,7 +60,14 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         final_blocks = []
         for block in blocks_after_split:
             # Reapply rounding and meal deduction logic here
-            final_blocks.extend(self._apply_rounding_and_deduction(block, settings))
+            final_blocks.extend(
+                await self._apply_rounding_and_deduction(
+                    scheduled_shift.org_id,
+                    block,
+                    settings,
+                    scheduled_shift.facility_id,
+                )
+            )
 
         return final_blocks
 
@@ -231,17 +241,23 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
 
         return [block]
 
-    def _apply_rounding_and_deduction(
+    async def _apply_rounding_and_deduction(
         self,
+        org_id: str,
         block: WorkedTimeBlock,
         settings: EmployeeTimeSettings,
+        facility_id: str,
     ) -> list[WorkedTimeBlock]:
         # 1. Apply Rounding (Crucial Step: Rounding MUST happen before deduction checks)
-        rounded_start = self.rules_service.apply_rounding(
-            block.start_time, PunchType.CHECK_IN
+        rounded_start = await self.rules_service.apply_rounding(
+            org_id,
+            block.start_time,
+            PunchType.CHECK_IN,
         )
-        rounded_end = self.rules_service.apply_rounding(
-            block.end_time, PunchType.CHECK_OUT
+        rounded_end = await self.rules_service.apply_rounding(
+            org_id,
+            block.end_time,
+            PunchType.CHECK_OUT,
         )
 
         # Create a temporary rounded block for deduction checks
@@ -260,7 +276,11 @@ class ShiftReconcilerServiceImpl(IShiftReconcilerService):
         )
 
         # 2. Check and Apply Meal Deduction
-        deduction_rules = self.rules_service.get_meal_deduction_rules(rounded_start)
+        deduction_rules = await self.rules_service.get_meal_deduction_rules(
+            org_id=org_id,
+            facility_id=facility_id,
+            check_dt=rounded_start,
+        )
 
         if deduction_rules and deduction_rules.is_mandatory:
             # Only check if the rounded duration exceeds the minimum threshold

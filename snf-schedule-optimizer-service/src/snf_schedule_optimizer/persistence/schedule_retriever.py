@@ -15,7 +15,7 @@ from snf_schedule_optimizer.sqlalchemy_models.schedule_assignment import (
 )
 
 
-class SQLAlchemyScheduleRetriever(IScheduleRetriever):
+class SQLScheduleRetriever(IScheduleRetriever):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 

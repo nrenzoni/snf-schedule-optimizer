@@ -41,7 +41,7 @@ class RuleEligibilityService:
         self.certification_service = certification_service
         self.rule_retrieval_service = rule_retriever_service
 
-    def get_applicable_rules(
+    async def get_applicable_rules(
         self,
         employee: Employee,
         shift: Shift,
@@ -69,7 +69,7 @@ class RuleEligibilityService:
         filtered_diff_rules = [
             rule
             for rule in potential_diff_rules
-            if self._is_applicable_to_employee(rule, employee, shift)
+            if await self._is_applicable_to_employee(rule, employee, shift)
         ]
 
         # Filter Overtime Rules (requires job title/cert checks)
@@ -77,7 +77,7 @@ class RuleEligibilityService:
         filtered_ot_rules = [
             rule
             for rule in potential_ot_rules
-            if self._is_applicable_to_employee(rule, employee, shift)
+            if await self._is_applicable_to_employee(rule, employee, shift)
         ]
 
         # FIX: Priority sorting should happen here, as the DB might not have sorted them correctly
@@ -86,7 +86,7 @@ class RuleEligibilityService:
 
         return filtered_diff_rules, filtered_ot_rules
 
-    def _is_applicable_to_employee(
+    async def _is_applicable_to_employee(
         self,
         rule: RuleEligibilityCriteria,
         employee: Employee,
@@ -103,7 +103,7 @@ class RuleEligibilityService:
 
         # 2. Check Certifications
         if rule.required_certifications:
-            if not self._check_certification_eligibility(
+            if not await self._check_certification_eligibility(
                 employee.employee_id,
                 rule.required_certifications,
                 rule.certification_match_type,
@@ -113,7 +113,7 @@ class RuleEligibilityService:
 
         return True  # All criteria passed
 
-    def _check_certification_eligibility(
+    async def _check_certification_eligibility(
         self,
         employee_id: str,
         required_certs: list[str],
@@ -124,7 +124,7 @@ class RuleEligibilityService:
 
         # 1. Get the status of all required certifications for the employee at the shift start time
         cert_statuses = [
-            self.certification_service.is_certification_active(
+            await self.certification_service.is_certification_active(
                 employee_id,
                 cert_name,
                 check_date,

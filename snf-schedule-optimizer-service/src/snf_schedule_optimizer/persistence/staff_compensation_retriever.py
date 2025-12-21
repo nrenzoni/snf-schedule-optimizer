@@ -3,13 +3,13 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.models import StaffCompensationRecord
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationService
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRetriever
 from snf_schedule_optimizer.sqlalchemy_models.staff_compensation_model import (
     StaffCompensationModel,
 )
 
 
-class StaffCompensationServiceStaticListImpl(IStaffCompensationService):
+class StaffCompensationRetrieverStaticListImpl(IStaffCompensationRetriever):
     """
     Concrete implementation of the compensation service that uses a static,
     in-memory list of records (ideal for unit and integration testing).
@@ -67,7 +67,7 @@ class StaffCompensationServiceStaticListImpl(IStaffCompensationService):
         return None
 
 
-class SQLAStaffCompensationService(IStaffCompensationService):
+class SQLStaffCompensationRetriever(IStaffCompensationRetriever):
     """
     Concrete implementation of the compensation service using SQLAlchemy.
     Retrieves the one valid rate record for a given date.

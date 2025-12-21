@@ -69,7 +69,7 @@ class NurseShiftScheduleOptimizer:
 
         # B. Facility-scoped variables (The actual shift assignments)
         for facility_id in facility_ids:
-            self.core_variable_strategy.create_variables(
+            await self.core_variable_strategy.create_variables(
                 lp_vars,
                 data_provider,
                 facility_id,

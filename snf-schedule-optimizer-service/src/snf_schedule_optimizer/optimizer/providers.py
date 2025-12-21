@@ -19,7 +19,7 @@ from snf_schedule_optimizer.optimizer.interfaces import (
 from snf_schedule_optimizer.persistence import INurseRetriever
 from snf_schedule_optimizer.services.hr.interfaces import (
     IEmployeeRetriever,
-    IStaffCompensationService,
+    IStaffCompensationRetriever,
 )
 from snf_schedule_optimizer.services.timekeeping.interfaces import (
     IEmployeeWorkHistoryService,
@@ -41,7 +41,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         employee_retriever: IEmployeeRetriever,
         nurse_retriever: INurseRetriever,
         hprd_calculator: IHprdRequirementCalculator,
-        staff_comp_service: IStaffCompensationService,
+        staff_comp_service: IStaffCompensationRetriever,
         ml_model_retriever: IMLModelOutputsRetriever,
         work_history_service: IEmployeeWorkHistoryService,
         pay_period_start: whenever.Instant,
@@ -120,30 +120,30 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         return None
 
     # FIX 14: Removed @cached_property, used manual caching
-    def get_hprd_requirements_for_facility(
+    async def get_hprd_requirements_for_facility(
         self,
         facility_id: str,
     ) -> HprdShiftNurseRequirementHolder:
         if facility_id not in self._cached_hprd_reqs:
             # print(f"Calculating heavy HPRD math for fac {facility_id}...")
             context = self._facility_contexts[facility_id]
-            self._cached_hprd_reqs[facility_id] = (
-                self._hprd_calculator.calculate_requirements(context)
-            )
+            self._cached_hprd_reqs[
+                facility_id
+            ] = await self._hprd_calculator.calculate_requirements(context)
         return self._cached_hprd_reqs[facility_id]
 
     # --- Case 2: Parameterized data cached manually with dicts ---
-    def get_nurses_for_shift(self, shift: Shift) -> list[NurseProfile]:
+    async def get_nurses_for_shift(self, shift: Shift) -> list[NurseProfile]:
         # Use shift_id as the cache key
         if shift.shift_id not in self._shift_nurses_cache:
             # print(f"Fetching nurses for shift {shift.shift_id}...")
             # Call the raw retriever
-            nurses = self._nurse_retriever.get_nurses(shift)
+            nurses = await self._nurse_retriever.get_nurses(shift)
             self._shift_nurses_cache[shift.shift_id] = nurses
 
         return self._shift_nurses_cache[shift.shift_id]
 
-    def get_compensation_service(self) -> IStaffCompensationService:
+    def get_compensation_service(self) -> IStaffCompensationRetriever:
         return self._staff_comp_service
 
     def get_ml_model_outputs(self, shift: Shift) -> MlModelOutputs:
@@ -201,7 +201,7 @@ class ScenarioDataProviderFactory:
         employee_retriever: IEmployeeRetriever,
         nurse_retriever: INurseRetriever,
         hprd_calculator: IHprdRequirementCalculator,
-        staff_compensation_service: IStaffCompensationService,
+        staff_compensation_service: IStaffCompensationRetriever,
         ml_model_retriever: IMLModelOutputsRetriever,
         work_history_service: IEmployeeWorkHistoryService,
     ):

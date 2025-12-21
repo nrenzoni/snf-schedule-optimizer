@@ -49,7 +49,7 @@ from snf_schedule_optimizer.services.payroll.calculations.shift_slicers import (
     TimeOverlapShiftSlicer,
 )
 from snf_schedule_optimizer.services.repositories import (
-    IFacilityRepository,
+    IFacilityRetriever,
     IShiftRetriever,
 )
 from snf_schedule_optimizer.services.scheduling.interfaces import IScheduleRetriever
@@ -63,7 +63,7 @@ from .fakes import (
     FakeNurseRetriever,
     FakePreferencePenaltyProcessor,
     FakeShiftRequirementsRetriever,
-    FakeStaffCompensationService,
+    FakeStaffCompensationRetriever,
     FakeWorkHistoryService,
 )
 
@@ -79,13 +79,13 @@ class FakeScheduleRetriever(IScheduleRetriever):
         return self._schedules.get((schedule_id, org_id))
 
 
-class FakeFacilityRepository(IFacilityRepository):
+class FakeFacilityRetriever(IFacilityRetriever):
     """InMemory implementation of IFacilityRepository for testing."""
 
     def __init__(self, configs: list[FacilityConfig] | None = None):
         self._configs = {c.facility_id: c for c in (configs or [])}
 
-    def get_configs(
+    async def get_configs(
         self, org_id: str, facility_ids: list[str] | None = None
     ) -> list[FacilityConfig]:
         if facility_ids is None:
@@ -232,7 +232,7 @@ class OptimizerTestBuilder:
         # 1. Instantiate Fakes using the accumulated state
         fake_emp_retriever = FakeEmployeeRetriever(self._employees)
         fake_nurse_retriever = FakeNurseRetriever(self._nurses)
-        fake_comp_service = FakeStaffCompensationService(self._comp_records)
+        fake_comp_service = FakeStaffCompensationRetriever(self._comp_records)
         fake_history_service = FakeWorkHistoryService(self._accumulated_hours)
 
         # Default ML Fake (Can add a .with_ml_scores() method if needed)
@@ -361,7 +361,7 @@ class OptimizerTestBuilder:
 
         # Instantiate the Fake Retriever with any schedules configured in the builder
         fake_schedule_retriever = FakeScheduleRetriever(self._stored_schedules)
-        fake_facility_repo = FakeFacilityRepository(self._facility_configs)
+        fake_facility_repo = FakeFacilityRetriever(self._facility_configs)
         fake_shift_retriever = FakeShiftRetriever(self._shifts)
 
         return WorkforceSchedulerService(
