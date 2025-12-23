@@ -27,7 +27,7 @@ class DifferentialRuleModel(SQLABase):
     applicable_job_titles: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     contract_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
-    def to_data(self) -> DifferentialRuleData:
+    def to_domain(self) -> DifferentialRuleData:
         return DifferentialRuleData(
             rule_id=self.rule_id,
             org_id=self.org_id,

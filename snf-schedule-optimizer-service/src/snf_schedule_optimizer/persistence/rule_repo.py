@@ -189,8 +189,11 @@ class SQLDifferentialRuleRepo(IDifferentialRuleRepo):
         stmt = select(DifferentialRuleModel).where(
             DifferentialRuleModel.org_id == org_id
         )
-        result = await self.session.scalars(stmt)
-        return [m.to_domain() for m in result.all()]
+        result: Sequence[DifferentialRuleModel] = (
+            await self.session.scalars(stmt)
+        ).all()
+
+        return [m.to_domain() for m in result]
 
 
 class SQLOvertimeRuleRepo(IOvertimeRuleRepo):
@@ -200,4 +203,4 @@ class SQLOvertimeRuleRepo(IOvertimeRuleRepo):
     async def get_all_rules(self, org_id: str) -> list[OvertimeRuleData]:
         stmt = select(OvertimeRuleModel).where(OvertimeRuleModel.org_id == org_id)
         result: Sequence[OvertimeRuleModel] = (await self.session.scalars(stmt)).all()
-        return [m.to_data() for m in result]
+        return [m.to_domain() for m in result]

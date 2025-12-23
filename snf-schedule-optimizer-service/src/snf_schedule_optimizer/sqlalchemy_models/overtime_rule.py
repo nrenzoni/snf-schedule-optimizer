@@ -43,7 +43,7 @@ class OvertimeRuleModel(SQLABase):
     certification_match_type: Mapped[str] = mapped_column(String(10), default="ALL")
     contract_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
-    def to_data(self) -> OvertimeRuleData:
+    def to_domain(self) -> OvertimeRuleData:
         return OvertimeRuleData(
             rule_id=self.rule_id,
             org_id=self.org_id,

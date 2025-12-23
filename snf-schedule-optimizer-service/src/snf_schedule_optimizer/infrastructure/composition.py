@@ -121,7 +121,7 @@ from snf_schedule_optimizer.services.timekeeping.work_history_service import (
 )
 
 
-class IRetrieversContainer(abc.ABC):
+class IReposContainer(abc.ABC):
     """
     Port describing all persistence retrievers required by the application layer.
 
@@ -149,14 +149,14 @@ class IRetrieversContainer(abc.ABC):
     acuity_retriever: ClassVar[AbstractProvider[IResidentAcuityPerShiftRepo]]
 
 
-def build_retrievers_container(
+def build_repos_container(
     session_factory: async_sessionmaker[AsyncSession],
-) -> type["IRetrieversContainer"]:
+) -> type["IReposContainer"]:
     async def _make_session() -> AsyncGenerator[AsyncSession, Any]:
         async with session_factory() as sess:
             yield sess
 
-    class RetrieversContainer(BaseContainer, IRetrieversContainer):
+    class ReposContainer(BaseContainer, IReposContainer):
         db_session = Resource(_make_session)
 
         shift_retriever = Factory(
@@ -216,7 +216,7 @@ def build_retrievers_container(
             db_session=Provide[db_session],
         )
 
-    return RetrieversContainer
+    return ReposContainer
 
 
 # @runtime_checkable
@@ -237,7 +237,7 @@ class SchedulerContainerPort(abc.ABC):
 
 
 def build_scheduler_container(
-    retrievers: type[IRetrieversContainer],
+    retrievers: type[IReposContainer],
 ) -> type[SchedulerContainerPort]:
     class SchedulerContainer(BaseContainer, SchedulerContainerPort):
         # Import retrievers from the other container
@@ -398,7 +398,7 @@ def build_scheduler_container(
 async def compose_scheduler_service(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> WorkforceSchedulerService:
-    retrievers_type = build_retrievers_container(session_factory)
+    retrievers_type = build_repos_container(session_factory)
     scheduler_type = build_scheduler_container(retrievers_type)
     return await scheduler_type.scheduler_service()
 

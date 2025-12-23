@@ -13,7 +13,7 @@ from snf_schedule_optimizer.generated.scheduling.v1.scheduling_connect import (
     SchedulingServiceASGIApplication,
 )
 from snf_schedule_optimizer.infrastructure.composition import (
-    build_retrievers_container,
+    build_repos_container,
     build_scheduler_container,
 )
 
@@ -33,7 +33,7 @@ def health_check() -> dict[str, str]:
 
 
 async def main() -> None:
-    retrievers_container_type = build_retrievers_container(SessionLocal)
+    retrievers_container_type = build_repos_container(SessionLocal)
     scheduler_container_type = build_scheduler_container(retrievers_container_type)
     scheduler_facade = await scheduler_container_type.scheduler_service()
 
