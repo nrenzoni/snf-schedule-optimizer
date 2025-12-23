@@ -1,11 +1,12 @@
 import whenever
 
-from snf_schedule_optimizer.ml_output_retrievers import IMLModelOutputsRetriever
+from snf_schedule_optimizer.ml_output_repo import IMLModelOutputsRepo
 
 # Import Models
 from snf_schedule_optimizer.models import (
     Employee,
     EmployeeTimeSettings,
+    FacilityConfig,
     HprdEnforcedRole,
     LookbackPeriod,
     MealDeductionRules,
@@ -14,6 +15,7 @@ from snf_schedule_optimizer.models import (
     PreferenceWeights,
     PunchType,
     RoundingType,
+    Schedule,
     Shift,
     ShiftKey,
     ShiftSpecificRequirements,
@@ -28,18 +30,24 @@ from snf_schedule_optimizer.optimizer.context import (
 from snf_schedule_optimizer.optimizer.interfaces import IHprdRequirementCalculator
 
 # Import your Interfaces
-from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
+from snf_schedule_optimizer.persistence.nurse_repo import INurseRepo
 from snf_schedule_optimizer.services.hr.interfaces import (
-    IEmployeeRetriever,
-    IStaffCompensationRetriever,
+    IEmployeeRepo,
+    IStaffCompensationRepo,
 )
 from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
     ThresholdOvertimeRule,
 )
 from snf_schedule_optimizer.services.payroll.interfaces import IFacilityRulesService
+from snf_schedule_optimizer.services.repositories import (
+    IFacilityRepo,
+    IShiftRepo,
+)
 from snf_schedule_optimizer.services.scheduling.interfaces import (
     IPreferencePenaltyProcessor,
-    IShiftRequirementsRetriever,
+    IScheduleRepo,
+    IShiftRequirementsRepo,
+    ScheduleLookupKey,
 )
 from snf_schedule_optimizer.services.timekeeping.interfaces import (
     IEmployeeWorkHistoryService,
@@ -47,7 +55,7 @@ from snf_schedule_optimizer.services.timekeeping.interfaces import (
 from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
 
-class FakeEmployeeRetriever(IEmployeeRetriever):
+class FakeEmployeeRepo(IEmployeeRepo):
     def __init__(self, employees: list[Employee]):
         self._employees = employees
 
@@ -65,7 +73,7 @@ class FakeEmployeeRetriever(IEmployeeRetriever):
         return next((e for e in self._employees if e.employee_id == employee_id), None)
 
 
-class FakeNurseRetriever(INurseRetriever):
+class FakeNurseRepo(INurseRepo):
     def __init__(self, nurses: list[NurseProfile]):
         self._nurses = nurses
 
@@ -78,7 +86,65 @@ class FakeNurseRetriever(INurseRetriever):
         return next((n for n in self._nurses if n.employee_id == employee_id), None)
 
 
-class FakeStaffCompensationRetriever(IStaffCompensationRetriever):
+class StaffCompensationRepoStaticListImpl(IStaffCompensationRepo):
+    """
+    Concrete implementation of the compensation service that uses a static,
+    in-memory list of records (ideal for unit and integration testing).
+    """
+
+    def __init__(self, records: list[StaffCompensationRecord]):
+        """
+        Initializes the service with a list of historical compensation records.
+        """
+        # Group records by employee ID for faster lookup
+        self.employee_records: dict[str, list[StaffCompensationRecord]] = {}
+
+        for record in records:
+            if record.employee_id not in self.employee_records:
+                self.employee_records[record.employee_id] = []
+
+            self.employee_records[record.employee_id].append(record)
+
+        # Ensure records for each employee are sorted by start date descending
+        # This helps when looking for the most recent valid record.
+        for employee_id in self.employee_records:
+            self.employee_records[employee_id].sort(
+                key=lambda r: r.effective_start_date, reverse=True
+            )
+
+    async def get_record_for_date(
+        self,
+        employee_id: str,
+        check_date: whenever.ZonedDateTime,
+    ) -> StaffCompensationRecord | None:
+        """
+        Retrieves the one StaffCompensationRecord whose validity period
+        covers the check_date.
+        """
+
+        if employee_id not in self.employee_records:
+            return None
+
+        # Check date should be compared to simple date for consistency with database storage
+        check_date_date = check_date.date()
+
+        for record in self.employee_records[employee_id]:
+            # Check 1: Must be effective on or before the check date
+            is_start_valid = record.effective_start_date <= check_date_date
+
+            # Check 2: Must not be expired before the check date
+            is_end_valid = (
+                record.effective_end_date is None
+                or record.effective_end_date > check_date_date
+            )
+
+            if is_start_valid and is_end_valid:
+                return record
+
+        return None
+
+
+class FakeStaffCompensationRepo(IStaffCompensationRepo):
     def __init__(self, records: list[StaffCompensationRecord]):
         self._records = records
         self.tz = "America/New_York"
@@ -149,7 +215,7 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
         return []
 
 
-class FakeMLModelRetriever(IMLModelOutputsRetriever):
+class FakeMLModelRepo(IMLModelOutputsRepo):
     def __init__(self, default_model_outputs: MlModelOutputs):
         self.default_model_outputs = default_model_outputs
 
@@ -179,7 +245,19 @@ class FakePreferencePenaltyProcessor(IPreferencePenaltyProcessor):
         return self._penalty_map.get(key, 0.0)
 
 
-class FakeShiftRequirementsRetriever(IShiftRequirementsRetriever):
+class ShiftRequirementsRepoImpl(IShiftRequirementsRepo):
+    """same requirements for all shifts implementation"""
+
+    def __init__(self, default_requirements: ShiftSpecificRequirements):
+        self.default_requirements = default_requirements
+
+    async def get_shift_requirements(
+        self, shift: Shift
+    ) -> ShiftSpecificRequirements | None:
+        return self.default_requirements
+
+
+class FakeShiftRequirementsRepo(IShiftRequirementsRepo):
     def __init__(
         self,
         requirements_map: dict[str, ShiftSpecificRequirements] | None = None,
@@ -296,3 +374,65 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
         """
         # In production, this would check state/federal laws and return the applicable rule.
         return self.default_meal_rules
+
+
+class FakeScheduleRepo(IScheduleRepo):
+    """InMemory implementation of IScheduleRetriever for testing."""
+
+    def __init__(self, schedules: dict[ScheduleLookupKey, Schedule] | None = None):
+        # Key: (schedule_id, org_id) -> Schedule
+        self._schedules = schedules or {}
+
+    async def get_schedule(
+        self,
+        schedule_lookup: ScheduleLookupKey,
+    ) -> Schedule | None:
+        return self._schedules.get(schedule_lookup)
+
+
+class FakeFacilityRepo(IFacilityRepo):
+    """InMemory implementation of IFacilityRepository for testing."""
+
+    def __init__(self, configs: list[FacilityConfig] | None = None):
+        self._configs = {c.facility_id: c for c in (configs or [])}
+
+    async def get_configs(
+        self, org_id: str, facility_ids: list[str] | None = None
+    ) -> list[FacilityConfig]:
+        if facility_ids is None:
+            return [c for c in self._configs.values() if c.org_id == org_id]
+        return [
+            self._configs[fid]
+            for fid in facility_ids
+            if fid in self._configs and self._configs[fid].org_id == org_id
+        ]
+
+
+class FakeShiftRepo(IShiftRepo):
+    """InMemory implementation of IShiftRetriever for testing."""
+
+    def __init__(self, shifts: list[Shift] | None = None):
+        self._shifts = shifts or []
+
+    async def get_shifts_for_org(
+        self, org_id: str, facility_timezones: dict[str, str]
+    ) -> list[Shift]:
+        # Simple filtering. In real implementation, this might hydrate timezones.
+        return [s for s in self._shifts if s.org_id == org_id]
+
+    async def get_shifts_by_keys(
+        self,
+        shift_keys: list[ShiftKey],
+        facility_timezones: dict[str, str],
+        org_id: str,
+    ) -> dict[ShiftKey, Shift]:
+        # Filter shifts matching the keys
+        # We assume Shift objects in self._shifts already have the correct properties
+        key_set = set(shift_keys)
+        result = {}
+        for s in self._shifts:
+            # Construct key from shift
+            s_key = ShiftKey(s.facility_id, s.shift_id)
+            if s_key in key_set and s.org_id == org_id:
+                result[s_key] = s
+        return result

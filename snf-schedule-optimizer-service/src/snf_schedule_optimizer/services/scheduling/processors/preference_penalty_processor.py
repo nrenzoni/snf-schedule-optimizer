@@ -5,7 +5,7 @@ from snf_schedule_optimizer.models import (
     PreferenceWeights,
     Shift,
 )
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRetriever
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRepo
 from snf_schedule_optimizer.services.scheduling.interfaces import (
     IPreferencePenaltyProcessor,
 )
@@ -14,7 +14,7 @@ from snf_schedule_optimizer.services.scheduling.interfaces import (
 class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
     def __init__(
         self,
-        staff_compensation_retriever: IStaffCompensationRetriever,
+        staff_compensation_retriever: IStaffCompensationRepo,
     ):
         self.staff_compensation_retriever = staff_compensation_retriever
 

@@ -3,11 +3,11 @@ from sqlalchemy import and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.models import Shift, ShiftKey
-from snf_schedule_optimizer.services.repositories import IShiftRetriever
+from snf_schedule_optimizer.services.repositories import IShiftRepo
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 
 
-class SQLShiftRetriever(IShiftRetriever):
+class SQLShiftRepo(IShiftRepo):
     def __init__(self, session: AsyncSession):
         self.session = session
 

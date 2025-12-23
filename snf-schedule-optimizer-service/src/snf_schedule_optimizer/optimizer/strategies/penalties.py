@@ -6,8 +6,8 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     IObjectivePenaltyStrategy,
     IScenarioDataProvider,
 )
-from snf_schedule_optimizer.persistence import INurseRetriever
-from snf_schedule_optimizer.services.hr.interfaces import IEmployeeRetriever
+from snf_schedule_optimizer.persistence import INurseRepo
+from snf_schedule_optimizer.services.hr.interfaces import IEmployeeRepo
 from snf_schedule_optimizer.services.scheduling.interfaces import (
     IPreferencePenaltyProcessor,
 )
@@ -17,8 +17,8 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
     def __init__(
         self,
         preference_processor: IPreferencePenaltyProcessor,  # Your existing refactored service
-        nurse_retriever: INurseRetriever,
-        employee_retriever: IEmployeeRetriever,
+        nurse_retriever: INurseRepo,
+        employee_retriever: IEmployeeRepo,
         # ml_model_retriever: IMLModelOutputsRetriever,
     ):
         self.preference_processor = preference_processor

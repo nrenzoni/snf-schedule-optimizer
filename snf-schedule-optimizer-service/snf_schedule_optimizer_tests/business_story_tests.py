@@ -16,12 +16,12 @@ from snf_schedule_optimizer.models import (
     StaffShiftPreference,
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
-from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
-
-from .builders import OptimizerTestBuilder
-from .fakes import (
+from snf_schedule_optimizer.persistence.fakes import (
     FakeHprdRequirementCalculator,
 )
+from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
+
+from .test_builder import OptimizerTestBuilder
 
 tz_ny = "America/New_York"
 

@@ -14,12 +14,12 @@ from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation i
 )
 from snf_schedule_optimizer.services.payroll.interfaces import IShiftReconcilerService
 from snf_schedule_optimizer.services.repositories import (
-    IFacilityRetriever,
-    IShiftRetriever,
+    IFacilityRepo,
+    IShiftRepo,
 )
 from snf_schedule_optimizer.services.timekeeping.interfaces import (
     IEmployeeWorkHistoryService,
-    IRawHistoryRetriever,
+    IRawHistoryRepo,
 )
 
 
@@ -31,10 +31,10 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
     def __init__(
         self,
-        history_retriever: IRawHistoryRetriever,
-        shift_retriever: IShiftRetriever,
+        history_retriever: IRawHistoryRepo,
+        shift_retriever: IShiftRepo,
         shift_reconciler: IShiftReconcilerService,
-        facility_config_retriever: IFacilityRetriever,
+        facility_config_retriever: IFacilityRepo,
     ) -> None:
         # Dependencies like facility config for standard work period start times
         # could be injected here if not provided via the threshold rule.

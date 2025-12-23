@@ -3,26 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.models import Shift, ShiftSpecificRequirements
 from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IShiftRequirementsRetriever,
+    IShiftRequirementsRepo,
 )
 from snf_schedule_optimizer.sqlalchemy_models.shift_requirements import (
     ShiftRequirementsModel,
 )
 
 
-class ShiftRequirementsRetrieverImpl(IShiftRequirementsRetriever):
-    """same requirements for all shifts implementation"""
-
-    def __init__(self, default_requirements: ShiftSpecificRequirements):
-        self.default_requirements = default_requirements
-
-    async def get_shift_requirements(
-        self, shift: Shift
-    ) -> ShiftSpecificRequirements | None:
-        return self.default_requirements
-
-
-class SQLShiftRequirementsRetriever(IShiftRequirementsRetriever):
+class SQLShiftRequirementsRepo(IShiftRequirementsRepo):
     """
     Adapter: SQLAlchemy implementation of the shift requirements port.
     Uses AsyncSession for non-blocking I/O.

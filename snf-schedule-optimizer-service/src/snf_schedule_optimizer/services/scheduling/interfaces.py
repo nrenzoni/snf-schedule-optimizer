@@ -1,4 +1,5 @@
 import abc
+from typing import NamedTuple
 
 from snf_schedule_optimizer.models import (
     Employee,
@@ -10,7 +11,7 @@ from snf_schedule_optimizer.models import (
 )
 
 
-class IShiftRequirementsRetriever(abc.ABC):
+class IShiftRequirementsRepo(abc.ABC):
     @abc.abstractmethod
     async def get_shift_requirements(
         self, shift: Shift
@@ -36,13 +37,18 @@ class IPreferencePenaltyProcessor(abc.ABC):
         pass
 
 
-class IScheduleRetriever(abc.ABC):
+class ScheduleLookupKey(NamedTuple):
+    org_id: str
+    schedule_id: str
+
+
+class IScheduleRepo(abc.ABC):
     """
     Interface for retrieving Schedule objects (assignments) from persistence.
     """
 
     @abc.abstractmethod
-    async def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
+    async def get_schedule(self, schedule_lookup: ScheduleLookupKey) -> Schedule | None:
         """
         Retrieves the schedule assignments for a specific schedule ID.
         Returns None if not found.

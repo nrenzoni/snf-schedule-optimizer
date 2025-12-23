@@ -9,23 +9,29 @@ from snf_schedule_optimizer.models import (
     ShiftAssignmentsType,
     ShiftKey,
 )
-from snf_schedule_optimizer.services.scheduling.interfaces import IScheduleRetriever
+from snf_schedule_optimizer.services.scheduling.interfaces import (
+    IScheduleRepo,
+    ScheduleLookupKey,
+)
 from snf_schedule_optimizer.sqlalchemy_models.schedule_assignment import (
     ScheduleAssignmentModel,
 )
 
 
-class SQLScheduleRetriever(IScheduleRetriever):
+class SQLScheduleRepo(IScheduleRepo):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    async def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
+    async def get_schedule(
+        self,
+        schedule_lookup: ScheduleLookupKey,
+    ) -> Schedule | None:
         """
         Fetches assignments from the DB and reconstructs the Domain Schedule object.
         """
         stmt = select(ScheduleAssignmentModel).where(
-            ScheduleAssignmentModel.schedule_id == schedule_id,
-            ScheduleAssignmentModel.org_id == org_id,
+            ScheduleAssignmentModel.org_id == schedule_lookup.org_id,
+            ScheduleAssignmentModel.schedule_id == schedule_lookup.schedule_id,
         )
 
         results: Sequence[ScheduleAssignmentModel] | None = (
@@ -45,7 +51,7 @@ class SQLScheduleRetriever(IScheduleRetriever):
             )
 
         return Schedule(
-            org_id,
+            schedule_lookup,
             schedule_id,
             schedule_id,
             shift_assignments=assignments,

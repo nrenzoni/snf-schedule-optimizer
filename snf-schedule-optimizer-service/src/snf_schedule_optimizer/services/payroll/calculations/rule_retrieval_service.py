@@ -11,9 +11,9 @@ from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation i
 )
 from snf_schedule_optimizer.services.payroll.interfaces import (
     IDifferentialRule,
-    IDifferentialRuleRetriever,
+    IDifferentialRuleRepo,
     IOvertimeRule,
-    IOvertimeRuleRetriever,
+    IOvertimeRuleRepo,
     IRuleRetrievalService,
 )
 from snf_schedule_optimizer.services.payroll.rules.shift_rules import (
@@ -28,8 +28,8 @@ class RuleRetrievalService(IRuleRetrievalService):
 
     def __init__(
         self,
-        diff_retriever: IDifferentialRuleRetriever,
-        ot_retriever: IOvertimeRuleRetriever,
+        diff_retriever: IDifferentialRuleRepo,
+        ot_retriever: IOvertimeRuleRepo,
     ):
         self.diff_retriever = diff_retriever
         self.ot_retriever = ot_retriever

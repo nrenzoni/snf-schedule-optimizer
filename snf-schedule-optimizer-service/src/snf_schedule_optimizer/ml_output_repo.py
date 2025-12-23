@@ -3,7 +3,7 @@ import abc
 from snf_schedule_optimizer.models import MlModelOutputs, Shift
 
 
-class IMLModelOutputsRetriever(abc.ABC):
+class IMLModelOutputsRepo(abc.ABC):
     @abc.abstractmethod
     def get_model_outputs(
         self,
@@ -12,7 +12,7 @@ class IMLModelOutputsRetriever(abc.ABC):
         pass
 
 
-class MLModelOutputsRetrieverImpl(IMLModelOutputsRetriever):
+class MLModelOutputsRepo(IMLModelOutputsRepo):
     def get_model_outputs(
         self,
         shift: Shift,

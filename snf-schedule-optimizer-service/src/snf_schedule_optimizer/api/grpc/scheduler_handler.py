@@ -7,12 +7,12 @@ from snf_schedule_optimizer.generated.scheduling.v1 import (
     scheduling_pb2,
 )
 from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
-    WorkforceSchedulerService,
+    WorkforceSchedulerServicePort,
 )
 
 
 class SchedulingServiceHandler(scheduling_connect.SchedulingService):
-    def __init__(self, scheduler_service: WorkforceSchedulerService):
+    def __init__(self, scheduler_service: WorkforceSchedulerServicePort):
         self.scheduler_service = scheduler_service
 
     async def get_monthly_schedule(

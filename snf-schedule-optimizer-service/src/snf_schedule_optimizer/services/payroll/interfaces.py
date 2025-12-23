@@ -159,7 +159,7 @@ class IDifferentialRule(abc.ABC):
         return "ALL"
 
 
-class INurseDifferentialRetriever(abc.ABC):
+class INurseDifferentialRepo(abc.ABC):
     @abc.abstractmethod
     def get_differentials(
         self,
@@ -169,13 +169,13 @@ class INurseDifferentialRetriever(abc.ABC):
         pass
 
 
-class IDifferentialRuleRetriever(abc.ABC):
+class IDifferentialRuleRepo(abc.ABC):
     @abc.abstractmethod
     async def get_all_rules(self, org_id: str) -> list[DifferentialRuleData]:
         pass
 
 
-class IOvertimeRuleRetriever(abc.ABC):
+class IOvertimeRuleRepo(abc.ABC):
     @abc.abstractmethod
     async def get_all_rules(self, org_id: str) -> list[OvertimeRuleData]:
         pass
@@ -212,7 +212,7 @@ class IRuleRetrievalService(abc.ABC):
         pass
 
 
-class IFacilityRulesRetriever(abc.ABC):
+class IFacilityRulesRepo(abc.ABC):
     """
     PORT: Interface for fetching raw rule configurations from persistence.
     """
@@ -227,7 +227,7 @@ class IFacilityRulesRetriever(abc.ABC):
         pass
 
 
-class IEmployeeRulesRetriever:
+class IEmployeeRulesRepo:
     """
     Interface for fetching employee-specific rule overrides.
     """

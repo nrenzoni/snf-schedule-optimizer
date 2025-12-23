@@ -1,10 +1,14 @@
 import whenever
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.models import FacilityConfig
+from snf_schedule_optimizer.models.persistence_dtos import EmployeeCertificationData
 from snf_schedule_optimizer.models.testing import MockCertificationRecord
-from snf_schedule_optimizer.services.hr.interfaces import ICertificationService
+from snf_schedule_optimizer.services.hr.interfaces import (
+    ICertificationRepo,
+    ICertificationService,
+)
 from snf_schedule_optimizer.sqlalchemy_models.employee_certification import (
     EmployeeCertificationModel,
 )
@@ -69,45 +73,39 @@ class CertificationServiceStaticListImpl(ICertificationService):
         return False
 
 
-class SQLCertificationService(ICertificationService):
-    """
-    Concrete implementation using SQLAlchemy to query the Postgres employee_certification table.
-    """
-
+class SQLCertificationRepo(ICertificationRepo):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
-    async def is_certification_active(
+    async def get_certifications_for_employee(
         self,
         employee_id: str,
-        certification_name: str,
-        check_date: whenever.ZonedDateTime,
-    ) -> bool:
-        """
-        Checks if the employee holds an unexpired certification on the required date.
-        """
-
-        # We must normalize the check_date to a standard Python date object
-        # or compare it correctly within the SQL query, as expiration_date is typically a DATE type.
-        check_date_for_db = check_date.date()
-
-        # Construct the SQL query using SQLAlchemy's Core/ORM Select
+    ) -> list[EmployeeCertificationData]:
+        """Fetches all certification records for an employee from the database."""
         stmt = select(EmployeeCertificationModel).where(
-            and_(
-                EmployeeCertificationModel.employee_id == employee_id,
-                EmployeeCertificationModel.certification_name == certification_name,
-                # Crucial Check 1: The expiration date must be GREATER than or equal to the check date.
-                # If the cert expires *before* the shift starts, it's invalid.
-                EmployeeCertificationModel.expiration_date >= check_date_for_db,
-                # Optional Check 2: The acquired date must be LESS than or equal to the check date
-                # (Assuming the model has an 'acquired_date' field, though not explicitly in the placeholder)
-                # EmployeeCertificationModel.acquired_date <= check_date_for_db
-            )
+            EmployeeCertificationModel.employee_id == employee_id
         )
 
-        # Execute the query
-        result = (await self.db_session.execute(stmt)).scalar_one_or_none()
+        result = await self.db_session.scalars(stmt)
+        records = result.all()
 
-        # If a record is found, it means the certification exists and is valid
-        # (unexpired) on the specified check_date.
-        return result is not None
+        return [
+            EmployeeCertificationData(
+                employee_id=str(r.employee_id),
+                certification_name=str(r.certification_name),
+                # Mapping stored dates to whenever.Date
+                acquired_date=whenever.Date(
+                    r.acquired_date.year, r.acquired_date.month, r.acquired_date.day
+                )
+                if r.acquired_date
+                else None,
+                expiration_date=whenever.Date(
+                    r.expiration_date.year,
+                    r.expiration_date.month,
+                    r.expiration_date.day,
+                )
+                if r.expiration_date
+                else None,
+            )
+            for r in records
+        ]

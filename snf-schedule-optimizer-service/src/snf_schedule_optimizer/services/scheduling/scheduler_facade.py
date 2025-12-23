@@ -1,5 +1,6 @@
 import copy
 from collections import defaultdict
+from typing import Protocol
 
 import whenever
 
@@ -28,13 +29,35 @@ from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluato
     ScheduleCostEvaluator,
 )
 from snf_schedule_optimizer.services.repositories import (
-    IFacilityRetriever,
-    IShiftRetriever,
+    IFacilityRepo,
+    IShiftRepo,
 )
-from snf_schedule_optimizer.services.scheduling.interfaces import IScheduleRetriever
+from snf_schedule_optimizer.services.scheduling.interfaces import (
+    IScheduleRepo,
+    ScheduleLookupKey,
+)
 
 
-class WorkforceSchedulerService:
+class WorkforceSchedulerServicePort(Protocol):
+    async def optimize_schedule(
+        self,
+        org_id: str,
+        facility_contexts: dict[str, FacilityScenarioContext],
+        preference_weights: PreferenceWeights,
+        pay_period_start: whenever.Instant,
+        optimization_start_time: whenever.Instant | None = None,
+    ) -> OptimizationOutput: ...
+
+    async def validate_shift_move(
+        self,
+        move_request: MoveEmployeeRequest,
+        pay_period_start: whenever.Instant,
+    ) -> OptimizationOutput: ...
+
+    async def close(self) -> None: ...
+
+
+class WorkforceSchedulerService(WorkforceSchedulerServicePort):
     """
     High-Level Facade that coordinates the optimization pipeline.
     Client code calls this, not the engine directly.
@@ -45,9 +68,9 @@ class WorkforceSchedulerService:
         provider_factory: ScenarioDataProviderFactory,
         optimizer: NurseShiftScheduleOptimizer,
         cost_evaluator: ScheduleCostEvaluator,
-        schedule_retriever: IScheduleRetriever,
-        facility_repository: IFacilityRetriever,
-        shift_retriever: IShiftRetriever,
+        schedule_retriever: IScheduleRepo,
+        facility_repository: IFacilityRepo,
+        shift_retriever: IShiftRepo,
     ):
         self.provider_factory = provider_factory
         self.optimizer = optimizer
@@ -102,8 +125,10 @@ class WorkforceSchedulerService:
         schedule_id = move_request.schedule_id
 
         current_schedule = await self.schedule_retriever.get_schedule(
-            schedule_id,
-            org_id,
+            ScheduleLookupKey(
+                org_id,
+                schedule_id,
+            )
         )
 
         if not current_schedule:

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from typing import cast
 
 from fastapi import FastAPI
@@ -12,7 +13,8 @@ from snf_schedule_optimizer.generated.scheduling.v1.scheduling_connect import (
     SchedulingServiceASGIApplication,
 )
 from snf_schedule_optimizer.infrastructure.composition import (
-    compose_scheduler_service,
+    build_retrievers_container,
+    build_scheduler_container,
 )
 
 DB_URL = "postgresql+asyncpg://user:pass@localhost/dbname"
@@ -31,7 +33,9 @@ def health_check() -> dict[str, str]:
 
 
 async def main() -> None:
-    scheduler_facade = await compose_scheduler_service(SessionLocal)
+    retrievers_container_type = build_retrievers_container(SessionLocal)
+    scheduler_container_type = build_scheduler_container(retrievers_container_type)
+    scheduler_facade = await scheduler_container_type.scheduler_service()
 
     rpc_handler = SchedulingServiceHandler(scheduler_facade)
     scheduling_rpc_app = SchedulingServiceASGIApplication(rpc_handler)
@@ -39,9 +43,10 @@ async def main() -> None:
     app.mount("/scheduling.v1.SchedulingService", scheduling_rpc_app)
 
     config = Config()
-    config.bind = ["0.0.0.0:8000"]
+    config.bind = ["127.0.0.1:8000"]
 
     try:
+        logging.info("Starting Workforce Optimizer API server")
         await serve(cast(ASGIFramework, cast(object, app)), config)
     finally:
         await scheduler_facade.close()

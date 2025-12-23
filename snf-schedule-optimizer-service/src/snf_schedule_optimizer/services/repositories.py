@@ -3,7 +3,7 @@ import abc
 from snf_schedule_optimizer.models import FacilityConfig, Shift, ShiftKey
 
 
-class IShiftRetriever(abc.ABC):
+class IShiftRepo(abc.ABC):
     @abc.abstractmethod
     async def get_shifts_for_org(
         self,
@@ -30,7 +30,7 @@ class IShiftRetriever(abc.ABC):
         pass
 
 
-class IFacilityRetriever(abc.ABC):
+class IFacilityRepo(abc.ABC):
     """
     Interface for retrieving Facility Configurations.
     """

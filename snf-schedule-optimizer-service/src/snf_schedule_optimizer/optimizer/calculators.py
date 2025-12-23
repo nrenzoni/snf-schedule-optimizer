@@ -20,11 +20,11 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     ILaborBurdenCalculator,
     INurseHardBlockChecker,
 )
-from snf_schedule_optimizer.resident_acuity_retrievers import (
-    IResidentAcuityPerShiftRetriever,
+from snf_schedule_optimizer.resident_acuity_repo import (
+    IResidentAcuityPerShiftRepo,
 )
 from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IShiftRequirementsRetriever,
+    IShiftRequirementsRepo,
 )
 
 
@@ -36,8 +36,8 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
 
     def __init__(
         self,
-        resident_acuity_retriever: IResidentAcuityPerShiftRetriever,
-        shift_requirements_retriever: IShiftRequirementsRetriever,
+        resident_acuity_retriever: IResidentAcuityPerShiftRepo,
+        shift_requirements_retriever: IShiftRequirementsRepo,
     ):
         self.resident_acuity_retriever = resident_acuity_retriever
         self.shift_requirements_retriever = shift_requirements_retriever

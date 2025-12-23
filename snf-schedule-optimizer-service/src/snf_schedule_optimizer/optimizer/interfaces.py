@@ -19,7 +19,7 @@ from snf_schedule_optimizer.optimizer.context import (
     LpNurseShiftVariableHolder,
 )
 from snf_schedule_optimizer.optimizer.models import InfeasibilityReasonResult
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRetriever
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRepo
 
 
 class INurseHardBlockChecker(abc.ABC):
@@ -192,7 +192,7 @@ class IScenarioDataProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_compensation_service(self) -> IStaffCompensationRetriever:
+    def get_compensation_service(self) -> IStaffCompensationRepo:
         """Provides access to financial data scoped for this run."""
         pass
 

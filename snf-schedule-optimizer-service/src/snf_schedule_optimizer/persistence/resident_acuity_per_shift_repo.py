@@ -4,13 +4,13 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.models import ResidentAcuity, Shift
-from snf_schedule_optimizer.resident_acuity_retrievers import (
-    IResidentAcuityPerShiftRetriever,
+from snf_schedule_optimizer.resident_acuity_repo import (
+    IResidentAcuityPerShiftRepo,
 )
 from snf_schedule_optimizer.sqlalchemy_models.resident_acuity import ResidentAcuityModel
 
 
-class SQLResidentAcuityPerShiftRetriever(IResidentAcuityPerShiftRetriever):
+class SQLResidentAcuityPerShiftRepo(IResidentAcuityPerShiftRepo):
     """
     Adapter: Fetches the resident census for the day of the shift.
     Filters by org, facility, and the date of the shift.

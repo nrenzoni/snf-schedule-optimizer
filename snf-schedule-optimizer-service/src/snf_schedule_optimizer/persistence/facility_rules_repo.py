@@ -4,13 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.selectable import and_
 
 from snf_schedule_optimizer.models import FacilityRulesConfig
-from snf_schedule_optimizer.services.payroll.interfaces import IFacilityRulesRetriever
+from snf_schedule_optimizer.services.payroll.interfaces import IFacilityRulesRepo
 from snf_schedule_optimizer.sqlalchemy_models.facility_rules_config import (
     FacilityRulesConfigModel,
 )
 
 
-class SQLFacilityRulesRetriever(IFacilityRulesRetriever):
+class SQLFacilityRulesRepo(IFacilityRulesRepo):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 

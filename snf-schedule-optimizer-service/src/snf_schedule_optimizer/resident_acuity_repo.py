@@ -3,7 +3,7 @@ import abc
 from snf_schedule_optimizer.models import ResidentAcuity, Shift
 
 
-class IResidentAcuityPerShiftRetriever(abc.ABC):
+class IResidentAcuityPerShiftRepo(abc.ABC):
     @abc.abstractmethod
     async def get_resident_acuity_list(
         self,
@@ -12,7 +12,7 @@ class IResidentAcuityPerShiftRetriever(abc.ABC):
         pass
 
 
-class ResidentAcuityPerShiftRetrieverImpl(IResidentAcuityPerShiftRetriever):
+class FakeResidentAcuityPerShiftRepo(IResidentAcuityPerShiftRepo):
     """Same resident acuity for all shifts - for testing purposes."""
 
     def __init__(

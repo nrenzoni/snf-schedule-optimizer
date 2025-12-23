@@ -4,9 +4,9 @@ from snf_schedule_optimizer.models import FacilityConfig, MinMandates, Preferenc
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
-from .builders import OptimizerTestBuilder
 from .scenario_builder import ScenarioBuilder, ScenarioDebugPrinter
 from .scenario_models import HistoryConfig, PayBandConfig, TimeConfig, WorkforceConfig
+from .test_builder import OptimizerTestBuilder
 
 ny_tz = "America/New_York"
 

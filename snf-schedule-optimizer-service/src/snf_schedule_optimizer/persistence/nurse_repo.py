@@ -7,7 +7,7 @@ from snf_schedule_optimizer.models import NurseProfile, Shift
 from snf_schedule_optimizer.sqlalchemy_models.nurse_profile import NurseProfileModel
 
 
-class INurseRetriever(abc.ABC):
+class INurseRepo(abc.ABC):
     @abc.abstractmethod
     async def get_nurses(
         self,
@@ -23,26 +23,7 @@ class INurseRetriever(abc.ABC):
         pass
 
 
-class NurseRetrieverStaticListImpl(INurseRetriever):
-    def __init__(
-        self,
-        nurses: list[NurseProfile],
-    ):
-        self.nurses = nurses
-        self.nurse_dict = {n.employee_id: n for n in nurses}
-
-    async def get_nurses(
-        self,
-        shift: Shift,
-    ) -> list[NurseProfile]:
-        # In a real implementation, filter nurses based on availability, skills, etc.
-        return self.nurses
-
-    async def get_nurse(self, employee_id: str) -> NurseProfile | None:
-        return self.nurse_dict[employee_id]
-
-
-class SQLNurseRetriever(INurseRetriever):
+class SQLNurseRepo(INurseRepo):
     """
     Asynchronous SQLAlchemy implementation of the INurseRetriever.
     Designed for use with async_session in an ASGI environment.

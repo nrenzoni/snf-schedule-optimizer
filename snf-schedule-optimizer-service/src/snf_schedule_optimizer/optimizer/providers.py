@@ -1,6 +1,6 @@
 import whenever
 
-from snf_schedule_optimizer.ml_output_retrievers import IMLModelOutputsRetriever
+from snf_schedule_optimizer.ml_output_repo import IMLModelOutputsRepo
 from snf_schedule_optimizer.models import (
     Employee,
     FacilityConfig,
@@ -16,10 +16,10 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     IHprdRequirementCalculator,
     IScenarioDataProvider,
 )
-from snf_schedule_optimizer.persistence import INurseRetriever
+from snf_schedule_optimizer.persistence import INurseRepo
 from snf_schedule_optimizer.services.hr.interfaces import (
-    IEmployeeRetriever,
-    IStaffCompensationRetriever,
+    IEmployeeRepo,
+    IStaffCompensationRepo,
 )
 from snf_schedule_optimizer.services.timekeeping.interfaces import (
     IEmployeeWorkHistoryService,
@@ -38,11 +38,11 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         facility_contexts: dict[str, FacilityScenarioContext],
         # shifts: List["Shift"],  # The scope of this scenario
         # config: "FacilityConfig",
-        employee_retriever: IEmployeeRetriever,
-        nurse_retriever: INurseRetriever,
+        employee_retriever: IEmployeeRepo,
+        nurse_retriever: INurseRepo,
         hprd_calculator: IHprdRequirementCalculator,
-        staff_comp_service: IStaffCompensationRetriever,
-        ml_model_retriever: IMLModelOutputsRetriever,
+        staff_comp_service: IStaffCompensationRepo,
+        ml_model_retriever: IMLModelOutputsRepo,
         work_history_service: IEmployeeWorkHistoryService,
         pay_period_start: whenever.Instant,
         optimization_start_time: whenever.Instant,
@@ -143,7 +143,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
 
         return self._shift_nurses_cache[shift.shift_id]
 
-    def get_compensation_service(self) -> IStaffCompensationRetriever:
+    def get_compensation_service(self) -> IStaffCompensationRepo:
         return self._staff_comp_service
 
     def get_ml_model_outputs(self, shift: Shift) -> MlModelOutputs:
@@ -198,11 +198,11 @@ class ScenarioDataProviderFactory:
 
     def __init__(
         self,
-        employee_retriever: IEmployeeRetriever,
-        nurse_retriever: INurseRetriever,
+        employee_retriever: IEmployeeRepo,
+        nurse_retriever: INurseRepo,
         hprd_calculator: IHprdRequirementCalculator,
-        staff_compensation_service: IStaffCompensationRetriever,
-        ml_model_retriever: IMLModelOutputsRetriever,
+        staff_compensation_service: IStaffCompensationRepo,
+        ml_model_retriever: IMLModelOutputsRepo,
         work_history_service: IEmployeeWorkHistoryService,
     ):
         self.employee_retriever = employee_retriever

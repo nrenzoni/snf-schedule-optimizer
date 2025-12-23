@@ -3,17 +3,17 @@ from snf_schedule_optimizer.models import (
     Shift,
     ShiftAssignmentsType,
 )
-from snf_schedule_optimizer.persistence.nurse_retrievers import INurseRetriever
-from snf_schedule_optimizer.resident_acuity_retrievers import (
-    IResidentAcuityPerShiftRetriever,
+from snf_schedule_optimizer.persistence.nurse_repo import INurseRepo
+from snf_schedule_optimizer.resident_acuity_repo import (
+    IResidentAcuityPerShiftRepo,
 )
 
 
 class BaselineScheduleGenerator:
     def __init__(
         self,
-        resident_acuity_retriever: IResidentAcuityPerShiftRetriever,
-        nurse_retriever: INurseRetriever,
+        resident_acuity_retriever: IResidentAcuityPerShiftRepo,
+        nurse_retriever: INurseRepo,
     ) -> None:
         self.resident_acuity_retriever = resident_acuity_retriever
         self.nurse_retriever = nurse_retriever

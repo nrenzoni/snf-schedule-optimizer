@@ -17,9 +17,9 @@ from snf_schedule_optimizer.models.persistence_dtos import (
 )
 from snf_schedule_optimizer.services.payroll.interfaces import (
     IDifferentialRule,
-    IDifferentialRuleRetriever,
+    IDifferentialRuleRepo,
     IOvertimeRule,
-    IOvertimeRuleRetriever,
+    IOvertimeRuleRepo,
     IRuleRetrievalService,
 )
 from snf_schedule_optimizer.sqlalchemy_models.differential_rule import (
@@ -181,7 +181,7 @@ class RuleRetrievalServiceStaticListImpl(IRuleRetrievalService):
         return ot_rules
 
 
-class SQLDifferentialRuleRetriever(IDifferentialRuleRetriever):
+class SQLDifferentialRuleRepo(IDifferentialRuleRepo):
     def __init__(self, session: AsyncSession):
         self.session = session
 
@@ -193,7 +193,7 @@ class SQLDifferentialRuleRetriever(IDifferentialRuleRetriever):
         return [m.to_data() for m in result.all()]
 
 
-class SQLOvertimeRuleRetriever(IOvertimeRuleRetriever):
+class SQLOvertimeRuleRepo(IOvertimeRuleRepo):
     def __init__(self, session: AsyncSession):
         self.session = session
 

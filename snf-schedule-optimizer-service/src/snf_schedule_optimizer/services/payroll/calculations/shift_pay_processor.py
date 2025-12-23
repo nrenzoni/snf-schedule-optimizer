@@ -11,7 +11,7 @@ from snf_schedule_optimizer.models import (
     WorkedShiftSegment,
 )
 from snf_schedule_optimizer.optimizer.models import ShiftCostBreakdown
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRetriever
+from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRepo
 from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
     ThresholdOvertimeRule,
 )
@@ -37,7 +37,7 @@ class ShiftPayProcessor:
         eligibility_service: RuleEligibilityService,
         # ot_calculator: IOvertimeCalculator,
         slicer: IShiftSlicer,
-        compensation_service: IStaffCompensationRetriever,
+        compensation_service: IStaffCompensationRepo,
         # work_history_service: IEmployeeWorkHistoryService,
     ):
         self.eligibility_service = eligibility_service

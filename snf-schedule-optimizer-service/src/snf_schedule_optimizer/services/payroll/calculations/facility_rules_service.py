@@ -10,8 +10,8 @@ from snf_schedule_optimizer.models import (
     SplitDayType,
 )
 from snf_schedule_optimizer.services.payroll.interfaces import (
-    IEmployeeRulesRetriever,
-    IFacilityRulesRetriever,
+    IEmployeeRulesRepo,
+    IFacilityRulesRepo,
     IFacilityRulesService,
 )
 
@@ -25,8 +25,8 @@ class FacilityRulesService(IFacilityRulesService):
 
     def __init__(
         self,
-        facility_rule_retriever: IFacilityRulesRetriever,
-        employee_rule_retriever: IEmployeeRulesRetriever,
+        facility_rule_retriever: IFacilityRulesRepo,
+        employee_rule_retriever: IEmployeeRulesRepo,
     ):
         self.facility_rule_retriever = facility_rule_retriever
         self.employee_rule_retriever = employee_rule_retriever

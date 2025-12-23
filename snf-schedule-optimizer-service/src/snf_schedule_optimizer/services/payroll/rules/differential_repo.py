@@ -7,11 +7,11 @@ from snf_schedule_optimizer.models import (
     Shift,
 )
 from snf_schedule_optimizer.services.payroll.interfaces import (
-    INurseDifferentialRetriever,
+    INurseDifferentialRepo,
 )
 
 
-class NurseDifferentialRetrieverImpl(INurseDifferentialRetriever):
+class NurseDifferentialRepoImpl(INurseDifferentialRepo):
     def __init__(self, facility_config: FacilityConfig):
         self.facility_config = facility_config
 

@@ -87,7 +87,7 @@ class IEmployeeWorkHistoryService(abc.ABC):
         pass
 
 
-class IRawHistoryRetriever(abc.ABC):
+class IRawHistoryRepo(abc.ABC):
     """Defines the contract for fetching raw, unprocessed historical inputs."""
 
     @abc.abstractmethod

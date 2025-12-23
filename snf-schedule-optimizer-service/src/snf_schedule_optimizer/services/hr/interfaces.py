@@ -3,9 +3,10 @@ import abc
 import whenever
 
 from snf_schedule_optimizer.models import Employee, StaffCompensationRecord
+from snf_schedule_optimizer.models.persistence_dtos import EmployeeCertificationData
 
 
-class IEmployeeRetriever(abc.ABC):
+class IEmployeeRepo(abc.ABC):
     """Defines the contract for retrieving core Employee identity records."""
 
     @abc.abstractmethod
@@ -28,7 +29,7 @@ class IEmployeeRetriever(abc.ABC):
         pass
 
 
-class IStaffCompensationRetriever(abc.ABC):
+class IStaffCompensationRepo(abc.ABC):
     """Defines the contract for retrieving the active financial rate for an employee."""
 
     @abc.abstractmethod
@@ -53,4 +54,14 @@ class ICertificationService(abc.ABC):
         check_date: whenever.ZonedDateTime,
     ) -> bool:
         """Checks if the named certification is valid/unexpired on the check_date."""
+        pass
+
+
+class ICertificationRepo(abc.ABC):
+    """PORT: Interface for fetching raw certification data."""
+
+    @abc.abstractmethod
+    async def get_certifications_for_employee(
+        self, employee_id: str
+    ) -> list[EmployeeCertificationData]:
         pass

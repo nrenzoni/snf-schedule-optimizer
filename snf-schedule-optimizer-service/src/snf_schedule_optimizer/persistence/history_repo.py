@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from snf_schedule_optimizer.models import Shift, ShiftKey, TimePunch
-from snf_schedule_optimizer.services.timekeeping.interfaces import IRawHistoryRetriever
+from snf_schedule_optimizer.services.timekeeping.interfaces import IRawHistoryRepo
 from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
 
 RawHistoryRecord = tuple[str, Shift, list[TimePunch]]
 
 
-class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
+class FakeRawHistoryRepo(IRawHistoryRepo):
     """
     Concrete implementation that provides raw shift and punch data from a static
     list, filtered by employee ID and date range.
@@ -68,7 +68,7 @@ class RawHistoryRetrieverStaticListImpl(IRawHistoryRetriever):
         return history_map
 
 
-class SQLRawHistoryRetriever(IRawHistoryRetriever):
+class SQLRawHistoryRepo(IRawHistoryRepo):
     """
     Concrete implementation using SQLAlchemy to fetch raw Shifts and Punches
     via the direct FK from TimePunch to Shift.

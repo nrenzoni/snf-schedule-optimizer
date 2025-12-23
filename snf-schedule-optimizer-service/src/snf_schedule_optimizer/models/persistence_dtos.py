@@ -53,3 +53,13 @@ class OvertimeRuleData:
     required_certifications: list[str] | None = None
     certification_match_type: str = "ALL"
     contract_id: str | None = None
+
+
+@dataclass(frozen=True)
+class EmployeeCertificationData:
+    """Strongly typed data structure for certification records."""
+
+    employee_id: str
+    certification_name: str
+    acquired_date: whenever.Date | None
+    expiration_date: whenever.Date | None

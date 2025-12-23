@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -11,7 +9,6 @@ from snf_schedule_optimizer.models import (
     ResidentAcuity,
     Schedule,
     Shift,
-    ShiftKey,
     ShiftSpecificRequirements,
     StaffCompensationRecord,
 )
@@ -36,8 +33,20 @@ from snf_schedule_optimizer.optimizer.strategies.penalties import QualityOfLifeS
 from snf_schedule_optimizer.optimizer.strategies.variables import (
     CoreVariableGenerationStrategy,
 )
-from snf_schedule_optimizer.resident_acuity_retrievers import (
-    ResidentAcuityPerShiftRetrieverImpl,
+from snf_schedule_optimizer.persistence.fakes import (
+    FakeEmployeeRepo,
+    FakeFacilityRepo,
+    FakeMLModelRepo,
+    FakeNurseRepo,
+    FakePreferencePenaltyProcessor,
+    FakeScheduleRepo,
+    FakeShiftRepo,
+    FakeShiftRequirementsRepo,
+    FakeStaffCompensationRepo,
+    FakeWorkHistoryService,
+)
+from snf_schedule_optimizer.resident_acuity_repo import (
+    FakeResidentAcuityPerShiftRepo,
 )
 from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluator import (
     ScheduleCostEvaluator,
@@ -48,83 +57,9 @@ from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor im
 from snf_schedule_optimizer.services.payroll.calculations.shift_slicers import (
     TimeOverlapShiftSlicer,
 )
-from snf_schedule_optimizer.services.repositories import (
-    IFacilityRetriever,
-    IShiftRetriever,
-)
-from snf_schedule_optimizer.services.scheduling.interfaces import IScheduleRetriever
 from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
     WorkforceSchedulerService,
 )
-
-from .fakes import (
-    FakeEmployeeRetriever,
-    FakeMLModelRetriever,
-    FakeNurseRetriever,
-    FakePreferencePenaltyProcessor,
-    FakeShiftRequirementsRetriever,
-    FakeStaffCompensationRetriever,
-    FakeWorkHistoryService,
-)
-
-
-class FakeScheduleRetriever(IScheduleRetriever):
-    """InMemory implementation of IScheduleRetriever for testing."""
-
-    def __init__(self, schedules: dict[tuple[str, str], Schedule] | None = None):
-        # Key: (schedule_id, org_id) -> Schedule
-        self._schedules = schedules or {}
-
-    async def get_schedule(self, schedule_id: str, org_id: str) -> Schedule | None:
-        return self._schedules.get((schedule_id, org_id))
-
-
-class FakeFacilityRetriever(IFacilityRetriever):
-    """InMemory implementation of IFacilityRepository for testing."""
-
-    def __init__(self, configs: list[FacilityConfig] | None = None):
-        self._configs = {c.facility_id: c for c in (configs or [])}
-
-    async def get_configs(
-        self, org_id: str, facility_ids: list[str] | None = None
-    ) -> list[FacilityConfig]:
-        if facility_ids is None:
-            return [c for c in self._configs.values() if c.org_id == org_id]
-        return [
-            self._configs[fid]
-            for fid in facility_ids
-            if fid in self._configs and self._configs[fid].org_id == org_id
-        ]
-
-
-class FakeShiftRetriever(IShiftRetriever):
-    """InMemory implementation of IShiftRetriever for testing."""
-
-    def __init__(self, shifts: list[Shift] | None = None):
-        self._shifts = shifts or []
-
-    async def get_shifts_for_org(
-        self, org_id: str, facility_timezones: dict[str, str]
-    ) -> list[Shift]:
-        # Simple filtering. In real implementation, this might hydrate timezones.
-        return [s for s in self._shifts if s.org_id == org_id]
-
-    async def get_shifts_by_keys(
-        self,
-        shift_keys: list[ShiftKey],
-        facility_timezones: dict[str, str],
-        org_id: str,
-    ) -> dict[ShiftKey, Shift]:
-        # Filter shifts matching the keys
-        # We assume Shift objects in self._shifts already have the correct properties
-        key_set = set(shift_keys)
-        result = {}
-        for s in self._shifts:
-            # Construct key from shift
-            s_key = ShiftKey(s.facility_id, s.shift_id)
-            if s_key in key_set and s.org_id == org_id:
-                result[s_key] = s
-        return result
 
 
 class OptimizerTestBuilder:
@@ -172,7 +107,7 @@ class OptimizerTestBuilder:
         self,
         employees: list[Employee],
         nurses: list[NurseProfile],
-    ) -> OptimizerTestBuilder:
+    ) -> "OptimizerTestBuilder":
         self._employees = employees
         self._nurses = nurses
         return self
@@ -180,24 +115,24 @@ class OptimizerTestBuilder:
     def with_financials(
         self,
         records: list[StaffCompensationRecord],
-    ) -> OptimizerTestBuilder:
+    ) -> "OptimizerTestBuilder":
         self._comp_records = records
         return self
 
-    def with_history(self, hours_map: dict[str, float]) -> OptimizerTestBuilder:
+    def with_history(self, hours_map: dict[str, float]) -> "OptimizerTestBuilder":
         self._accumulated_hours = hours_map
         return self
 
     def with_preference_penalties(
         self,
         penalties: dict[str, float],
-    ) -> OptimizerTestBuilder:
+    ) -> "OptimizerTestBuilder":
         self._preference_penalties = penalties
         return self
 
     def with_schedule(
         self, schedule: Schedule, schedule_id: str, org_id: str
-    ) -> OptimizerTestBuilder:
+    ) -> "OptimizerTestBuilder":
         """Pre-loads a schedule into the mock database for retrieval."""
         self._stored_schedules[(schedule_id, org_id)] = schedule
         return self
@@ -205,7 +140,7 @@ class OptimizerTestBuilder:
     def with_hprd_calculator(
         self,
         calculator: IHprdRequirementCalculator,
-    ) -> OptimizerTestBuilder:
+    ) -> "OptimizerTestBuilder":
         """Override the default HPRD logic with a specific Fake or Mock."""
         self._hprd_calculator = calculator
         return self
@@ -214,7 +149,7 @@ class OptimizerTestBuilder:
         self,
         pay: list[IPayModelStrategy] | None = None,
         constraints: list[IFacilityScopedConstraintStrategy] | None = None,
-    ) -> OptimizerTestBuilder:
+    ) -> "OptimizerTestBuilder":
         """Allows swapping out entire strategy lists."""
         if pay is not None:
             self._global_pay_strategies = pay
@@ -222,7 +157,7 @@ class OptimizerTestBuilder:
             self._facility_constraint_strategies = constraints
         return self
 
-    def with_acuity_data(self, data: list[ResidentAcuity]) -> OptimizerTestBuilder:
+    def with_acuity_data(self, data: list[ResidentAcuity]) -> "OptimizerTestBuilder":
         self._acuity_data = data
         return self
 
@@ -230,13 +165,13 @@ class OptimizerTestBuilder:
 
     def build_optimizer(self) -> NurseShiftScheduleOptimizer:
         # 1. Instantiate Fakes using the accumulated state
-        fake_emp_retriever = FakeEmployeeRetriever(self._employees)
-        fake_nurse_retriever = FakeNurseRetriever(self._nurses)
-        fake_comp_service = FakeStaffCompensationRetriever(self._comp_records)
+        fake_emp_retriever = FakeEmployeeRepo(self._employees)
+        fake_nurse_retriever = FakeNurseRepo(self._nurses)
+        fake_comp_service = FakeStaffCompensationRepo(self._comp_records)
         fake_history_service = FakeWorkHistoryService(self._accumulated_hours)
 
         # Default ML Fake (Can add a .with_ml_scores() method if needed)
-        fake_ml_retriever = FakeMLModelRetriever(
+        fake_ml_retriever = FakeMLModelRepo(
             MlModelOutputs(
                 turnover_risk_scores={},
                 shift_call_out_forecast=0.0,
@@ -252,11 +187,9 @@ class OptimizerTestBuilder:
             hprd_calc = self._hprd_calculator
         else:
             # Construct the default "Zero/Passthrough" calculator
-            fake_acuity_retriever = ResidentAcuityPerShiftRetrieverImpl(
-                self._acuity_data
-            )
+            fake_acuity_retriever = FakeResidentAcuityPerShiftRepo(self._acuity_data)
 
-            fake_req_retriever = FakeShiftRequirementsRetriever(
+            fake_req_retriever = FakeShiftRequirementsRepo(
                 default_requirements=ShiftSpecificRequirements(
                     target_hprd_rn=0.0,
                     target_hprd_cna=0.0,
@@ -360,9 +293,9 @@ class OptimizerTestBuilder:
         evaluator = ScheduleCostEvaluator(self.pay_processor)
 
         # Instantiate the Fake Retriever with any schedules configured in the builder
-        fake_schedule_retriever = FakeScheduleRetriever(self._stored_schedules)
-        fake_facility_repo = FakeFacilityRetriever(self._facility_configs)
-        fake_shift_retriever = FakeShiftRetriever(self._shifts)
+        fake_schedule_retriever = FakeScheduleRepo(self._stored_schedules)
+        fake_facility_repo = FakeFacilityRepo(self._facility_configs)
+        fake_shift_retriever = FakeShiftRepo(self._shifts)
 
         return WorkforceSchedulerService(
             provider_factory=self._factory,
