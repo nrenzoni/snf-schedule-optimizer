@@ -18,6 +18,7 @@ class StaffCompensationModel(SQLABase):
     __tablename__ = "staff_compensation_record"
 
     # --- Primary Key ---
+    org_id: Mapped[str] = mapped_column(nullable=False, primary_key=True)
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # --- Foreign Key to Employee (One Employee has Many Compensation Records) ---
@@ -54,7 +55,7 @@ class StaffCompensationModel(SQLABase):
             f"start_date={self.effective_start_date})>"
         )
 
-    def to_data(self) -> StaffCompensationRecord:
+    def to_domain(self) -> StaffCompensationRecord:
         return StaffCompensationRecord(
             employee_id=self.employee_id,
             base_rate_effective=self.base_rate_effective,
@@ -67,4 +68,26 @@ class StaffCompensationModel(SQLABase):
             else None,
             union_contract_id=self.union_contract_id,
             pay_grade_or_step=self.pay_grade_or_step,
+        )
+
+    @classmethod
+    def from_domain(
+        cls,
+        record: StaffCompensationRecord,
+        org_id: str,
+    ) -> "StaffCompensationModel":
+        effective_end_date = (
+            record.effective_end_date.py_date() if record.effective_end_date else None
+        )
+
+        return cls(
+            org_id=org_id,
+            employee_id=record.employee_id,
+            base_rate_effective=record.base_rate_effective,
+            ot_multiplier=record.ot_multiplier,
+            is_agency=record.is_agency,
+            effective_start_date=record.effective_start_date.py_date(),
+            effective_end_date=effective_end_date,
+            union_contract_id=record.union_contract_id,
+            pay_grade_or_step=record.pay_grade_or_step,
         )

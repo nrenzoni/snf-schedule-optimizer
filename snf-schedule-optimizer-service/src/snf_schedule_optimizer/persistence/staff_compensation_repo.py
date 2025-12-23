@@ -20,6 +20,7 @@ class SQLStaffCompensationRepo(IStaffCompensationRepo):
 
     async def get_record_for_date(
         self,
+        org_id: str,
         employee_id: str,
         check_date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
@@ -61,4 +62,11 @@ class SQLStaffCompensationRepo(IStaffCompensationRepo):
             return None
 
         # 3. Map and Return
-        return result.to_data()
+        return result.to_domain()
+
+    async def save_compensation_record(
+        self, org_id: str, record: StaffCompensationRecord
+    ) -> None:
+        """Persists a domain StaffCompensationRecord."""
+        model = StaffCompensationModel.from_domain(record, org_id)
+        await self.db_session.merge(model)

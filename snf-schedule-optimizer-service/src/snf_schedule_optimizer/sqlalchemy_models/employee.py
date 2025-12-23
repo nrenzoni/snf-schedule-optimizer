@@ -43,3 +43,17 @@ class EmployeeModel(SQLABase):
             job_title=str(self.job_title),
             hire_date=hire_instant.to_tz("UTC").date(),
         )
+
+    @classmethod
+    def from_domain(
+        cls,
+        org_id: str,
+        domain: Employee,
+    ) -> "EmployeeModel":
+        return cls(
+            org_id=org_id,
+            employee_id=domain.employee_id,
+            name=domain.name,
+            job_title=domain.job_title,
+            hire_date=domain.hire_date,
+        )

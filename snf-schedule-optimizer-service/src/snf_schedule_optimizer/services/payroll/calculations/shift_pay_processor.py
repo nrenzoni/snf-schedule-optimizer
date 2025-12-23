@@ -54,6 +54,7 @@ class ShiftPayProcessor:
         facility_config: FacilityConfig,
     ) -> ShiftCostBreakdown:
         comp_record = await self.compensation_service.get_record_for_date(
+            shift.org_id,
             employee.employee_id,
             shift.shift_start_dt,  # The date the shift begins
         )

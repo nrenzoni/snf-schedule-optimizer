@@ -40,3 +40,17 @@ class StaffShiftPreferenceModel(SQLABase):
             penalty_weight=self.penalty_weight,
             is_hard_block=self.is_hard_block,
         )
+
+    @classmethod
+    def from_domain(
+        cls,
+        employee_id: str,
+        domain: StaffShiftPreference,
+    ) -> "StaffShiftPreferenceModel":
+        return cls(
+            employee_id=employee_id,
+            preference_type=domain.preference_type.value,
+            specific_value=domain.specific_value,
+            penalty_weight=domain.penalty_weight,
+            is_hard_block=domain.is_hard_block,
+        )

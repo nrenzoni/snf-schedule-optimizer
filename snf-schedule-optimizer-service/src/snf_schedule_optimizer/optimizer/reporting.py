@@ -111,7 +111,9 @@ class ScheduleResultAnalyzer:
                 # Retrieve Agency Status from Compensation Record
                 comp_rec = (
                     await self.provider.get_compensation_service().get_record_for_date(
-                        emp.employee_id, shift.shift_start_dt
+                        shift.org_id,
+                        emp.employee_id,
+                        shift.shift_start_dt,
                     )
                 )
                 is_agency = comp_rec.is_agency if comp_rec else False

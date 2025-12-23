@@ -45,6 +45,7 @@ class CertificationServiceStaticListImpl(ICertificationService):
 
     async def is_certification_active(
         self,
+        org_id: str,
         employee_id: str,
         certification_name: str,
         check_date: whenever.ZonedDateTime,
@@ -79,11 +80,13 @@ class SQLCertificationRepo(ICertificationRepo):
 
     async def get_certifications_for_employee(
         self,
+        org_id: str,
         employee_id: str,
     ) -> list[EmployeeCertificationData]:
         """Fetches all certification records for an employee from the database."""
         stmt = select(EmployeeCertificationModel).where(
-            EmployeeCertificationModel.employee_id == employee_id
+            EmployeeCertificationModel.org_id == org_id,
+            EmployeeCertificationModel.employee_id == employee_id,
         )
 
         result = await self.db_session.scalars(stmt)

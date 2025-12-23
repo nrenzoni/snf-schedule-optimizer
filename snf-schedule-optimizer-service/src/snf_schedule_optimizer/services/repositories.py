@@ -29,6 +29,15 @@ class IShiftRepo(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def save_shift(
+        self,
+        org_id: str,
+        shift: Shift,
+    ) -> None:
+        """Persists a domain Shift object."""
+        pass
+
 
 class IFacilityRepo(abc.ABC):
     """
@@ -48,4 +57,9 @@ class IFacilityRepo(abc.ABC):
         :param facility_ids: Specific list of facilities to fetch.
                              If None, fetches ALL facilities for the org.
         """
+        pass
+
+    @abc.abstractmethod
+    async def save_config(self, config: FacilityConfig) -> None:
+        """Persists a domain FacilityConfig object."""
         pass

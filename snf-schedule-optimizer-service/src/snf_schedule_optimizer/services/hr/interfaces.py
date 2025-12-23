@@ -28,6 +28,15 @@ class IEmployeeRepo(abc.ABC):
         """Retrieves all active Employee records."""
         pass
 
+    @abc.abstractmethod
+    async def save_employee(
+        self,
+        org_id: str,
+        employee: Employee,
+    ) -> None:
+        """Persists a domain Employee object."""
+        pass
+
 
 class IStaffCompensationRepo(abc.ABC):
     """Defines the contract for retrieving the active financial rate for an employee."""
@@ -35,6 +44,7 @@ class IStaffCompensationRepo(abc.ABC):
     @abc.abstractmethod
     async def get_record_for_date(
         self,
+        org_id: str,
         employee_id: str,
         check_date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
@@ -44,11 +54,21 @@ class IStaffCompensationRepo(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def save_compensation_record(
+        self,
+        org_id: str,
+        record: StaffCompensationRecord,
+    ) -> None:
+        """Persists a domain StaffCompensationRecord."""
+        pass
+
 
 class ICertificationService(abc.ABC):
     @abc.abstractmethod
     async def is_certification_active(
         self,
+        org_id: str,
         employee_id: str,
         certification_name: str,
         check_date: whenever.ZonedDateTime,
@@ -62,6 +82,8 @@ class ICertificationRepo(abc.ABC):
 
     @abc.abstractmethod
     async def get_certifications_for_employee(
-        self, employee_id: str
+        self,
+        org_id: str,
+        employee_id: str,
     ) -> list[EmployeeCertificationData]:
         pass

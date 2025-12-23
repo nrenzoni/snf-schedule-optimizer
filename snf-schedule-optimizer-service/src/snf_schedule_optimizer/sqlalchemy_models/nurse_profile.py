@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Float, String
+from sqlalchemy import ARRAY, Float, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from snf_schedule_optimizer.models import NurseProfile
@@ -19,11 +19,12 @@ class NurseProfileModel(SQLABase):
 
     __tablename__ = "nurse_profile"
 
+    org_id: Mapped[str] = mapped_column(nullable=False, primary_key=True)
     employee_id: Mapped[str] = mapped_column(String(32), primary_key=True)
     available_hours_weekly: Mapped[float] = mapped_column(Float, default=40.0)
 
     # Skills stored as a comma-separated string for simplicity
-    skills_csv: Mapped[str] = mapped_column(String, default="")
+    skills: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
 
     # One-to-many relationship with preferences
     preferences: Mapped[list["StaffShiftPreferenceModel"]] = relationship(
@@ -40,6 +41,28 @@ class NurseProfileModel(SQLABase):
         return NurseProfile(
             employee_id=self.employee_id,
             available_hours_weekly=self.available_hours_weekly,
-            skills=[s.strip() for s in self.skills_csv.split(",") if s.strip()],
+            skills=self.skills,
             shift_custom_preferences=[p.to_domain() for p in self.preferences],
+        )
+
+    @classmethod
+    def from_domain(
+        cls,
+        org_id: str,
+        domain: NurseProfile,
+    ) -> "NurseProfileModel":
+        if domain.shift_custom_preferences:
+            custom_preferences_ = [
+                StaffShiftPreferenceModel.from_domain(domain.employee_id, p)
+                for p in domain.shift_custom_preferences
+            ]
+        else:
+            custom_preferences_ = []
+
+        return cls(
+            org_id=org_id,
+            employee_id=domain.employee_id,
+            available_hours_weekly=domain.available_hours_weekly,
+            skills=domain.skills,
+            preferences=custom_preferences_,
         )

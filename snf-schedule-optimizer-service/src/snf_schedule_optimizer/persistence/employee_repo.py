@@ -44,3 +44,7 @@ class SQLEmployeeRepo(IEmployeeRepo):
         results = (await self.db_session.scalars(stmt)).all()
 
         return [row.to_domain() for row in results]
+
+    async def save_employee(self, org_id: str, employee: Employee) -> None:
+        model = EmployeeModel.from_domain(org_id, employee)
+        await self.db_session.merge(model)

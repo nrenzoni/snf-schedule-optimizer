@@ -72,6 +72,10 @@ class FakeEmployeeRepo(IEmployeeRepo):
     ) -> Employee | None:
         return next((e for e in self._employees if e.employee_id == employee_id), None)
 
+    async def save_employee(self, org_id: str, employee: Employee) -> None:
+        # For the fake, we won't actually persist anything.
+        pass
+
 
 class FakeNurseRepo(INurseRepo):
     def __init__(self, nurses: list[NurseProfile]):
@@ -84,6 +88,9 @@ class FakeNurseRepo(INurseRepo):
 
     async def get_nurse(self, employee_id: str) -> NurseProfile | None:
         return next((n for n in self._nurses if n.employee_id == employee_id), None)
+
+    async def save_nurse_profile(self, org_id: str, nurse: NurseProfile) -> None:
+        pass
 
 
 class StaffCompensationRepoStaticListImpl(IStaffCompensationRepo):
@@ -114,6 +121,7 @@ class StaffCompensationRepoStaticListImpl(IStaffCompensationRepo):
 
     async def get_record_for_date(
         self,
+        org_id: str,
         employee_id: str,
         check_date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
@@ -151,6 +159,7 @@ class FakeStaffCompensationRepo(IStaffCompensationRepo):
 
     async def get_record_for_date(
         self,
+        org_id: str,
         employee_id: str,
         date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
@@ -158,16 +167,10 @@ class FakeStaffCompensationRepo(IStaffCompensationRepo):
         # (Ignores date logic for simplicity, or implement strict logic if needed)
         return next((r for r in self._records if r.employee_id == employee_id), None)
 
-    async def get_base_rate(self, employee_id: str) -> float:
-        # Fallback method if used
-        rec = await self.get_record_for_date(
-            employee_id,
-            whenever.Instant.now().to_tz(self.tz),
-        )
-        return rec.base_rate_effective if rec else 0.0
-
-    def get_hours_worked_in_period(self, employee_id: str) -> float:
-        return 0.0
+    async def save_compensation_record(
+        self, org_id: str, record: StaffCompensationRecord
+    ) -> None:
+        pass
 
 
 class FakeWorkHistoryService(IEmployeeWorkHistoryService):
@@ -407,6 +410,9 @@ class FakeFacilityRepo(IFacilityRepo):
             if fid in self._configs and self._configs[fid].org_id == org_id
         ]
 
+    async def save_config(self, config: FacilityConfig) -> None:
+        pass
+
 
 class FakeShiftRepo(IShiftRepo):
     """InMemory implementation of IShiftRetriever for testing."""
@@ -436,3 +442,6 @@ class FakeShiftRepo(IShiftRepo):
             if s_key in key_set and s.org_id == org_id:
                 result[s_key] = s
         return result
+
+    async def save_shift(self, org_id: str, shift: Shift) -> None:
+        pass

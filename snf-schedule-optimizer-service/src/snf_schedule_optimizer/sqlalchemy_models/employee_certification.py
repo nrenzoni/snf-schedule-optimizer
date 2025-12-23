@@ -17,6 +17,7 @@ class EmployeeCertificationModel(SQLABase):
     __tablename__ = "employee_certification"
 
     # Primary Key
+    org_id: Mapped[str] = mapped_column(String(36), index=True)
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # Foreign Key to EmployeeModel

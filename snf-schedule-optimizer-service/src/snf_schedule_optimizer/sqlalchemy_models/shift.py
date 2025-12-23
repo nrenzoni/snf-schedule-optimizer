@@ -6,6 +6,7 @@ import whenever
 from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from ..models import Shift
 from ..utils.sqlalchemy_types.instant_type import InstantType
 from .base import SQLABase
 
@@ -48,7 +49,7 @@ class ShiftModel(SQLABase):
 
     # 2. Scheduling & Role Data
     # Used for filtering rules by facility/unit
-    unit_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    unit_id: Mapped[str | None] = mapped_column(Integer, nullable=True)
 
     # 3. Status
     is_scheduled: Mapped[bool] = mapped_column(
@@ -62,3 +63,22 @@ class ShiftModel(SQLABase):
 
     def __repr__(self) -> str:
         return f"<ShiftModel(id={self.shift_id}, start='{self.shift_start_dt}')>"
+
+    @classmethod
+    def from_domain(
+        cls,
+        org_id: str,
+        domain_shift: Shift,
+    ) -> ShiftModel:
+        return cls(
+            org_id=org_id,
+            facility_id=domain_shift.facility_id,
+            shift_id=domain_shift.shift_id,
+            shift_start_dt=domain_shift.shift_start_dt.to_instant(),
+            shift_end_dt=domain_shift.shift_end_dt.to_instant(),
+            shift_number=domain_shift.shift_number,
+            day_shift=domain_shift.day_shift,
+            day_of_week=domain_shift.day_of_week,
+            unit_id=domain_shift.unit_id,
+            is_scheduled=domain_shift.is_scheduled,
+        )

@@ -52,6 +52,8 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
         shift_number=1,
         day_shift=True,
         day_of_week=ref_date.date().day_of_week(),
+        unit_id=None,
+        is_scheduled=True,
     )
 
     shift_2 = Shift(
@@ -65,6 +67,8 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
         shift_number=2,
         day_shift=False,
         day_of_week=ref_date.date().day_of_week(),
+        unit_id=None,
+        is_scheduled=True,
     )
 
     # 2. Setup Nurses (Sorted by Cost)

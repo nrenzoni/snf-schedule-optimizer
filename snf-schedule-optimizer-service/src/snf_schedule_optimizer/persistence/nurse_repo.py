@@ -22,6 +22,15 @@ class INurseRepo(abc.ABC):
     ) -> NurseProfile | None:
         pass
 
+    @abc.abstractmethod
+    async def save_nurse_profile(
+        self,
+        org_id: str,
+        nurse: NurseProfile,
+    ) -> None:
+        """Persists a domain NurseProfile and its associated preferences."""
+        pass
+
 
 class SQLNurseRepo(INurseRepo):
     """
@@ -53,3 +62,14 @@ class SQLNurseRepo(INurseRepo):
         model = result.scalar_one_or_none()
 
         return model.to_domain() if model else None
+
+    async def save_nurse_profile(
+        self,
+        org_id: str,
+        nurse: NurseProfile,
+    ) -> None:
+        """
+        Persists a domain NurseProfile and its associated preferences.
+        """
+        model = NurseProfileModel.from_domain(org_id, nurse)
+        await self.session.merge(model)

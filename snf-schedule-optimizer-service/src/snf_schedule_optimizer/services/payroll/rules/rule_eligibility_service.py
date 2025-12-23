@@ -106,6 +106,7 @@ class RuleEligibilityService:
         # 2. Check Certifications
         if rule.required_certifications:
             if not await self._check_certification_eligibility(
+                shift.org_id,
                 employee.employee_id,
                 rule.required_certifications,
                 rule.certification_match_type,
@@ -117,6 +118,7 @@ class RuleEligibilityService:
 
     async def _check_certification_eligibility(
         self,
+        org_id: str,
         employee_id: str,
         required_certs: list[str],
         match_type: str,
@@ -127,6 +129,7 @@ class RuleEligibilityService:
         # 1. Get the status of all required certifications for the employee at the shift start time
         cert_statuses = [
             await self.certification_service.is_certification_active(
+                org_id,
                 employee_id,
                 cert_name,
                 check_date,

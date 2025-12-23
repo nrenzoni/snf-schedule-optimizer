@@ -12,11 +12,12 @@ class CertificationService(ICertificationService):
     Decoupled from SQLAlchemy by using the ICertificationRetriever port.
     """
 
-    def __init__(self, retriever: ICertificationRepo):
-        self.retriever = retriever
+    def __init__(self, repo: ICertificationRepo):
+        self.repo = repo
 
     async def is_certification_active(
         self,
+        org_id: str,
         employee_id: str,
         certification_name: str,
         check_date: whenever.ZonedDateTime,
@@ -26,7 +27,10 @@ class CertificationService(ICertificationService):
         between the acquired_date and the expiration_date inclusive.
         """
         # 1. Fetch raw data via the retriever
-        certs = await self.retriever.get_certifications_for_employee(employee_id)
+        certs = await self.repo.get_certifications_for_employee(
+            org_id,
+            employee_id,
+        )
 
         # 2. Extract the comparison date
         target_date = check_date.date()

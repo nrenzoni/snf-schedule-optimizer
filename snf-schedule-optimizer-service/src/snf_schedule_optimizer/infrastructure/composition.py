@@ -296,7 +296,7 @@ def build_scheduler_container(
         # 4. Payroll & Costing Logic
         certification_service = Factory(
             CertificationService,
-            retriever=Provide[retrievers.certification_retriever],
+            repo=Provide[retrievers.certification_retriever],
         )
 
         rule_retriever_service = Factory(

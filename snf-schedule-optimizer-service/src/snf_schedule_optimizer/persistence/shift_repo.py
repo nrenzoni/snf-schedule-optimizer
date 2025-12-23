@@ -71,6 +71,10 @@ class SQLShiftRepo(IShiftRepo):
 
         return shift_map
 
+    async def save_shift(self, org_id: str, shift: Shift) -> None:
+        model = ShiftModel.from_domain(org_id, shift)
+        await self.session.merge(model)
+
     def _map_row_to_domain(self, row: ShiftModel, timezone_str: str) -> Shift:
         """Helper to map a DB row to a Domain Shift using a timezone string."""
         start_instant = row.shift_start_dt.to_tz(timezone_str)
@@ -87,4 +91,6 @@ class SQLShiftRepo(IShiftRepo):
             day_of_week=whenever.Weekday(row.day_of_week),
             shift_start_dt=start_instant,
             shift_end_dt=end_instant,
+            unit_id=row.unit_id,
+            is_scheduled=row.is_scheduled,
         )

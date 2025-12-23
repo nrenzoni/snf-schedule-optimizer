@@ -190,7 +190,7 @@ class SQLDifferentialRuleRepo(IDifferentialRuleRepo):
             DifferentialRuleModel.org_id == org_id
         )
         result = await self.session.scalars(stmt)
-        return [m.to_data() for m in result.all()]
+        return [m.to_domain() for m in result.all()]
 
 
 class SQLOvertimeRuleRepo(IOvertimeRuleRepo):

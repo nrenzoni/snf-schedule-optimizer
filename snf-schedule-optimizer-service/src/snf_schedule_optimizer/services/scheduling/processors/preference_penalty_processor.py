@@ -70,7 +70,9 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
         # to the ShiftPayProcessor or assume a standard rate for soft penalty calculation.
         # Here, we assume the base_rate is enough proxy cost.
         comp_record = await self.staff_compensation_retriever.get_record_for_date(
-            employee.employee_id, shift.shift_start_dt
+            shift.org_id,
+            employee.employee_id,
+            shift.shift_start_dt,
         )
         if comp_record is None:
             raise ValueError(

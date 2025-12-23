@@ -46,6 +46,8 @@ async def test_financial_hero_ot_vs_agency() -> None:
         shift_number=1,
         day_shift=True,
         day_of_week=ref_date.date().day_of_week(),
+        unit_id=None,
+        is_scheduled=True,
     )
 
     # 3. Setup Employees
@@ -182,6 +184,8 @@ async def test_compliance_safety_net() -> None:
         day_of_week=ref_date.date().day_of_week(),
         shift_start_dt=ref_date.add(hours=7),
         shift_end_dt=ref_date.add(hours=15),  # 8 Hours
+        unit_id=None,
+        is_scheduled=True,
     )
 
     # 3. Setup Employees

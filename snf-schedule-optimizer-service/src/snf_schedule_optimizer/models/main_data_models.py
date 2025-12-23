@@ -183,6 +183,8 @@ class Shift:
     day_of_week: whenever.Weekday
     shift_start_dt: whenever.ZonedDateTime
     shift_end_dt: whenever.ZonedDateTime
+    unit_id: str | None
+    is_scheduled: bool
 
     def __post_init__(self) -> None:
         # Consistency Check: Ensure start/end are in the same facility timezone

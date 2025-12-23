@@ -84,6 +84,7 @@ class ScheduleCostEvaluator:
                 # 5b. Check Agency Status for THIS specific shift date
                 # (Handles employees who convert from Agency -> Staff mid-period)
                 comp_record = await comp_service.get_record_for_date(
+                    shift.org_id,
                     employee.employee_id,
                     shift.shift_start_dt,
                 )

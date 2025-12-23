@@ -51,8 +51,8 @@ class SQLScheduleRepo(IScheduleRepo):
             )
 
         return Schedule(
-            schedule_lookup,
-            schedule_id,
-            schedule_id,
+            schedule_lookup.org_id,
+            None,
+            schedule_lookup.schedule_id,
             shift_assignments=assignments,
         )

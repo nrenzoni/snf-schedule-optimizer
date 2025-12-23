@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import random
 
 import whenever
@@ -13,8 +11,7 @@ from snf_schedule_optimizer.models import (
     StaffCompensationRecord,
     StaffShiftPreference,
 )
-
-from .scenario_models import (
+from snf_schedule_optimizer.models.scenario_models import (
     HistoryConfig,
     PayBandConfig,
     PreferenceConfig,
@@ -44,15 +41,15 @@ class ScenarioBuilder:
         self.org_id = "ORG_1"
 
     # --- Configuration Methods ---
-    def with_workforce(self, cfg: WorkforceConfig) -> ScenarioBuilder:
+    def with_workforce(self, cfg: WorkforceConfig) -> "ScenarioBuilder":
         self.workforce_cfg = cfg
         return self
 
-    def with_time(self, cfg: TimeConfig) -> ScenarioBuilder:
+    def with_time(self, cfg: TimeConfig) -> "ScenarioBuilder":
         self.time_cfg = cfg
         return self
 
-    def with_history(self, cfg: HistoryConfig) -> ScenarioBuilder:
+    def with_history(self, cfg: HistoryConfig) -> "ScenarioBuilder":
         self.history_cfg = cfg
         return self
 
@@ -99,6 +96,8 @@ class ScenarioBuilder:
                         day_of_week=shift_start.date().day_of_week(),
                         shift_start_dt=shift_start,
                         shift_end_dt=shift_end,
+                        unit_id="U1",
+                        is_scheduled=True,
                     )
                 )
         return shifts

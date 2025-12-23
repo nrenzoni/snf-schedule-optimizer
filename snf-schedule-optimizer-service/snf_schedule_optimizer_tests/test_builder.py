@@ -57,6 +57,7 @@ from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor im
 from snf_schedule_optimizer.services.payroll.calculations.shift_slicers import (
     TimeOverlapShiftSlicer,
 )
+from snf_schedule_optimizer.services.scheduling.interfaces import ScheduleLookupKey
 from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
     WorkforceSchedulerService,
 )
@@ -70,7 +71,7 @@ class OptimizerTestBuilder:
         self._comp_records: list[StaffCompensationRecord] = []
         self._accumulated_hours: dict[str, float] = {}
         self._preference_penalties: dict[str, float] = {}
-        self._stored_schedules: dict[tuple[str, str], Schedule] = {}
+        self._stored_schedules: dict[ScheduleLookupKey, Schedule] = {}
         self._acuity_data: list[ResidentAcuity] = []
         self._shifts: list[Shift] = []
         self._facility_configs: list[FacilityConfig] = []
@@ -134,7 +135,7 @@ class OptimizerTestBuilder:
         self, schedule: Schedule, schedule_id: str, org_id: str
     ) -> "OptimizerTestBuilder":
         """Pre-loads a schedule into the mock database for retrieval."""
-        self._stored_schedules[(schedule_id, org_id)] = schedule
+        self._stored_schedules[ScheduleLookupKey(org_id, schedule_id)] = schedule
         return self
 
     def with_hprd_calculator(
