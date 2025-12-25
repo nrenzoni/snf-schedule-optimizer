@@ -4,14 +4,14 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IScheduleRepo,
+    ScheduleLookupKey,
+)
 from snf_schedule_optimizer.models import (
     Schedule,
     ShiftAssignmentsType,
     ShiftKey,
-)
-from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IScheduleRepo,
-    ScheduleLookupKey,
 )
 from snf_schedule_optimizer.sqlalchemy_models.schedule_assignment import (
     ScheduleAssignmentModel,

@@ -7,13 +7,13 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from snf_schedule_optimizer.domain.timekeeping.interfaces import IRawHistoryRepo
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Shift,
     ShiftKey,
     TimePunch,
 )
-from snf_schedule_optimizer.services.timekeeping.interfaces import IRawHistoryRepo
 from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
 
 RawHistoryRecord = tuple[DomainPrimaryKeyType, Shift, list[TimePunch]]

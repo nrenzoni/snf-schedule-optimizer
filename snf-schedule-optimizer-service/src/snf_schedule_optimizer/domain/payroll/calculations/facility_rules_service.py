@@ -3,6 +3,11 @@ from dataclasses import replace
 
 import whenever
 
+from snf_schedule_optimizer.domain.payroll.interfaces import (
+    IEmployeeRulesRepo,
+    IFacilityRulesRepo,
+    IFacilityRulesService,
+)
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     EmployeeTimeSettings,
@@ -10,11 +15,6 @@ from snf_schedule_optimizer.models import (
     PunchType,
     RoundingType,
     SplitDayType,
-)
-from snf_schedule_optimizer.services.payroll.interfaces import (
-    IEmployeeRulesRepo,
-    IFacilityRulesRepo,
-    IFacilityRulesService,
 )
 
 

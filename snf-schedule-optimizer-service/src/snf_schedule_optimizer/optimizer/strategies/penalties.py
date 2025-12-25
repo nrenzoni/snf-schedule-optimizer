@@ -1,5 +1,9 @@
 import pulp
 
+from snf_schedule_optimizer.domain.hr.interfaces import IEmployeeRepo
+from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IPreferencePenaltyProcessor,
+)
 from snf_schedule_optimizer.models import PreferenceWeights
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
@@ -7,10 +11,6 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     IScenarioDataProvider,
 )
 from snf_schedule_optimizer.persistence import INurseRepo
-from snf_schedule_optimizer.services.hr.interfaces import IEmployeeRepo
-from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IPreferencePenaltyProcessor,
-)
 
 
 class QualityOfLifeStrategy(IObjectivePenaltyStrategy):

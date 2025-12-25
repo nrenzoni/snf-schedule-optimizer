@@ -1,10 +1,10 @@
 import whenever
 
-from snf_schedule_optimizer.models import DomainPrimaryKeyType
-from snf_schedule_optimizer.services.hr.interfaces import (
+from snf_schedule_optimizer.domain.hr.interfaces import (
     ICertificationRepo,
     ICertificationService,
 )
+from snf_schedule_optimizer.models import DomainPrimaryKeyType
 
 
 class CertificationService(ICertificationService):

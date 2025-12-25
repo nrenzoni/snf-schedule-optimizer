@@ -1,5 +1,26 @@
 import whenever
 
+from snf_schedule_optimizer.domain.hr.interfaces import (
+    IEmployeeRepo,
+    IStaffCompensationRepo,
+)
+from snf_schedule_optimizer.domain.payroll.calculations.overtime_calculation import (
+    ThresholdOvertimeRule,
+)
+from snf_schedule_optimizer.domain.payroll.interfaces import IFacilityRulesService
+from snf_schedule_optimizer.domain.repositories import (
+    IFacilityRepo,
+    IShiftRepo,
+)
+from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IPreferencePenaltyProcessor,
+    IScheduleRepo,
+    IShiftRequirementsRepo,
+    ScheduleLookupKey,
+)
+from snf_schedule_optimizer.domain.timekeeping.interfaces import (
+    IEmployeeWorkHistoryService,
+)
 from snf_schedule_optimizer.ml_output_repo import IMLModelOutputsRepo
 
 # Import Models
@@ -33,27 +54,6 @@ from snf_schedule_optimizer.optimizer.interfaces import IHprdRequirementCalculat
 
 # Import your Interfaces
 from snf_schedule_optimizer.persistence.nurse_repo import INurseRepo
-from snf_schedule_optimizer.services.hr.interfaces import (
-    IEmployeeRepo,
-    IStaffCompensationRepo,
-)
-from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
-    ThresholdOvertimeRule,
-)
-from snf_schedule_optimizer.services.payroll.interfaces import IFacilityRulesService
-from snf_schedule_optimizer.services.repositories import (
-    IFacilityRepo,
-    IShiftRepo,
-)
-from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IPreferencePenaltyProcessor,
-    IScheduleRepo,
-    IShiftRequirementsRepo,
-    ScheduleLookupKey,
-)
-from snf_schedule_optimizer.services.timekeeping.interfaces import (
-    IEmployeeWorkHistoryService,
-)
 from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
 
@@ -302,7 +302,7 @@ class FakeHprdRequirementCalculator(IHprdRequirementCalculator):
 class FakeFacilityRulesService(IFacilityRulesService):
     """
     Concrete implementation providing static, hardcoded payroll rules for testing
-    the Shift Reconciler and other services.
+    the Shift Reconciler and other domain.
     """
 
     def __init__(self) -> None:

@@ -2,11 +2,11 @@ import whenever
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from snf_schedule_optimizer.domain.hr.interfaces import IStaffCompensationRepo
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     StaffCompensationRecord,
 )
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRepo
 from snf_schedule_optimizer.sqlalchemy_models.staff_compensation_model import (
     StaffCompensationModel,
 )

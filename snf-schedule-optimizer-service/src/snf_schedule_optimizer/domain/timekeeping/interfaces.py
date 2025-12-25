@@ -17,7 +17,7 @@ from snf_schedule_optimizer.models import (
 )
 
 if TYPE_CHECKING:
-    from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
+    from snf_schedule_optimizer.domain.payroll.calculations.overtime_calculation import (
         ThresholdOvertimeRule,
     )
 

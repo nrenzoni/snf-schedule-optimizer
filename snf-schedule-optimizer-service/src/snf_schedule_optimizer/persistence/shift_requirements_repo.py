@@ -1,10 +1,10 @@
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from snf_schedule_optimizer.models import Shift, ShiftSpecificRequirements
-from snf_schedule_optimizer.services.scheduling.interfaces import (
+from snf_schedule_optimizer.domain.scheduling.interfaces import (
     IShiftRequirementsRepo,
 )
+from snf_schedule_optimizer.models import Shift, ShiftSpecificRequirements
 from snf_schedule_optimizer.sqlalchemy_models.shift_requirements import (
     ShiftRequirementsModel,
 )

@@ -1,13 +1,13 @@
 from snf_schedule_optimizer.datetime_utils import is_weekend
+from snf_schedule_optimizer.domain.payroll.interfaces import (
+    INurseDifferentialRepo,
+)
 from snf_schedule_optimizer.models import (
     Differential,
     DifferentialType,
     FacilityConfig,
     NurseProfile,
     Shift,
-)
-from snf_schedule_optimizer.services.payroll.interfaces import (
-    INurseDifferentialRepo,
 )
 
 

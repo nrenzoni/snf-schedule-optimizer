@@ -1,5 +1,15 @@
 import whenever
 
+from snf_schedule_optimizer.domain.hr.interfaces import IStaffCompensationRepo
+from snf_schedule_optimizer.domain.payroll.calculations.overtime_calculation import (
+    ThresholdOvertimeRule,
+)
+from snf_schedule_optimizer.domain.payroll.interfaces import (
+    IShiftSlicer,
+)
+from snf_schedule_optimizer.domain.payroll.rules.rule_eligibility_service import (
+    RuleEligibilityService,
+)
 from snf_schedule_optimizer.models import (
     DifferentialType,
     Employee,
@@ -11,16 +21,6 @@ from snf_schedule_optimizer.models import (
     WorkedShiftSegment,
 )
 from snf_schedule_optimizer.optimizer.models import ShiftCostBreakdown
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRepo
-from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
-    ThresholdOvertimeRule,
-)
-from snf_schedule_optimizer.services.payroll.interfaces import (
-    IShiftSlicer,
-)
-from snf_schedule_optimizer.services.payroll.rules.rule_eligibility_service import (
-    RuleEligibilityService,
-)
 
 
 def _empty_breakdown() -> ShiftCostBreakdown:

@@ -1,5 +1,12 @@
 import whenever
 
+from snf_schedule_optimizer.domain.payroll.interfaces import (
+    IOvertimeCalculator,
+    IOvertimeRule,
+)
+from snf_schedule_optimizer.domain.timekeeping.interfaces import (
+    IEmployeeWorkHistoryService,
+)
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
@@ -9,13 +16,6 @@ from snf_schedule_optimizer.models import (
     WorkedShiftSegment,
 )
 from snf_schedule_optimizer.models.constraints import LookbackPeriod
-from snf_schedule_optimizer.services.payroll.interfaces import (
-    IOvertimeCalculator,
-    IOvertimeRule,
-)
-from snf_schedule_optimizer.services.timekeeping.interfaces import (
-    IEmployeeWorkHistoryService,
-)
 
 
 class ThresholdOvertimeRule(IOvertimeRule):

@@ -1,15 +1,15 @@
 import whenever
 
+from snf_schedule_optimizer.domain.payroll.interfaces import (
+    IDifferentialRule,
+    IOvertimeRule,
+    IShiftSlicer,
+)
 from snf_schedule_optimizer.models import (
     DifferentialDateInterval,
     OvertimeInterval,
     Shift,
     WorkedShiftSegment,
-)
-from snf_schedule_optimizer.services.payroll.interfaces import (
-    IDifferentialRule,
-    IOvertimeRule,
-    IShiftSlicer,
 )
 
 

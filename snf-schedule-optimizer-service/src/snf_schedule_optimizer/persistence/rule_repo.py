@@ -3,6 +3,12 @@ from collections.abc import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from snf_schedule_optimizer.domain.payroll.interfaces import (
+    IDifferentialRule,
+    IDifferentialRuleRepo,
+    IOvertimeRule,
+    IOvertimeRuleRepo,
+)
 from snf_schedule_optimizer.models import (
     Differential,
     DifferentialDateInterval,
@@ -14,12 +20,6 @@ from snf_schedule_optimizer.models import (
 from snf_schedule_optimizer.models.persistence_dtos import (
     DifferentialRuleData,
     OvertimeRuleData,
-)
-from snf_schedule_optimizer.services.payroll.interfaces import (
-    IDifferentialRule,
-    IDifferentialRuleRepo,
-    IOvertimeRule,
-    IOvertimeRuleRepo,
 )
 from snf_schedule_optimizer.sqlalchemy_models.differential_rule import (
     DifferentialRuleModel,

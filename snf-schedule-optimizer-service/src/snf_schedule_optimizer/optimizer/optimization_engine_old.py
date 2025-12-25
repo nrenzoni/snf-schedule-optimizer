@@ -6,14 +6,14 @@
 # import whenever
 # from dataclasses import dataclass
 #
-# from snf_schedule_optimizer.services.hr.interfaces import (
+# from snf_schedule_optimizer.domain.hr.interfaces import (
 #     IEmployeeRetriever,
 #     IStaffCompensationService,
 # )
-# from snf_schedule_optimizer.services.payroll.interfaces import (
+# from snf_schedule_optimizer.domain.payroll.interfaces import (
 #     INurseDifferentialRetriever,
 # )
-# from snf_schedule_optimizer.services.scheduling.interfaces import (
+# from snf_schedule_optimizer.domain.scheduling.interfaces import (
 #     IPreferencePenaltyProcessor,
 #     IShiftRequirementsRetriever,
 # )
@@ -27,7 +27,7 @@
 # from snf_schedule_optimizer.resident_acuity_retrievers import (
 #     IResidentAcuityPerShiftRetriever,
 # )
-# from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
+# from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
 #     ShiftPayProcessor,
 # )
 #

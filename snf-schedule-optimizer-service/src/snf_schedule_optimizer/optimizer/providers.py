@@ -1,5 +1,12 @@
 import whenever
 
+from snf_schedule_optimizer.domain.hr.interfaces import (
+    IEmployeeRepo,
+    IStaffCompensationRepo,
+)
+from snf_schedule_optimizer.domain.timekeeping.interfaces import (
+    IEmployeeWorkHistoryService,
+)
 from snf_schedule_optimizer.ml_output_repo import IMLModelOutputsRepo
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
@@ -19,13 +26,6 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     IScenarioDataProvider,
 )
 from snf_schedule_optimizer.persistence import INurseRepo
-from snf_schedule_optimizer.services.hr.interfaces import (
-    IEmployeeRepo,
-    IStaffCompensationRepo,
-)
-from snf_schedule_optimizer.services.timekeeping.interfaces import (
-    IEmployeeWorkHistoryService,
-)
 
 
 class ScenarioDataProviderImpl(IScenarioDataProvider):

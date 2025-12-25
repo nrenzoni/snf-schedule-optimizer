@@ -1,8 +1,8 @@
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from snf_schedule_optimizer.domain.hr.interfaces import IEmployeeRepo
 from snf_schedule_optimizer.models import DomainPrimaryKeyType, Employee
-from snf_schedule_optimizer.services.hr.interfaces import IEmployeeRepo
 from snf_schedule_optimizer.sqlalchemy_models.employee import EmployeeModel
 
 

@@ -1,24 +1,24 @@
 from typing import Any
 
-from snf_schedule_optimizer.models import (
-    Employee,
-    OvertimeTrigger,
-    Shift,
-)
-from snf_schedule_optimizer.models.persistence_dtos import OvertimeRuleData
-from snf_schedule_optimizer.services.payroll.calculations.overtime_calculation import (
+from snf_schedule_optimizer.domain.payroll.calculations.overtime_calculation import (
     ThresholdOvertimeRule,
 )
-from snf_schedule_optimizer.services.payroll.interfaces import (
+from snf_schedule_optimizer.domain.payroll.interfaces import (
     IDifferentialRule,
     IDifferentialRuleRepo,
     IOvertimeRule,
     IOvertimeRuleRepo,
     IRuleRetrievalService,
 )
-from snf_schedule_optimizer.services.payroll.rules.shift_rules import (
+from snf_schedule_optimizer.domain.payroll.rules.shift_rules import (
     PatternDifferentialRule,
 )
+from snf_schedule_optimizer.models import (
+    Employee,
+    OvertimeTrigger,
+    Shift,
+)
+from snf_schedule_optimizer.models.persistence_dtos import OvertimeRuleData
 
 
 class RuleRetrievalService(IRuleRetrievalService):

@@ -5,6 +5,17 @@ from typing import Protocol
 import whenever
 
 from snf_schedule_optimizer.api import MoveEmployeeRequest, OptimizationOutput
+from snf_schedule_optimizer.domain.payroll.calculations.schedule_cost_evaluator import (
+    ScheduleCostEvaluator,
+)
+from snf_schedule_optimizer.domain.repositories import (
+    IFacilityRepo,
+    IShiftRepo,
+)
+from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IScheduleRepo,
+    ScheduleLookupKey,
+)
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     PreferenceWeights,
@@ -25,17 +36,6 @@ from snf_schedule_optimizer.optimizer.reporting import (
 )
 from snf_schedule_optimizer.optimizer.strategies.fixing import (
     PinnedScheduleConstraintStrategy,
-)
-from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluator import (
-    ScheduleCostEvaluator,
-)
-from snf_schedule_optimizer.services.repositories import (
-    IFacilityRepo,
-    IShiftRepo,
-)
-from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IScheduleRepo,
-    ScheduleLookupKey,
 )
 
 

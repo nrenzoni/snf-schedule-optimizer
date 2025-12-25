@@ -1,8 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from snf_schedule_optimizer.domain.repositories import IFacilityRepo
 from snf_schedule_optimizer.models import DomainPrimaryKeyType, FacilityConfig
-from snf_schedule_optimizer.services.repositories import IFacilityRepo
 from snf_schedule_optimizer.sqlalchemy_models.facility_config import FacilityConfigModel
 
 

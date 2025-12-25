@@ -2,16 +2,16 @@ import whenever
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from snf_schedule_optimizer.domain.hr.interfaces import (
+    ICertificationRepo,
+    ICertificationService,
+)
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     FacilityConfig,
 )
 from snf_schedule_optimizer.models.persistence_dtos import EmployeeCertificationData
 from snf_schedule_optimizer.models.testing import MockCertificationRecord
-from snf_schedule_optimizer.services.hr.interfaces import (
-    ICertificationRepo,
-    ICertificationService,
-)
 from snf_schedule_optimizer.sqlalchemy_models.employee_certification import (
     EmployeeCertificationModel,
 )

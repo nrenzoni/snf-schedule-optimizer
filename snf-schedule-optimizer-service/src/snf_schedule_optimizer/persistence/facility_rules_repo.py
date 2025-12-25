@@ -3,8 +3,8 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.selectable import and_
 
+from snf_schedule_optimizer.domain.payroll.interfaces import IFacilityRulesRepo
 from snf_schedule_optimizer.models import DomainPrimaryKeyType, FacilityRulesConfig
-from snf_schedule_optimizer.services.payroll.interfaces import IFacilityRulesRepo
 from snf_schedule_optimizer.sqlalchemy_models.facility_rules_config import (
     FacilityRulesConfigModel,
 )

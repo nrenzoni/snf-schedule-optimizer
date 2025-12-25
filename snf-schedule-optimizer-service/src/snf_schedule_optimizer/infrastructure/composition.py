@@ -7,6 +7,61 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from that_depends import BaseContainer, Provide
 from that_depends.providers import AbstractProvider, Factory, Resource
 
+from snf_schedule_optimizer.domain.hr.certification_service import (
+    CertificationService,
+)
+from snf_schedule_optimizer.domain.hr.interfaces import (
+    ICertificationRepo,
+    IEmployeeRepo,
+    IStaffCompensationRepo,
+)
+from snf_schedule_optimizer.domain.payroll.calculations.facility_rules_service import (
+    FacilityRulesService,
+)
+from snf_schedule_optimizer.domain.payroll.calculations.rule_retrieval_service import (
+    RuleRetrievalService,
+)
+from snf_schedule_optimizer.domain.payroll.calculations.schedule_cost_evaluator import (
+    ScheduleCostEvaluator,
+)
+from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
+    ShiftPayProcessor,
+)
+from snf_schedule_optimizer.domain.payroll.calculations.shift_slicers import (
+    TimeOverlapShiftSlicer,
+)
+from snf_schedule_optimizer.domain.payroll.interfaces import (
+    IDifferentialRuleRepo,
+    IEmployeeRulesRepo,
+    IFacilityRulesRepo,
+    IOvertimeRuleRepo,
+)
+from snf_schedule_optimizer.domain.payroll.rules.rule_eligibility_service import (
+    RuleEligibilityService,
+)
+from snf_schedule_optimizer.domain.repositories import (
+    IFacilityRepo,
+    IShiftRepo,
+)
+from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IScheduleRepo,
+    IShiftRequirementsRepo,
+)
+from snf_schedule_optimizer.domain.scheduling.processors.preference_penalty_processor import (
+    PreferencePenaltyProcessorImpl,
+)
+
+# Services
+from snf_schedule_optimizer.domain.scheduling.scheduler_facade import (
+    WorkforceSchedulerService,
+)
+from snf_schedule_optimizer.domain.timekeeping.interfaces import IRawHistoryRepo
+from snf_schedule_optimizer.domain.timekeeping.shift_reconciliation import (
+    ShiftReconcilerService,
+)
+from snf_schedule_optimizer.domain.timekeeping.work_history_service import (
+    EmployeeWorkHistoryServiceImpl,
+)
 from snf_schedule_optimizer.infrastructure.sqid_converter import IdObfuscator
 from snf_schedule_optimizer.ml_output_repo import MLModelOutputsRepo
 from snf_schedule_optimizer.optimizer.calculators import (
@@ -65,61 +120,6 @@ from snf_schedule_optimizer.persistence.staff_compensation_repo import (
 )
 from snf_schedule_optimizer.resident_acuity_repo import (
     IResidentAcuityPerShiftRepo,
-)
-from snf_schedule_optimizer.services.hr.certification_service import (
-    CertificationService,
-)
-from snf_schedule_optimizer.services.hr.interfaces import (
-    ICertificationRepo,
-    IEmployeeRepo,
-    IStaffCompensationRepo,
-)
-from snf_schedule_optimizer.services.payroll.calculations.facility_rules_service import (
-    FacilityRulesService,
-)
-from snf_schedule_optimizer.services.payroll.calculations.rule_retrieval_service import (
-    RuleRetrievalService,
-)
-from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluator import (
-    ScheduleCostEvaluator,
-)
-from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
-    ShiftPayProcessor,
-)
-from snf_schedule_optimizer.services.payroll.calculations.shift_slicers import (
-    TimeOverlapShiftSlicer,
-)
-from snf_schedule_optimizer.services.payroll.interfaces import (
-    IDifferentialRuleRepo,
-    IEmployeeRulesRepo,
-    IFacilityRulesRepo,
-    IOvertimeRuleRepo,
-)
-from snf_schedule_optimizer.services.payroll.rules.rule_eligibility_service import (
-    RuleEligibilityService,
-)
-from snf_schedule_optimizer.services.repositories import (
-    IFacilityRepo,
-    IShiftRepo,
-)
-from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IScheduleRepo,
-    IShiftRequirementsRepo,
-)
-from snf_schedule_optimizer.services.scheduling.processors.preference_penalty_processor import (
-    PreferencePenaltyProcessorImpl,
-)
-
-# Services
-from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
-    WorkforceSchedulerService,
-)
-from snf_schedule_optimizer.services.timekeeping.interfaces import IRawHistoryRepo
-from snf_schedule_optimizer.services.timekeeping.shift_reconciliation import (
-    ShiftReconcilerService,
-)
-from snf_schedule_optimizer.services.timekeeping.work_history_service import (
-    EmployeeWorkHistoryServiceImpl,
 )
 
 

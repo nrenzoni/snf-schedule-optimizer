@@ -2,11 +2,11 @@ import whenever
 from sqlalchemy import and_, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from snf_schedule_optimizer.domain.payroll.interfaces import IEmployeeRulesRepo
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     EmployeeRuleOverride,
 )
-from snf_schedule_optimizer.services.payroll.interfaces import IEmployeeRulesRepo
 from snf_schedule_optimizer.sqlalchemy_models.employee_rule_override import (
     EmployeeRuleOverrideModel,
 )

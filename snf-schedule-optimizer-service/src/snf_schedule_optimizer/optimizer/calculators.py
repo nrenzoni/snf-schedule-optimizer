@@ -1,5 +1,8 @@
 import whenever
 
+from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IShiftRequirementsRepo,
+)
 from snf_schedule_optimizer.models import (
     Employee,
     FacilityConfig,
@@ -22,9 +25,6 @@ from snf_schedule_optimizer.optimizer.interfaces import (
 )
 from snf_schedule_optimizer.resident_acuity_repo import (
     IResidentAcuityPerShiftRepo,
-)
-from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IShiftRequirementsRepo,
 )
 
 

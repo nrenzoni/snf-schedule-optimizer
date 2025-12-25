@@ -2,12 +2,12 @@ import whenever
 from sqlalchemy import and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from snf_schedule_optimizer.domain.repositories import IShiftRepo
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Shift,
     ShiftKey,
 )
-from snf_schedule_optimizer.services.repositories import IShiftRepo
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 
 

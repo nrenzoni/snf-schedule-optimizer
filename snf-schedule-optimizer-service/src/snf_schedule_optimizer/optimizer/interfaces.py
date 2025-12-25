@@ -5,6 +5,7 @@ import abc
 import pulp
 from pulp import LpProblem
 
+from snf_schedule_optimizer.domain.hr.interfaces import IStaffCompensationRepo
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
@@ -22,7 +23,6 @@ from snf_schedule_optimizer.optimizer.context import (
     LpNurseShiftVariableHolder,
 )
 from snf_schedule_optimizer.optimizer.models import InfeasibilityReasonResult
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRepo
 
 
 class INurseHardBlockChecker(abc.ABC):

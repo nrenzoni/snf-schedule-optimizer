@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
+    ShiftPayProcessor,
+)
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Schedule,
@@ -13,9 +16,6 @@ from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
     ScheduleFinancialReport,
 )
 from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
-from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
-    ShiftPayProcessor,
-)
 
 
 class ScheduleCostEvaluator:

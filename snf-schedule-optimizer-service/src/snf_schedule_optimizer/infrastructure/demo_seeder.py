@@ -1,12 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from snf_schedule_optimizer.infrastructure.scenario_builder import ScenarioBuilder
-from snf_schedule_optimizer.persistence import INurseRepo
-from snf_schedule_optimizer.services.hr.interfaces import (
+from snf_schedule_optimizer.domain.hr.interfaces import (
     IEmployeeRepo,
     IStaffCompensationRepo,
 )
-from snf_schedule_optimizer.services.repositories import IShiftRepo
+from snf_schedule_optimizer.domain.repositories import IShiftRepo
+from snf_schedule_optimizer.infrastructure.scenario_builder import ScenarioBuilder
+from snf_schedule_optimizer.persistence import INurseRepo
 
 
 class DemoSeeder:

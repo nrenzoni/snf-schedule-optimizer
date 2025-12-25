@@ -1,6 +1,19 @@
 from typing import Any
 from unittest.mock import MagicMock
 
+from snf_schedule_optimizer.domain.payroll.calculations.schedule_cost_evaluator import (
+    ScheduleCostEvaluator,
+)
+from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
+    ShiftPayProcessor,
+)
+from snf_schedule_optimizer.domain.payroll.calculations.shift_slicers import (
+    TimeOverlapShiftSlicer,
+)
+from snf_schedule_optimizer.domain.scheduling.interfaces import ScheduleLookupKey
+from snf_schedule_optimizer.domain.scheduling.scheduler_facade import (
+    WorkforceSchedulerService,
+)
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
@@ -49,19 +62,6 @@ from snf_schedule_optimizer.persistence.fakes import (
 )
 from snf_schedule_optimizer.resident_acuity_repo import (
     FakeResidentAcuityPerShiftRepo,
-)
-from snf_schedule_optimizer.services.payroll.calculations.schedule_cost_evaluator import (
-    ScheduleCostEvaluator,
-)
-from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
-    ShiftPayProcessor,
-)
-from snf_schedule_optimizer.services.payroll.calculations.shift_slicers import (
-    TimeOverlapShiftSlicer,
-)
-from snf_schedule_optimizer.services.scheduling.interfaces import ScheduleLookupKey
-from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
-    WorkforceSchedulerService,
 )
 
 

@@ -2,15 +2,15 @@ import pulp
 from pulp import LpProblem
 
 from snf_schedule_optimizer.datetime_utils import is_weekend
+from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
+    ShiftPayProcessor,
+)
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IIncentiveManager,
     ILaborBurdenCalculator,
     IPayModelStrategy,
     IScenarioDataProvider,
-)
-from snf_schedule_optimizer.services.payroll.calculations.shift_pay_processor import (
-    ShiftPayProcessor,
 )
 
 

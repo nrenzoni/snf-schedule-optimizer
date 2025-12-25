@@ -3,6 +3,10 @@ import dataclasses
 import whenever
 
 from snf_schedule_optimizer.datetime_utils import is_between
+from snf_schedule_optimizer.domain.payroll.interfaces import (
+    IFacilityRulesService,
+    IShiftReconcilerService,
+)
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     EmployeeTimeSettings,
@@ -12,10 +16,6 @@ from snf_schedule_optimizer.models import (
     SplitDayType,
     TimePunch,
     WorkedTimeBlock,
-)
-from snf_schedule_optimizer.services.payroll.interfaces import (
-    IFacilityRulesService,
-    IShiftReconcilerService,
 )
 
 

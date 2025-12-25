@@ -1,13 +1,13 @@
+from snf_schedule_optimizer.domain.hr.interfaces import IStaffCompensationRepo
+from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IPreferencePenaltyProcessor,
+)
 from snf_schedule_optimizer.models import (
     Employee,
     NurseProfile,
     PreferenceType,
     PreferenceWeights,
     Shift,
-)
-from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRepo
-from snf_schedule_optimizer.services.scheduling.interfaces import (
-    IPreferencePenaltyProcessor,
 )
 
 
