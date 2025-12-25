@@ -39,7 +39,7 @@ from snf_schedule_optimizer.optimizer.strategies.fixing import (
 )
 
 
-class WorkforceSchedulerServicePort(Protocol):
+class WorkforceSchedulerFacadePort(Protocol):
     async def optimize_schedule(
         self,
         org_id: DomainPrimaryKeyType,
@@ -58,7 +58,7 @@ class WorkforceSchedulerServicePort(Protocol):
     async def close(self) -> None: ...
 
 
-class WorkforceSchedulerService(WorkforceSchedulerServicePort):
+class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
     """
     High-Level Facade that coordinates the optimization pipeline.
     Client code calls this, not the engine directly.

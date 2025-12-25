@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,6 +32,12 @@ class SQLFacilityRepo(IFacilityRepo):
         results = (await self.session.scalars(stmt)).all()
 
         return [row.to_domain() for row in results]
+
+    async def get_all_facilities(self) -> list[FacilityConfig]:
+        stmt = select(FacilityConfigModel)
+        result = await self.session.scalars(stmt)
+        models: Sequence[FacilityConfigModel] = result.all()
+        return [m.to_domain() for m in models]
 
     async def save_config(self, config: FacilityConfig) -> None:
         """

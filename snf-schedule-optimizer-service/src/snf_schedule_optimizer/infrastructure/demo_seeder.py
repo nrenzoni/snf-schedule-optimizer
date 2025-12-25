@@ -4,7 +4,7 @@ from snf_schedule_optimizer.domain.hr.interfaces import (
     IEmployeeRepo,
     IStaffCompensationRepo,
 )
-from snf_schedule_optimizer.domain.repositories import IShiftRepo
+from snf_schedule_optimizer.domain.repositories import IFacilityRepo, IShiftRepo
 from snf_schedule_optimizer.infrastructure.scenario_builder import ScenarioBuilder
 from snf_schedule_optimizer.persistence import INurseRepo
 
@@ -21,12 +21,14 @@ class DemoSeeder:
         nurse_repo: INurseRepo,
         shift_repo: IShiftRepo,
         comp_repo: IStaffCompensationRepo,
+        facility_repo: IFacilityRepo,
         db_session: AsyncSession,
     ):
         self.employee_repo = employee_repo
         self.nurse_repo = nurse_repo
         self.shift_repo = shift_repo
         self.comp_repo = comp_repo
+        self.facility_repo = facility_repo
         self.db_session = db_session
 
     async def seed_from_scenario(self, seed: int = 42) -> None:
@@ -38,7 +40,12 @@ class DemoSeeder:
         scenario_builder = ScenarioBuilder(seed=seed)
         scenario = scenario_builder.build()
 
-        # 2. Persist Employees (Domain Models)
+        # 2. Persist Facility Configurations
+        # critical for timezone resolution and OT rules
+        for config in scenario.facility_configs:
+            await self.facility_repo.save_config(config)
+
+        # 3. Persist Employees
         for emp in scenario.employees:
             await self.employee_repo.save_employee(
                 scenario_builder.org_id,

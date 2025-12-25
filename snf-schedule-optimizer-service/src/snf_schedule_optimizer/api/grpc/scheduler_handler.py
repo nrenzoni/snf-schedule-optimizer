@@ -7,11 +7,19 @@ from snf_schedule_optimizer.generated.scheduling.v1 import (
     scheduling_connect,
     scheduling_pb2,
 )
+from snf_schedule_optimizer.generated.scheduling.v1 import (
+    scheduling_pb2 as scheduling_dot_v1_dot_scheduling__pb2,
+)
+from snf_schedule_optimizer.generated.scheduling.v1.scheduling_pb2 import (
+    GetAllOrgFacilitiesRequest,
+    GetAllOrgFacilitiesResponse,
+)
 from snf_schedule_optimizer.infrastructure.sqid_converter import (
     IIdObfuscator,
 )
-from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
-    WorkforceSchedulerServicePort,
+from snf_schedule_optimizer.service.facility.facility_facade import FacilityFacade
+from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
+    WorkforceSchedulerFacadePort,
 )
 
 
@@ -34,11 +42,31 @@ def get_internal_id(
 class SchedulingServiceHandler(scheduling_connect.SchedulingService):
     def __init__(
         self,
-        scheduler_service: WorkforceSchedulerServicePort,
+        scheduler_service: WorkforceSchedulerFacadePort,
+        facility_facade: FacilityFacade,
         id_obfuscator: IIdObfuscator,
     ):
         self.scheduler_service = scheduler_service
+        self.facility_facade = facility_facade
         self.id_obfuscator = id_obfuscator
+
+    async def get_all_org_facilities(
+        self,
+        request: scheduling_dot_v1_dot_scheduling__pb2.GetAllOrgFacilitiesRequest,
+        ctx: RequestContext[GetAllOrgFacilitiesRequest, GetAllOrgFacilitiesResponse],
+    ) -> scheduling_dot_v1_dot_scheduling__pb2.GetAllOrgFacilitiesResponse:
+        facility_configs = await self.facility_facade.get_all_system_facilities()
+        org_facs = [
+            scheduling_dot_v1_dot_scheduling__pb2.OrgFacility(
+                org_id=self.id_obfuscator.encode(facility.org_id),
+                facility_id=self.id_obfuscator.encode(facility.facility_id),
+            )
+            for facility in facility_configs
+        ]
+
+        return scheduling_dot_v1_dot_scheduling__pb2.GetAllOrgFacilitiesResponse(
+            all_org_facilities=org_facs,
+        )
 
     async def get_monthly_schedule(
         self,

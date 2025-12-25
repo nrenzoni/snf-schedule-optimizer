@@ -37,18 +37,19 @@ class TimePunchModel(SQLABase):
         ForeignKeyConstraint(
             (
                 "org_id",
+                "facility_id",
                 "shift_id",
             ),
-            ["shift.org_id", "shift.id"],
+            ["shift.org_id", "shift.facility_id", "shift.id"],
             name="fk_time_punch_shift",
             ondelete="CASCADE",
         ),
     )
 
     # --- Core Identity & Time ---
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     org_id: Mapped[int] = mapped_column(index=True, nullable=False)
     facility_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # NEW: Use UUID for raw_punch_id as it often corresponds to a GUID/UUID in source systems
     raw_punch_id: Mapped[uuid.UUID] = mapped_column(

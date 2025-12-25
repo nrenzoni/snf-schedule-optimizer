@@ -66,6 +66,13 @@ class IFacilityRepo(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def get_all_facilities(self) -> list[FacilityConfig]:
+        """
+        Admin method: Ignores tenant scoping to return everything in the table.
+        """
+        pass
+
+    @abc.abstractmethod
     async def save_config(self, config: FacilityConfig) -> None:
         """Persists a domain FacilityConfig object."""
         pass

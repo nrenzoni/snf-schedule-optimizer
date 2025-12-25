@@ -53,6 +53,7 @@ async def bootstrap() -> None:
                 nurse_repo=await repos_container.nurse_retriever.resolve(),
                 shift_repo=await repos_container.shift_retriever.resolve(),
                 comp_repo=await repos_container.compensation_retriever.resolve(),
+                facility_repo=await repos_container.facility_retriever.resolve(),
                 db_session=session,
             )
 

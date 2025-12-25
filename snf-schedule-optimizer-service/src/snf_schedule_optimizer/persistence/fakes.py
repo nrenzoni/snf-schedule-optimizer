@@ -401,6 +401,9 @@ class FakeFacilityRepo(IFacilityRepo):
             if fid in self._configs and self._configs[fid].org_id == org_id
         ]
 
+    async def get_all_facilities(self) -> list[FacilityConfig]:
+        raise NotImplementedError()
+
     async def save_config(self, config: FacilityConfig) -> None:
         pass
 

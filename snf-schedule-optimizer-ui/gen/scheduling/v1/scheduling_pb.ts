@@ -10,7 +10,37 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scheduling/v1/scheduling.proto.
  */
 export const file_scheduling_v1_scheduling: GenFile = /*@__PURE__*/
-  fileDesc("Ch5zY2hlZHVsaW5nL3YxL3NjaGVkdWxpbmcucHJvdG8SDXNjaGVkdWxpbmcudjEiLwoZR2V0TW9udGhseVNjaGVkdWxlUmVxdWVzdBISCgpzdGFydF9kYXRlGAEgASgJIrcBChpHZXRNb250aGx5U2NoZWR1bGVSZXNwb25zZRJLCglzY2hlZHVsZXMYASADKAsyOC5zY2hlZHVsaW5nLnYxLkdldE1vbnRobHlTY2hlZHVsZVJlc3BvbnNlLlNjaGVkdWxlc0VudHJ5GkwKDlNjaGVkdWxlc0VudHJ5EgsKA2tleRgBIAEoCRIpCgV2YWx1ZRgCIAEoCzIaLnNjaGVkdWxpbmcudjEuRGF5U2NoZWR1bGU6AjgBIswBChhWYWxpZGF0ZVNoaWZ0TW92ZVJlcXVlc3QSDgoGb3JnX2lkGAEgASgJEhMKC2ZhY2lsaXR5X2lkGAIgASgJEhMKC3NjaGVkdWxlX2lkGAMgASgJEhMKC2VtcGxveWVlX2lkGAQgASgJEhUKDWZyb21fc2hpZnRfaWQYBSABKAkSEwoLdG9fc2hpZnRfaWQYBiABKAkSGwoTcGF5X3BlcmlvZF9zdGFydF90cxgHIAEoAxIYChBzY2hlZHVsZV92ZXJzaW9uGAggASgFIvUBChlWYWxpZGF0ZVNoaWZ0TW92ZVJlc3BvbnNlEhIKCmlzX3N1Y2Nlc3MYASABKAgSFQoNZXJyb3JfZGV0YWlscxgCIAEoCRI0ChB1cGRhdGVkX3NjaGVkdWxlGAMgASgLMhouc2NoZWR1bGluZy52MS5EYXlTY2hlZHVsZRIyCgpmaW5hbmNpYWxzGAQgASgLMh4uc2NoZWR1bGluZy52MS5GaW5hbmNpYWxSZXBvcnQSLwoFc3RhdHMYBSABKAsyIC5zY2hlZHVsaW5nLnYxLk9wdGltaXphdGlvblN0YXRzEhIKCnRvdGFsX2Nvc3QYBiABKAEiVwobUmVtb3ZlTnVyc2VGcm9tU2hpZnRSZXF1ZXN0EhIKCnNoaWZ0X2RhdGUYASABKAkSEgoKc2hpZnRfbmFtZRgCIAEoCRIQCghudXJzZV9pZBgDIAEoCSJ2ChxSZW1vdmVOdXJzZUZyb21TaGlmdFJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgSDwoHbWVzc2FnZRgCIAEoCRI0ChB1cGRhdGVkX3NjaGVkdWxlGAMgASgLMhouc2NoZWR1bGluZy52MS5EYXlTY2hlZHVsZSKFAQoPRmluYW5jaWFsUmVwb3J0Eh0KFXRvdGFsX2VudGVycHJpc2VfY29zdBgBIAEoARIcChR0b3RhbF9pbmNlbnRpdmVfY29zdBgCIAEoARIbChN0b3RhbF9vdmVydGltZV9jb3N0GAMgASgBEhgKEHJlZ3VsYXJfcGF5X2Nvc3QYBCABKAEiewoRT3B0aW1pemF0aW9uU3RhdHMSGQoRZXhlY3V0aW9uX3RpbWVfbXMYASABKAESFwoPb2JqZWN0aXZlX3ZhbHVlGAIgASgBEhcKD3RvdGFsX3ZhcmlhYmxlcxgDIAEoBRIZChF0b3RhbF9jb25zdHJhaW50cxgEIAEoBSJUCgVOdXJzZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC3NoaWZ0X2hvdXJzGAMgASgBEhwKFHNjaGVkdWxpbmdfcmF0aW9uYWxlGAQgASgJIqoBCgVTaGlmdBIQCghzaGlmdF9pZBgBIAEoCRISCgpzaGlmdF9uYW1lGAIgASgJEhYKDnBhdGllbnRfY2Vuc3VzGAMgASgFEhMKC3RhcmdldF9ocnBkGAQgASgBEhMKC2FjdHVhbF9ocnBkGAUgASgBEhMKC2lzX2hycGRfbWV0GAYgASgIEiQKBm51cnNlcxgHIAMoCzIULnNjaGVkdWxpbmcudjEuTnVyc2UiQQoLRGF5U2NoZWR1bGUSDAoEZGF0ZRgBIAEoCRIkCgZzaGlmdHMYAiADKAsyFC5zY2hlZHVsaW5nLnYxLlNoaWZ0MtcCChFTY2hlZHVsaW5nU2VydmljZRJpChJHZXRNb250aGx5U2NoZWR1bGUSKC5zY2hlZHVsaW5nLnYxLkdldE1vbnRobHlTY2hlZHVsZVJlcXVlc3QaKS5zY2hlZHVsaW5nLnYxLkdldE1vbnRobHlTY2hlZHVsZVJlc3BvbnNlEmYKEVZhbGlkYXRlU2hpZnRNb3ZlEicuc2NoZWR1bGluZy52MS5WYWxpZGF0ZVNoaWZ0TW92ZVJlcXVlc3QaKC5zY2hlZHVsaW5nLnYxLlZhbGlkYXRlU2hpZnRNb3ZlUmVzcG9uc2USbwoUUmVtb3ZlTnVyc2VGcm9tU2hpZnQSKi5zY2hlZHVsaW5nLnYxLlJlbW92ZU51cnNlRnJvbVNoaWZ0UmVxdWVzdBorLnNjaGVkdWxpbmcudjEuUmVtb3ZlTnVyc2VGcm9tU2hpZnRSZXNwb25zZWIGcHJvdG8z");
+  fileDesc("Ch5zY2hlZHVsaW5nL3YxL3NjaGVkdWxpbmcucHJvdG8SDXNjaGVkdWxpbmcudjEiHAoaR2V0QWxsT3JnRmFjaWxpdGllc1JlcXVlc3QiVQobR2V0QWxsT3JnRmFjaWxpdGllc1Jlc3BvbnNlEjYKEmFsbF9vcmdfZmFjaWxpdGllcxgBIAMoCzIaLnNjaGVkdWxpbmcudjEuT3JnRmFjaWxpdHkiaQoZR2V0TW9udGhseVNjaGVkdWxlUmVxdWVzdBIOCgZvcmdfaWQYASABKAkSGAoLZmFjaWxpdHlfaWQYAiABKAlIAIgBARISCgpzdGFydF9kYXRlGAMgASgJQg4KDF9mYWNpbGl0eV9pZCLMAQoaR2V0TW9udGhseVNjaGVkdWxlUmVzcG9uc2USSwoJc2NoZWR1bGVzGAEgAygLMjguc2NoZWR1bGluZy52MS5HZXRNb250aGx5U2NoZWR1bGVSZXNwb25zZS5TY2hlZHVsZXNFbnRyeRITCgtmYWNpbGl0eV9pZBgCIAEoCRpMCg5TY2hlZHVsZXNFbnRyeRILCgNrZXkYASABKAkSKQoFdmFsdWUYAiABKAsyGi5zY2hlZHVsaW5nLnYxLkRheVNjaGVkdWxlOgI4ASLMAQoYVmFsaWRhdGVTaGlmdE1vdmVSZXF1ZXN0Eg4KBm9yZ19pZBgBIAEoCRITCgtmYWNpbGl0eV9pZBgCIAEoCRITCgtzY2hlZHVsZV9pZBgDIAEoCRITCgtlbXBsb3llZV9pZBgEIAEoCRIVCg1mcm9tX3NoaWZ0X2lkGAUgASgJEhMKC3RvX3NoaWZ0X2lkGAYgASgJEhsKE3BheV9wZXJpb2Rfc3RhcnRfdHMYByABKAMSGAoQc2NoZWR1bGVfdmVyc2lvbhgIIAEoBSL1AQoZVmFsaWRhdGVTaGlmdE1vdmVSZXNwb25zZRISCgppc19zdWNjZXNzGAEgASgIEhUKDWVycm9yX2RldGFpbHMYAiABKAkSNAoQdXBkYXRlZF9zY2hlZHVsZRgDIAEoCzIaLnNjaGVkdWxpbmcudjEuRGF5U2NoZWR1bGUSMgoKZmluYW5jaWFscxgEIAEoCzIeLnNjaGVkdWxpbmcudjEuRmluYW5jaWFsUmVwb3J0Ei8KBXN0YXRzGAUgASgLMiAuc2NoZWR1bGluZy52MS5PcHRpbWl6YXRpb25TdGF0cxISCgp0b3RhbF9jb3N0GAYgASgBIlcKG1JlbW92ZU51cnNlRnJvbVNoaWZ0UmVxdWVzdBISCgpzaGlmdF9kYXRlGAEgASgJEhIKCnNoaWZ0X25hbWUYAiABKAkSEAoIbnVyc2VfaWQYAyABKAkidgocUmVtb3ZlTnVyc2VGcm9tU2hpZnRSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIEg8KB21lc3NhZ2UYAiABKAkSNAoQdXBkYXRlZF9zY2hlZHVsZRgDIAEoCzIaLnNjaGVkdWxpbmcudjEuRGF5U2NoZWR1bGUiMgoLT3JnRmFjaWxpdHkSDgoGb3JnX2lkGAEgASgJEhMKC2ZhY2lsaXR5X2lkGAIgASgJIoUBCg9GaW5hbmNpYWxSZXBvcnQSHQoVdG90YWxfZW50ZXJwcmlzZV9jb3N0GAEgASgBEhwKFHRvdGFsX2luY2VudGl2ZV9jb3N0GAIgASgBEhsKE3RvdGFsX292ZXJ0aW1lX2Nvc3QYAyABKAESGAoQcmVndWxhcl9wYXlfY29zdBgEIAEoASJ7ChFPcHRpbWl6YXRpb25TdGF0cxIZChFleGVjdXRpb25fdGltZV9tcxgBIAEoARIXCg9vYmplY3RpdmVfdmFsdWUYAiABKAESFwoPdG90YWxfdmFyaWFibGVzGAMgASgFEhkKEXRvdGFsX2NvbnN0cmFpbnRzGAQgASgFIlQKBU51cnNlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLc2hpZnRfaG91cnMYAyABKAESHAoUc2NoZWR1bGluZ19yYXRpb25hbGUYBCABKAkiqgEKBVNoaWZ0EhAKCHNoaWZ0X2lkGAEgASgJEhIKCnNoaWZ0X25hbWUYAiABKAkSFgoOcGF0aWVudF9jZW5zdXMYAyABKAUSEwoLdGFyZ2V0X2hycGQYBCABKAESEwoLYWN0dWFsX2hycGQYBSABKAESEwoLaXNfaHJwZF9tZXQYBiABKAgSJAoGbnVyc2VzGAcgAygLMhQuc2NoZWR1bGluZy52MS5OdXJzZSJBCgtEYXlTY2hlZHVsZRIMCgRkYXRlGAEgASgJEiQKBnNoaWZ0cxgCIAMoCzIULnNjaGVkdWxpbmcudjEuU2hpZnQyxQMKEVNjaGVkdWxpbmdTZXJ2aWNlEmwKE0dldEFsbE9yZ0ZhY2lsaXRpZXMSKS5zY2hlZHVsaW5nLnYxLkdldEFsbE9yZ0ZhY2lsaXRpZXNSZXF1ZXN0Giouc2NoZWR1bGluZy52MS5HZXRBbGxPcmdGYWNpbGl0aWVzUmVzcG9uc2USaQoSR2V0TW9udGhseVNjaGVkdWxlEiguc2NoZWR1bGluZy52MS5HZXRNb250aGx5U2NoZWR1bGVSZXF1ZXN0Gikuc2NoZWR1bGluZy52MS5HZXRNb250aGx5U2NoZWR1bGVSZXNwb25zZRJmChFWYWxpZGF0ZVNoaWZ0TW92ZRInLnNjaGVkdWxpbmcudjEuVmFsaWRhdGVTaGlmdE1vdmVSZXF1ZXN0Giguc2NoZWR1bGluZy52MS5WYWxpZGF0ZVNoaWZ0TW92ZVJlc3BvbnNlEm8KFFJlbW92ZU51cnNlRnJvbVNoaWZ0Eiouc2NoZWR1bGluZy52MS5SZW1vdmVOdXJzZUZyb21TaGlmdFJlcXVlc3QaKy5zY2hlZHVsaW5nLnYxLlJlbW92ZU51cnNlRnJvbVNoaWZ0UmVzcG9uc2ViBnByb3RvMw");
+
+/**
+ * @generated from message scheduling.v1.GetAllOrgFacilitiesRequest
+ */
+export type GetAllOrgFacilitiesRequest = Message<"scheduling.v1.GetAllOrgFacilitiesRequest"> & {
+};
+
+/**
+ * Describes the message scheduling.v1.GetAllOrgFacilitiesRequest.
+ * Use `create(GetAllOrgFacilitiesRequestSchema)` to create a new message.
+ */
+export const GetAllOrgFacilitiesRequestSchema: GenMessage<GetAllOrgFacilitiesRequest> = /*@__PURE__*/
+  messageDesc(file_scheduling_v1_scheduling, 0);
+
+/**
+ * @generated from message scheduling.v1.GetAllOrgFacilitiesResponse
+ */
+export type GetAllOrgFacilitiesResponse = Message<"scheduling.v1.GetAllOrgFacilitiesResponse"> & {
+  /**
+   * @generated from field: repeated scheduling.v1.OrgFacility all_org_facilities = 1;
+   */
+  allOrgFacilities: OrgFacility[];
+};
+
+/**
+ * Describes the message scheduling.v1.GetAllOrgFacilitiesResponse.
+ * Use `create(GetAllOrgFacilitiesResponseSchema)` to create a new message.
+ */
+export const GetAllOrgFacilitiesResponseSchema: GenMessage<GetAllOrgFacilitiesResponse> = /*@__PURE__*/
+  messageDesc(file_scheduling_v1_scheduling, 1);
 
 /**
  * @generated from message scheduling.v1.GetMonthlyScheduleRequest
@@ -19,7 +49,17 @@ export type GetMonthlyScheduleRequest = Message<"scheduling.v1.GetMonthlySchedul
   /**
    * Date in YYYY-MM-DD format, usually the start of the month to query.
    *
-   * @generated from field: string start_date = 1;
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: optional string facility_id = 2;
+   */
+  facilityId?: string;
+
+  /**
+   * @generated from field: string start_date = 3;
    */
   startDate: string;
 };
@@ -29,7 +69,7 @@ export type GetMonthlyScheduleRequest = Message<"scheduling.v1.GetMonthlySchedul
  * Use `create(GetMonthlyScheduleRequestSchema)` to create a new message.
  */
 export const GetMonthlyScheduleRequestSchema: GenMessage<GetMonthlyScheduleRequest> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 0);
+  messageDesc(file_scheduling_v1_scheduling, 2);
 
 /**
  * @generated from message scheduling.v1.GetMonthlyScheduleResponse
@@ -41,6 +81,11 @@ export type GetMonthlyScheduleResponse = Message<"scheduling.v1.GetMonthlySchedu
    * @generated from field: map<string, scheduling.v1.DaySchedule> schedules = 1;
    */
   schedules: { [key: string]: DaySchedule };
+
+  /**
+   * @generated from field: string facility_id = 2;
+   */
+  facilityId: string;
 };
 
 /**
@@ -48,7 +93,7 @@ export type GetMonthlyScheduleResponse = Message<"scheduling.v1.GetMonthlySchedu
  * Use `create(GetMonthlyScheduleResponseSchema)` to create a new message.
  */
 export const GetMonthlyScheduleResponseSchema: GenMessage<GetMonthlyScheduleResponse> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 1);
+  messageDesc(file_scheduling_v1_scheduling, 3);
 
 /**
  * @generated from message scheduling.v1.ValidateShiftMoveRequest
@@ -108,7 +153,7 @@ export type ValidateShiftMoveRequest = Message<"scheduling.v1.ValidateShiftMoveR
  * Use `create(ValidateShiftMoveRequestSchema)` to create a new message.
  */
 export const ValidateShiftMoveRequestSchema: GenMessage<ValidateShiftMoveRequest> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 2);
+  messageDesc(file_scheduling_v1_scheduling, 4);
 
 /**
  * @generated from message scheduling.v1.ValidateShiftMoveResponse
@@ -160,7 +205,7 @@ export type ValidateShiftMoveResponse = Message<"scheduling.v1.ValidateShiftMove
  * Use `create(ValidateShiftMoveResponseSchema)` to create a new message.
  */
 export const ValidateShiftMoveResponseSchema: GenMessage<ValidateShiftMoveResponse> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 3);
+  messageDesc(file_scheduling_v1_scheduling, 5);
 
 /**
  * @generated from message scheduling.v1.RemoveNurseFromShiftRequest
@@ -193,7 +238,7 @@ export type RemoveNurseFromShiftRequest = Message<"scheduling.v1.RemoveNurseFrom
  * Use `create(RemoveNurseFromShiftRequestSchema)` to create a new message.
  */
 export const RemoveNurseFromShiftRequestSchema: GenMessage<RemoveNurseFromShiftRequest> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 4);
+  messageDesc(file_scheduling_v1_scheduling, 6);
 
 /**
  * @generated from message scheduling.v1.RemoveNurseFromShiftResponse
@@ -222,7 +267,29 @@ export type RemoveNurseFromShiftResponse = Message<"scheduling.v1.RemoveNurseFro
  * Use `create(RemoveNurseFromShiftResponseSchema)` to create a new message.
  */
 export const RemoveNurseFromShiftResponseSchema: GenMessage<RemoveNurseFromShiftResponse> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 5);
+  messageDesc(file_scheduling_v1_scheduling, 7);
+
+/**
+ * @generated from message scheduling.v1.OrgFacility
+ */
+export type OrgFacility = Message<"scheduling.v1.OrgFacility"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string facility_id = 2;
+   */
+  facilityId: string;
+};
+
+/**
+ * Describes the message scheduling.v1.OrgFacility.
+ * Use `create(OrgFacilitySchema)` to create a new message.
+ */
+export const OrgFacilitySchema: GenMessage<OrgFacility> = /*@__PURE__*/
+  messageDesc(file_scheduling_v1_scheduling, 8);
 
 /**
  * @generated from message scheduling.v1.FinancialReport
@@ -254,7 +321,7 @@ export type FinancialReport = Message<"scheduling.v1.FinancialReport"> & {
  * Use `create(FinancialReportSchema)` to create a new message.
  */
 export const FinancialReportSchema: GenMessage<FinancialReport> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 6);
+  messageDesc(file_scheduling_v1_scheduling, 9);
 
 /**
  * @generated from message scheduling.v1.OptimizationStats
@@ -286,7 +353,7 @@ export type OptimizationStats = Message<"scheduling.v1.OptimizationStats"> & {
  * Use `create(OptimizationStatsSchema)` to create a new message.
  */
 export const OptimizationStatsSchema: GenMessage<OptimizationStats> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 7);
+  messageDesc(file_scheduling_v1_scheduling, 10);
 
 /**
  * @generated from message scheduling.v1.Nurse
@@ -318,7 +385,7 @@ export type Nurse = Message<"scheduling.v1.Nurse"> & {
  * Use `create(NurseSchema)` to create a new message.
  */
 export const NurseSchema: GenMessage<Nurse> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 8);
+  messageDesc(file_scheduling_v1_scheduling, 11);
 
 /**
  * @generated from message scheduling.v1.Shift
@@ -367,7 +434,7 @@ export type Shift = Message<"scheduling.v1.Shift"> & {
  * Use `create(ShiftSchema)` to create a new message.
  */
 export const ShiftSchema: GenMessage<Shift> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 9);
+  messageDesc(file_scheduling_v1_scheduling, 12);
 
 /**
  * @generated from message scheduling.v1.DaySchedule
@@ -391,7 +458,7 @@ export type DaySchedule = Message<"scheduling.v1.DaySchedule"> & {
  * Use `create(DayScheduleSchema)` to create a new message.
  */
 export const DayScheduleSchema: GenMessage<DaySchedule> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 10);
+  messageDesc(file_scheduling_v1_scheduling, 13);
 
 /**
  * The main service used to interact with shift and staffing data.
@@ -399,6 +466,18 @@ export const DayScheduleSchema: GenMessage<DaySchedule> = /*@__PURE__*/
  * @generated from service scheduling.v1.SchedulingService
  */
 export const SchedulingService: GenService<{
+  /**
+   * admin section
+   *
+   * 
+   *
+   * @generated from rpc scheduling.v1.SchedulingService.GetAllOrgFacilities
+   */
+  getAllOrgFacilities: {
+    methodKind: "unary";
+    input: typeof GetAllOrgFacilitiesRequestSchema;
+    output: typeof GetAllOrgFacilitiesResponseSchema;
+  },
   /**
    * Retrieves the schedule and HRPD metrics for a given date range (usually a month).
    *

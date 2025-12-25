@@ -45,7 +45,7 @@ class IdObfuscator(IIdObfuscator):
         return numbers[0]
 
 
-ALPHABET = "zrs4fdUyFB32DoGuSkml9i0WC7VchYbgqxOIQKjeMPL8NnJ1EHatTwAXpvZ6R5"
+ALPHABET = "u6ipastd3bwoejq5rl0kc2fhzmn79gyv4x18"
 
 # to prevent changes to encode/decode process across version updates
 DEFAULT_BLOCKLIST = [

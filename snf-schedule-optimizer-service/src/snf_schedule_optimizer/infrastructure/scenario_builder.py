@@ -5,6 +5,7 @@ import whenever
 from snf_schedule_optimizer.models import (
     Employee,
     EmployeeIdType,
+    FacilityConfig,
     NurseProfile,
     PreferenceType,
     Shift,
@@ -57,6 +58,10 @@ class ScenarioBuilder:
     # --- Generation Logic ---
 
     def build(self) -> ScenarioResult:
+        # 1. Generate core scheduling rules
+        facility_configs = [self._generate_facility_config()]
+
+        # 2. Generate operational data
         shifts = self._generate_shifts()
         employees, nurses, financials, history = self._generate_workforce()
 
@@ -66,8 +71,27 @@ class ScenarioBuilder:
             nurses=nurses,
             financials=financials,
             history_map=history,
+            facility_configs=facility_configs,
             preference_penalties={},
             acuity_data=[],
+        )
+
+    def _generate_facility_config(self) -> FacilityConfig:
+        """Generates the static configuration for the demo facility."""
+        return FacilityConfig(
+            org_id=self.org_id,
+            facility_id=self.facility_id,
+            tz="America/New_York",
+            shifts_per_day=self.time_cfg.shifts_per_day,
+            overtime_threshold_hours_per_week=40,
+            # Start week on Monday (1)
+            start_of_work_week_day=whenever.Weekday(1),
+            # Shifts typically start at 7 AM
+            start_of_work_day_time=whenever.Time(7, 0, 0),
+            # Standard 1-week pay period
+            pay_period=whenever.DateDelta(weeks=1),
+            weekend_multiplier=1.0,
+            night_shift_multiplier=1.0,
         )
 
     def _generate_shifts(self) -> list[Shift]:

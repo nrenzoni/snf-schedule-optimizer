@@ -50,9 +50,9 @@ class SQLShiftRepo(IShiftRepo):
         stmt = select(ShiftModel).where(
             and_(
                 ShiftModel.org_id == org_id,
-                tuple_(
-                    ShiftModel.org_id, ShiftModel.facility_id, ShiftModel.shift_id
-                ).in_(keys_tuples),
+                tuple_(ShiftModel.org_id, ShiftModel.facility_id, ShiftModel.id).in_(
+                    keys_tuples
+                ),
             )
         )
 
@@ -90,7 +90,7 @@ class SQLShiftRepo(IShiftRepo):
             org_id=row.org_id,
             shift_key=ShiftKey(
                 row.facility_id,
-                row.shift_id,
+                row.id,
             ),
             shift_number=int(row.shift_number or 0),
             day_shift=bool(row.day_shift),

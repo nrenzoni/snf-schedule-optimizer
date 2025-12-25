@@ -14,6 +14,7 @@ from snf_schedule_optimizer.generated.scheduling.v1.scheduling_connect import (
     SchedulingServiceASGIApplication,
 )
 from snf_schedule_optimizer.infrastructure.composition import (
+    build_facility_container,
     build_infra_container,
     build_repos_container,
     build_scheduler_container,
@@ -37,12 +38,17 @@ def health_check() -> dict[str, str]:
 async def main() -> None:
     retrievers_container_type = build_repos_container(engine, SessionLocal)
     scheduler_container_type = build_scheduler_container(retrievers_container_type)
-    scheduler_facade = await scheduler_container_type.scheduler_service()
+    facility_container_type = build_facility_container(retrievers_container_type)
     infra_container_type = build_infra_container()
+
+    scheduler_facade = await scheduler_container_type.scheduler_service()
+    facility_facade = await facility_container_type.facility_facade()
+    id_obfuscator = await infra_container_type.id_obfuscator()
 
     rpc_handler = SchedulingServiceHandler(
         scheduler_facade,
-        infra_container_type.id_obfuscator.resolve_sync(),
+        facility_facade,
+        id_obfuscator,
     )
     scheduling_rpc_app = SchedulingServiceASGIApplication(rpc_handler)
 
@@ -50,6 +56,11 @@ async def main() -> None:
 
     config = Config()
     config.bind = ["0.0.0.0:8000"]
+
+    # Enable Hypercorn access logs (Method, Path, Status Code)
+    config.accesslog = "-"  # "-" means log to stdout
+    config.errorlog = "-"
+    config.loglevel = "debug"
 
     try:
         logging.info("Starting Workforce Optimizer API server")

@@ -4,6 +4,11 @@ package scheduling.v1;
 
 // The main service used to interact with shift and staffing data.
 service SchedulingService {
+
+  // admin section
+  rpc GetAllOrgFacilities(GetAllOrgFacilitiesRequest) returns (GetAllOrgFacilitiesResponse);
+  // 
+
   // Retrieves the schedule and HRPD metrics for a given date range (usually a month).
   rpc GetMonthlySchedule(GetMonthlyScheduleRequest) returns (GetMonthlyScheduleResponse);
 
@@ -19,14 +24,23 @@ service SchedulingService {
 
 // --- Requests and Responses ---
 
+message GetAllOrgFacilitiesRequest {}
+
+message GetAllOrgFacilitiesResponse {
+  repeated OrgFacility all_org_facilities = 1;
+}
+
 message GetMonthlyScheduleRequest {
   // Date in YYYY-MM-DD format, usually the start of the month to query.
-  string start_date = 1;
+  string org_id = 1;
+  optional string facility_id = 2;
+  string start_date = 3;
 }
 
 message GetMonthlyScheduleResponse {
   // A map where the key is the date (YYYY-MM-DD) and the value is the schedule for that day.
   map<string, DaySchedule> schedules = 1;
+  string facility_id = 2;
 }
 
 message ValidateShiftMoveRequest {
@@ -72,6 +86,11 @@ message RemoveNurseFromShiftResponse {
 }
 
 // --- Data Structures ---
+
+message OrgFacility {
+  string org_id = 1;
+  string facility_id = 2;
+}
 
 message FinancialReport {
   double total_enterprise_cost = 1;

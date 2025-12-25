@@ -24,10 +24,9 @@ class ShiftModel(SQLABase):
 
     # --- Primary Key ---
 
+    org_id: Mapped[int] = mapped_column(primary_key=True)
+    facility_id: Mapped[int] = mapped_column(primary_key=True)
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    org_id: Mapped[int] = mapped_column(index=True, nullable=False)
-    facility_id: Mapped[int] = mapped_column(index=True, nullable=False)
-    shift_id: Mapped[int] = mapped_column(index=True, nullable=False)
 
     # --- Core Identity & Time ---
     shift_start_dt: Mapped[whenever.Instant] = mapped_column(
@@ -63,7 +62,7 @@ class ShiftModel(SQLABase):
     )
 
     def __repr__(self) -> str:
-        return f"<ShiftModel(id={self.shift_id}, start='{self.shift_start_dt}')>"
+        return f"<ShiftModel(id={self.id}, start='{self.shift_start_dt}')>"
 
     @staticmethod
     def from_domain(
@@ -73,7 +72,7 @@ class ShiftModel(SQLABase):
         return ShiftModel(
             org_id=org_id,
             facility_id=domain_shift.facility_id,
-            shift_id=domain_shift.shift_id,
+            id=domain_shift.shift_id,
             shift_start_dt=domain_shift.shift_start_dt.to_instant(),
             shift_end_dt=domain_shift.shift_end_dt.to_instant(),
             shift_number=domain_shift.shift_number,
