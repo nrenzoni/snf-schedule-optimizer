@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from typing import cast
 
 from fastapi import FastAPI
@@ -18,8 +19,8 @@ from snf_schedule_optimizer.infrastructure.composition import (
     build_scheduler_container,
 )
 
-DB_URL = "postgresql+asyncpg://user:pass@localhost/dbname"
-engine = create_async_engine(DB_URL, pool_pre_ping=True)
+db_url = os.environ["DATABASE_URL"]
+engine = create_async_engine(db_url, pool_pre_ping=True)
 SessionLocal = async_sessionmaker(bind=engine)
 
 app = FastAPI(
@@ -48,7 +49,7 @@ async def main() -> None:
     app.mount("/scheduling.v1.SchedulingService", scheduling_rpc_app)
 
     config = Config()
-    config.bind = ["127.0.0.1:8000"]
+    config.bind = ["0.0.0.0:8000"]
 
     try:
         logging.info("Starting Workforce Optimizer API server")
