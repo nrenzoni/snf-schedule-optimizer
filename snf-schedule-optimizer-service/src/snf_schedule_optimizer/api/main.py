@@ -13,6 +13,7 @@ from snf_schedule_optimizer.generated.scheduling.v1.scheduling_connect import (
     SchedulingServiceASGIApplication,
 )
 from snf_schedule_optimizer.infrastructure.composition import (
+    build_infra_container,
     build_repos_container,
     build_scheduler_container,
 )
@@ -33,11 +34,15 @@ def health_check() -> dict[str, str]:
 
 
 async def main() -> None:
-    retrievers_container_type = build_repos_container(SessionLocal)
+    retrievers_container_type = build_repos_container(engine, SessionLocal)
     scheduler_container_type = build_scheduler_container(retrievers_container_type)
     scheduler_facade = await scheduler_container_type.scheduler_service()
+    infra_container_type = build_infra_container()
 
-    rpc_handler = SchedulingServiceHandler(scheduler_facade)
+    rpc_handler = SchedulingServiceHandler(
+        scheduler_facade,
+        infra_container_type.id_obfuscator.resolve_sync(),
+    )
     scheduling_rpc_app = SchedulingServiceASGIApplication(rpc_handler)
 
     app.mount("/scheduling.v1.SchedulingService", scheduling_rpc_app)

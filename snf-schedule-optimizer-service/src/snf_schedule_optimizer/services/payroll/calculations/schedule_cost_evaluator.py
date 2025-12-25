@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from snf_schedule_optimizer.models import Schedule, Shift, ShiftKey
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    Schedule,
+    Shift,
+    ShiftKey,
+)
 from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
     CostBreakdown,
     ScheduleFinancialReport,
@@ -39,7 +44,7 @@ class ScheduleCostEvaluator:
 
         # 3. Regroup Data: Group assignments by Employee to handle OT Logic
         # Structure: { employee_id: [Shift, Shift, ...] }
-        emp_workload: dict[str, list[Shift]] = defaultdict(list)
+        emp_workload: dict[DomainPrimaryKeyType, list[Shift]] = defaultdict(list)
 
         # FIX: Iterate over string IDs, then look up the actual object
         for shift_id, emp_ids in schedule.shift_assignments.items():
@@ -52,7 +57,9 @@ class ScheduleCostEvaluator:
                 emp_workload[emp_id].append(shift)
 
         # 4. Initialize Accumulators
-        facility_costs: dict[str, CostBreakdown] = defaultdict(CostBreakdown)
+        facility_costs: dict[DomainPrimaryKeyType, CostBreakdown] = defaultdict(
+            CostBreakdown
+        )
         role_costs: dict[str, CostBreakdown] = defaultdict(CostBreakdown)
         total_enterprise_cost = 0.0
 

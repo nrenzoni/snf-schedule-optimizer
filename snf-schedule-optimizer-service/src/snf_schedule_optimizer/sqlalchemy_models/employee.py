@@ -4,8 +4,8 @@ import whenever
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..models import Employee
-from ..utils.sqlalchemy_types.instant_type import InstantType
+from ..models import DomainPrimaryKeyType, Employee
+from ..utils.sqlalchemy_types.whenever_types import DateType
 from .base import SQLABase
 
 if TYPE_CHECKING:
@@ -19,13 +19,13 @@ class EmployeeModel(SQLABase):
 
     __tablename__ = "employee"
 
-    org_id: Mapped[str] = mapped_column(nullable=False, primary_key=True)
-    employee_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    org_id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     job_title: Mapped[str] = mapped_column(String(50), nullable=False)
 
-    # Hire date stored as UTC in the database
-    hire_date: Mapped[whenever.Instant] = mapped_column(InstantType, nullable=False)
+    hire_date: Mapped[whenever.Date] = mapped_column(DateType, nullable=False)
 
     certifications: Mapped[list["EmployeeCertificationModel"]] = relationship(
         back_populates="employee", cascade="all, delete-orphan"
@@ -38,21 +38,20 @@ class EmployeeModel(SQLABase):
         hire_instant = self.hire_date
 
         return Employee(
-            employee_id=str(self.employee_id),
+            employee_id=self.id,
             name=str(self.name),
             job_title=str(self.job_title),
-            hire_date=hire_instant.to_tz("UTC").date(),
+            hire_date=self.hire_date,
         )
 
-    @classmethod
+    @staticmethod
     def from_domain(
-        cls,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         domain: Employee,
     ) -> "EmployeeModel":
-        return cls(
+        return EmployeeModel(
+            id=domain.employee_id,
             org_id=org_id,
-            employee_id=domain.employee_id,
             name=domain.name,
             job_title=domain.job_title,
             hire_date=domain.hire_date,

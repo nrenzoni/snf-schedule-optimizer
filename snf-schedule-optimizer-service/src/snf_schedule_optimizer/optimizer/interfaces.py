@@ -6,8 +6,11 @@ import pulp
 from pulp import LpProblem
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     Employee,
+    EmployeeIdType,
     FacilityConfig,
+    FacilityIdType,
     MlModelOutputs,
     NurseProfile,
     PreferenceWeights,
@@ -115,7 +118,7 @@ class IFacilityScopedConstraintStrategy(abc.ABC):
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
-        facility_id: str,  # <--- Crucial
+        facility_id: DomainPrimaryKeyType,
     ) -> InfeasibilityReasonResult | None:
         """
         Applies constraints directly to the 'problem'.
@@ -175,7 +178,7 @@ class IScenarioDataProvider(abc.ABC):
     """
 
     @abc.abstractmethod
-    def get_org_id(self) -> str:
+    def get_org_id(self) -> DomainPrimaryKeyType:
         """Returns the organization ID for this optimization run."""
         pass
 
@@ -187,7 +190,7 @@ class IScenarioDataProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def get_employee_by_id(self, employee_id: str) -> Employee | None:
+    async def get_employee_by_id(self, employee_id: EmployeeIdType) -> Employee | None:
         """Returns a specific employee by ID."""
         pass
 
@@ -204,12 +207,12 @@ class IScenarioDataProvider(abc.ABC):
     # --- Facility-Scoped Methods ---
 
     @abc.abstractmethod
-    def get_facility_ids(self) -> list[str]:
+    def get_facility_ids(self) -> list[FacilityIdType]:
         """Returns list of facility IDs in this run."""
         pass
 
     @abc.abstractmethod
-    def get_shifts_for_facility(self, facility_id: str) -> list[Shift]:
+    def get_shifts_for_facility(self, facility_id: DomainPrimaryKeyType) -> list[Shift]:
         pass
 
     @abc.abstractmethod
@@ -220,7 +223,7 @@ class IScenarioDataProvider(abc.ABC):
     @abc.abstractmethod
     async def get_hprd_requirements_for_facility(
         self,
-        facility_id: str,
+        facility_id: DomainPrimaryKeyType,
     ) -> HprdShiftNurseRequirementHolder:
         """Calculates (once) and returns HPRD requirements for all shifts."""
         pass
@@ -230,7 +233,9 @@ class IScenarioDataProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def get_accumulated_hours_for_pay_period(self, employee_id: str) -> float:
+    async def get_accumulated_hours_for_pay_period(
+        self, employee_id: DomainPrimaryKeyType
+    ) -> float:
         """
         Returns the total hours worked by the employee in the current pay week
         BEFORE the optimization window starts.
@@ -238,6 +243,6 @@ class IScenarioDataProvider(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_facility_config(self, facility_id: str) -> FacilityConfig:
+    def get_facility_config(self, facility_id: DomainPrimaryKeyType) -> FacilityConfig:
         """Returns the configuration for the given facility."""
         pass

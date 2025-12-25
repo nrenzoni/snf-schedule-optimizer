@@ -2,7 +2,10 @@ import whenever
 from sqlalchemy import and_, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from snf_schedule_optimizer.models import EmployeeRuleOverride
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    EmployeeRuleOverride,
+)
 from snf_schedule_optimizer.services.payroll.interfaces import IEmployeeRulesRepo
 from snf_schedule_optimizer.sqlalchemy_models.employee_rule_override import (
     EmployeeRuleOverrideModel,
@@ -19,8 +22,8 @@ class SQLEmployeeRulesRepo(IEmployeeRulesRepo):
 
     async def get_employee_rule_overrides(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         check_date: whenever.ZonedDateTime,
     ) -> EmployeeRuleOverride | None:
         """
@@ -31,7 +34,7 @@ class SQLEmployeeRulesRepo(IEmployeeRulesRepo):
             .where(
                 and_(
                     EmployeeRuleOverrideModel.org_id == org_id,
-                    EmployeeRuleOverrideModel.employee_id == employee_id,
+                    EmployeeRuleOverrideModel.id == employee_id,
                     EmployeeRuleOverrideModel.effective_date <= check_date,
                 )
             )
@@ -46,7 +49,7 @@ class SQLEmployeeRulesRepo(IEmployeeRulesRepo):
             return None
 
         return EmployeeRuleOverride(
-            employee_id=record.employee_id,
+            employee_id=record.id,
             rounding_unit_minutes=record.rounding_unit_minutes,
             auto_meal_deduction_enabled=record.auto_meal_deduction_enabled,
         )

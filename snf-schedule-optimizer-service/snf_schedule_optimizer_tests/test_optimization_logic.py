@@ -38,14 +38,14 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
     """
     ref_date = whenever.ZonedDateTime(2025, 1, 1, tz=tz_ny)
 
-    or_id = "ORG_1"
+    or_id = 1
 
     # 1. Setup Shifts (Back-to-Back)
     shift_1 = Shift(
         org_id=or_id,
         shift_key=ShiftKey(
-            facility_id="FAC_1",
-            shift_id="SHIFT_1",
+            facility_id=1,
+            shift_id=1,
         ),
         shift_start_dt=ref_date.add(hours=7),
         shift_end_dt=ref_date.add(hours=15),  # 7am - 3pm
@@ -59,8 +59,8 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
     shift_2 = Shift(
         org_id=or_id,
         shift_key=ShiftKey(
-            facility_id="FAC_1",
-            shift_id="SHIFT_2",
+            facility_id=1,
+            shift_id=2,
         ),
         shift_start_dt=ref_date.add(hours=15),
         shift_end_dt=ref_date.add(hours=23),  # 3pm - 11pm (0 gap)
@@ -74,20 +74,20 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
     # 2. Setup Nurses (Sorted by Cost)
     # Nurse 1: $15 (Cheapest)
     n1 = Employee(
-        employee_id="N_15",
+        employee_id=999,
         name="Cheap",
         job_title="CNA",
         hire_date=ref_date.date(),
     )
     c1 = StaffCompensationRecord(
-        employee_id="N_15",
+        employee_id=999,
         base_rate_effective=15.0,
         effective_start_date=ref_date.date(),
         ot_multiplier=1.5,
         is_agency=False,
     )
     p1 = NurseProfile(
-        employee_id="N_15",
+        employee_id=999,
         available_hours_weekly=40,
         skills=["CNA"],
         shift_custom_preferences=[],
@@ -95,20 +95,20 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
 
     # Nurse 2: $20 (Mid)
     n2 = Employee(
-        employee_id="N_20",
+        employee_id=20,
         name="Mid",
         job_title="CNA",
         hire_date=ref_date.date(),
     )
     c2 = StaffCompensationRecord(
-        employee_id="N_20",
+        employee_id=20,
         base_rate_effective=20.0,
         effective_start_date=ref_date.date(),
         ot_multiplier=1.5,
         is_agency=False,
     )
     p2 = NurseProfile(
-        employee_id="N_20",
+        employee_id=20,
         available_hours_weekly=40,
         skills=["CNA"],
         shift_custom_preferences=[],
@@ -116,20 +116,20 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
 
     # Nurse 3: $25 (Expensive)
     n3 = Employee(
-        employee_id="N_25",
+        employee_id=654,
         name="Exp",
         job_title="CNA",
         hire_date=ref_date.date(),
     )
     c3 = StaffCompensationRecord(
-        employee_id="N_25",
+        employee_id=654,
         base_rate_effective=25.0,
         effective_start_date=ref_date.to_tz(tz_ny).date(),
         ot_multiplier=1.5,
         is_agency=False,
     )
     p3 = NurseProfile(
-        employee_id="N_25",
+        employee_id=654,
         available_hours_weekly=40,
         skills=["CNA"],
         shift_custom_preferences=[],
@@ -138,8 +138,8 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
     # 3. Configure HPRD to force 1 CNA per shift
     fake_hprd = FakeHprdRequirementCalculator(
         requirements_map={
-            ("SHIFT_1", HprdEnforcedRole.CNA): 1.0,
-            ("SHIFT_2", HprdEnforcedRole.CNA): 1.0,
+            (1, HprdEnforcedRole.CNA): 1.0,
+            (2, HprdEnforcedRole.CNA): 1.0,
         }
     )
 
@@ -161,16 +161,16 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
 
     # 5. Solve
     context = FacilityScenarioContext(
-        facility_id="FAC_1",
+        facility_id=1,
         shifts=[shift_1, shift_2],
         config=FacilityConfig(
-            org_id="ORG_1",
-            facility_id="FAC_1",
+            org_id=1,
+            facility_id=1,
             shifts_per_day=3,
             overtime_threshold_hours_per_week=40,
             start_of_work_week_day=whenever.MONDAY,
             start_of_work_day_time=whenever.Time(7, 0, 0),
-            pay_period=whenever.DateTimeDelta(weeks=1),
+            pay_period=whenever.DateDelta(weeks=1),
             weekend_multiplier=1.0,
             night_shift_multiplier=1.0,
             tz=tz_ny,
@@ -179,8 +179,8 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
     )
 
     data_provider = optimize_builder.factory.create(  # Use internal factory pattern or pass manually
-        org_id="ORG_1",
-        facility_contexts={"FAC_1": context},
+        org_id=1,
+        facility_contexts={1: context},
         pay_period_start=TimeRoundingUtility.start_of_week_zoned(
             ref_date.to_tz(tz_ny)
         ).to_instant(),
@@ -197,18 +197,20 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
     assert result.optimal_schedule is not None
     assignments = result.optimal_schedule.shift_assignments
 
-    org_id = data_provider.get_org_id()
+    # org_id = data_provider.get_org_id()
+    facility_ids = data_provider.get_facility_ids()
+    fac_1 = facility_ids[0]
 
     # Verify Shift 1 went to cheapest
-    assert "N_15" in assignments[ShiftKey(org_id, "SHIFT_1")], (
+    assert 999 in assignments[ShiftKey(fac_1, 1)], (
         "Shift 1 should go to cheapest nurse (N_15)"
     )
 
     # Verify Shift 2 went to next cheapest (N_15 blocked by fatigue)
-    assert "N_20" in assignments[ShiftKey(org_id, "SHIFT_2")], (
+    assert 20 in assignments[ShiftKey(fac_1, 2)], (
         "Shift 2 should go to next cheapest (N_20)"
     )
 
     # Verify Expensive nurse unused
-    assert "N_25" not in assignments.get(ShiftKey(org_id, "SHIFT_1"), [])
-    assert "N_25" not in assignments.get(ShiftKey(org_id, "SHIFT_2"), [])
+    assert 654 not in assignments.get(ShiftKey(fac_1, 1), [])
+    assert 654 not in assignments.get(ShiftKey(fac_1, 2), [])

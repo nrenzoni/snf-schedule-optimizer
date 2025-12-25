@@ -4,6 +4,7 @@ import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
+    EmployeeIdType,
     NurseProfile,
     PreferenceType,
     Shift,
@@ -37,8 +38,8 @@ class ScenarioBuilder:
         self.time_cfg = TimeConfig(
             start_date=whenever.ZonedDateTime(2025, 1, 1, tz="America/New_York")
         )
-        self.facility_id = "FAC_1"
-        self.org_id = "ORG_1"
+        self.facility_id = 1
+        self.org_id = 1
 
     # --- Configuration Methods ---
     def with_workforce(self, cfg: WorkforceConfig) -> "ScenarioBuilder":
@@ -73,6 +74,7 @@ class ScenarioBuilder:
         shifts = []
         current_dt = self.time_cfg.start_date
 
+        idx = 0
         for day in range(self.time_cfg.num_days):
             for s_num in range(1, self.time_cfg.shifts_per_day + 1):
                 # Simple logic to stagger start times
@@ -89,17 +91,18 @@ class ScenarioBuilder:
                         org_id=self.org_id,
                         shift_key=ShiftKey(
                             facility_id=self.facility_id,
-                            shift_id=f"S_D{day}_N{s_num}",
+                            shift_id=idx,
                         ),
                         shift_number=s_num,
                         day_shift=is_day,
                         day_of_week=shift_start.date().day_of_week(),
                         shift_start_dt=shift_start,
                         shift_end_dt=shift_end,
-                        unit_id="U1",
+                        unit_id=1,
                         is_scheduled=True,
                     )
                 )
+                idx += 1
         return shifts
 
     def _generate_workforce(
@@ -108,12 +111,12 @@ class ScenarioBuilder:
         list[Employee],
         list[NurseProfile],
         list[StaffCompensationRecord],
-        dict[str, float],
+        dict[EmployeeIdType, float],
     ]:
         employees: list[Employee] = []
         nurses: list[NurseProfile] = []
         financials: list[StaffCompensationRecord] = []
-        history_map: dict[str, float] = {}
+        history_map: dict[EmployeeIdType, float] = {}
 
         # Generate RNs
         self._batch_create_staff(
@@ -147,14 +150,14 @@ class ScenarioBuilder:
         emps: list[Employee],
         nurses: list[NurseProfile],
         fins: list[StaffCompensationRecord],
-        hist: dict[str, float],
+        hist: dict[EmployeeIdType, float],
     ) -> None:
         for i in range(count):
             is_agency = self.rng.random() < agency_pct
 
             # Use seeded RNG for ID generation instead of non-deterministic uuid.uuid4()
-            rand_hex = f"{self.rng.getrandbits(24):06x}"
-            emp_id = f"{role}_{'AGY' if is_agency else 'STF'}_{rand_hex}"
+            # rand_hex = f"{self.rng.getrandbits(24):06x}"
+            emp_id = i
 
             # 1. Pay Band
             band_roll = self.rng.random()
@@ -223,7 +226,7 @@ class ScenarioBuilder:
             emps.append(
                 Employee(
                     employee_id=emp_id,
-                    name=f"{role} User {i}",
+                    name=f"{role} User {i} {'AGY' if is_agency else 'STF'}",
                     job_title=role,
                     hire_date=self.time_cfg.start_date.subtract(days=100).date(),
                 )

@@ -2,6 +2,7 @@ import abc
 from typing import NamedTuple
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     Employee,
     NurseProfile,
     PreferenceWeights,
@@ -38,8 +39,8 @@ class IPreferencePenaltyProcessor(abc.ABC):
 
 
 class ScheduleLookupKey(NamedTuple):
-    org_id: str
-    schedule_id: str
+    org_id: DomainPrimaryKeyType
+    schedule_id: DomainPrimaryKeyType
 
 
 class IScheduleRepo(abc.ABC):

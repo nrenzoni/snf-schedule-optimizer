@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     Schedule,
     ShiftAssignmentsType,
     ShiftKey,
@@ -17,8 +18,8 @@ class ScheduleExtractor:
     def extract(
         self,
         lp_holder: LpNurseShiftVariableHolder,
-        org_id: str,
-        facility_id: str | None = None,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType | None = None,
     ) -> Schedule:
         shift_assignments: ShiftAssignmentsType = defaultdict(list)
 

@@ -3,7 +3,7 @@ import time
 import pulp
 from pulp import LpMinimize, LpProblem
 
-from snf_schedule_optimizer.models import PreferenceWeights
+from snf_schedule_optimizer.models import DomainPrimaryKeyType, PreferenceWeights
 from snf_schedule_optimizer.optimizer.context import (
     LpNurseShiftVariableHolder,
 )
@@ -126,7 +126,7 @@ class NurseShiftScheduleOptimizer:
 
     def _solve_finalize(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         problem: pulp.LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
     ) -> ScheduleOptimizationResults:

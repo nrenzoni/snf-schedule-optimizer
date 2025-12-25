@@ -1,6 +1,6 @@
 import datetime
 
-from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer
+from sqlalchemy import Boolean, Date, Float, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import SQLABase
@@ -13,13 +13,9 @@ class FacilityRulesConfigModel(SQLABase):
 
     __tablename__ = "facility_rules_config"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    org_id: Mapped[str] = mapped_column(
-        ForeignKey("organization.id"), index=True, nullable=False
-    )
-    facility_id: Mapped[int] = mapped_column(
-        ForeignKey("facility.id"), index=True, nullable=False
-    )
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    facility_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    org_id: Mapped[int] = mapped_column(index=True, nullable=False)
 
     # Rounding Rule
     rounding_unit_minutes: Mapped[int] = mapped_column(

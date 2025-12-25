@@ -47,8 +47,8 @@ class BaselineScheduleGenerator:
                 ).append(assigned_staff.employee_id)
 
         return Schedule(
-            org_id="baseline_org",
+            org_id=3,
             facility_id=shifts[0].facility_id,
-            schedule_id="1",
+            schedule_id=1,
             shift_assignments=shift_assignments,
         )

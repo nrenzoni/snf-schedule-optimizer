@@ -2,7 +2,11 @@ import whenever
 from sqlalchemy import and_, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from snf_schedule_optimizer.models import Shift, ShiftKey
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    Shift,
+    ShiftKey,
+)
 from snf_schedule_optimizer.services.repositories import IShiftRepo
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 
@@ -12,7 +16,9 @@ class SQLShiftRepo(IShiftRepo):
         self.session = session
 
     async def get_shifts_for_org(
-        self, org_id: str, facility_timezones: dict[str, str]
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
     ) -> list[Shift]:
         # 1. Single DB Query for the whole Org
         stmt = select(ShiftModel).where(ShiftModel.org_id == org_id)
@@ -21,7 +27,7 @@ class SQLShiftRepo(IShiftRepo):
         domain_shifts = []
 
         for row in results:
-            fac_id = str(row.facility_id)
+            fac_id = row.facility_id
             tz_str = facility_timezones.get(fac_id, "UTC")
 
             domain_shifts.append(self._map_row_to_domain(row, tz_str))
@@ -31,8 +37,8 @@ class SQLShiftRepo(IShiftRepo):
     async def get_shifts_by_keys(
         self,
         shift_keys: list[ShiftKey],
-        facility_timezones: dict[str, str],
-        org_id: str,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
+        org_id: DomainPrimaryKeyType,
     ) -> dict[ShiftKey, Shift]:
         if not shift_keys:
             return {}
@@ -71,7 +77,7 @@ class SQLShiftRepo(IShiftRepo):
 
         return shift_map
 
-    async def save_shift(self, org_id: str, shift: Shift) -> None:
+    async def save_shift(self, org_id: DomainPrimaryKeyType, shift: Shift) -> None:
         model = ShiftModel.from_domain(org_id, shift)
         await self.session.merge(model)
 
@@ -81,7 +87,7 @@ class SQLShiftRepo(IShiftRepo):
         end_instant = row.shift_end_dt.to_tz(timezone_str)
 
         return Shift(
-            org_id=str(row.org_id),
+            org_id=row.org_id,
             shift_key=ShiftKey(
                 row.facility_id,
                 row.shift_id,

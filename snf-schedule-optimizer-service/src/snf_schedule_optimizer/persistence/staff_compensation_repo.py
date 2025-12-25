@@ -2,7 +2,10 @@ import whenever
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from snf_schedule_optimizer.models import StaffCompensationRecord
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    StaffCompensationRecord,
+)
 from snf_schedule_optimizer.services.hr.interfaces import IStaffCompensationRepo
 from snf_schedule_optimizer.sqlalchemy_models.staff_compensation_model import (
     StaffCompensationModel,
@@ -20,9 +23,9 @@ class SQLStaffCompensationRepo(IStaffCompensationRepo):
 
     async def get_record_for_date(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
         check_date: whenever.ZonedDateTime,
+        employee_id: DomainPrimaryKeyType,
     ) -> StaffCompensationRecord | None:
         """
         Retrieves the StaffCompensationRecord whose validity period covers the check_date.
@@ -65,7 +68,7 @@ class SQLStaffCompensationRepo(IStaffCompensationRepo):
         return result.to_domain()
 
     async def save_compensation_record(
-        self, org_id: str, record: StaffCompensationRecord
+        self, org_id: DomainPrimaryKeyType, record: StaffCompensationRecord
     ) -> None:
         """Persists a domain StaffCompensationRecord."""
         model = StaffCompensationModel.from_domain(record, org_id)

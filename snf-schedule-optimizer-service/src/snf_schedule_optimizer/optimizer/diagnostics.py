@@ -1,14 +1,14 @@
 from collections import defaultdict
 from dataclasses import dataclass
 
-from snf_schedule_optimizer.models import HprdEnforcedRole
+from snf_schedule_optimizer.models import DomainPrimaryKeyType, HprdEnforcedRole
 from snf_schedule_optimizer.optimizer.calculators import NurseHardBlockCheckerImpl
 from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
 
 
 @dataclass(frozen=True)
 class ShiftBottleneck:
-    shift_id: str
+    shift_id: DomainPrimaryKeyType
     time_label: str
     role: str
     required_count: float
@@ -48,7 +48,9 @@ class SchedulerInfeasibilityDiagnoser:
 
         return "\n".join(report)
 
-    async def _analyze_global_capacity(self, facility_id: str) -> list[str]:
+    async def _analyze_global_capacity(
+        self, facility_id: DomainPrimaryKeyType
+    ) -> list[str]:
         output = []
         shifts = self.provider.get_shifts_for_facility(facility_id)
         reqs = await self.provider.get_hprd_requirements_for_facility(facility_id)
@@ -93,7 +95,9 @@ class SchedulerInfeasibilityDiagnoser:
 
         return output
 
-    async def _analyze_shift_bottlenecks(self, facility_id: str) -> list[str]:
+    async def _analyze_shift_bottlenecks(
+        self, facility_id: DomainPrimaryKeyType
+    ) -> list[str]:
         output = []
         shifts = self.provider.get_shifts_for_facility(facility_id)
         reqs = await self.provider.get_hprd_requirements_for_facility(facility_id)

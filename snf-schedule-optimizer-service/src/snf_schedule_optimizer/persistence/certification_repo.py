@@ -2,7 +2,10 @@ import whenever
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from snf_schedule_optimizer.models import FacilityConfig
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    FacilityConfig,
+)
 from snf_schedule_optimizer.models.persistence_dtos import EmployeeCertificationData
 from snf_schedule_optimizer.models.testing import MockCertificationRecord
 from snf_schedule_optimizer.services.hr.interfaces import (
@@ -22,7 +25,7 @@ class CertificationServiceStaticListImpl(ICertificationService):
 
     def __init__(
         self,
-        records: list[tuple[str, MockCertificationRecord]],
+        records: list[tuple[DomainPrimaryKeyType, MockCertificationRecord]],
         facility_config: FacilityConfig,
     ) -> None:
         """
@@ -34,7 +37,9 @@ class CertificationServiceStaticListImpl(ICertificationService):
         ]
         """
         # Dictionary mapping employee_id -> List[MockCertificationRecord]
-        self.employee_certs: dict[str, list[MockCertificationRecord]] = {}
+        self.employee_certs: dict[
+            DomainPrimaryKeyType, list[MockCertificationRecord]
+        ] = {}
 
         for employee_id, record in records:
             if employee_id not in self.employee_certs:
@@ -45,8 +50,8 @@ class CertificationServiceStaticListImpl(ICertificationService):
 
     async def is_certification_active(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         certification_name: str,
         check_date: whenever.ZonedDateTime,
     ) -> bool:
@@ -80,8 +85,8 @@ class SQLCertificationRepo(ICertificationRepo):
 
     async def get_certifications_for_employee(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
     ) -> list[EmployeeCertificationData]:
         """Fetches all certification records for an employee from the database."""
         stmt = select(EmployeeCertificationModel).where(
@@ -94,7 +99,7 @@ class SQLCertificationRepo(ICertificationRepo):
 
         return [
             EmployeeCertificationData(
-                employee_id=str(r.employee_id),
+                employee_id=r.id,
                 certification_name=str(r.certification_name),
                 # Mapping stored dates to whenever.Date
                 acquired_date=whenever.Date(

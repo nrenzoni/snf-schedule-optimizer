@@ -2,10 +2,12 @@ import abc
 from collections.abc import AsyncGenerator
 from typing import Any, ClassVar, cast
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy import Engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from that_depends import BaseContainer, Provide
 from that_depends.providers import AbstractProvider, Factory, Resource
 
+from snf_schedule_optimizer.infrastructure.sqid_converter import IdObfuscator
 from snf_schedule_optimizer.ml_output_repo import MLModelOutputsRepo
 from snf_schedule_optimizer.optimizer.calculators import (
     HprdRequirementCalculator,
@@ -148,8 +150,12 @@ class IReposContainer(abc.ABC):
     shift_req_retriever: ClassVar[AbstractProvider[IShiftRequirementsRepo]]
     acuity_retriever: ClassVar[AbstractProvider[IResidentAcuityPerShiftRepo]]
 
+    db_engine: ClassVar[AbstractProvider[Engine]]
+    db_session: ClassVar[AbstractProvider[AsyncSession]]
+
 
 def build_repos_container(
+    engine: AsyncEngine,
     session_factory: async_sessionmaker[AsyncSession],
 ) -> type["IReposContainer"]:
     async def _make_session() -> AsyncGenerator[AsyncSession, Any]:
@@ -395,12 +401,12 @@ def build_scheduler_container(
     return SchedulerContainer
 
 
-async def compose_scheduler_service(
-    session_factory: async_sessionmaker[AsyncSession],
-) -> WorkforceSchedulerService:
-    retrievers_type = build_repos_container(session_factory)
-    scheduler_type = build_scheduler_container(retrievers_type)
-    return await scheduler_type.scheduler_service()
+class InfraContainer(BaseContainer):
+    id_obfuscator = Factory(IdObfuscator)
+
+
+def build_infra_container() -> type[InfraContainer]:
+    return InfraContainer
 
 
 # async def compose_scheduler_service_2(

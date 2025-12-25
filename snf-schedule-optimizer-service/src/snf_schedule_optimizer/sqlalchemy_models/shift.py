@@ -3,11 +3,11 @@ from __future__ import annotations
 import typing
 
 import whenever
-from sqlalchemy import Boolean, Integer, String
+from sqlalchemy import Boolean, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..models import Shift
-from ..utils.sqlalchemy_types.instant_type import InstantType
+from ..models import DomainPrimaryKeyType, Shift
+from ..utils.sqlalchemy_types.whenever_types import InstantType
 from .base import SQLABase
 
 if typing.TYPE_CHECKING:
@@ -24,9 +24,10 @@ class ShiftModel(SQLABase):
 
     # --- Primary Key ---
 
-    org_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
-    facility_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
-    shift_id: Mapped[str] = mapped_column(String, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    org_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    facility_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    shift_id: Mapped[int] = mapped_column(index=True, nullable=False)
 
     # --- Core Identity & Time ---
     shift_start_dt: Mapped[whenever.Instant] = mapped_column(
@@ -37,8 +38,8 @@ class ShiftModel(SQLABase):
     # --- Contextual Data (Required by Mapping and Rules Engine) ---
 
     # 1. Used in _map_shift_to_domain (Fixes previous errors)
-    shift_number: Mapped[str | None] = mapped_column(
-        String(20), nullable=True
+    shift_number: Mapped[int | None] = mapped_column(
+        nullable=True
     )  # e.g., '1', '2', '3'
     day_shift: Mapped[bool] = mapped_column(
         Boolean, nullable=False
@@ -49,7 +50,7 @@ class ShiftModel(SQLABase):
 
     # 2. Scheduling & Role Data
     # Used for filtering rules by facility/unit
-    unit_id: Mapped[str | None] = mapped_column(Integer, nullable=True)
+    unit_id: Mapped[int | None] = mapped_column(index=True, nullable=True)
 
     # 3. Status
     is_scheduled: Mapped[bool] = mapped_column(
@@ -64,13 +65,12 @@ class ShiftModel(SQLABase):
     def __repr__(self) -> str:
         return f"<ShiftModel(id={self.shift_id}, start='{self.shift_start_dt}')>"
 
-    @classmethod
+    @staticmethod
     def from_domain(
-        cls,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         domain_shift: Shift,
     ) -> ShiftModel:
-        return cls(
+        return ShiftModel(
             org_id=org_id,
             facility_id=domain_shift.facility_id,
             shift_id=domain_shift.shift_id,
@@ -78,7 +78,7 @@ class ShiftModel(SQLABase):
             shift_end_dt=domain_shift.shift_end_dt.to_instant(),
             shift_number=domain_shift.shift_number,
             day_shift=domain_shift.day_shift,
-            day_of_week=domain_shift.day_of_week,
+            day_of_week=domain_shift.day_of_week.value,
             unit_id=domain_shift.unit_id,
             is_scheduled=domain_shift.is_scheduled,
         )

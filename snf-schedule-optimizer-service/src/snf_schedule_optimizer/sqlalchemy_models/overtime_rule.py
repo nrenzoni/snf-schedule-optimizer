@@ -10,8 +10,9 @@ from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 class OvertimeRuleModel(SQLABase):
     __tablename__ = "overtime_rule"
 
-    org_id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    rule_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    org_id: Mapped[int] = mapped_column(index=True, nullable=False)
+
     description: Mapped[str] = mapped_column(String(100))
     multiplier: Mapped[float] = mapped_column(Float, default=1.5)
     priority: Mapped[int] = mapped_column(Integer, default=0)
@@ -41,11 +42,11 @@ class OvertimeRuleModel(SQLABase):
         JSON, nullable=True
     )
     certification_match_type: Mapped[str] = mapped_column(String(10), default="ALL")
-    contract_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    contract_id: Mapped[int | None] = mapped_column(index=True, nullable=True)
 
     def to_domain(self) -> OvertimeRuleData:
         return OvertimeRuleData(
-            rule_id=self.rule_id,
+            rule_id=self.id,
             org_id=self.org_id,
             description=self.description,
             multiplier=self.multiplier,

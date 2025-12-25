@@ -1,7 +1,7 @@
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from snf_schedule_optimizer.models import Employee
+from snf_schedule_optimizer.models import DomainPrimaryKeyType, Employee
 from snf_schedule_optimizer.services.hr.interfaces import IEmployeeRepo
 from snf_schedule_optimizer.sqlalchemy_models.employee import EmployeeModel
 
@@ -16,13 +16,13 @@ class SQLEmployeeRepo(IEmployeeRepo):
 
     async def get_employee_by_id(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
     ) -> Employee | None:
         stmt = select(EmployeeModel).where(
             and_(
                 EmployeeModel.org_id == org_id,
-                EmployeeModel.employee_id == employee_id,
+                EmployeeModel.id == employee_id,
             )
         )
         result: EmployeeModel | None = await self.db_session.scalar(stmt)
@@ -33,7 +33,7 @@ class SQLEmployeeRepo(IEmployeeRepo):
 
     async def get_all_employees(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
     ) -> list[Employee]:
         """
         Retrieves all active Employee records.
@@ -45,6 +45,10 @@ class SQLEmployeeRepo(IEmployeeRepo):
 
         return [row.to_domain() for row in results]
 
-    async def save_employee(self, org_id: str, employee: Employee) -> None:
+    async def save_employee(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee: Employee,
+    ) -> None:
         model = EmployeeModel.from_domain(org_id, employee)
         await self.db_session.merge(model)

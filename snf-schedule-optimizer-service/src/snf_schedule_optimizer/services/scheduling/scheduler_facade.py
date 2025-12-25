@@ -6,6 +6,7 @@ import whenever
 
 from snf_schedule_optimizer.api import MoveEmployeeRequest, OptimizationOutput
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     PreferenceWeights,
     Schedule,
     Shift,
@@ -41,8 +42,8 @@ from snf_schedule_optimizer.services.scheduling.interfaces import (
 class WorkforceSchedulerServicePort(Protocol):
     async def optimize_schedule(
         self,
-        org_id: str,
-        facility_contexts: dict[str, FacilityScenarioContext],
+        org_id: DomainPrimaryKeyType,
+        facility_contexts: dict[DomainPrimaryKeyType, FacilityScenarioContext],
         preference_weights: PreferenceWeights,
         pay_period_start: whenever.Instant,
         optimization_start_time: whenever.Instant | None = None,
@@ -81,8 +82,8 @@ class WorkforceSchedulerService(WorkforceSchedulerServicePort):
 
     async def optimize_schedule(
         self,
-        org_id: str,
-        facility_contexts: dict[str, FacilityScenarioContext],
+        org_id: DomainPrimaryKeyType,
+        facility_contexts: dict[DomainPrimaryKeyType, FacilityScenarioContext],
         preference_weights: PreferenceWeights,
         pay_period_start: whenever.Instant,
         optimization_start_time: whenever.Instant | None = None,
@@ -293,10 +294,10 @@ class WorkforceSchedulerService(WorkforceSchedulerServicePort):
 
     async def _rehydrate_facility_contexts(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         schedule: Schedule,
         request: MoveEmployeeRequest,
-    ) -> dict[str, FacilityScenarioContext]:
+    ) -> dict[DomainPrimaryKeyType, FacilityScenarioContext]:
         """
         Rebuilds the FacilityScenarioContexts needed for optimization by fetching
         Configs and Shifts based on the Schedule and the Move Request.
@@ -331,7 +332,7 @@ class WorkforceSchedulerService(WorkforceSchedulerServicePort):
 
         # 4. Group into Contexts
         # Group shifts by facility
-        shifts_by_fac: dict[str, list[Shift]] = defaultdict(list)
+        shifts_by_fac: dict[DomainPrimaryKeyType, list[Shift]] = defaultdict(list)
         for s in shifts_map.values():
             shifts_by_fac[s.facility_id].append(s)
 

@@ -1,14 +1,20 @@
 import abc
 
-from snf_schedule_optimizer.models import FacilityConfig, Shift, ShiftKey
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    FacilityConfig,
+    FacilityIdType,
+    Shift,
+    ShiftKey,
+)
 
 
 class IShiftRepo(abc.ABC):
     @abc.abstractmethod
     async def get_shifts_for_org(
         self,
-        org_id: str,
-        facility_timezones: dict[str, str],
+        org_id: DomainPrimaryKeyType,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
     ) -> list[Shift]:
         """
         Fetches all shifts for an organization.
@@ -20,8 +26,8 @@ class IShiftRepo(abc.ABC):
     async def get_shifts_by_keys(
         self,
         shift_keys: list[ShiftKey],
-        facility_timezones: dict[str, str],
-        org_id: str,
+        facility_timezones: dict[FacilityIdType, str],
+        org_id: DomainPrimaryKeyType,
     ) -> dict[ShiftKey, Shift]:
         """
         Batched retrieval of shifts by their composite keys.
@@ -32,7 +38,7 @@ class IShiftRepo(abc.ABC):
     @abc.abstractmethod
     async def save_shift(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         shift: Shift,
     ) -> None:
         """Persists a domain Shift object."""
@@ -47,8 +53,8 @@ class IFacilityRepo(abc.ABC):
     @abc.abstractmethod
     async def get_configs(
         self,
-        org_id: str,
-        facility_ids: list[str] | None = None,
+        org_id: DomainPrimaryKeyType,
+        facility_ids: list[DomainPrimaryKeyType] | None = None,
     ) -> list[FacilityConfig]:
         """
         Retrieves configuration (including timezone) for facilities in an org.

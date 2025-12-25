@@ -1,3 +1,4 @@
+from snf_schedule_optimizer.models import DomainPrimaryKeyType
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
 
@@ -9,7 +10,7 @@ class CoreVariableGenerationStrategy:
         self,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
-        facility_id: str,
+        facility_id: DomainPrimaryKeyType,
     ) -> None:
         shifts = data_provider.get_shifts_for_facility(facility_id)
         for shift in shifts:

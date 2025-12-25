@@ -1,19 +1,44 @@
 import whenever
 from connectrpc.request import RequestContext
+from returns.result import Failure, Result, Success, safe
 
 from snf_schedule_optimizer.api import MoveEmployeeRequest, OptimizationOutput
 from snf_schedule_optimizer.generated.scheduling.v1 import (
     scheduling_connect,
     scheduling_pb2,
 )
+from snf_schedule_optimizer.infrastructure.sqid_converter import (
+    IIdObfuscator,
+)
 from snf_schedule_optimizer.services.scheduling.scheduler_facade import (
     WorkforceSchedulerServicePort,
 )
 
 
+@safe
+def _decode(obfuscator: IIdObfuscator, val: str) -> int:
+    return int(obfuscator.decode(val))
+
+
+def get_internal_id(
+    obfuscator: IIdObfuscator,
+    val: str,
+    label: str,
+    required: bool = True,
+) -> Result[int | None, str]:
+    if not val:
+        return Success(None) if not required else Failure(f"Missing {label} ID.")
+    return _decode(obfuscator, val).alt(lambda _: f"Invalid {label} ID format.")
+
+
 class SchedulingServiceHandler(scheduling_connect.SchedulingService):
-    def __init__(self, scheduler_service: WorkforceSchedulerServicePort):
+    def __init__(
+        self,
+        scheduler_service: WorkforceSchedulerServicePort,
+        id_obfuscator: IIdObfuscator,
+    ):
         self.scheduler_service = scheduler_service
+        self.id_obfuscator = id_obfuscator
 
     async def get_monthly_schedule(
         self,
@@ -36,14 +61,69 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         """
         ConnectRPC implementation that delegates to the WorkforceSchedulerService.
         """
+        res = await self._validate_shift_move(request)
+        if isinstance(res, Failure):
+            return scheduling_pb2.ValidateShiftMoveResponse(
+                is_success=False,
+                error_details=res.failure(),
+            )
+        return res.unwrap()
+
+    async def _validate_shift_move(
+        self,
+        request: scheduling_pb2.ValidateShiftMoveRequest,
+    ) -> Result[scheduling_pb2.ValidateShiftMoveResponse, str]:
+        obfuscator = self.id_obfuscator
+
+        res = get_internal_id(obfuscator, request.employee_id, "Employee")
+        if isinstance(res, Failure):
+            return res
+        employee_id = res.unwrap()
+        assert employee_id is not None
+
+        # from_shift (optional)
+        res = get_internal_id(
+            obfuscator, request.from_shift_id, "Shift", required=False
+        )
+        if isinstance(res, Failure):
+            return res
+        from_shift_id = res.unwrap()
+
+        # to_shift (optional)
+        res = get_internal_id(obfuscator, request.to_shift_id, "Shift", required=False)
+        if isinstance(res, Failure):
+            return res
+        to_shift_id = res.unwrap()
+
+        # schedule (required)
+        res = get_internal_id(obfuscator, request.schedule_id, "Schedule")
+        if isinstance(res, Failure):
+            return res
+        schedule_id = res.unwrap()
+        assert schedule_id is not None
+
+        # org (required)
+        res = get_internal_id(obfuscator, request.org_id, "Organization")
+        if isinstance(res, Failure):
+            return res
+        org_id = res.unwrap()
+        assert org_id is not None
+
+        # facility (required)
+        res = get_internal_id(obfuscator, request.facility_id, "Facility")
+        if isinstance(res, Failure):
+            return res
+        facility_id = res.unwrap()
+        assert facility_id is not None
+
         # 1. Map Proto Request -> Domain DTO
         domain_request = MoveEmployeeRequest(
-            org_id=request.org_id,
-            facility_id=request.facility_id,
-            schedule_id=request.schedule_id,
-            employee_id=request.employee_id,
-            from_shift_id=request.from_shift_id or None,
-            to_shift_id=request.to_shift_id or None,
+            org_id=org_id,
+            facility_id=facility_id,
+            schedule_id=schedule_id,
+            employee_id=employee_id,
+            from_shift_id=from_shift_id,
+            to_shift_id=to_shift_id,
             schedule_version=request.schedule_version,
         )
 
@@ -57,9 +137,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         )
 
         # 3. Map Domain Result -> Proto Response
-        return self._map_to_optimization_response(result)
+        return self._map_to_response(result)
 
-    def _map_to_optimization_response(
+    def _map_to_response(
         self,
         result: OptimizationOutput,
     ) -> scheduling_pb2.ValidateShiftMoveResponse:
@@ -130,7 +210,7 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         for assignment in result.analysis.assignments:
             if assignment.shift_id not in proto_shifts:
                 proto_shifts[assignment.shift_id] = scheduling_pb2.Shift(
-                    shift_id=assignment.shift_id,
+                    shift_id=self.id_obfuscator.encode(assignment.shift_id),
                     # We can use the date from the first assignment found
                 )
 

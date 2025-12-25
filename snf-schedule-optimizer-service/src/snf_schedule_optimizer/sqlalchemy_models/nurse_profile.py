@@ -3,12 +3,15 @@ from typing import TYPE_CHECKING
 from sqlalchemy import ARRAY, Float, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from snf_schedule_optimizer.models import NurseProfile
+from snf_schedule_optimizer.models import DomainPrimaryKeyType, NurseProfile
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
+from snf_schedule_optimizer.sqlalchemy_models.staff_shift_preference import (
+    StaffShiftPreferenceModel,
+)
 
 if TYPE_CHECKING:
-    from snf_schedule_optimizer.sqlalchemy_models.staff_shift_preference import (
-        StaffShiftPreferenceModel,
+    from snf_schedule_optimizer.sqlalchemy_models.staff_compensation_model import (
+        StaffCompensationModel,
     )
 
 
@@ -19,16 +22,23 @@ class NurseProfileModel(SQLABase):
 
     __tablename__ = "nurse_profile"
 
-    org_id: Mapped[str] = mapped_column(nullable=False, primary_key=True)
-    employee_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    org_id: Mapped[int] = mapped_column(primary_key=True)
+    employee_id: Mapped[int] = mapped_column(primary_key=True)
+
     available_hours_weekly: Mapped[float] = mapped_column(Float, default=40.0)
 
     # Skills stored as a comma-separated string for simplicity
     skills: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
 
+    compensations: Mapped[list["StaffCompensationModel"]] = relationship(
+        back_populates="nurse",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
     # One-to-many relationship with preferences
     preferences: Mapped[list["StaffShiftPreferenceModel"]] = relationship(
-        "StaffShiftPreferenceModel",
+        # "StaffShiftPreferenceModel",
         back_populates="nurse",
         cascade="all, delete-orphan",
         lazy="selectin",  # Eagerly load preferences to avoid N+1 issues in async domain conversion
@@ -45,10 +55,9 @@ class NurseProfileModel(SQLABase):
             shift_custom_preferences=[p.to_domain() for p in self.preferences],
         )
 
-    @classmethod
+    @staticmethod
     def from_domain(
-        cls,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         domain: NurseProfile,
     ) -> "NurseProfileModel":
         if domain.shift_custom_preferences:
@@ -59,7 +68,7 @@ class NurseProfileModel(SQLABase):
         else:
             custom_preferences_ = []
 
-        return cls(
+        return NurseProfileModel(
             org_id=org_id,
             employee_id=domain.employee_id,
             available_hours_weekly=domain.available_hours_weekly,

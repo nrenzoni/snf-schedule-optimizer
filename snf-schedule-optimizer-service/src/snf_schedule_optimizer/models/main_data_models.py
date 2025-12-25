@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 class ResidentAcuity:
     """Represents a single resident's current status and labor demand drivers."""
 
-    resident_id: str
-    unit_id: str
+    resident_id: DomainPrimaryKeyType
+    unit_id: DomainPrimaryKeyType
     census_day: whenever.ZonedDateTime  # The day of the acuity capture
     pt_score_gg: int  # e.g., Functional status score (Section GG)
     nta_score: int  # Non-Therapy Ancillary comorbidity score
@@ -41,7 +41,7 @@ class ResidentAcuity:
 class StaffShiftPreference:
     """Represents a soft constraint derived from WFM self-service."""
 
-    # employee_id: str
+    # employee_id: EmployeeIdType
     preference_type: PreferenceType
     specific_value: str | None  # For SPECIFIC_DAY_OFF, UNIT_PREFERENCE, etc.
     penalty_weight: float  # not used yet
@@ -60,11 +60,15 @@ class EmployeeCertification:
     # Optional: certification_number: str
 
 
+type EmployeeIdType = int
+type FacilityIdType = int
+
+
 @dataclass(frozen=True)
 class Employee:
     """Represents a single staff member, tied to org."""
 
-    employee_id: str
+    employee_id: EmployeeIdType
     name: str
     job_title: str
     hire_date: whenever.Date
@@ -76,7 +80,7 @@ class Employee:
 class NurseProfile:
     """Represents a single staff member's characteristics and constraints."""
 
-    employee_id: str
+    employee_id: EmployeeIdType
     # role: NurseRole  # moved to job_title in Employee
     # base_rate: float  # Base wage, agency adjusted here
     # ot_multiplier: float  # non-exempt OT pay multiplier, if exempt set to 1.0
@@ -148,13 +152,13 @@ class CrossShiftConstraints:
 class FacilityConfig:
     """Immutable facility and HR compliance rules."""
 
-    org_id: str
-    facility_id: str
+    org_id: DomainPrimaryKeyType
+    facility_id: DomainPrimaryKeyType
     shifts_per_day: int
     overtime_threshold_hours_per_week: int
     start_of_work_week_day: whenever.Weekday
     start_of_work_day_time: whenever.Time
-    pay_period: whenever.DateTimeDelta
+    pay_period: whenever.DateDelta
     weekend_multiplier: float
     night_shift_multiplier: float
     tz: str
@@ -164,18 +168,19 @@ class FacilityConfig:
     default_hprd_total: float = 3.5
 
 
-type FacilityIdKey = str
-type ShiftIdKey = str
+type DomainPrimaryKeyType = int
+type FacilityIdKey = int
+type ShiftIdKey = int
 
 
 class ShiftKey(NamedTuple):
-    facility_id: FacilityIdKey
-    shift_id: ShiftIdKey
+    facility_id: DomainPrimaryKeyType
+    shift_id: DomainPrimaryKeyType
 
 
 @dataclass(frozen=True)
 class Shift:
-    org_id: str
+    org_id: DomainPrimaryKeyType
     shift_key: ShiftKey
 
     shift_number: int
@@ -183,7 +188,7 @@ class Shift:
     day_of_week: whenever.Weekday
     shift_start_dt: whenever.ZonedDateTime
     shift_end_dt: whenever.ZonedDateTime
-    unit_id: str | None
+    unit_id: DomainPrimaryKeyType | None
     is_scheduled: bool
 
     def __post_init__(self) -> None:
@@ -202,15 +207,15 @@ class Shift:
     #     return hash((self.org_id, self.facility_id, self.shift_id))
 
     @property
-    def facility_id(self) -> str:
+    def facility_id(self) -> int:
         return self.shift_key.facility_id
 
     @property
-    def shift_id(self) -> str:
+    def shift_id(self) -> int:
         return self.shift_key.shift_id
 
 
-type ShiftAssignmentsType = dict[ShiftKey, list[str]]
+type ShiftAssignmentsType = dict[ShiftKey, list[EmployeeIdType]]
 
 
 @dataclass(frozen=True)
@@ -219,18 +224,18 @@ class Schedule:
     Represents the final output of the scheduling process.
     """
 
-    org_id: str
+    org_id: DomainPrimaryKeyType
 
     # facility_id is Optional because an "Enterprise Optimization" might return a Schedule containing assignments for multiple facilities.
-    facility_id: str | None = None
-    schedule_id: str | None = None  # Persistence ID
+    facility_id: DomainPrimaryKeyType | None = None
+    schedule_id: DomainPrimaryKeyType | None = None  # Persistence ID
 
     # composite key prevents collisions in multi-facility reports. org_id not needed as this exists within an org context, i.e., class contains org_id
     shift_assignments: ShiftAssignmentsType = dataclasses.field(
         default_factory=dict
     )  # {(facility_id, shift_id): [employee_ids]}
 
-    def get_assigned_employees(self, facility_id: str, shift_id: str) -> list[str]:
+    def get_assigned_employees(self, facility_id: int, shift_id: int) -> list[int]:
         key = ShiftKey(facility_id, shift_id)
         return self.shift_assignments.get(key, [])
 
@@ -239,7 +244,7 @@ class Schedule:
 class WorkedShiftSegment:
     """Represents a component of a shift, useful for OT / differential calculations."""
 
-    # employee_id: str
+    # employee_id: EmployeeIdType
     parent_shift: Shift
     start_time: whenever.ZonedDateTime
     end_time: whenever.ZonedDateTime
@@ -296,9 +301,11 @@ class PreferenceWeights:
 class MlModelOutputs:
     """Stores the pre-calculated, dynamic outputs from ML models."""
 
-    turnover_risk_scores: dict[str, float]  # {employee_id: score}
+    turnover_risk_scores: dict[int, float]  # {employee_id: score}
     shift_call_out_forecast: float  # {shift_id: predicted_rate}
-    unit_acuity_stress: dict[str, float]  # {unit_id: stress_multiplier}
+    unit_acuity_stress: dict[
+        DomainPrimaryKeyType, float
+    ]  # {unit_id: stress_multiplier}
     team_compatibility_scores: dict[
         tuple[str, str], float
     ]  # {(nurse_A, nurse_B): score}
@@ -390,7 +397,7 @@ class StaffCompensationRecord:
     """
 
     # --- Identification ---
-    employee_id: str
+    employee_id: EmployeeIdType
 
     # --- Rate and Multipliers ---
     base_rate_effective: (
@@ -406,7 +413,7 @@ class StaffCompensationRecord:
     )
 
     # --- Metadata and Source ---
-    union_contract_id: str | None = (
+    union_contract_id: DomainPrimaryKeyType | None = (
         None  # The specific contract/group driving this rate
     )
     pay_grade_or_step: str | None = None  # The internal pay scale identifier
@@ -416,7 +423,7 @@ class StaffCompensationRecord:
 class WorkedTimeBlock:
     """A contiguous block of time that the employee was actively working."""
 
-    employee_id: str  # Required for joining/tracking downstream
+    employee_id: EmployeeIdType  # Required for joining/tracking downstream
 
     start_time: whenever.ZonedDateTime
     end_time: whenever.ZonedDateTime
@@ -446,7 +453,7 @@ class TimePunch:
     """Represents a single raw time clock event (input from T&A system)."""
 
     # --- Core Identity & Time ---
-    employee_id: str
+    employee_id: EmployeeIdType
     punch_time: (
         whenever.ZonedDateTime
     )  # The actual time of the event (localTime/utcTime)
@@ -552,6 +559,6 @@ class FacilityRulesConfig:
 class EmployeeRuleOverride:
     """Strongly typed overrides specific to an individual employee."""
 
-    employee_id: str
+    employee_id: EmployeeIdType
     rounding_unit_minutes: int | None = None
     auto_meal_deduction_enabled: bool | None = None

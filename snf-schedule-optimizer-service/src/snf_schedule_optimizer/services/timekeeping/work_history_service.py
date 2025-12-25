@@ -1,7 +1,9 @@
 import whenever
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     Employee,
+    EmployeeIdType,
     Shift,
     ShiftKey,
     TimePunch,
@@ -217,10 +219,10 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
     async def get_processed_history_for_period(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: EmployeeIdType,
         check_date: whenever.Instant,
-        facility_id: str | None = None,
+        facility_id: DomainPrimaryKeyType | None = None,
     ) -> dict[ShiftKey, list[WorkedShiftSegment]]:
         facility_ids = [facility_id] if facility_id else None
         configs = await self.facility_config_retriever.get_configs(org_id, facility_ids)

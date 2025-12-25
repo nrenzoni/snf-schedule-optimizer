@@ -2,7 +2,9 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     Employee,
+    EmployeeIdType,
     FacilityConfig,
     MlModelOutputs,
     NurseProfile,
@@ -69,7 +71,7 @@ class OptimizerTestBuilder:
         self._employees: list[Employee] = []
         self._nurses: list[NurseProfile] = []
         self._comp_records: list[StaffCompensationRecord] = []
-        self._accumulated_hours: dict[str, float] = {}
+        self._accumulated_hours: dict[EmployeeIdType, float] = {}
         self._preference_penalties: dict[str, float] = {}
         self._stored_schedules: dict[ScheduleLookupKey, Schedule] = {}
         self._acuity_data: list[ResidentAcuity] = []
@@ -120,7 +122,9 @@ class OptimizerTestBuilder:
         self._comp_records = records
         return self
 
-    def with_history(self, hours_map: dict[str, float]) -> "OptimizerTestBuilder":
+    def with_history(
+        self, hours_map: dict[EmployeeIdType, float]
+    ) -> "OptimizerTestBuilder":
         self._accumulated_hours = hours_map
         return self
 
@@ -132,7 +136,10 @@ class OptimizerTestBuilder:
         return self
 
     def with_schedule(
-        self, schedule: Schedule, schedule_id: str, org_id: str
+        self,
+        schedule: Schedule,
+        schedule_id: DomainPrimaryKeyType,
+        org_id: DomainPrimaryKeyType,
     ) -> "OptimizerTestBuilder":
         """Pre-loads a schedule into the mock database for retrieval."""
         self._stored_schedules[ScheduleLookupKey(org_id, schedule_id)] = schedule

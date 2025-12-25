@@ -1,6 +1,7 @@
 import whenever
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     Employee,
     OvertimeInterval,
     OvertimeTrigger,
@@ -35,7 +36,7 @@ class ThresholdOvertimeRule(IOvertimeRule):
         applicable_job_titles: list[str] | None = None,
         required_certifications: list[str] | None = None,
         certification_match_type: str = "ALL",
-        contract_id: str | None = None,
+        contract_id: DomainPrimaryKeyType | None = None,
     ):
         self.name = name
         self._multiplier = multiplier
@@ -68,7 +69,7 @@ class ThresholdOvertimeRule(IOvertimeRule):
         return self._certification_match_type
 
     @property
-    def contract_id(self) -> str | None:
+    def contract_id(self) -> DomainPrimaryKeyType | None:
         return self._contract_id
 
 

@@ -1,7 +1,7 @@
 import pulp
 from pulp import LpProblem
 
-from snf_schedule_optimizer.models import HprdEnforcedRole, Shift
+from snf_schedule_optimizer.models import DomainPrimaryKeyType, HprdEnforcedRole, Shift
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IFacilityScopedConstraintStrategy,
@@ -27,7 +27,7 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
         problem: pulp.LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
-        facility_id: str,
+        facility_id: DomainPrimaryKeyType,
     ) -> InfeasibilityReasonResult | None:
         # todo: Add infeasibility checks (e.g., no available nurses for a required role)
 
@@ -107,7 +107,7 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
         problem: LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
-        facility_id: str,
+        facility_id: DomainPrimaryKeyType,
     ) -> InfeasibilityReasonResult | None:
         shifts = data_provider.get_all_shifts()
 

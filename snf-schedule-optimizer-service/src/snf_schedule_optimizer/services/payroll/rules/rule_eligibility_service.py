@@ -2,7 +2,11 @@ from typing import Protocol
 
 import whenever
 
-from snf_schedule_optimizer.models import Employee, Shift
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    Employee,
+    Shift,
+)
 from snf_schedule_optimizer.services.hr.interfaces import ICertificationService
 from snf_schedule_optimizer.services.payroll.interfaces import (
     IDifferentialRule,
@@ -118,8 +122,8 @@ class RuleEligibilityService:
 
     async def _check_certification_eligibility(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         required_certs: list[str],
         match_type: str,
         check_date: whenever.ZonedDateTime,

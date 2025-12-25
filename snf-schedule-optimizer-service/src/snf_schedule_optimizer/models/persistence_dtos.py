@@ -5,6 +5,8 @@ import whenever
 from snf_schedule_optimizer.models import (
     DifferentialRuleType,
     DifferentialType,
+    DomainPrimaryKeyType,
+    EmployeeIdType,
     OvertimeTriggerType,
 )
 
@@ -13,8 +15,8 @@ from snf_schedule_optimizer.models import (
 class DifferentialRuleData:
     """Raw data representation of a differential rule from the DB."""
 
-    rule_id: str
-    org_id: str
+    rule_id: DomainPrimaryKeyType
+    org_id: DomainPrimaryKeyType
     description: str
     priority: int
     rule_type: DifferentialRuleType
@@ -24,15 +26,15 @@ class DifferentialRuleData:
     start_time: whenever.Time | None = None
     end_time: whenever.Time | None = None
     applicable_job_titles: list[str] | None = None
-    contract_id: str | None = None
+    contract_id: DomainPrimaryKeyType | None = None
 
 
 @dataclass(frozen=True)
 class OvertimeRuleData:
     """Raw data representation of an overtime rule from the DB."""
 
-    rule_id: str
-    org_id: str
+    rule_id: DomainPrimaryKeyType
+    org_id: DomainPrimaryKeyType
     description: str
     multiplier: float
     priority: int
@@ -52,14 +54,14 @@ class OvertimeRuleData:
     applicable_job_titles: list[str] | None = None
     required_certifications: list[str] | None = None
     certification_match_type: str = "ALL"
-    contract_id: str | None = None
+    contract_id: DomainPrimaryKeyType | None = None
 
 
 @dataclass(frozen=True)
 class EmployeeCertificationData:
     """Strongly typed data structure for certification records."""
 
-    employee_id: str
+    employee_id: EmployeeIdType
     certification_name: str
     acquired_date: whenever.Date | None
     expiration_date: whenever.Date | None

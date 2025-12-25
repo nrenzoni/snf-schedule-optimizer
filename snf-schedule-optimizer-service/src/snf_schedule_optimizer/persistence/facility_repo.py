@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from snf_schedule_optimizer.models import FacilityConfig
+from snf_schedule_optimizer.models import DomainPrimaryKeyType, FacilityConfig
 from snf_schedule_optimizer.services.repositories import IFacilityRepo
 from snf_schedule_optimizer.sqlalchemy_models.facility_config import FacilityConfigModel
 
@@ -16,8 +16,8 @@ class SQLFacilityRepo(IFacilityRepo):
 
     async def get_configs(
         self,
-        org_id: str,
-        facility_ids: list[str] | None = None,
+        org_id: DomainPrimaryKeyType,
+        facility_ids: list[DomainPrimaryKeyType] | None = None,
     ) -> list[FacilityConfig]:
         """
         Retrieves configuration (including timezone) for facilities in an org.
@@ -30,3 +30,10 @@ class SQLFacilityRepo(IFacilityRepo):
         results = (await self.session.scalars(stmt)).all()
 
         return [row.to_domain() for row in results]
+
+    async def save_config(self, config: FacilityConfig) -> None:
+        """
+        Saves or updates a FacilityConfig record.
+        """
+        model = FacilityConfigModel.from_domain(config)
+        await self.session.merge(model)

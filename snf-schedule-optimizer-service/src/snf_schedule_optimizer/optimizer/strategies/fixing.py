@@ -1,6 +1,6 @@
 import pulp
 
-from snf_schedule_optimizer.models import Schedule, ShiftKey
+from snf_schedule_optimizer.models import DomainPrimaryKeyType, Schedule, ShiftKey
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IFacilityScopedConstraintStrategy,
@@ -24,7 +24,7 @@ class PinnedScheduleConstraintStrategy(IFacilityScopedConstraintStrategy):
         problem: pulp.LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
-        facility_id: str,
+        facility_id: DomainPrimaryKeyType,
     ) -> InfeasibilityReasonResult | None:
         # 1. Get all variables relevant to this facility
         # (The holder keys are (facility_id, employee_id, shift_id))
@@ -51,7 +51,7 @@ class PinnedScheduleConstraintStrategy(IFacilityScopedConstraintStrategy):
                     build_lp_variable_name(
                         "Pin_Assigned",
                         shift_key.shift.facility_id,
-                        shift_key.employee_id,
+                        str(shift_key.employee_id),
                         shift_key.shift.shift_id,
                     ),
                 )
@@ -62,7 +62,7 @@ class PinnedScheduleConstraintStrategy(IFacilityScopedConstraintStrategy):
                     build_lp_variable_name(
                         "Pin_Unassigned",
                         shift_key.shift.facility_id,
-                        shift_key.employee_id,
+                        str(shift_key.employee_id),
                         shift_key.shift.shift_id,
                     ),
                 )

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from snf_schedule_optimizer.models import DomainPrimaryKeyType
+
 
 @dataclass(frozen=True)
 class CostBreakdown:
@@ -34,7 +36,7 @@ class ScheduleFinancialReport:
     """The final report structure."""
 
     total_enterprise_cost: float
-    breakdown_per_facility: dict[str, CostBreakdown]
+    breakdown_per_facility: dict[DomainPrimaryKeyType, CostBreakdown]
     breakdown_per_role: dict[str, CostBreakdown]
 
     # Helpful for debugging solver results

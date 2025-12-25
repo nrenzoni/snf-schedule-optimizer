@@ -31,7 +31,7 @@ class SQLScheduleRepo(IScheduleRepo):
         """
         stmt = select(ScheduleAssignmentModel).where(
             ScheduleAssignmentModel.org_id == schedule_lookup.org_id,
-            ScheduleAssignmentModel.schedule_id == schedule_lookup.schedule_id,
+            ScheduleAssignmentModel.id == schedule_lookup.schedule_id,
         )
 
         results: Sequence[ScheduleAssignmentModel] | None = (
@@ -46,9 +46,7 @@ class SQLScheduleRepo(IScheduleRepo):
         assignments: ShiftAssignmentsType = defaultdict(list)
 
         for row in results:
-            assignments[ShiftKey(row.facility_id, row.shift_id)].append(
-                str(row.employee_id)
-            )
+            assignments[ShiftKey(row.facility_id, row.shift_id)].append(row.employee_id)
 
         return Schedule(
             schedule_lookup.org_id,

@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING
 import whenever
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     Employee,
+    EmployeeIdType,
     LookbackPeriod,
     Shift,
     ShiftKey,
@@ -74,10 +76,10 @@ class IEmployeeWorkHistoryService(abc.ABC):
     @abc.abstractmethod
     async def get_processed_history_for_period(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: EmployeeIdType,
         check_date: whenever.Instant,
-        facility_id: str | None = None,
+        facility_id: int | None = None,
     ) -> dict[ShiftKey, list[WorkedShiftSegment]]:
         """
         Retrieves all previously processed shifts and their segments for the employee
@@ -93,11 +95,11 @@ class IRawHistoryRepo(abc.ABC):
     @abc.abstractmethod
     async def get_raw_inputs_for_period(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: EmployeeIdType,
         check_date: whenever.Instant,
-        facility_timezones: dict[str, str],
-        facility_id: str | None = None,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
+        facility_id: int | None = None,
     ) -> dict[ShiftKey, list[TimePunch]]:
         """
         Retrieves all scheduled Shifts and their corresponding raw TimePunches

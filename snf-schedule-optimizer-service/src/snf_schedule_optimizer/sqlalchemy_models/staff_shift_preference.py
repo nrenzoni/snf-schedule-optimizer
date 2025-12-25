@@ -1,9 +1,13 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Float, String
+from sqlalchemy import Boolean, Float, ForeignKeyConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from snf_schedule_optimizer.models import PreferenceType, StaffShiftPreference
+from snf_schedule_optimizer.models import (
+    EmployeeIdType,
+    PreferenceType,
+    StaffShiftPreference,
+)
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 
 if TYPE_CHECKING:
@@ -17,8 +21,17 @@ class StaffShiftPreferenceModel(SQLABase):
 
     __tablename__ = "staff_shift_preference"
 
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("org_id", "employee_id"),
+            ["nurse_profile.org_id", "nurse_profile.employee_id"],
+            name="fk_staff_preference_nurse_profile",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    employee_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    org_id: Mapped[int] = mapped_column(nullable=False)
+    employee_id: Mapped[int] = mapped_column(nullable=False)
 
     preference_type: Mapped[str] = mapped_column(String(50), nullable=False)
     specific_value: Mapped[str | None] = mapped_column(String(100))
@@ -41,13 +54,12 @@ class StaffShiftPreferenceModel(SQLABase):
             is_hard_block=self.is_hard_block,
         )
 
-    @classmethod
+    @staticmethod
     def from_domain(
-        cls,
-        employee_id: str,
+        employee_id: EmployeeIdType,
         domain: StaffShiftPreference,
     ) -> "StaffShiftPreferenceModel":
-        return cls(
+        return StaffShiftPreferenceModel(
             employee_id=employee_id,
             preference_type=domain.preference_type.value,
             specific_value=domain.specific_value,

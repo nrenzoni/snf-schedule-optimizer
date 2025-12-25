@@ -1,12 +1,19 @@
 import datetime
 
 import whenever
-from sqlalchemy import Boolean, Date, Float, ForeignKey, Integer, Numeric, String
+from sqlalchemy import (
+    Boolean,
+    Date,
+    Float,
+    ForeignKeyConstraint,
+    Numeric,
+    String,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..models import StaffCompensationRecord
+from ..models import DomainPrimaryKeyType, StaffCompensationRecord
 from .base import SQLABase
-from .employee import EmployeeModel
+from .nurse_profile import NurseProfileModel
 
 
 class StaffCompensationModel(SQLABase):
@@ -17,14 +24,21 @@ class StaffCompensationModel(SQLABase):
 
     __tablename__ = "staff_compensation_record"
 
-    # --- Primary Key ---
-    org_id: Mapped[str] = mapped_column(nullable=False, primary_key=True)
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-
-    # --- Foreign Key to Employee (One Employee has Many Compensation Records) ---
-    employee_id: Mapped[str] = mapped_column(
-        ForeignKey("employee.employee_id"), index=True, nullable=False
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (
+                "org_id",
+                "employee_id",
+            ),
+            ["nurse_profile.org_id", "nurse_profile.employee_id"],
+            name="fk_staff_comp_nurse_profile",
+        ),
     )
+
+    # --- Primary Key ---
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    org_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    employee_id: Mapped[int] = mapped_column(index=True, nullable=False)
 
     # --- Rate and Multipliers ---
     # NUMERIC is best practice for monetary values in PostgreSQL
@@ -39,13 +53,11 @@ class StaffCompensationModel(SQLABase):
     )
 
     # --- Metadata and Source ---
-    union_contract_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    union_contract_id: Mapped[int | None] = mapped_column(index=True, nullable=True)
     pay_grade_or_step: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # --- Relationship Linkage ---
-    employee: Mapped[EmployeeModel] = relationship(
-        back_populates="compensation_records"
-    )
+    nurse: Mapped["NurseProfileModel"] = relationship(back_populates="compensations")
 
     def __repr__(self) -> str:
         return (
@@ -70,17 +82,16 @@ class StaffCompensationModel(SQLABase):
             pay_grade_or_step=self.pay_grade_or_step,
         )
 
-    @classmethod
+    @staticmethod
     def from_domain(
-        cls,
         record: StaffCompensationRecord,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
     ) -> "StaffCompensationModel":
         effective_end_date = (
             record.effective_end_date.py_date() if record.effective_end_date else None
         )
 
-        return cls(
+        return StaffCompensationModel(
             org_id=org_id,
             employee_id=record.employee_id,
             base_rate_effective=record.base_rate_effective,

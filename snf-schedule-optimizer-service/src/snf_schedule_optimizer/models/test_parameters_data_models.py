@@ -1,13 +1,15 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from snf_schedule_optimizer.models import DomainPrimaryKeyType
+
 
 @dataclass(frozen=True)
 class FacilityParameters:
     """Parameters that are STABLE ACROSS TIME but VARY ACROSS FACILITIES."""
 
     # 1. Supply/Compliance Configuration
-    facility_id: str
+    facility_id: DomainPrimaryKeyType
     shift_structure: dict[str, tuple[str, str]]  # e.g., {'Day': ('07:00', '15:00')}
     base_cna_hprd_mandate: float = (
         2.5  # Minimum target HPRD for CNAs (CMS/State benchmark)

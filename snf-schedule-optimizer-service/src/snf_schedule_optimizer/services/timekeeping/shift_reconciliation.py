@@ -4,6 +4,7 @@ import whenever
 
 from snf_schedule_optimizer.datetime_utils import is_between
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     EmployeeTimeSettings,
     MealDeductionRules,
     PunchType,
@@ -243,21 +244,23 @@ class ShiftReconcilerService(IShiftReconcilerService):
 
     async def _apply_rounding_and_deduction(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         block: WorkedTimeBlock,
         settings: EmployeeTimeSettings,
-        facility_id: str,
+        facility_id: DomainPrimaryKeyType,
     ) -> list[WorkedTimeBlock]:
         # 1. Apply Rounding (Crucial Step: Rounding MUST happen before deduction checks)
         rounded_start = await self.rules_service.apply_rounding(
-            org_id,
             block.start_time,
             PunchType.CHECK_IN,
+            org_id,
+            facility_id,
         )
         rounded_end = await self.rules_service.apply_rounding(
-            org_id,
             block.end_time,
             PunchType.CHECK_OUT,
+            org_id,
+            facility_id,
         )
 
         # Create a temporary rounded block for deduction checks

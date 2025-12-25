@@ -5,7 +5,9 @@ import whenever
 from snf_schedule_optimizer.models import (
     Differential,
     DifferentialDateInterval,
+    DomainPrimaryKeyType,
     Employee,
+    EmployeeIdType,
     EmployeeRuleOverride,
     EmployeeTimeSettings,
     FacilityRulesConfig,
@@ -119,7 +121,7 @@ class IOvertimeRule(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def contract_id(self) -> str | None:
+    def contract_id(self) -> DomainPrimaryKeyType | None:
         """The specific union/facility contract ID this rule belongs to."""
         pass
 
@@ -171,13 +173,17 @@ class INurseDifferentialRepo(abc.ABC):
 
 class IDifferentialRuleRepo(abc.ABC):
     @abc.abstractmethod
-    async def get_all_rules(self, org_id: str) -> list[DifferentialRuleData]:
+    async def get_all_rules(
+        self, org_id: DomainPrimaryKeyType
+    ) -> list[DifferentialRuleData]:
         pass
 
 
 class IOvertimeRuleRepo(abc.ABC):
     @abc.abstractmethod
-    async def get_all_rules(self, org_id: str) -> list[OvertimeRuleData]:
+    async def get_all_rules(
+        self, org_id: DomainPrimaryKeyType
+    ) -> list[OvertimeRuleData]:
         pass
 
 
@@ -220,8 +226,8 @@ class IFacilityRulesRepo(abc.ABC):
     @abc.abstractmethod
     async def get_active_config(
         self,
-        org_id: str,
-        facility_id: str,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
         check_date: whenever.ZonedDateTime,
     ) -> FacilityRulesConfig | None:
         pass
@@ -234,8 +240,8 @@ class IEmployeeRulesRepo:
 
     async def get_employee_rule_overrides(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         check_date: whenever.ZonedDateTime,
     ) -> EmployeeRuleOverride | None:
         pass
@@ -249,9 +255,10 @@ class IFacilityRulesService(abc.ABC):
     @abc.abstractmethod
     async def apply_rounding(
         self,
-        org_id: str,
         raw_time: whenever.ZonedDateTime,
         punch_type: PunchType,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
     ) -> whenever.ZonedDateTime:
         """
         Applies facility-specific rounding rules (e.g., 6-minute rule, 15-minute rule)
@@ -266,9 +273,9 @@ class IFacilityRulesService(abc.ABC):
     @abc.abstractmethod
     async def get_time_settings(
         self,
-        org_id: str,
-        employee_id: str,
-        facility_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: EmployeeIdType,
+        facility_id: DomainPrimaryKeyType,
         check_dt: whenever.ZonedDateTime,
     ) -> EmployeeTimeSettings:
         """
@@ -280,8 +287,8 @@ class IFacilityRulesService(abc.ABC):
     @abc.abstractmethod
     async def get_meal_deduction_rules(
         self,
-        org_id: str,
-        facility_id: str,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
         check_dt: whenever.ZonedDateTime,
     ) -> MealDeductionRules | None:
         """

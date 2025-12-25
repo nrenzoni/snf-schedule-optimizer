@@ -1,4 +1,4 @@
-from sqlalchemy import Float, String
+from sqlalchemy import Float
 from sqlalchemy.orm import Mapped, mapped_column
 
 from snf_schedule_optimizer.models import ShiftSpecificRequirements
@@ -14,9 +14,10 @@ class ShiftRequirementsModel(SQLABase):
     __tablename__ = "shift_requirements"
 
     # Composite Primary Key mapping to the Shift identity
-    org_id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    facility_id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    shift_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    org_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    facility_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    shift_id: Mapped[int] = mapped_column(index=True, nullable=False)
 
     target_hprd_rn: Mapped[float] = mapped_column(Float, default=0.0)
     target_hprd_cna: Mapped[float] = mapped_column(Float, default=0.0)

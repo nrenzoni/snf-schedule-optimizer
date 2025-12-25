@@ -36,10 +36,10 @@ async def test_financial_hero_ot_vs_agency() -> None:
 
     # 2. Setup 12-Hour Shift
     shift = Shift(
-        org_id="ORG_1",
+        org_id=1,
         shift_key=ShiftKey(
-            facility_id="FAC_1",
-            shift_id="SHIFT_1",
+            facility_id=1,
+            shift_id=1,
         ),
         shift_start_dt=ref_date.add(hours=7),
         shift_end_dt=ref_date.add(hours=19),  # 12 Hours
@@ -54,21 +54,21 @@ async def test_financial_hero_ot_vs_agency() -> None:
     # Nurse A: Staff, $30/hr. Worked 38 hours already.
     # Cost logic: 2 hrs @ $30 + 10 hrs @ $45 (1.5x) = $60 + $450 = $510
     nurse_a = Employee(
-        employee_id="STAFF_A",
+        employee_id=1,
         name="Alice Staff",
         hire_date=ref_date.subtract(years=1).date(),
         job_title="RN",
         # base_rate=30.0,
     )
     comp_a = StaffCompensationRecord(
-        employee_id="STAFF_A",
+        employee_id=1,
         base_rate_effective=30.0,
         ot_multiplier=1.5,
         effective_start_date=ref_date.subtract(years=1).date(),
         is_agency=True,
     )
     profile_a = NurseProfile(
-        employee_id="STAFF_A",
+        employee_id=1,
         available_hours_weekly=12,
         skills=["RN"],
         shift_custom_preferences=[],
@@ -77,20 +77,20 @@ async def test_financial_hero_ot_vs_agency() -> None:
     # Nurse B: Agency, $55/hr flat.
     # Cost logic: 12 hrs @ $55 = $660
     nurse_b = Employee(
-        employee_id="AGENCY_B",
+        employee_id=323,
         name="Bob Agency",
         hire_date=ref_date.subtract(months=1).date(),
         job_title="RN",
     )
     comp_b = StaffCompensationRecord(
-        employee_id="AGENCY_B",
+        employee_id=323,
         base_rate_effective=55.0,
         ot_multiplier=1.0,  # Agency usually flat rate
         effective_start_date=ref_date.subtract(months=1).date(),
         is_agency=True,
     )
     profile_b = NurseProfile(
-        employee_id="AGENCY_B",
+        employee_id=323,
         available_hours_weekly=12,
         skills=["RN"],
         shift_custom_preferences=[],
@@ -100,20 +100,20 @@ async def test_financial_hero_ot_vs_agency() -> None:
         OptimizerTestBuilder()
         .with_employees([nurse_a, nurse_b], [profile_a, profile_b])
         .with_financials([comp_a, comp_b])
-        .with_history({"STAFF_A": 38.0})  # Specific setup for this test
+        .with_history({1: 38.0})  # Specific setup for this test
     )
 
     context = FacilityScenarioContext(
-        facility_id="FAC_1",
+        facility_id=1,
         shifts=[shift],
         config=FacilityConfig(
-            org_id="ORG_1",
-            facility_id="FAC_1",
+            org_id=1,
+            facility_id=1,
             overtime_threshold_hours_per_week=40,
             shifts_per_day=2,
             start_of_work_week_day=whenever.Weekday.MONDAY,
             start_of_work_day_time=whenever.Time(7, 0, 0),
-            pay_period=whenever.DateTimeDelta(weeks=1),
+            pay_period=whenever.DateDelta(weeks=1),
             weekend_multiplier=1.5,
             night_shift_multiplier=2.0,
             tz=tz_ny,
@@ -133,8 +133,8 @@ async def test_financial_hero_ot_vs_agency() -> None:
     optimizer = test_builder.build_optimizer()
 
     data_provider = test_builder.factory.create(
-        org_id="ORG_1",
-        facility_contexts={"FAC_1": context},
+        org_id=1,
+        facility_contexts={1: context},
         pay_period_start=TimeRoundingUtility.start_of_week_zoned(ref_date).to_instant(),
         optimization_start_time=ref_date.to_instant(),
     )
@@ -151,17 +151,17 @@ async def test_financial_hero_ot_vs_agency() -> None:
     assigned_ids = result.optimal_schedule.shift_assignments[shift.shift_key]
 
     print("\n--- TEST 1: FINANCIAL HERO ---")
-    if "STAFF_A" in assigned_ids:
+    if 1 in assigned_ids:
         print("SUCCESS: Solver chose Staff (w/ OT) over Agency.")
         # Staff: 2hr @ 30 + 10hr @ 45 = 60 + 450 = 510
         # Agency: 12hr @ 55 = 660
         print(f"Estimated Savings: ${660 - 510}")
-    elif "AGENCY_B" in assigned_ids:
+    elif 323 in assigned_ids:
         print("FAILURE: Solver chose Agency.")
     else:
         print("FAILURE: No assignment made.")
 
-    assert "STAFF_A" in assigned_ids
+    assert 1 in assigned_ids
 
 
 async def test_compliance_safety_net() -> None:
@@ -174,10 +174,10 @@ async def test_compliance_safety_net() -> None:
 
     # 2. Setup Shift
     shift = Shift(
-        org_id="ORG_1",
+        org_id=1,
         shift_key=ShiftKey(
-            facility_id="FAC_1",
-            shift_id="SHIFT_CRITICAL",
+            facility_id=1,
+            shift_id=2,
         ),
         shift_number=1,
         day_shift=True,
@@ -191,7 +191,7 @@ async def test_compliance_safety_net() -> None:
     # 3. Setup Employees
     # Nurse A: The ONLY RN available. Wants off.
     nurse_a = Employee(
-        employee_id="RN_SUE",
+        employee_id=456,
         name="Sue RN",
         hire_date=ref_date.date(),
         job_title="RN",
@@ -199,7 +199,7 @@ async def test_compliance_safety_net() -> None:
     # Note: StaffCompensationRecord arguments simplified for readability if defaults allow,
     # otherwise keep full arguments.
     comp_a = StaffCompensationRecord(
-        employee_id="RN_SUE",
+        employee_id=456,
         base_rate_effective=40.0,
         ot_multiplier=1.5,
         is_agency=False,
@@ -208,7 +208,7 @@ async def test_compliance_safety_net() -> None:
         union_contract_id=None,
     )
     profile_a = NurseProfile(
-        employee_id="RN_SUE",
+        employee_id=456,
         available_hours_weekly=40,
         skills=["RN"],
         # Note: The builder uses the penalty map below, effectively overriding this object
@@ -225,13 +225,13 @@ async def test_compliance_safety_net() -> None:
 
     # Nurse B: A CNA (Cannot fill RN slot).
     nurse_b = Employee(
-        employee_id="CNA_BOB",
+        employee_id=123,
         name="Bob CNA",
         hire_date=ref_date.date(),
         job_title="CNA",
     )
     comp_b = StaffCompensationRecord(
-        employee_id="CNA_BOB",
+        employee_id=123,
         base_rate_effective=20.0,
         ot_multiplier=1.5,
         is_agency=False,
@@ -240,7 +240,7 @@ async def test_compliance_safety_net() -> None:
         union_contract_id=None,
     )
     profile_b = NurseProfile(
-        employee_id="CNA_BOB",
+        employee_id=123,
         available_hours_weekly=40,
         skills=["CNA"],
         shift_custom_preferences=[],
@@ -250,8 +250,8 @@ async def test_compliance_safety_net() -> None:
     # Define the fake calculator to force the logic we want to test
     fake_hprd_calc = FakeHprdRequirementCalculator(
         requirements_map={
-            ("SHIFT_CRITICAL", HprdEnforcedRole.RN): 1.0,
-            ("SHIFT_CRITICAL", HprdEnforcedRole.CNA): 0.0,
+            (2, HprdEnforcedRole.RN): 1.0,
+            (2, HprdEnforcedRole.CNA): 0.0,
         }
     )
 
@@ -266,16 +266,16 @@ async def test_compliance_safety_net() -> None:
 
     # 5. Setup Context
     context = FacilityScenarioContext(
-        facility_id="FAC_1",
+        facility_id=1,
         shifts=[shift],
         config=FacilityConfig(
-            org_id="ORG_1",
-            facility_id="FAC_1",
+            org_id=1,
+            facility_id=1,
             shifts_per_day=3,
             overtime_threshold_hours_per_week=40,
             start_of_work_week_day=whenever.Weekday.MONDAY,
             start_of_work_day_time=whenever.Time(7, 0, 0),
-            pay_period=whenever.DateTimeDelta(weeks=1),
+            pay_period=whenever.DateDelta(weeks=1),
             weekend_multiplier=1.5,
             night_shift_multiplier=2.0,
             tz=tz_ny,
@@ -288,8 +288,8 @@ async def test_compliance_safety_net() -> None:
     optimizer = optimizer_builder.build_optimizer()
 
     data_provider = optimizer_builder.factory.create(
-        org_id="ORG_1",
-        facility_contexts={"FAC_1": context},
+        org_id=1,
+        facility_contexts={1: context},
         pay_period_start=TimeRoundingUtility.start_of_week_zoned(ref_date).to_instant(),
         optimization_start_time=ref_date.to_instant(),
     )
@@ -307,11 +307,11 @@ async def test_compliance_safety_net() -> None:
     # Check for assignment safely
     assignments = result.optimal_schedule.shift_assignments.get(shift.shift_key, [])
 
-    if result.success and "RN_SUE" in assignments:
+    if result.success and 456 in assignments:
         print("SUCCESS: Solver assigned RN Sue despite her preference.")
         print("Reason: HPRD Compliance took priority over Preference.")
     else:
         print(f"FAILURE. Infeasibility: {result.infeasibility_reason}")
 
     assert result.success is True
-    assert "RN_SUE" in assignments
+    assert 456 in assignments

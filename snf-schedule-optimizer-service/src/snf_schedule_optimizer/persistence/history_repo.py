@@ -7,11 +7,16 @@ from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from snf_schedule_optimizer.models import Shift, ShiftKey, TimePunch
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    Shift,
+    ShiftKey,
+    TimePunch,
+)
 from snf_schedule_optimizer.services.timekeeping.interfaces import IRawHistoryRepo
 from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
 
-RawHistoryRecord = tuple[str, Shift, list[TimePunch]]
+RawHistoryRecord = tuple[DomainPrimaryKeyType, Shift, list[TimePunch]]
 
 
 class FakeRawHistoryRepo(IRawHistoryRepo):
@@ -24,19 +29,19 @@ class FakeRawHistoryRepo(IRawHistoryRepo):
         """
         Initializes with a list of pre-grouped shift and punch data.
         """
-        self.shift_assignment_map: dict[str, list[tuple[Shift, list[TimePunch]]]] = (
-            defaultdict(list)
-        )
+        self.shift_assignment_map: dict[
+            DomainPrimaryKeyType, list[tuple[Shift, list[TimePunch]]]
+        ] = defaultdict(list)
         for employee_id, shift, punches in records:
             self.shift_assignment_map[employee_id].append((shift, punches))
 
     async def get_raw_inputs_for_period(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         check_date: whenever.Instant,
-        facility_timezones: dict[str, str],
-        facility_id: str | None = None,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
+        facility_id: DomainPrimaryKeyType | None = None,
     ) -> dict[ShiftKey, list[TimePunch]]:
         if employee_id not in self.shift_assignment_map:
             return {}
@@ -79,11 +84,11 @@ class SQLRawHistoryRepo(IRawHistoryRepo):
 
     async def get_raw_inputs_for_period(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         check_date: whenever.Instant,
-        facility_timezones: dict[str, str],
-        facility_id: str | None = None,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
+        facility_id: DomainPrimaryKeyType | None = None,
     ) -> dict[ShiftKey, list[TimePunch]]:
         # 1. Define the Lookback Period
         # We look back enough to cover the max OT lookback (e.g., 7 days)
@@ -135,10 +140,10 @@ class SQLRawHistoryRepo(IRawHistoryRepo):
             punch_models, key=lambda p: p.shift_id
         ):
             # Since we filtered IS NOT NONE in SQL, strict casting to str is safe here.
-            current_shift_id = str(shift_id)
+            current_shift_id = shift_id
             punch_list = list(punch_group)
 
-            actual_facility_id = str(punch_list[0].facility_id)
+            actual_facility_id = punch_list[0].facility_id
 
             # Since we grouped by shift_id, all punches here share the same shift
             shift_domain_object = ShiftKey(

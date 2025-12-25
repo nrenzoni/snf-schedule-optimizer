@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:18-alpine
@@ -16,7 +14,7 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "5432:5432"
+      - "5435:5432"  # host port 5435 to avoid local conflicts, internally still 5432
 
   # One-shot service to handle schema creation and seeding
   seeder:
@@ -24,10 +22,11 @@ services:
     container_name: snf-optimizer-seeder
     environment:
       DATABASE_URL: postgresql+asyncpg://snf_user:snf_password@db:5432/snf_optimizer_demo
+      UV_SYSTEM_PYTHON: 1
     depends_on:
       db:
         condition: service_healthy
-    command: python /app/src/snf_schedule_optimizer/infrastructure/demo_bootstrap.py
+    command: python -m snf_schedule_optimizer.infrastructure.demo_bootstrap
 
   # Main API Service
   app:
@@ -35,12 +34,13 @@ services:
     container_name: snf-optimizer-api
     environment:
       DATABASE_URL: postgresql+asyncpg://snf_user:snf_password@db:5432/snf_optimizer_demo
+      UV_SYSTEM_PYTHON: 1
     depends_on:
       seeder:
         condition: service_completed_successfully
     ports:
       - "8000:8000"
-    command: python /app/src/snf_schedule_optimizer/api/main.py
+    command: python -m snf_schedule_optimizer.api.main
 
 volumes:
   pgdata:

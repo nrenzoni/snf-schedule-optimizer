@@ -4,6 +4,7 @@ import whenever
 
 from snf_schedule_optimizer.models import (
     Employee,
+    EmployeeIdType,
     NurseProfile,
     ResidentAcuity,
     Shift,
@@ -79,6 +80,6 @@ class ScenarioResult:
     employees: list[Employee]
     nurses: list[NurseProfile]
     financials: list[StaffCompensationRecord]
-    history_map: dict[str, float]  # employee_id -> hours
+    history_map: dict[EmployeeIdType, float]  # employee_id -> hours
     preference_penalties: dict[str, float]  # pre-calculated penalties
     acuity_data: list[ResidentAcuity]

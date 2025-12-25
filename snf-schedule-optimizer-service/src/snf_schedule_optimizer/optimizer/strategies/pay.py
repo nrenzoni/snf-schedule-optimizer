@@ -314,7 +314,7 @@ class DailyOvertimePayStrategy(IPayModelStrategy):
             for nurse in nurses:
                 var = lp_holder.get_variable(
                     shift,
-                    shift.shift_id,
+                    shift.shift_key.shift_id,
                 )
                 if not var:
                     continue

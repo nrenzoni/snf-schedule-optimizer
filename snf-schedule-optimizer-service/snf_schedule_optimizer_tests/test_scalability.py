@@ -1,19 +1,19 @@
 import whenever
 
-from snf_schedule_optimizer.models import FacilityConfig, MinMandates, PreferenceWeights
-from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
-from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
-
 from snf_schedule_optimizer.infrastructure.scenario_builder import (
     ScenarioBuilder,
     ScenarioDebugPrinter,
 )
+from snf_schedule_optimizer.models import FacilityConfig, MinMandates, PreferenceWeights
 from snf_schedule_optimizer.models.scenario_models import (
     HistoryConfig,
     PayBandConfig,
     TimeConfig,
     WorkforceConfig,
 )
+from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
+from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
+
 from .test_builder import OptimizerTestBuilder
 
 ny_tz = "America/New_York"
@@ -58,16 +58,16 @@ async def test_large_scale_financial_optimization() -> None:
 
     # 3. Setup Context
     context = FacilityScenarioContext(
-        facility_id="FAC_1",
+        facility_id=1,
         shifts=scenario_data.shifts,
         config=FacilityConfig(
-            org_id="ORG_1",
-            facility_id="FAC_1",
+            org_id=1,
+            facility_id=1,
             shifts_per_day=3,
             overtime_threshold_hours_per_week=40,
             start_of_work_week_day=whenever.Weekday.MONDAY,
             start_of_work_day_time=whenever.Time(7, 0, 0),
-            pay_period=whenever.DateTimeDelta(weeks=1),
+            pay_period=whenever.DateDelta(weeks=1),
             weekend_multiplier=1.5,
             night_shift_multiplier=2.0,
             tz=ny_tz,
@@ -89,8 +89,8 @@ async def test_large_scale_financial_optimization() -> None:
     )
 
     optimization_output = await service.optimize_schedule(
-        org_id="ORG_1",
-        facility_contexts={"FAC_1": context},
+        org_id=1,
+        facility_contexts={1: context},
         preference_weights=PreferenceWeights(),
         pay_period_start=TimeRoundingUtility.start_of_week_zoned(
             scenario_data.shifts[0].shift_start_dt.to_tz(ny_tz)
@@ -137,7 +137,7 @@ async def test_stress_multi_facility_optimization() -> None:
 
     # --- 2. Generate Data for n Facilities ---
     for i in range(1, n_facilities + 1):
-        fac_id = f"FAC_{i:02d}"  # FAC_01, FAC_02...
+        fac_id = i
 
         # A. Instantiate Builder (Seeded for determinism per facility)
         builder = ScenarioBuilder(seed=100 + i)
@@ -145,7 +145,7 @@ async def test_stress_multi_facility_optimization() -> None:
         # B. Manually Set Facility/Org context on the builder
         # (Assuming builder exposes these or we patch them before build)
         builder.facility_id = fac_id
-        builder.org_id = "ORG_ENTERPRISE"
+        builder.org_id = 2
 
         # C. Configure Time (7 Days, 3 Shifts)
         builder.with_time(
@@ -202,13 +202,13 @@ async def test_stress_multi_facility_optimization() -> None:
             facility_id=fac_id,
             shifts=scenario.shifts,
             config=FacilityConfig(
-                org_id="ORG_ENTERPRISE",
+                org_id=2,
                 facility_id=fac_id,
                 shifts_per_day=3,
                 overtime_threshold_hours_per_week=40,
                 start_of_work_week_day=whenever.Weekday.SUNDAY,
                 start_of_work_day_time=whenever.Time(7, 0, 0),
-                pay_period=whenever.DateTimeDelta(weeks=1),
+                pay_period=whenever.DateDelta(weeks=1),
                 weekend_multiplier=1.25,
                 night_shift_multiplier=1.5,
                 tz=ny_tz,
@@ -245,7 +245,7 @@ async def test_stress_multi_facility_optimization() -> None:
     # --- 4. Solve ---
     print("\nStarting Optimization (This may take a moment)...")
     result = await service.optimize_schedule(
-        org_id="ORG_ENTERPRISE",
+        org_id=2,
         facility_contexts=facility_contexts,
         preference_weights=PreferenceWeights(
             ot_avoidance_penalty=10.0,
@@ -278,7 +278,7 @@ async def test_stress_multi_facility_optimization() -> None:
         )
 
     # Verify Logic: Troubled Facility 5 should have higher Agency spend if needed
-    fac_5_cost = result.financials.breakdown_per_facility.get("FAC_05")
+    fac_5_cost = result.financials.breakdown_per_facility.get(5)
     if fac_5_cost and fac_5_cost.agency_spend > 0:
         print(
             f"\nVerified: FAC_05 (High Agency Config) has agency spend of ${fac_5_cost.agency_spend:,.2f}"

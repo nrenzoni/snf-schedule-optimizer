@@ -1,7 +1,7 @@
 import datetime
 
 import whenever
-from sqlalchemy import Boolean, Date, ForeignKey, String
+from sqlalchemy import Boolean, Date, ForeignKeyConstraint, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import SQLABase
@@ -17,13 +17,9 @@ class EmployeeCertificationModel(SQLABase):
     __tablename__ = "employee_certification"
 
     # Primary Key
-    org_id: Mapped[str] = mapped_column(String(36), index=True)
-    id: Mapped[int] = mapped_column(primary_key=True)
-
-    # Foreign Key to EmployeeModel
-    employee_id: Mapped[str] = mapped_column(
-        ForeignKey("employee.employee_id"), index=True
-    )
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    org_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    employee_id: Mapped[int] = mapped_column(index=True, nullable=False)
 
     # Certification Metadata
     certification_name: Mapped[str] = mapped_column(String(50))
@@ -36,6 +32,14 @@ class EmployeeCertificationModel(SQLABase):
 
     # Relationship to the Employee (Many Certifications belong to One Employee)
     employee: Mapped[EmployeeModel] = relationship(back_populates="certifications")
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ("org_id", "employee_id"),
+            ("employee.org_id", "employee.id"),
+            name="fk_employee_certification_employee",
+        ),
+    )
 
     def __repr__(self) -> str:
         return (

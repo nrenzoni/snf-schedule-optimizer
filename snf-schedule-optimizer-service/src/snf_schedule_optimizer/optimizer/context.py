@@ -5,6 +5,8 @@ import pulp
 from pulp import LpVariable
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    EmployeeIdType,
     FacilityConfig,
     HprdEnforcedRole,
     MinMandates,
@@ -17,7 +19,7 @@ from snf_schedule_optimizer.optimizer.lp_helpers import build_lp_variable_name
 class FacilityScenarioContext:
     """Grouping of inputs specific to a single facility for a scenario run."""
 
-    facility_id: str
+    facility_id: DomainPrimaryKeyType
     shifts: list[Shift]
     config: FacilityConfig
     min_mandates: MinMandates | None = None
@@ -29,9 +31,9 @@ class FacilityScenarioContext:
 
 @dataclass(frozen=True)
 class LpShiftKey:
-    facility_id: str
+    facility_id: DomainPrimaryKeyType
     shift: Shift
-    employee_id: str
+    employee_id: EmployeeIdType
 
 
 class LpNurseShiftVariableHolder:
@@ -39,12 +41,12 @@ class LpNurseShiftVariableHolder:
         self._assignment_vars: dict[LpShiftKey, LpVariable] = {}
 
         # Key is Tuple: (employee_id, bucket_type) -> bucket_type is 'reg' or 'ot'
-        self._pay_vars: dict[tuple[str, str], LpVariable] = {}
+        self._pay_vars: dict[tuple[EmployeeIdType, str], LpVariable] = {}
 
     def add_variable(
         self,
         shift: Shift,
-        employee_id: str,
+        employee_id: EmployeeIdType,
     ) -> LpVariable:
         facility_id = shift.facility_id
         shift_id = shift.shift_id
@@ -67,13 +69,13 @@ class LpNurseShiftVariableHolder:
     def get_variable(
         self,
         shift: Shift,
-        employee_id: str,
+        employee_id: EmployeeIdType,
     ) -> LpVariable | None:
         return self._assignment_vars.get(
             LpShiftKey(shift.facility_id, shift, employee_id)
         )
 
-    def add_pay_variables(self, employee_id: str) -> None:
+    def add_pay_variables(self, employee_id: EmployeeIdType) -> None:
         """Creates the bucket variables for Volume-based OT."""
 
         # Regular Hours
@@ -92,7 +94,9 @@ class LpNurseShiftVariableHolder:
         )
         self._pay_vars[(employee_id, "ot")] = ot_var
 
-    def get_pay_variables(self, employee_id: str) -> dict[str, LpVariable] | None:
+    def get_pay_variables(
+        self, employee_id: EmployeeIdType
+    ) -> dict[str, LpVariable] | None:
         """Returns a dict {'reg': Var, 'ot': Var} for easy access."""
         reg = self._pay_vars.get((employee_id, "reg"))
         ot = self._pay_vars.get((employee_id, "ot"))
@@ -105,7 +109,7 @@ class LpNurseShiftVariableHolder:
         """Expose the raw dictionary for efficient iteration during result extraction."""
         return self._assignment_vars
 
-    def get_all_employees(self) -> set[str]:
+    def get_all_employees(self) -> set[DomainPrimaryKeyType]:
         """Returns a set of all employee IDs with assignment variables."""
         # Unpack 3 keys: facility_id, employee_id, shift_id
         return set(var.employee_id for var in self._assignment_vars.keys())
@@ -118,7 +122,7 @@ class HprdShiftNurseRequirementHolder:
 
     def __init__(
         self,
-        shifts: list[str],  # shift_ids
+        shifts: list[DomainPrimaryKeyType],
         roles: list[HprdEnforcedRole],
     ):
         # self.values: np.ndarray[Any, np.dtype[np.float64]]  # Shape: (n_shifts, n_roles)
@@ -129,7 +133,7 @@ class HprdShiftNurseRequirementHolder:
 
     def __setitem__(
         self,
-        key: tuple[str, HprdEnforcedRole],
+        key: tuple[DomainPrimaryKeyType, HprdEnforcedRole],
         value: float,
     ) -> None:  # (shift_id, NurseRole)
         shift_idx = self.shifts.index(key[0])
@@ -138,7 +142,7 @@ class HprdShiftNurseRequirementHolder:
 
     def __getitem__(
         self,
-        key: tuple[str, HprdEnforcedRole],
+        key: tuple[DomainPrimaryKeyType, HprdEnforcedRole],
     ) -> float:  # (shift_id, NurseRole)
         shift_idx = self.shifts.index(key[0])
         role_idx = self.roles.index(key[1])
@@ -148,6 +152,6 @@ class HprdShiftNurseRequirementHolder:
         shift_idx = self.shifts.index(shift.shift_id)
         self.values[shift_idx, -1] += value
 
-    def get_total_req(self, shift_str: str) -> float:
-        shift_idx = self.shifts.index(shift_str)
+    def get_total_req(self, shift_id: DomainPrimaryKeyType) -> float:
+        shift_idx = self.shifts.index(shift_id)
         return float(self.values[shift_idx, -1])

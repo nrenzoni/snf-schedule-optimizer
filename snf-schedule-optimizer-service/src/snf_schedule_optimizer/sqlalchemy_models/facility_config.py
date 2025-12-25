@@ -16,8 +16,9 @@ class FacilityConfigModel(SQLABase):
 
     __tablename__ = "facility_config"
 
-    org_id: Mapped[str] = mapped_column(String, primary_key=True)
-    facility_id: Mapped[str] = mapped_column(String, primary_key=True)
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    facility_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    org_id: Mapped[int] = mapped_column(index=True, nullable=False)
 
     # Core Scheduling Parameters
     timezone: Mapped[str] = mapped_column(
@@ -43,8 +44,8 @@ class FacilityConfigModel(SQLABase):
         Maps the database record to the domain FacilityConfig object.
         """
         return FacilityConfig(
-            org_id=str(self.org_id),
-            facility_id=str(self.facility_id),
+            org_id=self.org_id,
+            facility_id=self.facility_id,
             shifts_per_day=int(self.shifts_per_day),
             overtime_threshold_hours_per_week=int(
                 self.overtime_threshold_hours_per_week
@@ -57,9 +58,31 @@ class FacilityConfigModel(SQLABase):
                 self.start_of_work_day_time.minute,
                 self.start_of_work_day_time.second,
             ),
-            pay_period=whenever.DateTimeDelta(weeks=self.pay_period_weeks),
+            pay_period=whenever.DateDelta(weeks=self.pay_period_weeks),
             weekend_multiplier=float(self.weekend_multiplier),
             night_shift_multiplier=float(self.night_shift_multiplier),
             # Note: timezone is used by retrievers to hydrate ZonedDateTime
             tz=self.timezone,
+        )
+
+    @staticmethod
+    def from_domain(domain: FacilityConfig) -> "FacilityConfigModel":
+        """
+        Creates a FacilityConfigModel from a domain FacilityConfig object.
+        """
+        return FacilityConfigModel(
+            org_id=domain.org_id,
+            facility_id=domain.facility_id,
+            shifts_per_day=domain.shifts_per_day,
+            overtime_threshold_hours_per_week=domain.overtime_threshold_hours_per_week,
+            start_of_work_week_day=domain.start_of_work_week_day.value,
+            start_of_work_day_time=datetime.time(
+                domain.start_of_work_day_time.hour,
+                domain.start_of_work_day_time.minute,
+                domain.start_of_work_day_time.second,
+            ),
+            pay_period_weeks=domain.pay_period.in_months_days()[1] // 7,
+            weekend_multiplier=domain.weekend_multiplier,
+            night_shift_multiplier=domain.night_shift_multiplier,
+            timezone=domain.tz,
         )

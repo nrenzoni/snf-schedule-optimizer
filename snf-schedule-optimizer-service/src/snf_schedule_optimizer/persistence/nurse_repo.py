@@ -3,7 +3,11 @@ import abc
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from snf_schedule_optimizer.models import NurseProfile, Shift
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    NurseProfile,
+    Shift,
+)
 from snf_schedule_optimizer.sqlalchemy_models.nurse_profile import NurseProfileModel
 
 
@@ -18,14 +22,14 @@ class INurseRepo(abc.ABC):
     @abc.abstractmethod
     async def get_nurse(
         self,
-        employee_id: str,
+        employee_id: DomainPrimaryKeyType,
     ) -> NurseProfile | None:
         pass
 
     @abc.abstractmethod
     async def save_nurse_profile(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         nurse: NurseProfile,
     ) -> None:
         """Persists a domain NurseProfile and its associated preferences."""
@@ -51,7 +55,7 @@ class SQLNurseRepo(INurseRepo):
         models = result.scalars().all()
         return [m.to_domain() for m in models]
 
-    async def get_nurse(self, employee_id: str) -> NurseProfile | None:
+    async def get_nurse(self, employee_id: DomainPrimaryKeyType) -> NurseProfile | None:
         """
         Retrieves a specific nurse profile by employee ID.
         """
@@ -65,7 +69,7 @@ class SQLNurseRepo(INurseRepo):
 
     async def save_nurse_profile(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         nurse: NurseProfile,
     ) -> None:
         """

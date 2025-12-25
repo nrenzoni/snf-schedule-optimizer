@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 import whenever
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     HprdEnforcedRole,
     NurseProfile,
     PreferenceType,
@@ -24,7 +25,7 @@ class ConstraintViolation:
 
     category: str  # e.g., "Compliance", "Wellbeing", "Financial"
     rule_name: str
-    entity_id: str  # The Shift or Employee involved
+    entity_id: str  # The Shift or Employee involved, not a database ID
     details: str
     severity: str  # "Hard" (Critical) or "Soft" (Penalty incurred)
 
@@ -33,7 +34,7 @@ class ConstraintViolation:
 class ShiftAssignmentDetail:
     """Human-readable detail for a single assignment."""
 
-    shift_id: str
+    shift_id: DomainPrimaryKeyType
     shift_date: str
     employee_name: str
     employee_role: str

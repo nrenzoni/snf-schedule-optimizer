@@ -16,7 +16,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
-from snf_schedule_optimizer.utils.sqlalchemy_types.instant_type import InstantType
+from snf_schedule_optimizer.utils.sqlalchemy_types.whenever_types import InstantType
 
 if TYPE_CHECKING:
     from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
@@ -35,24 +35,27 @@ class TimePunchModel(SQLABase):
     # to (org_id, facility_id, shift_id) in the 'shift' table.
     __table_args__ = (
         ForeignKeyConstraint(
-            ["org_id", "facility_id", "shift_id"],
-            ["shift.org_id", "shift.facility_id", "shift.shift_id"],
-            name="fk_time_punch_shift_composite",
+            (
+                "org_id",
+                "shift_id",
+            ),
+            ["shift.org_id", "shift.id"],
+            name="fk_time_punch_shift",
             ondelete="CASCADE",
         ),
     )
 
     # --- Core Identity & Time ---
-    org_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
-    facility_id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    org_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    facility_id: Mapped[int] = mapped_column(index=True, nullable=False)
 
     # NEW: Use UUID for raw_punch_id as it often corresponds to a GUID/UUID in source systems
     raw_punch_id: Mapped[uuid.UUID] = mapped_column(
         String(36), unique=True, nullable=False
     )
 
-    employee_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    employee_id: Mapped[int] = mapped_column(index=True, nullable=False)
 
     # CRITICAL CHANGE: Single time field for the event
     punch_time: Mapped[whenever.Instant] = mapped_column(InstantType, nullable=False)
@@ -65,7 +68,7 @@ class TimePunchModel(SQLABase):
     is_ignored: Mapped[bool] = mapped_column(Boolean, default=False)
     is_dragged_time: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    shift_id: Mapped[str | None] = mapped_column(String, nullable=False)
+    shift_id: Mapped[int] = mapped_column(index=True, nullable=False)
     shift_code: Mapped[str | None] = mapped_column(String, nullable=False)
 
     # --- Cost Allocation Fields ---

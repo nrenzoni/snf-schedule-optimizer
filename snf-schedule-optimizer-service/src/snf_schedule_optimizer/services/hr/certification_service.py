@@ -1,5 +1,6 @@
 import whenever
 
+from snf_schedule_optimizer.models import DomainPrimaryKeyType
 from snf_schedule_optimizer.services.hr.interfaces import (
     ICertificationRepo,
     ICertificationService,
@@ -17,8 +18,8 @@ class CertificationService(ICertificationService):
 
     async def is_certification_active(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         certification_name: str,
         check_date: whenever.ZonedDateTime,
     ) -> bool:

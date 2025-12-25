@@ -2,7 +2,11 @@ import abc
 
 import whenever
 
-from snf_schedule_optimizer.models import Employee, StaffCompensationRecord
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    Employee,
+    StaffCompensationRecord,
+)
 from snf_schedule_optimizer.models.persistence_dtos import EmployeeCertificationData
 
 
@@ -12,8 +16,8 @@ class IEmployeeRepo(abc.ABC):
     @abc.abstractmethod
     async def get_employee_by_id(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
     ) -> Employee | None:
         """
         Retrieves a single Employee record by their unique ID.
@@ -23,7 +27,7 @@ class IEmployeeRepo(abc.ABC):
     @abc.abstractmethod
     async def get_all_employees(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
     ) -> list[Employee]:
         """Retrieves all active Employee records."""
         pass
@@ -31,7 +35,7 @@ class IEmployeeRepo(abc.ABC):
     @abc.abstractmethod
     async def save_employee(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         employee: Employee,
     ) -> None:
         """Persists a domain Employee object."""
@@ -44,8 +48,8 @@ class IStaffCompensationRepo(abc.ABC):
     @abc.abstractmethod
     async def get_record_for_date(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         check_date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
         """
@@ -57,7 +61,7 @@ class IStaffCompensationRepo(abc.ABC):
     @abc.abstractmethod
     async def save_compensation_record(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
         record: StaffCompensationRecord,
     ) -> None:
         """Persists a domain StaffCompensationRecord."""
@@ -68,8 +72,8 @@ class ICertificationService(abc.ABC):
     @abc.abstractmethod
     async def is_certification_active(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         certification_name: str,
         check_date: whenever.ZonedDateTime,
     ) -> bool:
@@ -83,7 +87,7 @@ class ICertificationRepo(abc.ABC):
     @abc.abstractmethod
     async def get_certifications_for_employee(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
     ) -> list[EmployeeCertificationData]:
         pass

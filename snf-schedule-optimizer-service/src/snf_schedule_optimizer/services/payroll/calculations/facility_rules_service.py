@@ -4,8 +4,10 @@ from dataclasses import replace
 import whenever
 
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     EmployeeTimeSettings,
     MealDeductionRules,
+    PunchType,
     RoundingType,
     SplitDayType,
 )
@@ -33,9 +35,10 @@ class FacilityRulesService(IFacilityRulesService):
 
     async def apply_rounding(
         self,
-        org_id: str,
         raw_time: whenever.ZonedDateTime,
-        facility_id: str,
+        punch_type: PunchType,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
     ) -> whenever.ZonedDateTime:
         """
         Business logic: Rounds time based on the facility's specific unit.
@@ -60,9 +63,9 @@ class FacilityRulesService(IFacilityRulesService):
 
     async def get_time_settings(
         self,
-        org_id: str,
-        employee_id: str,
-        facility_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
         check_dt: whenever.ZonedDateTime,
     ) -> EmployeeTimeSettings:
         """
@@ -122,8 +125,8 @@ class FacilityRulesService(IFacilityRulesService):
 
     async def get_meal_deduction_rules(
         self,
-        org_id: str,
-        facility_id: str,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
         check_dt: whenever.ZonedDateTime,
     ) -> MealDeductionRules | None:
         """

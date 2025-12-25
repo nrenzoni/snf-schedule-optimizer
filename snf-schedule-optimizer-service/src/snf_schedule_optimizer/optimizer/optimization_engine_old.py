@@ -38,7 +38,7 @@
 #
 #     def add_variable(
 #         self,
-#         employee_id: str,
+#         employee_id: EmployeeIdType,
 #         shift_id: str,
 #     ) -> LpVariable:
 #         var_name = f"X__{employee_id}__{shift_id}"
@@ -46,7 +46,7 @@
 #         self.variables[var_name] = var
 #         return var
 #
-#     def get_variable(self, employee_id: str, shift_id: str) -> LpVariable:
+#     def get_variable(self, employee_id: EmployeeIdType, shift_id: str) -> LpVariable:
 #         var_name = f"X__{employee_id}__{shift_id}"
 #         return self.variables[var_name]
 #

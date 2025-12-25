@@ -2,8 +2,10 @@ import whenever
 
 from snf_schedule_optimizer.ml_output_repo import IMLModelOutputsRepo
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     Employee,
     FacilityConfig,
+    FacilityIdType,
     MlModelOutputs,
     NurseProfile,
     Shift,
@@ -34,8 +36,8 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
 
     def __init__(
         self,
-        target_org_id: str,
-        facility_contexts: dict[str, FacilityScenarioContext],
+        target_org_id: DomainPrimaryKeyType,
+        facility_contexts: dict[FacilityIdType, FacilityScenarioContext],
         # shifts: List["Shift"],  # The scope of this scenario
         # config: "FacilityConfig",
         employee_retriever: IEmployeeRepo,
@@ -92,12 +94,12 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         # self._min_mandates = min_mandates
 
         # Internal Caches for parameterized data
-        self._shift_nurses_cache: dict[str, list[NurseProfile]] = {}
+        self._shift_nurses_cache: dict[DomainPrimaryKeyType, list[NurseProfile]] = {}
         self._cached_all_employees: list[Employee] | None = None
-        self._cached_hprd_reqs: dict[str, HprdShiftNurseRequirementHolder] = {}
-        self._accumulated_hours_cache: dict[str, float] = {}
+        self._cached_hprd_reqs: dict[int, HprdShiftNurseRequirementHolder] = {}
+        self._accumulated_hours_cache: dict[DomainPrimaryKeyType, float] = {}
 
-    def get_org_id(self) -> str:
+    def get_org_id(self) -> DomainPrimaryKeyType:
         """Returns the organization ID for this optimization run."""
         return self.target_org_id
 
@@ -112,7 +114,9 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
             )
         return self._cached_all_employees
 
-    async def get_employee_by_id(self, employee_id: str) -> Employee | None:
+    async def get_employee_by_id(
+        self, employee_id: DomainPrimaryKeyType
+    ) -> Employee | None:
         # Simple lookup from pre-fetched list
         for emp in await self.get_all_employees():
             if emp.employee_id == employee_id:
@@ -122,7 +126,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
     # FIX 14: Removed @cached_property, used manual caching
     async def get_hprd_requirements_for_facility(
         self,
-        facility_id: str,
+        facility_id: DomainPrimaryKeyType,
     ) -> HprdShiftNurseRequirementHolder:
         if facility_id not in self._cached_hprd_reqs:
             # print(f"Calculating heavy HPRD math for fac {facility_id}...")
@@ -149,7 +153,9 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
     def get_ml_model_outputs(self, shift: Shift) -> MlModelOutputs:
         return self._ml_model_retriever.get_model_outputs(shift)
 
-    async def get_accumulated_hours_for_pay_period(self, employee_id: str) -> float:
+    async def get_accumulated_hours_for_pay_period(
+        self, employee_id: DomainPrimaryKeyType
+    ) -> float:
         if employee_id in self._accumulated_hours_cache:
             return self._accumulated_hours_cache[employee_id]
 
@@ -174,10 +180,10 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self._accumulated_hours_cache[employee_id] = total_hours
         return total_hours
 
-    def get_facility_ids(self) -> list[str]:
+    def get_facility_ids(self) -> list[FacilityIdType]:
         return list(self._facility_contexts.keys())
 
-    def get_shifts_for_facility(self, facility_id: str) -> list[Shift]:
+    def get_shifts_for_facility(self, facility_id: DomainPrimaryKeyType) -> list[Shift]:
         return self._facility_contexts[facility_id].shifts
 
     def get_all_shifts(self) -> list[Shift]:
@@ -186,7 +192,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
             all_shifts.extend(context.shifts)
         return all_shifts
 
-    def get_facility_config(self, facility_id: str) -> FacilityConfig:
+    def get_facility_config(self, facility_id: DomainPrimaryKeyType) -> FacilityConfig:
         return self._facility_contexts[facility_id].config
 
 
@@ -214,8 +220,8 @@ class ScenarioDataProviderFactory:
 
     def create(
         self,
-        org_id: str,
-        facility_contexts: dict[str, FacilityScenarioContext],
+        org_id: DomainPrimaryKeyType,
+        facility_contexts: dict[DomainPrimaryKeyType, FacilityScenarioContext],
         pay_period_start: whenever.Instant,
         optimization_start_time: whenever.Instant,
     ) -> IScenarioDataProvider:

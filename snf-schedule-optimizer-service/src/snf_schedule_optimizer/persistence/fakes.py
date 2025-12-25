@@ -4,9 +4,11 @@ from snf_schedule_optimizer.ml_output_repo import IMLModelOutputsRepo
 
 # Import Models
 from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
     Employee,
     EmployeeTimeSettings,
     FacilityConfig,
+    FacilityIdType,
     HprdEnforcedRole,
     LookbackPeriod,
     MealDeductionRules,
@@ -61,18 +63,20 @@ class FakeEmployeeRepo(IEmployeeRepo):
 
     async def get_all_employees(
         self,
-        org_id: str,
+        org_id: DomainPrimaryKeyType,
     ) -> list[Employee]:
         return self._employees
 
     async def get_employee_by_id(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
     ) -> Employee | None:
         return next((e for e in self._employees if e.employee_id == employee_id), None)
 
-    async def save_employee(self, org_id: str, employee: Employee) -> None:
+    async def save_employee(
+        self, org_id: DomainPrimaryKeyType, employee: Employee
+    ) -> None:
         # For the fake, we won't actually persist anything.
         pass
 
@@ -86,10 +90,12 @@ class FakeNurseRepo(INurseRepo):
         # You could add filtering logic here if you wanted smarter tests
         return self._nurses
 
-    async def get_nurse(self, employee_id: str) -> NurseProfile | None:
+    async def get_nurse(self, employee_id: DomainPrimaryKeyType) -> NurseProfile | None:
         return next((n for n in self._nurses if n.employee_id == employee_id), None)
 
-    async def save_nurse_profile(self, org_id: str, nurse: NurseProfile) -> None:
+    async def save_nurse_profile(
+        self, org_id: DomainPrimaryKeyType, nurse: NurseProfile
+    ) -> None:
         pass
 
 
@@ -104,7 +110,9 @@ class StaffCompensationRepoStaticListImpl(IStaffCompensationRepo):
         Initializes the service with a list of historical compensation records.
         """
         # Group records by employee ID for faster lookup
-        self.employee_records: dict[str, list[StaffCompensationRecord]] = {}
+        self.employee_records: dict[
+            DomainPrimaryKeyType, list[StaffCompensationRecord]
+        ] = {}
 
         for record in records:
             if record.employee_id not in self.employee_records:
@@ -121,8 +129,8 @@ class StaffCompensationRepoStaticListImpl(IStaffCompensationRepo):
 
     async def get_record_for_date(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         check_date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
         """
@@ -159,8 +167,8 @@ class FakeStaffCompensationRepo(IStaffCompensationRepo):
 
     async def get_record_for_date(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         date: whenever.ZonedDateTime,
     ) -> StaffCompensationRecord | None:
         # Simple Fake: finds the record matching ID.
@@ -168,21 +176,21 @@ class FakeStaffCompensationRepo(IStaffCompensationRepo):
         return next((r for r in self._records if r.employee_id == employee_id), None)
 
     async def save_compensation_record(
-        self, org_id: str, record: StaffCompensationRecord
+        self, org_id: DomainPrimaryKeyType, record: StaffCompensationRecord
     ) -> None:
         pass
 
 
 class FakeWorkHistoryService(IEmployeeWorkHistoryService):
-    def __init__(self, accumulated_hours_map: dict[str, float]):
+    def __init__(self, accumulated_hours_map: dict[DomainPrimaryKeyType, float]):
         self._hours_map = accumulated_hours_map
 
     async def get_processed_history_for_period(
         self,
-        org_id: str,
-        employee_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
         check_date: whenever.Instant,
-        facility_id: str | None = None,
+        facility_id: DomainPrimaryKeyType | None = None,
     ) -> dict[ShiftKey, list[WorkedShiftSegment]]:
         # We don't need to return complex segments if we override the provider logic,
         # but to satisfy the type checker:
@@ -263,7 +271,8 @@ class ShiftRequirementsRepoImpl(IShiftRequirementsRepo):
 class FakeShiftRequirementsRepo(IShiftRequirementsRepo):
     def __init__(
         self,
-        requirements_map: dict[str, ShiftSpecificRequirements] | None = None,
+        requirements_map: dict[DomainPrimaryKeyType, ShiftSpecificRequirements]
+        | None = None,
         default_requirements: ShiftSpecificRequirements | None = None,
     ):
         """
@@ -285,7 +294,9 @@ class FakeShiftRequirementsRepo(IShiftRequirementsRepo):
 
 class FakeHprdRequirementCalculator(IHprdRequirementCalculator):
     def __init__(
-        self, requirements_map: dict[tuple[str, HprdEnforcedRole], float] | None = None
+        self,
+        requirements_map: dict[tuple[DomainPrimaryKeyType, HprdEnforcedRole], float]
+        | None = None,
     ):
         """
         Args:
@@ -311,7 +322,7 @@ class FakeHprdRequirementCalculator(IHprdRequirementCalculator):
         return holder
 
 
-class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
+class FakeFacilityRulesService(IFacilityRulesService):
     """
     Concrete implementation providing static, hardcoded payroll rules for testing
     the Shift Reconciler and other services.
@@ -333,9 +344,10 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
 
     async def apply_rounding(
         self,
-        org_id: str,
         raw_time: whenever.ZonedDateTime,
         punch_type: PunchType,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
     ) -> whenever.ZonedDateTime:
         """
         Applies a standard nearest-interval rounding (e.g., 6-minute rule).
@@ -347,9 +359,9 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
 
     async def get_time_settings(
         self,
-        org_id: str,
-        employee_id: str,
-        facility_id: str,
+        org_id: DomainPrimaryKeyType,
+        employee_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
         check_dt: whenever.ZonedDateTime,
     ) -> EmployeeTimeSettings:
         """
@@ -368,8 +380,8 @@ class FacilityRulesServiceStaticListImpl(IFacilityRulesService):
 
     async def get_meal_deduction_rules(
         self,
-        org_id: str,
-        facility_id: str,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
         check_dt: whenever.ZonedDateTime,
     ) -> MealDeductionRules | None:
         """
@@ -400,7 +412,9 @@ class FakeFacilityRepo(IFacilityRepo):
         self._configs = {c.facility_id: c for c in (configs or [])}
 
     async def get_configs(
-        self, org_id: str, facility_ids: list[str] | None = None
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_ids: list[DomainPrimaryKeyType] | None = None,
     ) -> list[FacilityConfig]:
         if facility_ids is None:
             return [c for c in self._configs.values() if c.org_id == org_id]
@@ -421,7 +435,9 @@ class FakeShiftRepo(IShiftRepo):
         self._shifts = shifts or []
 
     async def get_shifts_for_org(
-        self, org_id: str, facility_timezones: dict[str, str]
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
     ) -> list[Shift]:
         # Simple filtering. In real implementation, this might hydrate timezones.
         return [s for s in self._shifts if s.org_id == org_id]
@@ -429,8 +445,8 @@ class FakeShiftRepo(IShiftRepo):
     async def get_shifts_by_keys(
         self,
         shift_keys: list[ShiftKey],
-        facility_timezones: dict[str, str],
-        org_id: str,
+        facility_timezones: dict[FacilityIdType, str],
+        org_id: DomainPrimaryKeyType,
     ) -> dict[ShiftKey, Shift]:
         # Filter shifts matching the keys
         # We assume Shift objects in self._shifts already have the correct properties
@@ -443,5 +459,5 @@ class FakeShiftRepo(IShiftRepo):
                 result[s_key] = s
         return result
 
-    async def save_shift(self, org_id: str, shift: Shift) -> None:
+    async def save_shift(self, org_id: DomainPrimaryKeyType, shift: Shift) -> None:
         pass
