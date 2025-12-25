@@ -114,7 +114,7 @@ class ScheduleResultAnalyzer:
                     await self.provider.get_compensation_service().get_record_for_date(
                         shift.org_id,
                         emp.employee_id,
-                        shift.shift_start_dt,
+                        shift.shift_start_dt.date(),
                     )
                 )
                 is_agency = comp_rec.is_agency if comp_rec else False

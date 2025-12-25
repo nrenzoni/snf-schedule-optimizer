@@ -50,7 +50,7 @@ class IStaffCompensationRepo(abc.ABC):
         self,
         org_id: DomainPrimaryKeyType,
         employee_id: DomainPrimaryKeyType,
-        check_date: whenever.ZonedDateTime,
+        check_date: whenever.Date,
     ) -> StaffCompensationRecord | None:
         """
         Retrieves the one StaffCompensationRecord whose validity period

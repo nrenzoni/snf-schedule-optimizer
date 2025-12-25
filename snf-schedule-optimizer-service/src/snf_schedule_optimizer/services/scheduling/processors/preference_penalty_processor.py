@@ -72,7 +72,7 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
         comp_record = await self.staff_compensation_retriever.get_record_for_date(
             shift.org_id,
             employee.employee_id,
-            shift.shift_start_dt,
+            shift.shift_start_dt.start_of_day().date(),
         )
         if comp_record is None:
             raise ValueError(

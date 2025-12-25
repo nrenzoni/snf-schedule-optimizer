@@ -53,7 +53,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
                     await data_provider.get_compensation_service().get_record_for_date(
                         shift.org_id,
                         nurse.employee_id,
-                        shift.shift_start_dt,
+                        shift.shift_start_dt.date(),
                     )
                 )
                 if not comp_record:
@@ -244,7 +244,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                 await data_provider.get_compensation_service().get_record_for_date(
                     shift.org_id,
                     emp_id,
-                    reference_date,
+                    reference_date.date(),
                 )
             )
             if not comp_record:

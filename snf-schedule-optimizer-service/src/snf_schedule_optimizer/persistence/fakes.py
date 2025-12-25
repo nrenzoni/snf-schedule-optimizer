@@ -99,17 +99,11 @@ class FakeNurseRepo(INurseRepo):
         pass
 
 
-class StaffCompensationRepoStaticListImpl(IStaffCompensationRepo):
-    """
-    Concrete implementation of the compensation service that uses a static,
-    in-memory list of records (ideal for unit and integration testing).
-    """
-
+class FakeStaffCompensationRepo(IStaffCompensationRepo):
     def __init__(self, records: list[StaffCompensationRecord]):
-        """
-        Initializes the service with a list of historical compensation records.
-        """
-        # Group records by employee ID for faster lookup
+        self._records = records
+        self.tz = "America/New_York"
+
         self.employee_records: dict[
             DomainPrimaryKeyType, list[StaffCompensationRecord]
         ] = {}
@@ -131,7 +125,7 @@ class StaffCompensationRepoStaticListImpl(IStaffCompensationRepo):
         self,
         org_id: DomainPrimaryKeyType,
         employee_id: DomainPrimaryKeyType,
-        check_date: whenever.ZonedDateTime,
+        check_date: whenever.Date,
     ) -> StaffCompensationRecord | None:
         """
         Retrieves the one StaffCompensationRecord whose validity period
@@ -142,38 +136,21 @@ class StaffCompensationRepoStaticListImpl(IStaffCompensationRepo):
             return None
 
         # Check date should be compared to simple date for consistency with database storage
-        check_date_date = check_date.date()
 
         for record in self.employee_records[employee_id]:
             # Check 1: Must be effective on or before the check date
-            is_start_valid = record.effective_start_date <= check_date_date
+            is_start_valid = record.effective_start_date <= check_date
 
             # Check 2: Must not be expired before the check date
             is_end_valid = (
                 record.effective_end_date is None
-                or record.effective_end_date > check_date_date
+                or record.effective_end_date > check_date
             )
 
             if is_start_valid and is_end_valid:
                 return record
 
         return None
-
-
-class FakeStaffCompensationRepo(IStaffCompensationRepo):
-    def __init__(self, records: list[StaffCompensationRecord]):
-        self._records = records
-        self.tz = "America/New_York"
-
-    async def get_record_for_date(
-        self,
-        org_id: DomainPrimaryKeyType,
-        employee_id: DomainPrimaryKeyType,
-        date: whenever.ZonedDateTime,
-    ) -> StaffCompensationRecord | None:
-        # Simple Fake: finds the record matching ID.
-        # (Ignores date logic for simplicity, or implement strict logic if needed)
-        return next((r for r in self._records if r.employee_id == employee_id), None)
 
     async def save_compensation_record(
         self, org_id: DomainPrimaryKeyType, record: StaffCompensationRecord

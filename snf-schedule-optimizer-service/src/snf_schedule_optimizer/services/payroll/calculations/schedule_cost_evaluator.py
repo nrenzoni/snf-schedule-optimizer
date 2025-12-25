@@ -93,7 +93,7 @@ class ScheduleCostEvaluator:
                 comp_record = await comp_service.get_record_for_date(
                     shift.org_id,
                     employee.employee_id,
-                    shift.shift_start_dt,
+                    shift.shift_start_dt.date(),
                 )
 
                 # If no record exists, we can't accurately cost.

@@ -56,7 +56,7 @@ class ShiftPayProcessor:
         comp_record = await self.compensation_service.get_record_for_date(
             shift.org_id,
             employee.employee_id,
-            shift.shift_start_dt,  # The date the shift begins
+            shift.shift_start_dt.start_of_day().date(),  # The date the shift begins
         )
 
         if comp_record is None:
