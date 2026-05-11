@@ -1,42 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [
-`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SNF Schedule Optimizer UI
 
-## Getting Started
+This app is the frontend for the SNF Schedule Optimizer demo.
 
-First, run the development server:
+It presents the product surface for schedule review, schedule interaction, scenario analysis, and related demo dashboards.
+
+## What The UI Does
+
+- loads monthly schedule data from the backend
+- renders scheduling views in list and timeline formats
+- provides interaction patterns for schedule review and nurse detail inspection
+- includes a scenario analyzer dashboard for product-demo storytelling
+- includes an ML forecasts dashboard for future-facing product direction
+
+## Stack
+
+- Next.js 16
+- React 19
+- TypeScript
+- TanStack Query
+- Zustand
+- ConnectRPC web client
+
+## Install
+
+This repo currently uses `pnpm` in the UI project.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Run Locally
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Start the dev server:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically
-optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm dev
+```
 
-## Learn More
+Open:
 
-To learn more about Next.js, take a look at the following resources:
+```text
+http://localhost:3000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions
-are welcome!
+The UI uses `NEXT_PUBLIC_API_BASE_URL` for the backend base URL.
 
-## Deploy on Vercel
+Example:
 
-The easiest way to deploy your Next.js app is to use
-the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme)
-from the creators of Next.js.
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for
-more details.
+If not provided, the client currently falls back to `http://localhost:8000`.
+
+## Full Product Demo
+
+For the recommended end-to-end demo path, you can invoke the repo-root compose file from this directory:
+
+```bash
+docker compose -f ../compose.demo.yml up --build -d
+```
+
+That path runs the UI against the backend and seeded demo data automatically.
+
+## Important UI Areas
+
+- `app/`: route entrypoints
+- `components/`: dashboards, schedule board, modals, supporting UI
+- `hooks/`: API fetching and scheduling interactions
+- `store/`: client state with Zustand
+- `api/`: ConnectRPC client setup
+- `gen/`: generated protobuf TypeScript output
+
+## Current Integration Status
+
+The UI now uses the real backend for monthly schedule loading.
+
+Current real integration:
+
+- `hooks/use-schedule-query.ts` loads facility context and monthly schedules from the API
+- `api/scheduling-client.ts` uses the generated ConnectRPC client and configurable base URL
+
+Still demo-oriented:
+
+- the scenario analyzer dashboard currently uses mocked calculations and mocked results
+- the ML forecasts area is currently presentation-oriented
+- some scheduling interactions still assume demo-shaped response data
+
+## Common Commands
+
+Start dev server:
+
+```bash
+pnpm dev
+```
+
+Build:
+
+```bash
+pnpm build
+```
+
+Start production build:
+
+```bash
+pnpm start
+```
+
+Lint:
+
+```bash
+pnpm lint
+```
+
+## Notes For Contributors
+
+- schedule loading depends on generated protobuf artifacts under `gen/`
+- the backend contract lives in `../proto/`
+- the root `compose.demo.yml` is the easiest way to verify the real product-demo flow
