@@ -1,11 +1,15 @@
+from collections import defaultdict
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.domain.hr.interfaces import (
     IEmployeeRepo,
     IStaffCompensationRepo,
 )
+from snf_schedule_optimizer.domain.scheduling.interfaces import IScheduleRepo
 from snf_schedule_optimizer.domain.repositories import IFacilityRepo, IShiftRepo
 from snf_schedule_optimizer.infrastructure.scenario_builder import ScenarioBuilder
+from snf_schedule_optimizer.models import Schedule, ShiftAssignmentsType
 from snf_schedule_optimizer.persistence import INurseRepo
 
 
@@ -22,6 +26,7 @@ class DemoSeeder:
         shift_repo: IShiftRepo,
         comp_repo: IStaffCompensationRepo,
         facility_repo: IFacilityRepo,
+        schedule_repo: IScheduleRepo,
         db_session: AsyncSession,
     ):
         self.employee_repo = employee_repo
@@ -29,6 +34,7 @@ class DemoSeeder:
         self.shift_repo = shift_repo
         self.comp_repo = comp_repo
         self.facility_repo = facility_repo
+        self.schedule_repo = schedule_repo
         self.db_session = db_session
 
     async def seed_from_scenario(self, seed: int = 42) -> None:
@@ -70,4 +76,40 @@ class DemoSeeder:
                 record,
             )
 
+        await self.schedule_repo.save_schedule(
+            self._build_demo_schedule(
+                org_id=scenario_builder.org_id,
+                facility_id=scenario_builder.facility_id,
+                shifts=scenario.shifts,
+                nurses=scenario.nurses,
+            )
+        )
+
         await self.db_session.commit()
+
+    def _build_demo_schedule(
+        self,
+        org_id: int,
+        facility_id: int,
+        shifts: list,
+        nurses: list,
+    ) -> Schedule:
+        assignments: ShiftAssignmentsType = defaultdict(list)
+        nurse_ids = [nurse.employee_id for nurse in nurses]
+        if not nurse_ids:
+            return Schedule(org_id=org_id, facility_id=facility_id, schedule_id=1)
+
+        # Create a deterministic baseline rotation that produces a visibly staffed demo.
+        for index, shift in enumerate(shifts):
+            staff_count = 4 if shift.day_shift else 3
+            start = index % len(nurse_ids)
+            for offset in range(staff_count):
+                nurse_id = nurse_ids[(start + offset) % len(nurse_ids)]
+                assignments[shift.shift_key].append(nurse_id)
+
+        return Schedule(
+            org_id=org_id,
+            facility_id=facility_id,
+            schedule_id=1,
+            shift_assignments=dict(assignments),
+        )

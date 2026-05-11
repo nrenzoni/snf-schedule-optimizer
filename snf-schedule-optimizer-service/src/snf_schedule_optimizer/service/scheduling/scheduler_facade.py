@@ -18,6 +18,9 @@ from snf_schedule_optimizer.domain.scheduling.interfaces import (
 )
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
+    Employee,
+    FacilityConfig,
+    NurseProfile,
     PreferenceWeights,
     Schedule,
     Shift,
@@ -54,6 +57,13 @@ class WorkforceSchedulerFacadePort(Protocol):
         move_request: MoveEmployeeRequest,
         pay_period_start: whenever.Instant,
     ) -> OptimizationOutput: ...
+
+    async def get_monthly_schedule(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType | None,
+        start_date: str,
+    ) -> tuple[Schedule, dict[ShiftKey, Shift], dict[int, Employee], FacilityConfig]: ...
 
     async def close(self) -> None: ...
 
@@ -192,6 +202,45 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
     async def close(self) -> None:
         """Cleans up any resources held by the service."""
         pass
+
+    async def get_monthly_schedule(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType | None,
+        start_date: str,
+    ) -> tuple[Schedule, dict[ShiftKey, Shift], dict[int, Employee], FacilityConfig]:
+        schedule = await self.schedule_retriever.get_schedule_for_month(
+            org_id=org_id,
+            facility_id=facility_id,
+            start_date=start_date,
+        )
+        if schedule is None:
+            raise ValueError("No schedule found for the requested month.")
+
+        target_facility_id = facility_id if facility_id is not None else schedule.facility_id
+        if target_facility_id is None:
+            raise ValueError("A facility_id is required to load a monthly schedule.")
+
+        configs = await self.facility_repository.get_configs(org_id, [target_facility_id])
+        if not configs:
+            raise ValueError(f"Facility config not found for facility_id: {target_facility_id}")
+
+        facility_config = configs[0]
+        timezone_map = {facility_config.facility_id: facility_config.tz}
+
+        shift_keys = [
+            key for key in schedule.shift_assignments.keys() if key.facility_id == target_facility_id
+        ]
+        shifts = await self.shift_retriever.get_shifts_by_keys(
+            shift_keys=shift_keys,
+            facility_timezones=timezone_map,
+            org_id=org_id,
+        )
+
+        employees = await self.provider_factory.employee_retriever.get_all_employees(org_id)
+        employee_map = {employee.employee_id: employee for employee in employees}
+
+        return schedule, shifts, employee_map, facility_config
 
     async def _process_results(
         self,

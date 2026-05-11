@@ -1,0 +1,7 @@
+.idea
+.venv
+__pycache__
+.mypy_cache
+.ruff_cache
+.pytest_cache
+snf_schedule_optimizer_tests

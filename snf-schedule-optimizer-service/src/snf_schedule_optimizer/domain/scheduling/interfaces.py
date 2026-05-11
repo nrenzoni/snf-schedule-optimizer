@@ -55,3 +55,18 @@ class IScheduleRepo(abc.ABC):
         Returns None if not found.
         """
         pass
+
+    @abc.abstractmethod
+    async def get_schedule_for_month(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType | None,
+        start_date: str,
+    ) -> Schedule | None:
+        """Returns the demo schedule that overlaps the requested month."""
+        pass
+
+    @abc.abstractmethod
+    async def save_schedule(self, schedule: Schedule) -> None:
+        """Persists a schedule and its assignments."""
+        pass

@@ -1,0 +1,11 @@
+{
+  "name": "snf-schedule-optimizer-proto",
+  "private": true,
+  "packageManager": "npm@10.9.4",
+  "scripts": {
+    "generate": "buf generate"
+  },
+  "dependencies": {
+    "@bufbuild/buf": "^1.61.0"
+  }
+}

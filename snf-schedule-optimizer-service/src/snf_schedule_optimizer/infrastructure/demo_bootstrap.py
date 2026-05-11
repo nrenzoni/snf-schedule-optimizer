@@ -54,6 +54,7 @@ async def bootstrap() -> None:
                 shift_repo=await repos_container.shift_retriever.resolve(),
                 comp_repo=await repos_container.compensation_retriever.resolve(),
                 facility_repo=await repos_container.facility_retriever.resolve(),
+                schedule_repo=await repos_container.schedule_retriever.resolve(),
                 db_session=session,
             )
 

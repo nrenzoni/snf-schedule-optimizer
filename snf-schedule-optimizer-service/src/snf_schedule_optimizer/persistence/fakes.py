@@ -381,6 +381,25 @@ class FakeScheduleRepo(IScheduleRepo):
     ) -> Schedule | None:
         return self._schedules.get(schedule_lookup)
 
+    async def get_schedule_for_month(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType | None,
+        start_date: str,
+    ) -> Schedule | None:
+        for key, schedule in self._schedules.items():
+            if key.org_id != org_id:
+                continue
+            if facility_id is not None and schedule.facility_id != facility_id:
+                continue
+            return schedule
+        return None
+
+    async def save_schedule(self, schedule: Schedule) -> None:
+        if schedule.schedule_id is None:
+            raise ValueError("schedule_id is required")
+        self._schedules[ScheduleLookupKey(schedule.org_id, schedule.schedule_id)] = schedule
+
 
 class FakeFacilityRepo(IFacilityRepo):
     """InMemory implementation of IFacilityRepository for testing."""

@@ -1,0 +1,65 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: snf_user
+      POSTGRES_PASSWORD: snf_password
+      POSTGRES_DB: snf_optimizer_demo
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U snf_user -d snf_optimizer_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  seeder:
+    build:
+      context: .
+      dockerfile: snf-schedule-optimizer-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://snf_user:snf_password@db:5432/snf_optimizer_demo
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python -m snf_schedule_optimizer.infrastructure.demo_bootstrap
+
+  app:
+    build:
+      context: .
+      dockerfile: snf-schedule-optimizer-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://snf_user:snf_password@db:5432/snf_optimizer_demo
+      CORS_ALLOW_ORIGINS: http://localhost:3000
+    ports:
+      - "8080:8000"
+    depends_on:
+      seeder:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: .
+      dockerfile: snf-schedule-optimizer-ui/Dockerfile
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000').then((res) => { if (!res.ok) process.exit(1); }).catch(() => process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:

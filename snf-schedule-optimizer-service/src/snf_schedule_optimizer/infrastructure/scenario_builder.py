@@ -26,6 +26,7 @@ from snf_schedule_optimizer.models.scenario_models import (
 class ScenarioBuilder:
     def __init__(self, seed: int = 42):
         self.rng = random.Random(seed)
+        self._next_employee_id = 1
 
         # Defaults
         self.workforce_cfg = WorkforceConfig()
@@ -181,7 +182,8 @@ class ScenarioBuilder:
 
             # Use seeded RNG for ID generation instead of non-deterministic uuid.uuid4()
             # rand_hex = f"{self.rng.getrandbits(24):06x}"
-            emp_id = i
+            emp_id = self._next_employee_id
+            self._next_employee_id += 1
 
             # 1. Pay Band
             band_roll = self.rng.random()

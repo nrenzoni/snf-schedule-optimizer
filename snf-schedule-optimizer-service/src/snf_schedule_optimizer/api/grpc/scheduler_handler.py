@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import whenever
 from connectrpc.request import RequestContext
 from returns.result import Failure, Result, Success, safe
@@ -17,6 +19,7 @@ from snf_schedule_optimizer.generated.scheduling.v1.scheduling_pb2 import (
 from snf_schedule_optimizer.infrastructure.sqid_converter import (
     IIdObfuscator,
 )
+from snf_schedule_optimizer.models import ShiftKey
 from snf_schedule_optimizer.service.facility.facility_facade import FacilityFacade
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacadePort,
@@ -76,7 +79,42 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             scheduling_pb2.GetMonthlyScheduleResponse,
         ],
     ) -> scheduling_pb2.GetMonthlyScheduleResponse:
-        return scheduling_pb2.GetMonthlyScheduleResponse()
+        org_result = get_internal_id(self.id_obfuscator, request.org_id, "Organization")
+        if isinstance(org_result, Failure):
+            raise ValueError(org_result.failure())
+        org_id = org_result.unwrap()
+        assert org_id is not None
+
+        facility_result = get_internal_id(
+            self.id_obfuscator,
+            request.facility_id,
+            "Facility",
+            required=False,
+        )
+        if isinstance(facility_result, Failure):
+            raise ValueError(facility_result.failure())
+        facility_id = facility_result.unwrap()
+
+        schedule, shifts, employees, facility_config = (
+            await self.scheduler_service.get_monthly_schedule(
+                org_id=org_id,
+                facility_id=facility_id,
+                start_date=request.start_date,
+            )
+        )
+
+        day_schedules = self._map_monthly_schedule(
+            schedule=schedule,
+            shifts=shifts,
+            employees=employees,
+            facility_tz=facility_config.tz,
+        )
+
+        response = scheduling_pb2.GetMonthlyScheduleResponse(
+            facility_id=self.id_obfuscator.encode(facility_config.facility_id),
+        )
+        response.schedules.update(day_schedules)
+        return response
 
     async def validate_shift_move(
         self,
@@ -252,3 +290,60 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             )
 
         return scheduling_pb2.DaySchedule(shifts=list(proto_shifts.values()))
+
+    def _map_monthly_schedule(
+        self,
+        schedule: scheduling_pb2.GetMonthlyScheduleResponse | object,
+        shifts: dict[ShiftKey, object],
+        employees: dict[int, object],
+        facility_tz: str,
+    ) -> dict[str, scheduling_pb2.DaySchedule]:
+        grouped: dict[str, list[scheduling_pb2.Shift]] = defaultdict(list)
+
+        for shift_key, employee_ids in schedule.shift_assignments.items():
+            shift = shifts.get(shift_key)
+            if shift is None:
+                continue
+
+            shift_date = shift.shift_start_dt.to_tz(facility_tz).date().format_common_iso()
+            nurse_messages = []
+            for employee_id in employee_ids:
+                employee = employees.get(employee_id)
+                if employee is None:
+                    continue
+                nurse_messages.append(
+                    scheduling_pb2.Nurse(
+                        id=self.id_obfuscator.encode(employee_id),
+                        name=employee.name,
+                        shift_hours=shift.duration_hours,
+                        scheduling_rationale="Seeded demo assignment",
+                    )
+                )
+
+            actual_hours = sum(nurse.shift_hours for nurse in nurse_messages)
+            target_hrpd = 3.5
+            patient_census = 36 if shift.day_shift else 28
+            actual_hrpd = actual_hours / patient_census if patient_census else 0.0
+            grouped[shift_date].append(
+                scheduling_pb2.Shift(
+                    shift_id=self.id_obfuscator.encode(shift.shift_id),
+                    shift_name=self._shift_name(shift.shift_number),
+                    patient_census=patient_census,
+                    target_hrpd=target_hrpd,
+                    actual_hrpd=actual_hrpd,
+                    is_hrpd_met=actual_hrpd >= target_hrpd,
+                    nurses=nurse_messages,
+                )
+            )
+
+        return {
+            day: scheduling_pb2.DaySchedule(date=day, shifts=day_shifts)
+            for day, day_shifts in grouped.items()
+        }
+
+    def _shift_name(self, shift_number: int) -> str:
+        return {
+            1: "Morning",
+            2: "Afternoon",
+            3: "Night",
+        }.get(shift_number, f"Shift {shift_number}")

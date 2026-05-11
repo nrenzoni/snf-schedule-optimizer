@@ -1,8 +1,7 @@
-// Simulate Database Fetch
-import { Staff } from "@/types/scheduler";
+import { Shift, Staff } from "@/types/scheduler";
 import { addDays, format, startOfToday } from "date-fns";
-import { useMemo } from "react";
 import ScheduleBoard from "@/components/schedule-board/schedule-board";
+import QueryProvider from "@/components/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 async function getScheduleData() {
@@ -14,12 +13,9 @@ async function getScheduleData() {
   ];
 
   const startDate = startOfToday();
-  const dates = useMemo(
-    () => Array.from({ length: 5 }).map((_, i) => addDays(startDate, i)),
-    [startDate],
-  );
+  const dates = Array.from({ length: 5 }, (_, i) => addDays(startDate, i));
 
-  const shifts = [
+  const shifts: Shift[] = [
     {
       id: "s1",
       staffId: "st1",
@@ -49,7 +45,7 @@ async function getScheduleData() {
     { id: "U2", label: "2nd Floor - LTC" },
   ];
 
-  return { staffList, shifts, units };
+  return { staffList, shifts, units, dates };
 }
 
 export default async function SchedulePage() {
@@ -59,11 +55,14 @@ export default async function SchedulePage() {
   return (
     <div className="h-screen w-full bg-gray-50 p-4">
       {/* 2. Pass data to Client Component */}
-      <ScheduleBoard
-        staffList={data.staffList}
-        initialShifts={data.shifts}
-        units={data.units}
-      />
+      <QueryProvider>
+        <ScheduleBoard
+          staffList={data.staffList}
+          initialShifts={data.shifts}
+          units={data.units}
+          dates={data.dates}
+        />
+      </QueryProvider>
 
       {/* Toaster can be here or in layout.tsx */}
       <Toaster position="bottom-center" richColors />

@@ -51,7 +51,7 @@ const AnimatedBlock = ({position, color, rotation}: any) => {
 };
 
 // --- SCENE MANAGER ---
-const BlocksScene = () => {
+const BlocksScene = ({isLoading}: { isLoading: boolean }) => {
     const [step, setStep] = useState(0); // 0: Scatter, 1: Assemble, 2: Spin
 
     // 1. Calculate Grid Positions (Centered)
@@ -77,6 +77,10 @@ const BlocksScene = () => {
 
     // 2. Animation Loop Logic
     useEffect(() => {
+        if (!isLoading) {
+            return;
+        }
+
         const loop = async () => {
             // Step 1: Assemble (Aggressive Snap)
             setStep(1);
@@ -97,7 +101,7 @@ const BlocksScene = () => {
         loop(); // Start immediately
 
         return () => clearInterval(interval);
-    }, []);
+    }, [isLoading]);
 
 
     // 3. Springs for Individual Blocks (Position & Local Rotation)

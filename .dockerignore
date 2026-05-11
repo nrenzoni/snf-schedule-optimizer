@@ -1,0 +1,14 @@
+.git
+.gitignore
+**/.idea
+**/.next
+**/.venv
+**/__pycache__
+**/node_modules
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/dist
+**/build
+**/coverage
+**/*.pyc

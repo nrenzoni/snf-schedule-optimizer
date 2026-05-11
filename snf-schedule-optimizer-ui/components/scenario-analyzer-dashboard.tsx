@@ -3,6 +3,7 @@ import {
   Activity,
   ArrowRight,
   DollarSign,
+  LucideIcon,
   PieChart,
   Play,
   TrendingUp,
@@ -161,11 +162,17 @@ export default function ScenarioAnalyzerDashboard() {
     },
   ];
 
+  const typedMetrics: Array<
+    (typeof metrics)[number] & {
+      icon: LucideIcon;
+    }
+  > = metrics;
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header / KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((kpi, idx) => (
+        {typedMetrics.map((kpi, idx) => (
           <div
             key={idx}
             className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition"

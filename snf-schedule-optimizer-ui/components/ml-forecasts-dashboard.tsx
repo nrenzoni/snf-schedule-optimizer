@@ -3,6 +3,7 @@ import {
   Activity,
   ArrowRight,
   Brain,
+  LucideIcon,
   ShieldAlert,
   TrendingUp,
   Users,
@@ -26,7 +27,7 @@ interface ForecastItem {
   title: string;
   subtitle: string;
   // For component props like icons, we use React.ElementType (or React.FC<any>)
-  icon: React.ElementType;
+  icon: LucideIcon;
   riskLevel: string;
   color: string;
   bg: string;

@@ -4,6 +4,7 @@ import os
 from typing import cast
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from hypercorn import Config
 from hypercorn.asyncio import serve
 from hypercorn.typing import ASGIFramework
@@ -27,6 +28,20 @@ SessionLocal = async_sessionmaker(bind=engine)
 app = FastAPI(
     title="Workforce Optimizer API",
     version="0.0.1",
+)
+
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

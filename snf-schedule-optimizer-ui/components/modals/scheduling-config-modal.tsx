@@ -31,7 +31,12 @@ interface SchedulingConfigModalProps {
   ) => void;
 }
 
-export function SchedulingConfigModal({ settings, isOpen, onClose, onUpdate }) {
+export function SchedulingConfigModal({
+  settings,
+  isOpen,
+  onClose,
+  onUpdate,
+}: SchedulingConfigModalProps) {
   // Internal state for unsaved changes (kept for form management)
   const [draftSettings, setDraftSettings] =
     useState<SchedulingSettings>(settings);

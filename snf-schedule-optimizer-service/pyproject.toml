@@ -16,7 +16,7 @@ dependencies = [
     "hypercorn",
     "numpy>=2.3.4",
     "polars>=1.35.2",
-    "protobuf>=6.33.2",
+    "protobuf>=7.34.1",
     "pulp>=3.3.0",
     "returns>=0.26.0",
     "sqids>=0.5.2",

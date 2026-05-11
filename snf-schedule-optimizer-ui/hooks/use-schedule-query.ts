@@ -1,24 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   formatDateYYYMMDD,
-  generateMockScheduleMap,
   getStartOfMonth,
-  getStartOfWeek,
 } from "@/utils/scheduling-logic";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { UIDaySchedule } from "@/types/scheduling";
 import { useShallow } from "zustand/react/shallow";
-import { DaySchedule as ProtoDaySchedule } from "@/gen/schema/scheduling_pb";
+import { DaySchedule as ProtoDaySchedule } from "@/gen/scheduling/v1/scheduling_pb";
 import { schedulingClient } from "@/api/scheduling-client";
 import { useEffect } from "react";
 
-// Convert a protobuf DaySchedule/Shift into the UI DaySchedule/Shift shape
 const protoShiftToUI = (p: any): any => ({
   shiftName: p.shiftName as any as "Morning" | "Afternoon" | "Night",
-  patientCount: p.patientCount,
-  requiredHPRD: p.requiredHrpd ?? 0,
-  requiredHours: p.requiredHours,
-  actualHours: p.actualHours,
+  patientCount: p.patientCensus,
+  requiredHPRD: p.targetHrpd ?? 0,
+  requiredHours: (p.patientCensus ?? 0) * (p.targetHrpd ?? 0),
+  actualHours: (p.patientCensus ?? 0) * (p.actualHrpd ?? 0),
   isHPRDMet: p.isHrpdMet ?? false,
   nurses: (p.nurses || []).map((n: any) => ({
     id: n.id,
@@ -39,44 +36,28 @@ interface ScheduleQueryKey {
   isOptimized: boolean; // Optimization state for mock data generation
 }
 
-// Data fetching function that simulates the API call
 async function fetchScheduleData({
   anchorMonth,
-  isOptimized,
 }: ScheduleQueryKey): Promise<Map<string, UIDaySchedule>> {
-  console.log(
-    `Fetching schedule for month: ${anchorMonth}, Optimized: ${isOptimized}`,
-  );
+  const anchorDate = new Date(anchorMonth);
+  const facilities = await schedulingClient.getAllOrgFacilities({});
+  const selectedFacility = facilities.allOrgFacilities.at(0);
 
-  const USE_REAL_API = false;
-
-  if (USE_REAL_API) {
-    const anchorDate = new Date(anchorMonth);
-    const request = {
-      startDate: formatDateYYYMMDD(getStartOfMonth(anchorDate)),
-    };
-
-    const response = await schedulingClient.getMonthlySchedule(request);
-
-    const newSchedules = new Map<string, UIDaySchedule>();
-    Object.entries(response.schedules).forEach(([dateStr, schedule]) => {
-      newSchedules.set(dateStr, protoDayToUI(schedule as ProtoDaySchedule));
-    });
-    return newSchedules;
+  if (!selectedFacility) {
+    return new Map();
   }
 
-  // --- MOCK FALLBACK ---
+  const response = await schedulingClient.getMonthlySchedule({
+    orgId: selectedFacility.orgId,
+    facilityId: selectedFacility.facilityId,
+    startDate: formatDateYYYMMDD(getStartOfMonth(anchorDate)),
+  });
 
-  // 1. Simulate Network Latency
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  // 2. Determine the start of the 42-day calendar grid based on the anchor month
-  // We only need the month, not the day of the week, for the anchor.
-  const anchorDate = new Date(anchorMonth);
-  const startOfGrid = getStartOfWeek(getStartOfMonth(anchorDate));
-
-  // 3. Generate the mock data (42 days covers any calendar grid)
-  return generateMockScheduleMap(startOfGrid, 42);
+  const newSchedules = new Map<string, UIDaySchedule>();
+  Object.entries(response.schedules).forEach(([dateStr, schedule]) => {
+    newSchedules.set(dateStr, protoDayToUI(schedule as ProtoDaySchedule));
+  });
+  return newSchedules;
 }
 
 export default function useScheduleQuery(anchorDate: Date) {
