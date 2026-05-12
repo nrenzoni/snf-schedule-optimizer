@@ -29,8 +29,10 @@ export type SimulatedUnit = {
 };
 
 export const UNITS = {
-  U1: { id: "U1", label: "1st Floor - Rehab" },
-  U2: { id: "U2", label: "2nd Floor - LTC" },
+  U1: { id: "U1", label: "Short-Term Rehab" },
+  U2: { id: "U2", label: "Long-Term Care" },
+  U3: { id: "U3", label: "Memory Care" },
+  U4: { id: "U4", label: "Skilled/Subacute" },
 } as const;
 
 // 1. Role Definitions (The "Vertical Groups")

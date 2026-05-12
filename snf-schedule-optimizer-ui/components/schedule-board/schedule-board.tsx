@@ -94,6 +94,8 @@ export default function ScheduleBoard({
   const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>({
     U1: true,
     U2: true,
+    U3: true,
+    U4: true,
   });
   const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({
     "U1-RN": true,
@@ -113,7 +115,7 @@ export default function ScheduleBoard({
     setExpandedRoles({});
   };
   const handleExpandAll = () => {
-    const allUnits = { U1: true, U2: true };
+    const allUnits = { U1: true, U2: true, U3: true, U4: true };
     // Very simple expand all for demo
     setExpandedUnits(allUnits);
   };

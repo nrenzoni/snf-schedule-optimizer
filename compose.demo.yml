@@ -30,9 +30,9 @@ services:
       dockerfile: snf-schedule-optimizer-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://snf_user:snf_password@db:5432/snf_optimizer_demo
-      CORS_ALLOW_ORIGINS: http://localhost:3000
+      CORS_ALLOW_ORIGINS: http://localhost:${DEMO_UI_PORT:-3000}
     ports:
-      - "8080:8000"
+      - "${DEMO_API_PORT:-8080}:8000"
     depends_on:
       seeder:
         condition: service_completed_successfully
@@ -47,10 +47,12 @@ services:
     build:
       context: .
       dockerfile: snf-schedule-optimizer-ui/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://localhost:${DEMO_API_PORT:-8080}
     environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:${DEMO_API_PORT:-8080}
     ports:
-      - "3000:3000"
+      - "${DEMO_UI_PORT:-3000}:3000"
     depends_on:
       app:
         condition: service_healthy

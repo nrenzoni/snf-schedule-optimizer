@@ -27,16 +27,34 @@ class ScenarioBuilder:
     def __init__(self, seed: int = 42):
         self.rng = random.Random(seed)
         self._next_employee_id = 1
+        self.unit_ids = (101, 102, 103, 104)
 
         # Defaults
-        self.workforce_cfg = WorkforceConfig()
+        self.workforce_cfg = WorkforceConfig(
+            count_rn=42,
+            count_lpn=38,
+            count_cna=96,
+            percent_agency_rn=0.16,
+            percent_agency_lpn=0.18,
+            percent_agency_cna=0.24,
+        )
         self.pay_bands = {
-            "low": PayBandConfig(25.0, 15.0),
-            "med": PayBandConfig(32.0, 18.0),
-            "high": PayBandConfig(40.0, 22.0),
+            "low": PayBandConfig(34.0, 18.5),
+            "med": PayBandConfig(42.0, 22.0),
+            "high": PayBandConfig(51.0, 26.5),
         }
-        self.history_cfg = HistoryConfig()
-        self.pref_cfg = PreferenceConfig()
+        self.history_cfg = HistoryConfig(
+            prob_zero_hours=0.35,
+            prob_half_shift=0.10,
+            prob_half_way_to_ot=0.35,
+            prob_near_ot=0.20,
+        )
+        self.pref_cfg = PreferenceConfig(
+            prob_no_preference=0.35,
+            prob_no_nights=0.18,
+            prob_no_weekends=0.20,
+            prob_specific_day_off=0.25,
+        )
         self.time_cfg = TimeConfig(
             start_date=whenever.ZonedDateTime(2025, 1, 1, tz="America/New_York")
         )
@@ -91,8 +109,11 @@ class ScenarioBuilder:
             start_of_work_day_time=whenever.Time(7, 0, 0),
             # Standard 1-week pay period
             pay_period=whenever.DateDelta(weeks=1),
-            weekend_multiplier=1.0,
-            night_shift_multiplier=1.0,
+            weekend_multiplier=1.15,
+            night_shift_multiplier=1.10,
+            default_hprd_rn=0.55,
+            default_hprd_cna=2.65,
+            default_hprd_total=3.75,
         )
 
     def _generate_shifts(self) -> list[Shift]:
@@ -101,33 +122,34 @@ class ScenarioBuilder:
 
         idx = 0
         for day in range(self.time_cfg.num_days):
-            for s_num in range(1, self.time_cfg.shifts_per_day + 1):
-                # Simple logic to stagger start times
-                start_hour = 7 + ((s_num - 1) * 8)  # 7, 15, 23
-                shift_start = current_dt.add(days=day).replace(
-                    hour=start_hour % 24, minute=0, second=0
-                )
-                shift_end = shift_start.add(hours=self.time_cfg.shift_duration_hours)
-
-                is_day = 7 <= shift_start.hour < 15
-
-                shifts.append(
-                    Shift(
-                        org_id=self.org_id,
-                        shift_key=ShiftKey(
-                            facility_id=self.facility_id,
-                            shift_id=idx,
-                        ),
-                        shift_number=s_num,
-                        day_shift=is_day,
-                        day_of_week=shift_start.date().day_of_week(),
-                        shift_start_dt=shift_start,
-                        shift_end_dt=shift_end,
-                        unit_id=1,
-                        is_scheduled=True,
+            for unit_id in self.unit_ids:
+                for s_num in range(1, self.time_cfg.shifts_per_day + 1):
+                    # SNFs commonly run 7a/3p/11p eight-hour tours across care units.
+                    start_hour = 7 + ((s_num - 1) * 8)  # 7, 15, 23
+                    shift_start = current_dt.add(days=day).replace(
+                        hour=start_hour % 24, minute=0, second=0
                     )
-                )
-                idx += 1
+                    shift_end = shift_start.add(hours=self.time_cfg.shift_duration_hours)
+
+                    is_day = 7 <= shift_start.hour < 15
+
+                    shifts.append(
+                        Shift(
+                            org_id=self.org_id,
+                            shift_key=ShiftKey(
+                                facility_id=self.facility_id,
+                                shift_id=idx,
+                            ),
+                            shift_number=s_num,
+                            day_shift=is_day,
+                            day_of_week=shift_start.date().day_of_week(),
+                            shift_start_dt=shift_start,
+                            shift_end_dt=shift_end,
+                            unit_id=unit_id,
+                            is_scheduled=True,
+                        )
+                    )
+                    idx += 1
         return shifts
 
     def _generate_workforce(
@@ -148,6 +170,16 @@ class ScenarioBuilder:
             "RN",
             self.workforce_cfg.count_rn,
             self.workforce_cfg.percent_agency_rn,
+            employees,
+            nurses,
+            financials,
+            history_map,
+        )
+
+        self._batch_create_staff(
+            "LPN",
+            self.workforce_cfg.count_lpn,
+            self.workforce_cfg.percent_agency_lpn,
             employees,
             nurses,
             financials,
@@ -196,7 +228,12 @@ class ScenarioBuilder:
             else:
                 band = self.pay_bands["high"]
 
-            base_rate = band.base_rate_rn if role == "RN" else band.base_rate_cna
+            if role == "RN":
+                base_rate = band.base_rate_rn
+            elif role == "LPN":
+                base_rate = round((band.base_rate_rn + band.base_rate_cna) / 2, 2)
+            else:
+                base_rate = band.base_rate_cna
             if is_agency:
                 base_rate *= band.agency_premium_multiplier
 
@@ -226,13 +263,32 @@ class ScenarioBuilder:
 
             # Chance for Specific Day Off
             if self.rng.random() < self.pref_cfg.prob_specific_day_off:
-                # Pick a random day (0=Monday to 6=Sunday)
-                day_off = self.rng.randint(0, 6)
+                day_off = self.rng.randint(1, 7)
                 prefs.append(
                     StaffShiftPreference(
                         preference_type=PreferenceType.SPECIFIC_DAY_OFF,
                         specific_value=str(day_off),
                         penalty_weight=5.0,  # Standard weight
+                        is_hard_block=False,
+                    )
+                )
+
+            if self.rng.random() < self.pref_cfg.prob_no_nights:
+                prefs.append(
+                    StaffShiftPreference(
+                        preference_type=PreferenceType.DAY_SHIFT_PREFERENCE,
+                        specific_value=None,
+                        penalty_weight=7.0,
+                        is_hard_block=False,
+                    )
+                )
+
+            if self.rng.random() < 0.35:
+                prefs.append(
+                    StaffShiftPreference(
+                        preference_type=PreferenceType.UNIT_PREFERENCE,
+                        specific_value=str(self.rng.choice(self.unit_ids)),
+                        penalty_weight=4.0,
                         is_hard_block=False,
                     )
                 )
@@ -252,9 +308,11 @@ class ScenarioBuilder:
             emps.append(
                 Employee(
                     employee_id=emp_id,
-                    name=f"{role} User {i} {'AGY' if is_agency else 'STF'}",
+                    name=self._staff_name(role, i, is_agency),
                     job_title=role,
-                    hire_date=self.time_cfg.start_date.subtract(days=100).date(),
+                    hire_date=self.time_cfg.start_date.subtract(
+                        days=self.rng.randint(45, 3650)
+                    ).date(),
                 )
             )
 
@@ -272,10 +330,60 @@ class ScenarioBuilder:
                 NurseProfile(
                     employee_id=emp_id,
                     available_hours_weekly=60,  # Available
-                    skills=[role],
+                    skills=self._skills_for_role(role),
                     shift_custom_preferences=prefs,
                 )
             )
+
+    def _staff_name(self, role: str, index: int, is_agency: bool) -> str:
+        first_names = [
+            "Alicia",
+            "Marcus",
+            "Danielle",
+            "Jorge",
+            "Priya",
+            "Nina",
+            "Caleb",
+            "Monique",
+            "Tessa",
+            "Andre",
+            "Mei",
+            "Elena",
+            "Samira",
+            "Darius",
+            "Hannah",
+            "Keisha",
+        ]
+        last_names = [
+            "Bennett",
+            "Rivera",
+            "Patel",
+            "Thompson",
+            "Nguyen",
+            "Carter",
+            "Brooks",
+            "Santos",
+            "Miller",
+            "Jackson",
+            "Kim",
+            "Garcia",
+            "Reed",
+            "Morgan",
+            "Owens",
+            "Hayes",
+        ]
+        first = first_names[(index + self.rng.randint(0, 7)) % len(first_names)]
+        last = last_names[(index * 3 + self.rng.randint(0, 5)) % len(last_names)]
+        suffix = " Agency" if is_agency else ""
+        return f"{first} {last}, {role}{suffix}"
+
+    @staticmethod
+    def _skills_for_role(role: str) -> list[str]:
+        if role == "RN":
+            return ["RN", "Charge", "IV Therapy", "Wound Care"]
+        if role == "LPN":
+            return ["LPN", "Medication Pass", "Wound Care"]
+        return ["CNA", "Restorative", "Memory Care"]
 
 
 class ScenarioDebugPrinter:

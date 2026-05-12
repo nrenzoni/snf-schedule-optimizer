@@ -25,8 +25,10 @@ class PayBandConfig:
 @dataclass
 class WorkforceConfig:
     count_rn: int = 100
+    count_lpn: int = 38
     count_cna: int = 100
     percent_agency_rn: float = 0.10  # 0.0 to 1.0
+    percent_agency_lpn: float = 0.18
     percent_agency_cna: float = 0.20
 
     # Probability of an employee falling into a pay band

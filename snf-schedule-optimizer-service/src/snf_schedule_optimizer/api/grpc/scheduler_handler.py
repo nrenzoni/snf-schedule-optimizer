@@ -29,6 +29,7 @@ from snf_schedule_optimizer.infrastructure.composition import (
     build_scheduler_container,
 )
 from snf_schedule_optimizer.infrastructure.sqid_converter import (
+    DEMO_ID_ALIASES,
     IIdObfuscator,
 )
 from snf_schedule_optimizer.models import Employee, Schedule, Shift, ShiftKey
@@ -97,8 +98,14 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             facility_configs = await facility_facade.get_all_system_facilities()
         org_facs = [
             scheduling_dot_v1_dot_scheduling__pb2.OrgFacility(
-                org_id=self.id_obfuscator.encode(facility.org_id),
-                facility_id=self.id_obfuscator.encode(facility.facility_id),
+                org_id=DEMO_ID_ALIASES.get(
+                    facility.org_id,
+                    self.id_obfuscator.encode(facility.org_id),
+                ),
+                facility_id=DEMO_ID_ALIASES.get(
+                    facility.facility_id,
+                    self.id_obfuscator.encode(facility.facility_id),
+                ),
             )
             for facility in facility_configs
         ]
@@ -155,7 +162,10 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         )
 
         response = scheduling_pb2.GetMonthlyScheduleResponse(
-            facility_id=self.id_obfuscator.encode(facility_config.facility_id),
+            facility_id=DEMO_ID_ALIASES.get(
+                facility_config.facility_id,
+                self.id_obfuscator.encode(facility_config.facility_id),
+            ),
         )
         for day, day_schedule in day_schedules.items():
             response.schedules[day].CopyFrom(day_schedule)
@@ -374,8 +384,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 )
 
             actual_hours = sum(nurse.shift_hours for nurse in nurse_messages)
-            target_hrpd = 3.5
-            patient_census = 36 if shift.day_shift else 28
+            target_hrpd = self._target_hrpd(shift)
+            patient_census = self._patient_census(shift)
             actual_hrpd = actual_hours / patient_census if patient_census else 0.0
             grouped[shift_date].append(
                 scheduling_pb2.Shift(
@@ -400,3 +410,37 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             2: "Afternoon",
             3: "Night",
         }.get(shift_number, f"Shift {shift_number}")
+
+    def _patient_census(self, shift: Shift) -> int:
+        base_by_unit = {
+            101: 34,  # Short-term rehab
+            102: 48,  # Long-term care
+            103: 32,  # Memory care
+            104: 24,  # Skilled/subacute
+        }
+        census = base_by_unit.get(shift.unit_id or 0, 36)
+        if shift.shift_number == 3:
+            census -= 2
+        if shift.day_of_week in {whenever.Weekday(1), whenever.Weekday(5)}:
+            census += 2
+        if self._is_weekend(shift):
+            census -= 1
+        return max(census, 18)
+
+    def _target_hrpd(self, shift: Shift) -> float:
+        target_by_unit = {
+            101: 3.9,
+            102: 3.55,
+            103: 3.7,
+            104: 4.15,
+        }
+        target = target_by_unit.get(shift.unit_id or 0, 3.65)
+        if shift.shift_number == 3:
+            target -= 0.25
+        if self._is_weekend(shift):
+            target += 0.10
+        return round(target, 2)
+
+    @staticmethod
+    def _is_weekend(shift: Shift) -> bool:
+        return shift.day_of_week in {whenever.Weekday(6), whenever.Weekday(7)}

@@ -39,6 +39,8 @@ class IdObfuscator(IIdObfuscator):
 
     def decode(self, public_id: str) -> int:
         """Converts public string back to internal DB integer."""
+        if public_id in DEMO_ALIAS_IDS:
+            return DEMO_ALIAS_IDS[public_id]
         numbers = self._sqids.decode(public_id)
         if not numbers:
             raise ValueError(f"Invalid public ID: {public_id}")
@@ -46,6 +48,12 @@ class IdObfuscator(IIdObfuscator):
 
 
 ALPHABET = "u6ipastd3bwoejq5rl0kc2fhzmn79gyv4x18"
+
+DEMO_ID_ALIASES = {
+    1000: "summit-care-group",
+    1001: "care-one-wood-west",
+}
+DEMO_ALIAS_IDS = {alias: internal_id for internal_id, alias in DEMO_ID_ALIASES.items()}
 
 # to prevent changes to encode/decode process across version updates
 DEFAULT_BLOCKLIST = [

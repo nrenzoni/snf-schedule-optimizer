@@ -26,6 +26,7 @@ RUN npm install
 RUN npx buf generate
 
 WORKDIR /workspace/snf-schedule-optimizer-ui
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 RUN pnpm build
 
 FROM node:24-bookworm-slim AS runner
@@ -38,8 +39,8 @@ WORKDIR /app
 RUN corepack enable
 
 COPY --from=builder /workspace/snf-schedule-optimizer-ui/.next/standalone ./
-COPY --from=builder /workspace/snf-schedule-optimizer-ui/.next/static ./snf-schedule-optimizer-ui/.next/static
-COPY --from=builder /workspace/snf-schedule-optimizer-ui/public ./snf-schedule-optimizer-ui/public
+COPY --from=builder /workspace/snf-schedule-optimizer-ui/.next/static ./.next/static
+COPY --from=builder /workspace/snf-schedule-optimizer-ui/public ./public
 
 EXPOSE 3000
 

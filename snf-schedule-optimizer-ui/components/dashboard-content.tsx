@@ -11,6 +11,9 @@ import {
   Calendar,
   GanttChartSquare,
   LayoutList,
+  ListChecks,
+  Menu,
+  Settings,
 } from "lucide-react";
 import ScheduleListView from "@/components/schedule-list-view";
 import { Toaster } from "@/components/ui/sonner";
@@ -65,7 +68,7 @@ export default function DashboardContent({
   // URL: /schedule?view=timeline
   const [viewMode, setViewMode] = useQueryState(
     "view",
-    parseAsStringLiteral(viewOptions).withDefault("list"),
+    parseAsStringLiteral(viewOptions).withDefault("timeline"),
   );
 
   const uiStore = useUIStore(
@@ -150,7 +153,7 @@ export default function DashboardContent({
           data-testid={`tab-${value}`}
           value={value}
           className={cn(
-          "flex items-center space-x-2 px-4 md:px-6 py-2.5 rounded-lg text-sm font-bold h-auto transition-all",
+          "flex w-full items-center justify-start gap-2 px-3 py-2 rounded-lg text-sm font-bold h-auto transition-all",
           "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50",
           "data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5",
           value === "ml-forecasts" && isActive
@@ -195,45 +198,56 @@ export default function DashboardContent({
           onValueChange={(value) => void setActiveModule(value as typeof moduleOptions[number])}
           className="w-full"
         >
-          {/* Navigation Bar */}
-          <div className="flex justify-center mb-8 relative">
-            <TabsList className="bg-gray-200 p-1.5 rounded-xl flex space-x-1 shadow-inner overflow-x-auto max-w-full z-10 h-auto">
-              {renderTabTrigger(
-                "scheduling",
-                <Calendar size={16} />,
-                "Scheduling",
-              )}
-              {renderTabTrigger(
-                "analyzer",
-                <BarChart2 size={16} />,
-                "Scenario Analyzer",
-              )}
-              {renderTabTrigger(
-                "ml-forecasts",
-                <Brain size={16} />,
-                "ML Forecasts",
-                true,
-              )}
-            </TabsList>
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+              <div className="group relative z-20 w-fit" data-testid="module-menu">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  aria-label="Open module menu"
+                >
+                  <Menu size={16} />
+                  Menu
+                </button>
+                <TabsList className="absolute left-0 top-full mt-2 grid h-auto max-h-0 w-56 origin-top overflow-hidden rounded-xl border border-slate-200 bg-white p-0 opacity-0 shadow-xl ring-1 ring-black/5 transition-all duration-300 ease-out group-hover:max-h-64 group-hover:p-1.5 group-hover:opacity-100 group-focus-within:max-h-64 group-focus-within:p-1.5 group-focus-within:opacity-100">
+                  {renderTabTrigger(
+                    "scheduling",
+                    <Calendar size={16} />,
+                    "Scheduling",
+                  )}
+                  {renderTabTrigger(
+                    "analyzer",
+                    <BarChart2 size={16} />,
+                    "Scenario Analyzer",
+                  )}
+                  {renderTabTrigger(
+                    "ml-forecasts",
+                    <Brain size={16} />,
+                    "ML Forecasts",
+                    true,
+                  )}
+                </TabsList>
+              </div>
+
+              <div className="flex flex-col gap-1 rounded-xl bg-white px-3 py-2 text-xs text-slate-600 shadow-sm ring-1 ring-black/5 sm:min-w-72">
+                <div>
+                  <span className="font-semibold text-slate-900">Facility:</span>{" "}
+                  {selectedFacility
+                    ? `${selectedFacility.facilityId} (${selectedFacility.orgId})`
+                    : isLoading
+                      ? "Loading facility context..."
+                      : "No facility selected"}
+                </div>
+                <div>
+                  <span className="font-semibold text-slate-900">Loaded days:</span>{" "}
+                  {scheduleCount}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/*Tabs Content*/}
           <div className="min-h-[600px]">
-            <div className="mb-4 flex flex-col gap-2 rounded-xl bg-white px-4 py-3 text-sm text-slate-600 shadow-sm ring-1 ring-black/5 md:flex-row md:items-center md:justify-between">
-              <div>
-                <span className="font-semibold text-slate-900">Facility:</span>{" "}
-                {selectedFacility
-                  ? `${selectedFacility.facilityId} (${selectedFacility.orgId})`
-                  : isLoading
-                    ? "Loading facility context..."
-                    : "No facility selected"}
-              </div>
-              <div>
-                <span className="font-semibold text-slate-900">Loaded days:</span>{" "}
-                {scheduleCount}
-              </div>
-            </div>
-
             {error && (
               <DashboardEmptyState
                 title={
@@ -264,6 +278,27 @@ export default function DashboardContent({
                 ) : null}
 
                 <div className="flex justify-end">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {viewMode === "timeline" ? (
+                      <>
+                        <button
+                          data-testid="open-schedule-summary"
+                          onClick={uiStore.openSummaryModal}
+                          className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-600 shadow-sm transition duration-200 hover:bg-indigo-50"
+                        >
+                          <ListChecks size={16} />
+                          Summary
+                        </button>
+                        <button
+                          data-testid="open-scheduling-config"
+                          onClick={uiStore.openConfigModal}
+                          className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition duration-200 hover:bg-gray-50"
+                        >
+                          <Settings size={16} />
+                          Configure
+                        </button>
+                      </>
+                    ) : null}
                   <div className="bg-white border rounded-lg p-1 flex space-x-1">
                     <button
                       data-testid="view-list"
@@ -289,6 +324,7 @@ export default function DashboardContent({
                     >
                       <GanttChartSquare size={14} /> <span>Timeline</span>
                     </button>
+                  </div>
                   </div>
                 </div>
 

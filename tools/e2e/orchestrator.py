@@ -16,8 +16,6 @@ ROOT = Path(__file__).resolve().parents[2]
 UI_DIR = ROOT / "snf-schedule-optimizer-ui"
 SERVICE_DIR = ROOT / "snf-schedule-optimizer-service"
 ARTIFACTS_DIR = ROOT / "tools" / "e2e" / "artifacts"
-DEMO_API_URL = "http://localhost:8080"
-DEMO_UI_URL = "http://localhost:3000"
 LOCAL_HOST = "127.0.0.1"
 
 
@@ -211,19 +209,28 @@ def run_demo_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
     browser_dir.mkdir(parents=True, exist_ok=True)
 
     env_base = os.environ.copy()
+    api_port = choose_port(8080, 8180)
+    ui_port = choose_port(3000, 3100)
+    api_url = f"http://localhost:{api_port}"
+    ui_url = f"http://localhost:{ui_port}"
     ensure_playwright_browser()
     driver_env = env_base | {
         "E2E_RUN_ID": run_id,
-        "E2E_API_BASE_URL": DEMO_API_URL,
-        "E2E_BASE_URL": DEMO_UI_URL,
+        "E2E_API_BASE_URL": api_url,
+        "E2E_BASE_URL": ui_url,
         "E2E_ARTIFACTS_DIR": str(browser_dir),
         "E2E_SCENARIO_PATH": str(scenario_path),
+    }
+    compose_env = env_base | {
+        "DEMO_API_PORT": str(api_port),
+        "DEMO_UI_PORT": str(ui_port),
     }
 
     compose_log = (logs_dir / "compose.log").open("w", encoding="utf-8")
     up = subprocess.Popen(
         ["docker", "compose", "-f", "compose.demo.yml", "up", "--build", "-d"],
         cwd=ROOT,
+        env=compose_env,
         stdout=compose_log,
         stderr=subprocess.STDOUT,
         text=True,
@@ -235,8 +242,8 @@ def run_demo_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
         return up.returncode
 
     try:
-        wait_for_url(f"{DEMO_API_URL}/health", timeout_seconds=180)
-        wait_for_url(DEMO_UI_URL, timeout_seconds=180)
+        wait_for_url(f"{api_url}/health", timeout_seconds=180)
+        wait_for_url(ui_url, timeout_seconds=180)
 
         return subprocess.run(
             ["pnpm", "exec", "tsx", "tests/e2e/scenario-driver.ts"],
@@ -248,6 +255,7 @@ def run_demo_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
         subprocess.run(
             ["docker", "compose", "-f", "compose.demo.yml", "logs", "app", "ui", "db"],
             cwd=ROOT,
+            env=compose_env,
             stdout=compose_log,
             stderr=subprocess.STDOUT,
             check=False,
@@ -257,6 +265,7 @@ def run_demo_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
         subprocess.run(
             ["docker", "compose", "-f", "compose.demo.yml", "down", "-v"],
             cwd=ROOT,
+            env=compose_env,
             check=False,
             text=True,
         )

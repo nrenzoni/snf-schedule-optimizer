@@ -8,6 +8,11 @@
       "url": "/"
     },
     {
+      "name": "open module menu for analyzer",
+      "action": "hover_test_id",
+      "testId": "module-menu"
+    },
+    {
       "name": "open scenario analyzer",
       "action": "click_test_id",
       "testId": "tab-analyzer"
@@ -26,6 +31,11 @@
       "name": "simulation result visible",
       "action": "expect_text",
       "text": "Wage Increase Impact"
+    },
+    {
+      "name": "open module menu for forecasts",
+      "action": "hover_test_id",
+      "testId": "module-menu"
     },
     {
       "name": "open ml forecasts",
@@ -49,14 +59,14 @@
       "namePattern": "Close forecast details"
     },
     {
+      "name": "open module menu for scheduling",
+      "action": "hover_test_id",
+      "testId": "module-menu"
+    },
+    {
       "name": "return to scheduling",
       "action": "click_test_id",
       "testId": "tab-scheduling"
-    },
-    {
-      "name": "switch to timeline",
-      "action": "click_test_id",
-      "testId": "view-timeline"
     },
     {
       "name": "timeline heading visible",

@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 type ScenarioAction =
   | "goto"
+  | "hover_test_id"
   | "click_role"
   | "click_test_id"
   | "expect_role"
@@ -101,6 +102,9 @@ async function executeStep(page: Page, step: ScenarioStep) {
   switch (step.action) {
     case "goto":
       await page.goto(step.url ?? "/", { waitUntil: "networkidle" });
+      break;
+    case "hover_test_id":
+      await page.getByTestId(step.testId ?? "").hover();
       break;
     case "click_role":
       await roleLocator(page, step).click();

@@ -13,9 +13,9 @@
       "testId": "demo-mode-banner"
     },
     {
-      "name": "scheduling tab visible",
+      "name": "module menu visible",
       "action": "expect_test_id",
-      "testId": "tab-scheduling"
+      "testId": "module-menu"
     },
     {
       "name": "open summary modal",
@@ -50,11 +50,6 @@
       "action": "click_role",
       "role": "button",
       "namePattern": "Cancel"
-    },
-    {
-      "name": "switch to timeline",
-      "action": "click_test_id",
-      "testId": "view-timeline"
     },
     {
       "name": "timeline heading visible",

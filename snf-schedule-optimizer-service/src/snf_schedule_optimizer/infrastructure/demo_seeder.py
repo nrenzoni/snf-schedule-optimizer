@@ -1,5 +1,7 @@
+import datetime
 from collections import defaultdict
 
+import whenever
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.domain.hr.interfaces import (
@@ -14,7 +16,9 @@ from snf_schedule_optimizer.models import (
     Schedule,
     Shift,
     ShiftAssignmentsType,
+    ShiftKey,
 )
+from snf_schedule_optimizer.models.scenario_models import TimeConfig, WorkforceConfig
 from snf_schedule_optimizer.persistence import INurseRepo
 
 
@@ -48,7 +52,23 @@ class DemoSeeder:
         them through the Repo Ports.
         """
         # 1. Generate Domain Scenario
-        scenario_builder = ScenarioBuilder(seed=seed)
+        start_date, num_days = self._demo_window()
+        scenario_builder = (
+            ScenarioBuilder(seed=seed)
+            .with_time(TimeConfig(start_date=start_date, num_days=num_days))
+            .with_workforce(
+                WorkforceConfig(
+                    count_rn=42,
+                    count_lpn=38,
+                    count_cna=96,
+                    percent_agency_rn=0.16,
+                    percent_agency_lpn=0.18,
+                    percent_agency_cna=0.24,
+                )
+            )
+        )
+        scenario_builder.org_id = 1000
+        scenario_builder.facility_id = 1001
         scenario = scenario_builder.build()
 
         # 2. Persist Facility Configurations
@@ -92,6 +112,27 @@ class DemoSeeder:
 
         await self.db_session.commit()
 
+    @staticmethod
+    def _demo_window() -> tuple[whenever.ZonedDateTime, int]:
+        today = datetime.date.today()
+        first_this_month = today.replace(day=1)
+        start = DemoSeeder._add_months(first_this_month, -1)
+        end = DemoSeeder._add_months(start, 3)
+        num_days = (end - start).days
+        return whenever.ZonedDateTime(
+            start.year,
+            start.month,
+            start.day,
+            tz="America/New_York",
+        ), num_days
+
+    @staticmethod
+    def _add_months(value: datetime.date, months: int) -> datetime.date:
+        month_index = value.month - 1 + months
+        year = value.year + month_index // 12
+        month = month_index % 12 + 1
+        return datetime.date(year, month, 1)
+
     def _build_demo_schedule(
         self,
         org_id: int,
@@ -100,17 +141,40 @@ class DemoSeeder:
         nurses: list[NurseProfile],
     ) -> Schedule:
         assignments: ShiftAssignmentsType = defaultdict(list)
-        nurse_ids = [nurse.employee_id for nurse in nurses]
-        if not nurse_ids:
+        rn_ids = [nurse.employee_id for nurse in nurses if "RN" in (nurse.skills or [])]
+        lpn_ids = [nurse.employee_id for nurse in nurses if "LPN" in (nurse.skills or [])]
+        cna_ids = [nurse.employee_id for nurse in nurses if "CNA" in (nurse.skills or [])]
+        if not rn_ids and not lpn_ids and not cna_ids:
             return Schedule(org_id=org_id, facility_id=facility_id, schedule_id=1)
 
-        # Create a deterministic baseline rotation that produces a visibly staffed demo.
+        unit_staffing = {
+            101: {1: (1, 2, 6), 2: (1, 2, 5), 3: (1, 1, 3)},  # Rehab
+            102: {1: (1, 2, 7), 2: (1, 2, 6), 3: (1, 1, 4)},  # LTC
+            103: {1: (1, 1, 6), 2: (1, 1, 5), 3: (0, 1, 4)},  # Memory
+            104: {1: (1, 2, 5), 2: (1, 1, 4), 3: (1, 1, 3)},  # Subacute
+        }
+
+        def add_staff(pool: list[int], count: int, start: int, shift_key: ShiftKey) -> None:
+            if not pool:
+                return
+            for offset in range(count):
+                assignments[shift_key].append(pool[(start + offset) % len(pool)])
+
+        # Create a deterministic baseline rotation with realistic SNF coverage pressure.
         for index, shift in enumerate(shifts):
-            staff_count = 4 if shift.day_shift else 3
-            start = index % len(nurse_ids)
-            for offset in range(staff_count):
-                nurse_id = nurse_ids[(start + offset) % len(nurse_ids)]
-                assignments[shift.shift_key].append(nurse_id)
+            rn_count, lpn_count, cna_count = unit_staffing.get(shift.unit_id or 0, {}).get(
+                shift.shift_number,
+                (1, 1, 4),
+            )
+            is_weekend = shift.day_of_week in {whenever.Weekday(6), whenever.Weekday(7)}
+            if is_weekend and shift.shift_number in {2, 3}:
+                cna_count = max(2, cna_count - 1)
+            if shift.shift_number == 3 and is_weekend:
+                rn_count = max(1, rn_count - 1)
+
+            add_staff(rn_ids, rn_count, index, shift.shift_key)
+            add_staff(lpn_ids, lpn_count, index * 2, shift.shift_key)
+            add_staff(cna_ids, cna_count, index * 3, shift.shift_key)
 
         return Schedule(
             org_id=org_id,
