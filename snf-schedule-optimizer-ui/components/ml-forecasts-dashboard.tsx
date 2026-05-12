@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   Activity,
   ArrowRight,
-  Brain,
   LucideIcon,
   ShieldAlert,
   TrendingUp,
@@ -107,23 +106,10 @@ export default function MlForecastsDashboard() {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="mb-8 flex items-center space-x-3">
-        <div className="p-3 bg-purple-100 rounded-lg text-purple-700">
-          <Brain size={24} />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">ML Forecasts</h2>
-          <p className="text-gray-500">
-            AI-driven predictions for proactive management
-          </p>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-6">
+    <div className="mx-auto max-w-6xl">
+      <div className="grid gap-3 lg:grid-cols-3">
         {/* Forecast Cards Column */}
-        <div className="space-y-4 lg:col-span-1">
+        <div className="space-y-2 lg:col-span-1">
           {forecasts.map((item, idx) => (
             <button
               key={item.id}
@@ -132,7 +118,7 @@ export default function MlForecastsDashboard() {
               type="button"
               style={{ animationDelay: `${idx * 100}ms` }}
               className={`
-                                cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 relative overflow-hidden group animate-in slide-in-from-left-4
+                                 cursor-pointer p-3 rounded-xl border-2 transition-all duration-200 relative overflow-hidden group animate-in slide-in-from-left-4
                                 ${
                                   activeInsight?.id === item.id
                                     ? `bg-white ${item.border} ring-1 ring-offset-2 ring-indigo-500 shadow-md`
@@ -174,10 +160,10 @@ export default function MlForecastsDashboard() {
           {activeInsight ? (
             <div
               key={activeInsight.id}
-              className="bg-white rounded-xl shadow-lg border border-gray-100 h-full overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300"
+              className="h-full overflow-hidden rounded-xl border border-gray-100 bg-white shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-300"
             >
               <div
-                className={`p-6 border-b ${activeInsight.bg} flex justify-between items-start`}
+                className={`border-b p-4 ${activeInsight.bg} flex items-start justify-between`}
               >
                 <div>
                   <div className="flex items-center space-x-2 mb-1">
@@ -204,13 +190,13 @@ export default function MlForecastsDashboard() {
                 </button>
               </div>
 
-              <div className="p-6 md:p-8 space-y-8">
+              <div className="space-y-4 p-4 md:p-5">
                 {/* Key Stats Row */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2">
                   {activeInsight.details.stats.map((stat, idx) => (
                     <div
                       key={idx}
-                      className="bg-gray-50 p-4 rounded-xl border border-gray-100 text-center"
+                      className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center"
                     >
                       <p className="text-xs text-gray-500 uppercase font-semibold">
                         {stat.label}
@@ -246,9 +232,9 @@ export default function MlForecastsDashboard() {
                 </div>
 
                 {/* AI Insight Box */}
-                <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex items-start space-x-3">
+                <div className="flex items-start space-x-3 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
                   <div className="bg-white p-2 rounded-full shadow-sm text-indigo-600 mt-1">
-                    <Brain size={16} />
+                    <activeInsight.icon size={16} />
                   </div>
                   <div>
                     <h4 className="font-bold text-indigo-900 text-sm">
@@ -262,9 +248,9 @@ export default function MlForecastsDashboard() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 animate-in fade-in duration-500">
+            <div className="flex h-full min-h-[360px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 p-6 text-center animate-in fade-in duration-500">
               <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 text-purple-300">
-                <Brain size={32} />
+                <Activity size={32} />
               </div>
               <h3 className="text-lg font-bold text-gray-700">
                 Select a Forecast Module

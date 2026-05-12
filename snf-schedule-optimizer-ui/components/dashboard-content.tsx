@@ -85,10 +85,9 @@ export default function DashboardContent({
     })),
   );
 
-  const { selectedFacility, resetDemoState, scheduleCount } = useSchedulingStore(
+  const { selectedFacility, scheduleCount } = useSchedulingStore(
     useShallow((state) => ({
       selectedFacility: state.selectedFacility,
-      resetDemoState: state.resetDemoState,
       scheduleCount: state.scheduleMap.size,
     })),
   );
@@ -174,6 +173,16 @@ export default function DashboardContent({
     },
   ];
 
+  const activeModuleLabel =
+    activeModule === "scheduling"
+      ? "Scheduling"
+      : activeModule === "analyzer"
+        ? "Scenario Analyzer"
+        : "ML Forecasts";
+
+  const isTimelineScheduling =
+    activeModule === "scheduling" && viewMode === "timeline";
+
   const renderTabTrigger = (
     value: (typeof moduleOptions)[number],
     icon: React.ReactNode,
@@ -187,7 +196,7 @@ export default function DashboardContent({
           data-testid={`tab-${value}`}
           value={value}
           className={cn(
-          "flex min-w-fit items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-bold h-auto transition-all",
+          "flex min-w-fit items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold h-auto transition-all sm:text-sm",
           "text-slate-500 hover:text-slate-800 hover:bg-white/70",
           "data-[state=active]:bg-slate-950 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-slate-900/10",
           value === "ml-forecasts" && isActive
@@ -205,19 +214,14 @@ export default function DashboardContent({
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_34rem),linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)] p-4 font-sans md:p-8">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_34rem),linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)] p-2 font-sans md:p-3">
       <div
         className={cn(
           "mx-auto transition-all duration-300 ease-in-out",
           viewMode === "timeline" ? "max-w-[1800px]" : "max-w-4xl",
         )}
       >
-        <DemoModeBanner
-          onReset={() => {
-            resetDemoState();
-            void refetch();
-          }}
-        />
+        <DemoModeBanner />
 
         {isUsingFallbackApiBaseUrl ? (
           <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -232,41 +236,39 @@ export default function DashboardContent({
           onValueChange={(value) => void setActiveModule(value as typeof moduleOptions[number])}
           className="w-full"
         >
-          <div className="mb-5 overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-4 shadow-xl shadow-indigo-950/5 backdrop-blur md:p-5">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
+          <div className="mb-2 overflow-hidden rounded-2xl border border-white/70 bg-white/85 p-2.5 shadow-lg shadow-indigo-950/5 backdrop-blur">
+            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-indigo-600">
                   <Calendar size={15} />
                   Staffing Command Center
                 </div>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 md:text-3xl">
-                  Optimize coverage before risk reaches the floor.
+                <div className="hidden h-5 w-px bg-slate-200 sm:block" />
+                <h1 className="truncate text-sm font-black text-slate-950 sm:text-base">
+                  {activeModuleLabel}
                 </h1>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-                  Plan schedules, test labor scenarios, and review ML forecasts from a single guided demo workspace.
-                </p>
               </div>
 
-              <div className="flex flex-col gap-3 lg:items-end">
-                <TabsList className="flex h-auto w-full flex-wrap justify-start gap-2 rounded-full border border-slate-200 bg-slate-100/80 p-1.5 shadow-inner lg:w-fit" data-testid="module-menu">
+              <div className="flex flex-col gap-2 lg:items-end">
+                <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-full border border-slate-200 bg-slate-100/80 p-1 shadow-inner lg:w-fit" data-testid="module-menu">
                   {renderTabTrigger("scheduling", <Calendar size={16} />, "Scheduling")}
                   {renderTabTrigger("analyzer", <BarChart2 size={16} />, "Scenario Analyzer")}
                   {renderTabTrigger("ml-forecasts", <Brain size={16} />, "ML Forecasts", true)}
                 </TabsList>
 
-                <div className="flex flex-col gap-1 rounded-2xl bg-slate-950 px-4 py-3 text-xs text-slate-300 shadow-lg shadow-slate-950/10 ring-1 ring-black/5 sm:min-w-80">
-                <div>
-                  <span className="font-bold text-white">Facility:</span>{" "}
-                  {selectedFacility
-                    ? `${selectedFacility.facilityId} (${selectedFacility.orgId})`
-                    : isLoading
-                      ? "Loading facility context..."
-                      : "No facility selected"}
-                </div>
-                <div>
-                  <span className="font-bold text-white">Loaded days:</span>{" "}
-                  {scheduleCount}
-                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full bg-slate-950 px-3 py-1.5 text-xs text-slate-300 shadow-md shadow-slate-950/10 ring-1 ring-black/5">
+                  <div>
+                    <span className="font-bold text-white">Facility:</span>{" "}
+                    {selectedFacility
+                      ? `${selectedFacility.facilityId} (${selectedFacility.orgId})`
+                      : isLoading
+                        ? "Loading..."
+                        : "None"}
+                  </div>
+                  <div>
+                    <span className="font-bold text-white">Loaded days:</span>{" "}
+                    {scheduleCount}
+                  </div>
                 </div>
               </div>
             </div>
@@ -291,7 +293,7 @@ export default function DashboardContent({
             )}
 
             <TabsContent value="scheduling" className="mt-0">
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {!error && !isLoading && scheduleCount === 0 ? (
                   <DashboardEmptyState
                     title="No schedule data returned"
@@ -303,26 +305,38 @@ export default function DashboardContent({
                     />
                 ) : null}
 
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <div className={cn(
+                  "grid gap-2 md:grid-cols-2 xl:grid-cols-4",
+                  isTimelineScheduling && "rounded-2xl border border-white/70 bg-white/80 p-2 shadow-lg shadow-indigo-950/[0.03] backdrop-blur",
+                )}>
                   {executiveMetrics.map((metric) => (
                     <div
                       key={metric.label}
-                      className="rounded-2xl border border-white/70 bg-white/85 p-4 shadow-lg shadow-slate-950/[0.03] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl"
+                      className={cn(
+                        "rounded-2xl border border-white/70 bg-white/85 shadow-lg shadow-slate-950/[0.03] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl",
+                        isTimelineScheduling ? "p-2.5" : "p-4",
+                      )}
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                             {metric.label}
                           </p>
-                          <p className="mt-2 text-3xl font-black tracking-tight text-slate-950">
+                          <p className={cn(
+                            "font-black tracking-tight text-slate-950",
+                            isTimelineScheduling ? "mt-1 text-xl" : "mt-2 text-3xl",
+                          )}>
                             {metric.value}
                           </p>
                         </div>
-                        <div className={cn("rounded-2xl p-2 ring-1", metric.tone)}>
-                          <metric.icon size={19} />
+                        <div className={cn("rounded-2xl p-1.5 ring-1", metric.tone)}>
+                          <metric.icon size={isTimelineScheduling ? 16 : 19} />
                         </div>
                       </div>
-                      <p className="mt-2 text-sm font-medium text-slate-500">
+                      <p className={cn(
+                        "font-medium text-slate-500",
+                        isTimelineScheduling ? "mt-1 text-xs" : "mt-2 text-sm",
+                      )}>
                         {metric.detail}
                       </p>
                     </div>
@@ -383,7 +397,7 @@ export default function DashboardContent({
                 {viewMode === "list" ? (
                   <ScheduleListView />
                 ) : (
-                    <div className="h-[calc(100vh-320px)] min-h-[560px] rounded-2xl border border-white/80 bg-white/90 p-4 shadow-xl shadow-indigo-950/5 backdrop-blur">
+                    <div className="h-[calc(100vh-170px)] min-h-[560px] rounded-2xl border border-white/80 bg-white/90 p-2 shadow-xl shadow-indigo-950/5 backdrop-blur">
                       {timelineView}
                     </div>
                 )}

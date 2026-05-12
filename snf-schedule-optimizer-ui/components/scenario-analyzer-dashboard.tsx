@@ -166,22 +166,22 @@ export default function ScenarioAnalyzerDashboard() {
   > = metrics;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="mx-auto max-w-6xl space-y-3">
       {/* Header / KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4">
         {typedMetrics.map((kpi, idx) => (
           <div
             key={idx}
-            className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-md transition"
+            className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition hover:shadow-md"
           >
-            <div className="flex justify-between items-start mb-2">
+            <div className="mb-1.5 flex items-start justify-between">
               <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">
                 {kpi.label}
               </span>
               <kpi.icon size={18} className={kpi.color} />
             </div>
             <div>
-              <span className="text-2xl font-bold text-gray-900">
+              <span className="text-xl font-bold text-gray-900">
                 {kpi.value}
               </span>
               <span className={`text-xs ml-2 font-medium ${kpi.trendColor}`}>
@@ -192,18 +192,18 @@ export default function ScenarioAnalyzerDashboard() {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid gap-3 lg:grid-cols-3">
         {/* Simulation Launcher */}
-        <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-          <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:col-span-1">
+          <h3 className="mb-3 flex items-center gap-2 font-bold text-gray-800">
             <Play size={18} className="text-indigo-600" />
             Run New Simulation
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             <button
               data-testid="simulation-wage-impact"
               onClick={() => openSimulation("WAGE_IMPACT")}
-              className="w-full text-left p-3 rounded-lg border hover:border-indigo-300 hover:bg-indigo-50 transition group"
+              className="group w-full rounded-lg border p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
             >
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700 group-hover:text-indigo-700">
@@ -222,7 +222,7 @@ export default function ScenarioAnalyzerDashboard() {
             <button
               data-testid="simulation-census-impact"
               onClick={() => openSimulation("CENSUS_IMPACT")}
-              className="w-full text-left p-3 rounded-lg border hover:border-indigo-300 hover:bg-indigo-50 transition group"
+              className="group w-full rounded-lg border p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
             >
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700 group-hover:text-indigo-700">
@@ -241,7 +241,7 @@ export default function ScenarioAnalyzerDashboard() {
             <button
               data-testid="simulation-agency-reduction"
               onClick={() => openSimulation("AGENCY_REDUCTION")}
-              className="w-full text-left p-3 rounded-lg border hover:border-indigo-300 hover:bg-indigo-50 transition group"
+              className="group w-full rounded-lg border p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
             >
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-700 group-hover:text-indigo-700">
