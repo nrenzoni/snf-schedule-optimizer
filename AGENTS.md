@@ -17,6 +17,13 @@ just dev-ui
 
 The dev database is published on host port `35435` to avoid common local Postgres conflicts.
 
+## LAN-Origin Development
+
+- Agent/browser E2E uses localhost origins by design and should not include generic CORS probes.
+- If debugging a browser opened through a LAN origin, check `EXTRA_DEV_ORIGINS` for backend CORS and `NEXT_ALLOWED_DEV_ORIGINS` for Next.js dev asset origins.
+- `EXTRA_DEV_ORIGINS` values are full origins, such as `http://192.168.5.101:3000`.
+- `NEXT_ALLOWED_DEV_ORIGINS` values are hostnames or host:port entries without protocol, such as `192.168.5.101`.
+
 ## Repo Areas
 
 - `snf-schedule-optimizer-ui/`: Next.js frontend

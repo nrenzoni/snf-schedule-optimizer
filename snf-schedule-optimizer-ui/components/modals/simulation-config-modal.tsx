@@ -41,8 +41,6 @@ export default function SimulationConfigModal({
   let title = "Configure Simulation";
   let content = null;
 
-  console.log("SimulationConfigModal type: ", type);
-
   if (type === "WAGE_IMPACT") {
     title = "Wage Sensitivity Analysis";
     content = (
@@ -168,6 +166,7 @@ export default function SimulationConfigModal({
             Cancel
           </button>
           <button
+            data-testid="run-simulation"
             onClick={handleRun}
             className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md transition"
           >

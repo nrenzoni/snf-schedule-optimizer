@@ -1,0 +1,65 @@
+{
+  "name": "dashboard_smoke",
+  "description": "Validate the main dashboard shell, scheduling controls, and timeline surface against the full stack.",
+  "steps": [
+    {
+      "name": "open dashboard",
+      "action": "goto",
+      "url": "/"
+    },
+    {
+      "name": "demo banner visible",
+      "action": "expect_test_id",
+      "testId": "demo-mode-banner"
+    },
+    {
+      "name": "scheduling tab visible",
+      "action": "expect_test_id",
+      "testId": "tab-scheduling"
+    },
+    {
+      "name": "open summary modal",
+      "action": "click_test_id",
+      "testId": "open-schedule-summary"
+    },
+    {
+      "name": "summary heading visible",
+      "action": "expect_role",
+      "role": "heading",
+      "namePattern": "Monthly Schedule Summary"
+    },
+    {
+      "name": "close summary modal",
+      "action": "click_role",
+      "role": "button",
+      "namePattern": "Close Summary"
+    },
+    {
+      "name": "open config modal",
+      "action": "click_test_id",
+      "testId": "open-scheduling-config"
+    },
+    {
+      "name": "config heading visible",
+      "action": "expect_role",
+      "role": "heading",
+      "namePattern": "Scheduler Configuration"
+    },
+    {
+      "name": "cancel config modal",
+      "action": "click_role",
+      "role": "button",
+      "namePattern": "Cancel"
+    },
+    {
+      "name": "switch to timeline",
+      "action": "click_test_id",
+      "testId": "view-timeline"
+    },
+    {
+      "name": "timeline heading visible",
+      "action": "expect_text",
+      "text": "Master Schedule"
+    }
+  ]
+}

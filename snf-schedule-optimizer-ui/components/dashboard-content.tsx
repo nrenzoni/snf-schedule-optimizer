@@ -145,10 +145,11 @@ export default function DashboardContent({
   ) => {
     const isActive = activeModule === value;
 
-    return (
-      <TabsTrigger
-        value={value}
-        className={cn(
+      return (
+        <TabsTrigger
+          data-testid={`tab-${value}`}
+          value={value}
+          className={cn(
           "flex items-center space-x-2 px-4 md:px-6 py-2.5 rounded-lg text-sm font-bold h-auto transition-all",
           "text-gray-500 hover:text-gray-700 hover:bg-gray-200/50",
           "data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:ring-1 data-[state=active]:ring-black/5",
@@ -265,6 +266,7 @@ export default function DashboardContent({
                 <div className="flex justify-end">
                   <div className="bg-white border rounded-lg p-1 flex space-x-1">
                     <button
+                      data-testid="view-list"
                       onClick={() => setViewMode("list")}
                       className={cn(
                         "px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-colors",
@@ -276,6 +278,7 @@ export default function DashboardContent({
                       <LayoutList size={14} /> <span>List</span>
                     </button>
                     <button
+                      data-testid="view-timeline"
                       onClick={() => setViewMode("timeline")}
                       className={cn(
                         "px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-colors",

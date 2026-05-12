@@ -55,6 +55,22 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 
 If not provided, the client currently falls back to `http://localhost:8000`.
 
+### LAN / Remote Browser Development
+
+If you open the dev UI through a LAN address like `http://192.168.5.101:3000`, Next.js needs the host allowlisted for dev asset requests:
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://192.168.5.101:8000 NEXT_ALLOWED_DEV_ORIGINS=192.168.5.101 just dev-ui
+```
+
+The backend also needs the full browser origin in CORS. Run the backend with:
+
+```bash
+EXTRA_DEV_ORIGINS=http://192.168.5.101:3000 just dev-be
+```
+
+Use comma-separated values for multiple LAN IPs or hostnames. Restart the UI dev server after changing `NEXT_PUBLIC_API_BASE_URL` because it is compiled into the browser bundle.
+
 ## Full Product Demo
 
 For the recommended end-to-end demo path, you can invoke the repo-root compose file from this directory:

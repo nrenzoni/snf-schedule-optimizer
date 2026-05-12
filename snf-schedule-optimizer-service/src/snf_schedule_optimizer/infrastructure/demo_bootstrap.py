@@ -1,9 +1,12 @@
 import asyncio
 import logging
 import os
+from typing import Any, cast
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from that_depends import container_context
+from that_depends.providers.context_resources import ContextScopes, SupportsContext
 
 from snf_schedule_optimizer.infrastructure.composition import (
     build_repos_container,
@@ -33,37 +36,41 @@ async def bootstrap() -> None:
         logger.info("Synchronizing database schema...")
         await conn.run_sync(SQLABase.metadata.create_all)
 
-    session: AsyncSession = await repos_container.db_session()
+    async with container_context(
+        cast(SupportsContext[Any], repos_container),
+        scope=ContextScopes.REQUEST,
+    ):
+        session: AsyncSession = await repos_container.db_session()
 
-    # 2. Check if seeding is required
-    # Use a scoped session from the container
-    async with session.begin():
-        # Check for existing employees as a marker for seeded data
-        stmt = select(func.count()).select_from(EmployeeModel)
-        result = await session.execute(stmt)
-        count = result.scalar()
+        # 2. Check if seeding is required
+        # Use a scoped session from the container
+        async with session.begin():
+            # Check for existing employees as a marker for seeded data
+            stmt = select(func.count()).select_from(EmployeeModel)
+            result = await session.execute(stmt)
+            count = result.scalar()
 
-        if count == 0:
-            logger.info("No data found. Running DemoSeeder...")
+            if count == 0:
+                logger.info("No data found. Running DemoSeeder...")
 
-            # Use the DIContainer to resolve repositories automatically
-            # We construct the seeder manually here to ensure it uses the current session
-            seeder = DemoSeeder(
-                employee_repo=await repos_container.employee_retriever.resolve(),
-                nurse_repo=await repos_container.nurse_retriever.resolve(),
-                shift_repo=await repos_container.shift_retriever.resolve(),
-                comp_repo=await repos_container.compensation_retriever.resolve(),
-                facility_repo=await repos_container.facility_retriever.resolve(),
-                schedule_repo=await repos_container.schedule_retriever.resolve(),
-                db_session=session,
-            )
+                # Use the DIContainer to resolve repositories automatically
+                # We construct the seeder manually here to ensure it uses the current session
+                seeder = DemoSeeder(
+                    employee_repo=await repos_container.employee_retriever.resolve(),
+                    nurse_repo=await repos_container.nurse_retriever.resolve(),
+                    shift_repo=await repos_container.shift_retriever.resolve(),
+                    comp_repo=await repos_container.compensation_retriever.resolve(),
+                    facility_repo=await repos_container.facility_retriever.resolve(),
+                    schedule_repo=await repos_container.schedule_retriever.resolve(),
+                    db_session=session,
+                )
 
-            await seeder.seed_from_scenario(seed=42)
-            logger.info("Seeding complete.")
-        else:
-            logger.info(
-                f"Database already contains {count} employees. Skipping seeding."
-            )
+                await seeder.seed_from_scenario(seed=42)
+                logger.info("Seeding complete.")
+            else:
+                logger.info(
+                    f"Database already contains {count} employees. Skipping seeding."
+                )
 
 
 if __name__ == "__main__":

@@ -1,33 +1,35 @@
 import asyncio
 import logging
 import os
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from hypercorn import Config
 from hypercorn.asyncio import serve
 from hypercorn.typing import ASGIFramework
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from starlette.responses import Response
 
 from snf_schedule_optimizer.api.grpc.scheduler_handler import SchedulingServiceHandler
 from snf_schedule_optimizer.generated.scheduling.v1.scheduling_connect import (
     SchedulingServiceASGIApplication,
 )
-from snf_schedule_optimizer.infrastructure.composition import (
-    build_facility_container,
-    build_infra_container,
-    build_repos_container,
-    build_scheduler_container,
-)
+from snf_schedule_optimizer.infrastructure.composition import build_infra_container
+
+logger = logging.getLogger("snf_schedule_optimizer.api")
 
 
 def _allowed_origins() -> list[str]:
     return [
         origin.strip()
-        for origin in os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000").split(",")
+        for origin in os.getenv(
+            "CORS_ALLOW_ORIGINS",
+            "http://localhost:3000,http://127.0.0.1:3000",
+        ).split(",")
         if origin.strip()
     ]
 
@@ -38,18 +40,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_async_engine(db_url, pool_pre_ping=True)
     session_local = async_sessionmaker(bind=engine)
 
-    retrievers_container_type = build_repos_container(engine, session_local)
-    scheduler_container_type = build_scheduler_container(retrievers_container_type)
-    facility_container_type = build_facility_container(retrievers_container_type)
     infra_container_type = build_infra_container()
 
-    scheduler_facade = await scheduler_container_type.scheduler_service()
-    facility_facade = await facility_container_type.facility_facade()
     id_obfuscator = await infra_container_type.id_obfuscator()
 
     rpc_handler = SchedulingServiceHandler(
-        scheduler_facade,
-        facility_facade,
+        engine,
+        session_local,
         id_obfuscator,
     )
 
@@ -61,12 +58,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.rpc_mounted = True
 
     app.state.engine = engine
-    app.state.scheduler_facade = scheduler_facade
-
     try:
         yield
     finally:
-        await scheduler_facade.close()
         await engine.dispose()
 
 
@@ -85,6 +79,37 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    @app.middleware("http")
+    async def request_logging_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        start = time.perf_counter()
+        run_id = request.headers.get("x-e2e-run-id", "-")
+
+        try:
+            response = await call_next(request)
+        except Exception:
+            duration_ms = (time.perf_counter() - start) * 1000
+            logger.exception(
+                "request.failed method=%s path=%s run_id=%s duration_ms=%.2f",
+                request.method,
+                request.url.path,
+                run_id,
+                duration_ms,
+            )
+            raise
+
+        duration_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "request.completed method=%s path=%s status=%s run_id=%s duration_ms=%.2f",
+            request.method,
+            request.url.path,
+            response.status_code,
+            run_id,
+            duration_ms,
+        )
+        return response
+
     @app.get("/health")
     def health_check() -> dict[str, str]:
         return {"status": "healthy"}
@@ -97,7 +122,8 @@ app = create_app()
 
 async def main() -> None:
     config = Config()
-    config.bind = ["0.0.0.0:8000"]
+    port = os.getenv("PORT", "8000")
+    config.bind = [f"0.0.0.0:{port}"]
 
     # Enable Hypercorn access logs (Method, Path, Status Code)
     config.accesslog = "-"  # "-" means log to stdout

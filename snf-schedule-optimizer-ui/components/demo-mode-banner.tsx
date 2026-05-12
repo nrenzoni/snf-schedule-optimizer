@@ -9,7 +9,10 @@ export default function DemoModeBanner({
   onReset: () => void;
 }) {
   return (
-    <section className="mb-6 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-purple-50 p-5 shadow-sm">
+    <section
+      data-testid="demo-mode-banner"
+      className="mb-6 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-purple-50 p-5 shadow-sm"
+    >
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-indigo-700">
@@ -31,6 +34,7 @@ export default function DemoModeBanner({
             Try Optimize, Summary, and Timeline drag-drop
           </div>
           <button
+            data-testid="reset-demo-state"
             type="button"
             onClick={onReset}
             className="inline-flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"

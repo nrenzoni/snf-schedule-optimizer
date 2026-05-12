@@ -1,0 +1,67 @@
+{
+  "name": "full_navigation",
+  "description": "Traverse the top-level modules and validate representative interactions in each area.",
+  "steps": [
+    {
+      "name": "open dashboard",
+      "action": "goto",
+      "url": "/"
+    },
+    {
+      "name": "open scenario analyzer",
+      "action": "click_test_id",
+      "testId": "tab-analyzer"
+    },
+    {
+      "name": "open wage impact simulation",
+      "action": "click_test_id",
+      "testId": "simulation-wage-impact"
+    },
+    {
+      "name": "run wage impact simulation",
+      "action": "click_test_id",
+      "testId": "run-simulation"
+    },
+    {
+      "name": "simulation result visible",
+      "action": "expect_text",
+      "text": "Wage Increase Impact"
+    },
+    {
+      "name": "open ml forecasts",
+      "action": "click_test_id",
+      "testId": "tab-ml-forecasts"
+    },
+    {
+      "name": "open turnover forecast",
+      "action": "click_test_id",
+      "testId": "forecast-turnover"
+    },
+    {
+      "name": "deep dive visible",
+      "action": "expect_text",
+      "text": "Deep Dive Analysis"
+    },
+    {
+      "name": "close forecast detail",
+      "action": "click_role",
+      "role": "button",
+      "namePattern": "Close forecast details"
+    },
+    {
+      "name": "return to scheduling",
+      "action": "click_test_id",
+      "testId": "tab-scheduling"
+    },
+    {
+      "name": "switch to timeline",
+      "action": "click_test_id",
+      "testId": "view-timeline"
+    },
+    {
+      "name": "timeline heading visible",
+      "action": "expect_text",
+      "text": "Master Schedule"
+    }
+  ]
+}

@@ -5,7 +5,8 @@ from typing import Any, ClassVar, cast
 from sqlalchemy import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from that_depends import BaseContainer, Provide
-from that_depends.providers import AbstractProvider, Factory, Resource
+from that_depends.providers import AbstractProvider, ContextResource, Factory
+from that_depends.providers.context_resources import ContextScopes
 
 from snf_schedule_optimizer.domain.hr.certification_service import (
     CertificationService,
@@ -164,7 +165,9 @@ def build_repos_container(
             yield sess
 
     class ReposContainer(BaseContainer, IReposContainer):
-        db_session = Resource(_make_session)
+        default_scope = ContextScopes.REQUEST
+
+        db_session = ContextResource(_make_session)
 
         shift_retriever = Factory(
             SQLShiftRepo,

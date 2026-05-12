@@ -190,6 +190,24 @@ That keeps Postgres in Docker while running the backend and Next.js dev server o
 
 The infra-first dev database is published on host port `35435` to avoid common local Postgres conflicts.
 
+### LAN / Remote Browser Development
+
+If you open the host dev UI from another device or a LAN address such as `http://192.168.5.101:3000`, configure both the backend CORS origins and Next.js dev origins explicitly.
+
+Backend API CORS expects full origins with protocol:
+
+```bash
+EXTRA_DEV_ORIGINS=http://192.168.5.101:3000 just dev-be
+```
+
+Next.js dev origins expect hostnames or host:port values without protocol:
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://192.168.5.101:8000 NEXT_ALLOWED_DEV_ORIGINS=192.168.5.101 just dev-ui
+```
+
+For multiple origins, use comma-separated values. Restart the UI dev server after changing `NEXT_PUBLIC_API_BASE_URL` because it is compiled into the browser bundle.
+
 Common local commands:
 
 ```bash

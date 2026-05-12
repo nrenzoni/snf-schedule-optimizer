@@ -201,6 +201,7 @@ export default function ScenarioAnalyzerDashboard() {
           </h3>
           <div className="space-y-3">
             <button
+              data-testid="simulation-wage-impact"
               onClick={() => openSimulation("WAGE_IMPACT")}
               className="w-full text-left p-3 rounded-lg border hover:border-indigo-300 hover:bg-indigo-50 transition group"
             >
@@ -219,6 +220,7 @@ export default function ScenarioAnalyzerDashboard() {
             </button>
 
             <button
+              data-testid="simulation-census-impact"
               onClick={() => openSimulation("CENSUS_IMPACT")}
               className="w-full text-left p-3 rounded-lg border hover:border-indigo-300 hover:bg-indigo-50 transition group"
             >
@@ -237,6 +239,7 @@ export default function ScenarioAnalyzerDashboard() {
             </button>
 
             <button
+              data-testid="simulation-agency-reduction"
               onClick={() => openSimulation("AGENCY_REDUCTION")}
               className="w-full text-left p-3 rounded-lg border hover:border-indigo-300 hover:bg-indigo-50 transition group"
             >

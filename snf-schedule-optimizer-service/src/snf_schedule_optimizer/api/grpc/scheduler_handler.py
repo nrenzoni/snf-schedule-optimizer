@@ -1,9 +1,13 @@
 from collections import defaultdict
 from collections.abc import Mapping
+from typing import Any, cast
 
 import whenever
 from connectrpc.request import RequestContext
 from returns.result import Failure, Result, Success, safe
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from that_depends import container_context
+from that_depends.providers.context_resources import ContextScopes, SupportsContext
 
 from snf_schedule_optimizer.api import MoveEmployeeRequest, OptimizationOutput
 from snf_schedule_optimizer.generated.scheduling.v1 import (
@@ -16,6 +20,13 @@ from snf_schedule_optimizer.generated.scheduling.v1 import (
 from snf_schedule_optimizer.generated.scheduling.v1.scheduling_pb2 import (
     GetAllOrgFacilitiesRequest,
     GetAllOrgFacilitiesResponse,
+)
+from snf_schedule_optimizer.infrastructure.composition import (
+    IFacilityContainer,
+    ISchedulerContainer,
+    build_facility_container,
+    build_repos_container,
+    build_scheduler_container,
 )
 from snf_schedule_optimizer.infrastructure.sqid_converter import (
     IIdObfuscator,
@@ -46,20 +57,44 @@ def get_internal_id(
 class SchedulingServiceHandler(scheduling_connect.SchedulingService):
     def __init__(
         self,
-        scheduler_service: WorkforceSchedulerFacadePort,
-        facility_facade: FacilityFacade,
+        engine: AsyncEngine,
+        session_factory: async_sessionmaker[AsyncSession],
         id_obfuscator: IIdObfuscator,
     ):
-        self.scheduler_service = scheduler_service
-        self.facility_facade = facility_facade
+        self.engine = engine
+        self.session_factory = session_factory
         self.id_obfuscator = id_obfuscator
+
+    def _build_scheduler_container(self) -> type[ISchedulerContainer]:
+        repos_container = build_repos_container(self.engine, self.session_factory)
+        return build_scheduler_container(repos_container)
+
+    def _build_facility_container(self) -> type[IFacilityContainer]:
+        repos_container = build_repos_container(self.engine, self.session_factory)
+        return build_facility_container(repos_container)
+
+    def _scheduler_context(
+        self, scheduler_container: type[ISchedulerContainer]
+    ) -> SupportsContext[Any]:
+        return cast(SupportsContext[Any], scheduler_container)
+
+    def _facility_context(
+        self, facility_container: type[IFacilityContainer]
+    ) -> SupportsContext[Any]:
+        return cast(SupportsContext[Any], facility_container)
 
     async def get_all_org_facilities(
         self,
         request: scheduling_dot_v1_dot_scheduling__pb2.GetAllOrgFacilitiesRequest,
         ctx: RequestContext[GetAllOrgFacilitiesRequest, GetAllOrgFacilitiesResponse],
     ) -> scheduling_dot_v1_dot_scheduling__pb2.GetAllOrgFacilitiesResponse:
-        facility_configs = await self.facility_facade.get_all_system_facilities()
+        facility_container = self._build_facility_container()
+        async with container_context(
+            self._facility_context(facility_container),
+            scope=ContextScopes.REQUEST,
+        ):
+            facility_facade: FacilityFacade = await facility_container.facility_facade.resolve()
+            facility_configs = await facility_facade.get_all_system_facilities()
         org_facs = [
             scheduling_dot_v1_dot_scheduling__pb2.OrgFacility(
                 org_id=self.id_obfuscator.encode(facility.org_id),
@@ -96,13 +131,21 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             raise ValueError(facility_result.failure())
         facility_id = facility_result.unwrap()
 
-        schedule, shifts, employees, facility_config = (
-            await self.scheduler_service.get_monthly_schedule(
-                org_id=org_id,
-                facility_id=facility_id,
-                start_date=request.start_date,
+        scheduler_container = self._build_scheduler_container()
+        async with container_context(
+            self._scheduler_context(scheduler_container),
+            scope=ContextScopes.REQUEST,
+        ):
+            scheduler_service: WorkforceSchedulerFacadePort = (
+                await scheduler_container.scheduler_service.resolve()
             )
-        )
+            schedule, shifts, employees, facility_config = (
+                await scheduler_service.get_monthly_schedule(
+                    org_id=org_id,
+                    facility_id=facility_id,
+                    start_date=request.start_date,
+                )
+            )
 
         day_schedules = self._map_monthly_schedule(
             schedule=schedule,
@@ -114,7 +157,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         response = scheduling_pb2.GetMonthlyScheduleResponse(
             facility_id=self.id_obfuscator.encode(facility_config.facility_id),
         )
-        response.schedules.update(day_schedules)
+        for day, day_schedule in day_schedules.items():
+            response.schedules[day].CopyFrom(day_schedule)
         return response
 
     async def validate_shift_move(
@@ -196,12 +240,20 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
 
         # 2. Call Application Layer (Facade)
         # We pass absolute Instant for cross-facility coordination
-        result: OptimizationOutput = await self.scheduler_service.validate_shift_move(
-            move_request=domain_request,
-            pay_period_start=whenever.Instant.from_timestamp(
-                request.pay_period_start_ts
-            ),
-        )
+        scheduler_container = self._build_scheduler_container()
+        async with container_context(
+            self._scheduler_context(scheduler_container),
+            scope=ContextScopes.REQUEST,
+        ):
+            scheduler_service: WorkforceSchedulerFacadePort = (
+                await scheduler_container.scheduler_service.resolve()
+            )
+            result: OptimizationOutput = await scheduler_service.validate_shift_move(
+                move_request=domain_request,
+                pay_period_start=whenever.Instant.from_timestamp(
+                    request.pay_period_start_ts
+                ),
+            )
 
         # 3. Map Domain Result -> Proto Response
         return self._map_to_response(result)

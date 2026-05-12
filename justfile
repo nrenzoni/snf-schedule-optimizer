@@ -65,10 +65,10 @@ infra-check:
   PGPASSWORD=snf_password psql -h localhost -p 35435 -U snf_user -d snf_optimizer_demo -c 'select 1'
 
 dev-ui:
-  cd snf-schedule-optimizer-ui && NEXT_PUBLIC_API_BASE_URL={{api_url}} pnpm dev
+  cd snf-schedule-optimizer-ui && NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-{{api_url}}}" NEXT_ALLOWED_DEV_ORIGINS="${NEXT_ALLOWED_DEV_ORIGINS:-}" pnpm dev
 
 dev-be:
-  cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL={{db_url}} uv run uvicorn snf_schedule_optimizer.api.main:app --host 0.0.0.0 --port 8000 --reload
+  extra_origins="${EXTRA_DEV_ORIGINS:-}"; cors_origins="http://localhost:3000,http://127.0.0.1:3000"; if [[ -n "$extra_origins" ]]; then cors_origins="$cors_origins,$extra_origins"; fi; cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL={{db_url}} CORS_ALLOW_ORIGINS="$cors_origins" uv run uvicorn snf_schedule_optimizer.api.main:app --host 0.0.0.0 --port 8000 --reload
 
 dev:
   @printf 'Run in separate terminals:\n'
@@ -88,6 +88,15 @@ check-proto:
 
 test-e2e:
   cd snf-schedule-optimizer-ui && NEXT_PUBLIC_API_BASE_URL={{api_url}} node node_modules/@playwright/test/cli.js test
+
+e2e-agent-dev scenario="dashboard_smoke":
+  uv run --project snf-schedule-optimizer-service python tools/e2e/orchestrator.py --mode dev --scenario {{scenario}}
+
+e2e-agent-demo scenario="dashboard_smoke":
+  uv run --project snf-schedule-optimizer-service python tools/e2e/orchestrator.py --mode demo --scenario {{scenario}}
+
+e2e-agent-autofix scenario="dashboard_smoke" mode="dev":
+  uv run --project snf-schedule-optimizer-service python tools/e2e/autofix.py --mode {{mode}} --scenario {{scenario}}
 
 smoke-demo:
   docker compose -f compose.demo.yml up --build -d

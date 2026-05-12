@@ -127,6 +127,7 @@ export default function MlForecastsDashboard() {
           {forecasts.map((item, idx) => (
             <button
               key={item.id}
+              data-testid={`forecast-${item.id}`}
               onClick={() => setActiveInsight(item)}
               type="button"
               style={{ animationDelay: `${idx * 100}ms` }}

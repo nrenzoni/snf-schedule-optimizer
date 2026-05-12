@@ -104,22 +104,24 @@ export default function ScheduleListView() {
       <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-xl p-4 sm:p-6 mb-6">
         <header className="mb-6 border-b pb-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <button
-            onClick={() => changeMonth(-1)}
-            disabled={isTwoWeekView}
-            className={`p-2 rounded-full text-gray-700 hover:bg-gray-100 transition duration-150 ${isTwoWeekView ? "opacity-30 cursor-not-allowed" : ""}`}
-            aria-label="Previous month"
-          >
-            <ChevronLeft size={24} />
-          </button>
+            <button
+              data-testid="previous-month"
+              onClick={() => changeMonth(-1)}
+              disabled={isTwoWeekView}
+              className={`p-2 rounded-full text-gray-700 hover:bg-gray-100 transition duration-150 ${isTwoWeekView ? "opacity-30 cursor-not-allowed" : ""}`}
+              aria-label="Previous month"
+            >
+              <ChevronLeft size={24} />
+            </button>
 
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 tracking-tight">
-            {monthYearFormatter.format(currentDate)}
-          </h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 tracking-tight">
+              {monthYearFormatter.format(currentDate)}
+            </h2>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             {/* Optimize Button */}
             <button
+              data-testid="optimize-schedule"
               onClick={triggerOptimization}
               disabled={isOptimizing}
               className={`py-2 px-3 text-sm font-semibold rounded-lg shadow-sm transition duration-200 flex items-center gap-2 whitespace-nowrap
@@ -135,6 +137,7 @@ export default function ScheduleListView() {
 
             {/* Summary Button */}
             <button
+              data-testid="open-schedule-summary"
               onClick={openSummaryModal}
               className={`py-2 px-3 text-sm font-semibold rounded-lg shadow-sm border transition duration-200 bg-white text-indigo-600 hover:bg-indigo-50 border-indigo-200 flex items-center gap-1`}
             >
@@ -144,6 +147,7 @@ export default function ScheduleListView() {
 
             {/* Configure Button */}
             <button
+              data-testid="open-scheduling-config"
               onClick={openConfigModal}
               className={`py-2 px-3 text-sm font-semibold rounded-lg shadow-sm border transition duration-200 bg-white text-gray-700 hover:bg-gray-50 border-gray-200 flex items-center gap-1`}
             >
@@ -153,6 +157,7 @@ export default function ScheduleListView() {
 
             {/* View Toggle Button */}
             <button
+              data-testid="toggle-calendar-view"
               onClick={toggleCalendarView}
               className={`py-2 px-3 text-sm font-semibold rounded-lg shadow-sm border transition duration-200
                             ${
@@ -166,6 +171,7 @@ export default function ScheduleListView() {
 
             {/* Chevron Right Button */}
             <button
+              data-testid="next-month"
               onClick={() => changeMonth(1)}
               disabled={isTwoWeekView}
               className={`p-2 rounded-full text-gray-700 hover:bg-gray-100 transition duration-150 ${isTwoWeekView ? "opacity-30 cursor-not-allowed" : ""}`}
@@ -173,7 +179,7 @@ export default function ScheduleListView() {
             >
               <ChevronRight size={24} />
             </button>
-          </div>
+            </div>
           </div>
         </header>
 
