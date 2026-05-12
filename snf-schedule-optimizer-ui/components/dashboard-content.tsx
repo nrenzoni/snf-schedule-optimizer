@@ -2,7 +2,7 @@
 
 import { useUIStore } from "@/store/uiStore";
 import { useShallow } from "zustand/react/shallow";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -21,19 +21,24 @@ import {
   SchedulerSettings,
   ScheduleSummaryModal,
 } from "@/components/modals/schedule-summary-modal";
-import { useSchedulingStore } from "@/store/schedulingStore";
 import MlForecastsDashboard from "@/components/ml-forecasts-dashboard";
 import useScheduleQuery from "@/hooks/use-schedule-query";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { TODAY_STRING } from "@/utils/scheduling-logic";
 import { useScheduling } from "@/hooks/use-scheduling";
 import NurseDetailsPanel from "@/components/nurse-details-panel";
+import DemoModeBanner from "@/components/demo-mode-banner";
+import DashboardEmptyState from "@/components/dashboard-empty-state";
+import { useSchedulingStore } from "@/store/schedulingStore";
+import { ScheduleQueryError } from "@/hooks/use-schedule-query";
+import { isUsingFallbackApiBaseUrl } from "@/api/scheduling-client";
 
 interface DashboardShellProps {
   timelineView: React.ReactNode;
 }
 
 const viewOptions = ["list", "timeline"] as const;
+const moduleOptions = ["scheduling", "analyzer", "ml-forecasts"] as const;
 
 // 1. CREATE AN INNER COMPONENT
 // This component will be a child of QueryClientProvider, so hooks will work here.
@@ -54,7 +59,7 @@ export default function DashboardContent({
 
   const [activeModule, setActiveModule] = useQueryState(
     "tab",
-    parseAsString.withDefault("scheduling"),
+    parseAsStringLiteral(moduleOptions).withDefault("scheduling"),
   );
 
   // URL: /schedule?view=timeline
@@ -65,14 +70,20 @@ export default function DashboardContent({
 
   const uiStore = useUIStore(
     useShallow((state) => ({
-      activeModule: state.activeModule,
-      setActiveModule: state.setActiveModule,
       isConfigModalOpen: state.isConfigModalOpen,
       closeConfigModal: state.closeConfigModal,
       openConfigModal: state.openConfigModal,
       isSummaryModalOpen: state.isSummaryModalOpen,
       closeSummaryModal: state.closeSummaryModal,
       openSummaryModal: state.openSummaryModal,
+    })),
+  );
+
+  const { selectedFacility, resetDemoState, scheduleCount } = useSchedulingStore(
+    useShallow((state) => ({
+      selectedFacility: state.selectedFacility,
+      resetDemoState: state.resetDemoState,
+      scheduleCount: state.scheduleMap.size,
     })),
   );
 
@@ -85,7 +96,6 @@ export default function DashboardContent({
     isModalVisible,
 
     // Actions
-    openShiftDetails,
     closeModal,
     selectShift,
     openNurseDetails,
@@ -94,15 +104,11 @@ export default function DashboardContent({
     addNurseToShift,
 
     // Calendar/Data State
-    currentDate, // For passing to components if needed
-  } = useScheduling(0);
-
-  const setIsOptimized = useSchedulingStore((state) => state.setIsOptimized);
+  } = useScheduling();
 
   // THIS HOOK NOW WORKS because it is inside QueryClientProvider
-  const { isLoading, error } = useScheduleQuery(currentViewAnchorDate);
+  const { error, isLoading, refetch } = useScheduleQuery(currentViewAnchorDate);
 
-  const [isOptimizing, setIsOptimizing] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
 
   const [schedulerSettings, setSchedulerSettings] = useState<SchedulerSettings>(
@@ -124,21 +130,6 @@ export default function DashboardContent({
     setSchedulerSettings((prev) => ({ ...prev, [key]: value }));
   }
 
-  useCallback(async () => {
-    if (isOptimizing) return;
-    setIsOptimizing(true);
-    console.log("Optimization started...");
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      setIsOptimized(true);
-      console.log("Optimization complete! Schedule updated (mock).");
-    } catch (error) {
-      console.error("Optimization failed:", error);
-    } finally {
-      setIsOptimizing(false);
-    }
-  }, [isOptimizing, setIsOptimized]);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowPulse(false);
@@ -147,7 +138,7 @@ export default function DashboardContent({
   }, []);
 
   const renderTabTrigger = (
-    value: string,
+    value: (typeof moduleOptions)[number],
     icon: React.ReactNode,
     label: string,
     isPulse = false,
@@ -183,9 +174,24 @@ export default function DashboardContent({
           viewMode === "timeline" ? "max-w-[1800px]" : "max-w-4xl",
         )}
       >
+        <DemoModeBanner
+          onReset={() => {
+            resetDemoState();
+            void refetch();
+          }}
+        />
+
+        {isUsingFallbackApiBaseUrl ? (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="font-semibold">API base URL fallback in use.</span>{" "}
+            Set <code>NEXT_PUBLIC_API_BASE_URL</code> to point the demo at the
+            intended backend instead of the default local address.
+          </div>
+        ) : null}
+
         <Tabs
           value={activeModule}
-          onValueChange={setActiveModule}
+          onValueChange={(value) => void setActiveModule(value as typeof moduleOptions[number])}
           className="w-full"
         >
           {/* Navigation Bar */}
@@ -212,14 +218,50 @@ export default function DashboardContent({
 
           {/*Tabs Content*/}
           <div className="min-h-[600px]">
-            {error && (
-              <div className="text-center py-12 text-red-600 font-semibold text-lg">
-                Error loading schedules: {error.message}
+            <div className="mb-4 flex flex-col gap-2 rounded-xl bg-white px-4 py-3 text-sm text-slate-600 shadow-sm ring-1 ring-black/5 md:flex-row md:items-center md:justify-between">
+              <div>
+                <span className="font-semibold text-slate-900">Facility:</span>{" "}
+                {selectedFacility
+                  ? `${selectedFacility.facilityId} (${selectedFacility.orgId})`
+                  : isLoading
+                    ? "Loading facility context..."
+                    : "No facility selected"}
               </div>
+              <div>
+                <span className="font-semibold text-slate-900">Loaded days:</span>{" "}
+                {scheduleCount}
+              </div>
+            </div>
+
+            {error && (
+              <DashboardEmptyState
+                title={
+                  error instanceof ScheduleQueryError &&
+                  error.code === "NO_FACILITIES"
+                    ? "No facilities available"
+                    : "Schedule data could not be loaded"
+                }
+                description={error.message}
+                actionLabel="Retry schedule fetch"
+                onAction={() => {
+                  void refetch();
+                }}
+              />
             )}
 
             <TabsContent value="scheduling" className="mt-0">
               <div className="space-y-4">
+                {!error && !isLoading && scheduleCount === 0 ? (
+                  <DashboardEmptyState
+                    title="No schedule data returned"
+                    description="The API responded successfully but did not return any days for the selected month. Try another month or retry the query."
+                    actionLabel="Reload month"
+                    onAction={() => {
+                      void refetch();
+                    }}
+                  />
+                ) : null}
+
                 <div className="flex justify-end">
                   <div className="bg-white border rounded-lg p-1 flex space-x-1">
                     <button

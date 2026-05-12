@@ -58,16 +58,19 @@ export default function ShiftModal({
       // Use the dynamic classes for fade control
       className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm ${backdropClasses}`}
       onClick={closeModal}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="shift-modal-title"
     >
       {/* 2. MODAL CONTENT: Apply the zoom/scale transition */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex ${contentClasses}`}
+        className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col md:flex-row ${contentClasses}`}
       >
         {/* Left Panel (Shift Summary & Nurse List - Level 1) */}
-        <div className="flex-grow p-6 flex flex-col min-w-[20rem]">
+        <div className="flex-grow p-4 md:p-6 flex flex-col min-w-0 md:min-w-[20rem]">
           <div className="flex justify-between items-start mb-4 border-b pb-3">
-            <h3 className="text-2xl font-semibold text-gray-800">
+            <h3 id="shift-modal-title" className="text-xl md:text-2xl font-semibold text-gray-800">
               Schedule:{" "}
               {selectedDay.date
                 ? modalDateFormatter.format(selectedDay.date)
@@ -76,6 +79,7 @@ export default function ShiftModal({
             <button
               onClick={closeModal}
               className="text-gray-400 hover:text-gray-600"
+              aria-label="Close shift details"
             >
               <X size={24} />
             </button>
@@ -83,13 +87,15 @@ export default function ShiftModal({
 
           <div className="space-y-4 mb-4">
             {selectedDay.schedule.shifts.map((shift: UIShift) => (
-              <div
+              <button
                 key={shift.shiftName}
                 onClick={() => selectShift(shift)}
+                type="button"
                 className={`p-3 rounded-lg border transition duration-150 cursor-pointer 
                               ${selectedShift?.shiftName === shift.shiftName ? "ring-2 ring-indigo-500 shadow-lg bg-indigo-50" : "hover:shadow-md"}
                               ${shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? "bg-green-100" : ""}
                               ${!shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? "bg-red-100" : ""}`}
+                aria-pressed={selectedShift?.shiftName === shift.shiftName}
               >
                 <div className="flex justify-between items-center mb-1">
                   <p
@@ -106,7 +112,7 @@ export default function ShiftModal({
                   Required: {shift.requiredHours.toFixed(1)} hrs | Actual:{" "}
                   {shift.actualHours.toFixed(1)} hrs
                 </p>
-              </div>
+              </button>
             ))}
           </div>
 
@@ -118,11 +124,13 @@ export default function ShiftModal({
             {selectedShift ? (
               selectedShift.nurses.length > 0 ? (
                 selectedShift.nurses.map((nurse: UINurse) => (
-                  <div
+                  <button
                     key={nurse.id}
                     onClick={() => openNurseDetails(nurse)}
+                    type="button"
                     className={`p-3 border rounded-lg flex justify-between items-center cursor-pointer hover:bg-indigo-50 transition duration-150 
                                   ${selectedNurse?.id === nurse.id ? "bg-indigo-100 border-indigo-400" : "bg-white border-gray-200"}`}
+                    aria-pressed={selectedNurse?.id === nurse.id}
                   >
                     <span className="font-medium text-gray-800">
                       {nurse.name}
@@ -130,7 +138,7 @@ export default function ShiftModal({
                     <span className="text-sm font-semibold text-indigo-600">
                       {nurse.shiftHours} hrs
                     </span>
-                  </div>
+                  </button>
                 ))
               ) : (
                 <p className="text-gray-500 italic">

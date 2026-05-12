@@ -4,25 +4,47 @@ import {
   getStartOfMonth,
 } from "@/utils/scheduling-logic";
 import { useSchedulingStore } from "@/store/schedulingStore";
-import { UIDaySchedule } from "@/types/scheduling";
+import { ScheduleMap, UIDaySchedule, UINurse, UIShift } from "@/types/scheduling";
 import { useShallow } from "zustand/react/shallow";
-import { DaySchedule as ProtoDaySchedule } from "@/gen/scheduling/v1/scheduling_pb";
+import {
+  DaySchedule as ProtoDaySchedule,
+  Nurse as ProtoNurse,
+  OrgFacility,
+  Shift as ProtoShift,
+} from "@/gen/scheduling/v1/scheduling_pb";
 import { schedulingClient } from "@/api/scheduling-client";
 import { useEffect } from "react";
 
-const protoShiftToUI = (p: any): any => ({
-  shiftName: p.shiftName as any as "Morning" | "Afternoon" | "Night",
+type ScheduleQueryErrorCode =
+  | "NO_FACILITIES"
+  | "API_UNAVAILABLE"
+  | "UNKNOWN";
+
+export class ScheduleQueryError extends Error {
+  constructor(
+    message: string,
+    public readonly code: ScheduleQueryErrorCode,
+  ) {
+    super(message);
+    this.name = "ScheduleQueryError";
+  }
+}
+
+const protoNurseToUI = (nurse: ProtoNurse): UINurse => ({
+  id: nurse.id,
+  name: nurse.name,
+  shiftHours: nurse.shiftHours,
+  schedulingRationale: nurse.schedulingRationale,
+});
+
+const protoShiftToUI = (p: ProtoShift): UIShift => ({
+  shiftName: p.shiftName as UIShift["shiftName"],
   patientCount: p.patientCensus,
   requiredHPRD: p.targetHrpd ?? 0,
   requiredHours: (p.patientCensus ?? 0) * (p.targetHrpd ?? 0),
   actualHours: (p.patientCensus ?? 0) * (p.actualHrpd ?? 0),
   isHPRDMet: p.isHrpdMet ?? false,
-  nurses: (p.nurses || []).map((n: any) => ({
-    id: n.id,
-    name: n.name,
-    shiftHours: n.shiftHours,
-    schedulingRationale: n.schedulingRationale,
-  })),
+  nurses: (p.nurses || []).map(protoNurseToUI),
 });
 
 const protoDayToUI = (d: ProtoDaySchedule): UIDaySchedule => ({
@@ -38,13 +60,28 @@ interface ScheduleQueryKey {
 
 async function fetchScheduleData({
   anchorMonth,
-}: ScheduleQueryKey): Promise<Map<string, UIDaySchedule>> {
+}: ScheduleQueryKey): Promise<{
+  scheduleMap: ScheduleMap;
+  selectedFacility: OrgFacility;
+}> {
   const anchorDate = new Date(anchorMonth);
-  const facilities = await schedulingClient.getAllOrgFacilities({});
+  const facilities = await schedulingClient.getAllOrgFacilities({}).catch(
+    (error) => {
+      throw new ScheduleQueryError(
+        error instanceof Error
+          ? error.message
+          : "The scheduling API is unavailable.",
+        "API_UNAVAILABLE",
+      );
+    },
+  );
   const selectedFacility = facilities.allOrgFacilities.at(0);
 
   if (!selectedFacility) {
-    return new Map();
+    throw new ScheduleQueryError(
+      "No facilities were returned by the scheduling API.",
+      "NO_FACILITIES",
+    );
   }
 
   const response = await schedulingClient.getMonthlySchedule({
@@ -57,7 +94,7 @@ async function fetchScheduleData({
   Object.entries(response.schedules).forEach(([dateStr, schedule]) => {
     newSchedules.set(dateStr, protoDayToUI(schedule as ProtoDaySchedule));
   });
-  return newSchedules;
+  return { scheduleMap: newSchedules, selectedFacility };
 }
 
 export default function useScheduleQuery(anchorDate: Date) {
@@ -95,12 +132,16 @@ export default function useScheduleQuery(anchorDate: Date) {
     }
 
     if (query.status === "success") {
-      setScheduleData(query.data, false, null);
+      setScheduleData(
+        query.data.scheduleMap,
+        false,
+        null,
+        query.data.selectedFacility,
+      );
     } else if (query.status === "error") {
-      setScheduleData(new Map(), false, query.error as Error);
+      setScheduleData(new Map(), false, query.error as Error, null);
     } else if (query.status === "pending") {
-      // Optional: Update loading state in store if needed,
-      // though useScheduling usually handles this via isAppLoading
+      setScheduleData(new Map(), true, null, null);
     }
   }, [
     query.status,
@@ -113,8 +154,10 @@ export default function useScheduleQuery(anchorDate: Date) {
 
   // We expose the query status but the data flows directly into Zustand
   return {
+    data: query.data,
     isFetching: query.isFetching,
     isLoading: query.isLoading,
     error: query.error,
+    refetch: query.refetch,
   };
 }

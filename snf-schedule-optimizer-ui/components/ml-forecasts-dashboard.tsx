@@ -125,9 +125,10 @@ export default function MlForecastsDashboard() {
         {/* Forecast Cards Column */}
         <div className="space-y-4 lg:col-span-1">
           {forecasts.map((item, idx) => (
-            <div
+            <button
               key={item.id}
               onClick={() => setActiveInsight(item)}
+              type="button"
               style={{ animationDelay: `${idx * 100}ms` }}
               className={`
                                 cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 relative overflow-hidden group animate-in slide-in-from-left-4
@@ -135,8 +136,9 @@ export default function MlForecastsDashboard() {
                                   activeInsight?.id === item.id
                                     ? `bg-white ${item.border} ring-1 ring-offset-2 ring-indigo-500 shadow-md`
                                     : "bg-white border-transparent hover:border-gray-200 hover:shadow-sm"
-                                }
-                            `}
+                                  }
+                             `}
+              aria-pressed={activeInsight?.id === item.id}
             >
               <div
                 className={`absolute top-0 right-0 p-1 px-2 text-[10px] font-bold uppercase rounded-bl-lg ${item.bg} ${item.color}`}
@@ -162,7 +164,7 @@ export default function MlForecastsDashboard() {
                   <ArrowRight size={16} className="text-indigo-500" />
                 </div>
               )}
-            </div>
+            </button>
           ))}
         </div>
 
@@ -195,6 +197,7 @@ export default function MlForecastsDashboard() {
                 <button
                   onClick={() => setActiveInsight(null)}
                   className="p-1 hover:bg-black/5 rounded-full text-gray-500"
+                  aria-label="Close forecast details"
                 >
                   <X size={20} />
                 </button>

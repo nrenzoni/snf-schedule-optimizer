@@ -1,9 +1,15 @@
 import { useDroppable } from "@dnd-kit/core";
 import React from "react";
-import { ValidationLevel } from "@/hooks/proto-mocks";
+import { SimulateActionResponse, ValidationLevel } from "@/hooks/proto-mocks";
 import { cn } from "@/lib/utils";
 import { CELL_WIDTH } from "@/components/schedule-board/schedule-board";
 import { Ban, Plus } from "lucide-react";
+
+type TimelineSlotData = {
+  staffId: string;
+  dateStr: string;
+  typeKey: string;
+};
 
 // droppable
 export default function TimelineSlot({
@@ -14,7 +20,15 @@ export default function TimelineSlot({
   isLastShift,
   isSimulatingTarget,
   simulationResult,
-}: any) {
+}: {
+  id: string;
+  data: TimelineSlotData;
+  children: React.ReactNode;
+  isEvenDay: boolean;
+  isLastShift: boolean;
+  isSimulatingTarget: boolean;
+  simulationResult: SimulateActionResponse | null;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id, data });
 
   // Check if this slot is empty (has no children passed to it)

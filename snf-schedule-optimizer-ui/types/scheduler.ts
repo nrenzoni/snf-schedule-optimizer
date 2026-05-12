@@ -23,6 +23,11 @@ export type GroupMetric = {
   status: "ok" | "warning" | "critical";
 };
 
+export type SimulatedUnit = {
+  id: string;
+  label: string;
+};
+
 export const UNITS = {
   U1: { id: "U1", label: "1st Floor - Rehab" },
   U2: { id: "U2", label: "2nd Floor - LTC" },
@@ -71,10 +76,3 @@ export type RoleKey = keyof typeof ROLES;
 export type ShiftTypeKey = keyof typeof SHIFT_TYPES;
 export type ViewMode = "ROLE" | "BUDGET";
 export type ColorMode = "ROLE" | "BUDGET";
-
-const staffList: Staff[] = [
-  { id: "st1", name: "Alice Johnson", role: "RN", unitId: "U1", fte: 1.0 },
-  { id: "st2", name: "Bob Smith", role: "RN", unitId: "U2", fte: 0.8 },
-  { id: "st3", name: "Carol White", role: "LPN", unitId: "U1", fte: 1.0 },
-  { id: "st4", name: "David Brown", role: "CNA", unitId: "U2", fte: 1.0 },
-];

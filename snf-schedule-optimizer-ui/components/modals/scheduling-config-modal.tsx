@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   AlertTriangle,
   Clock,
@@ -40,13 +40,6 @@ export function SchedulingConfigModal({
   // Internal state for unsaved changes (kept for form management)
   const [draftSettings, setDraftSettings] =
     useState<SchedulingSettings>(settings);
-
-  // Update internal state when external settings prop changes
-  useEffect(() => {
-    if (isOpen) {
-      setDraftSettings(settings);
-    }
-  }, [settings, isOpen]);
 
   const handleUpdate = (
     key: keyof SchedulingSettings,
@@ -107,8 +100,12 @@ export function SchedulingConfigModal({
               </div>
               <button
                 onClick={() =>
-                  handleUpdate("useMLForecast", !draftSettings.useMLForecast)
+                  setDraftSettings((prev) => ({
+                    ...prev,
+                    useMLForecast: !prev.useMLForecast,
+                  }))
                 }
+                type="button"
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${draftSettings.useMLForecast ? "bg-indigo-600" : "bg-gray-200"}`}
               >
                 <span
@@ -129,11 +126,12 @@ export function SchedulingConfigModal({
               </div>
               <button
                 onClick={() =>
-                  handleUpdate(
-                    "useCalloutBuffer",
-                    !draftSettings.useCalloutBuffer,
-                  )
+                  setDraftSettings((prev) => ({
+                    ...prev,
+                    useCalloutBuffer: !prev.useCalloutBuffer,
+                  }))
                 }
+                type="button"
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${draftSettings.useCalloutBuffer ? "bg-green-600" : "bg-gray-200"}`}
               >
                 <span
@@ -262,7 +260,10 @@ export function SchedulingConfigModal({
 
         <div className="bg-gray-50 p-4 rounded-b-xl flex justify-end space-x-3 border-t">
           <button
-            onClick={onClose}
+            onClick={() => {
+              setDraftSettings(settings);
+              onClose();
+            }}
             className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg"
           >
             Cancel

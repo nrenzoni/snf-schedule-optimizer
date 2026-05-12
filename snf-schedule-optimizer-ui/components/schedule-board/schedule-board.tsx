@@ -3,6 +3,7 @@
 import React, { useId, useMemo, useState } from "react";
 import {
   closestCenter,
+  DragOverEvent,
   defaultDropAnimationSideEffects,
   DndContext,
   DragEndEvent,
@@ -29,7 +30,14 @@ import {
   SimulateActionResponse,
 } from "@/hooks/proto-mocks";
 import { toast } from "sonner";
-import { Shift, SHIFT_TYPES, Staff, UNITS, ViewMode } from "@/types/scheduler";
+import {
+  Shift,
+  SHIFT_TYPES,
+  SimulatedUnit,
+  Staff,
+  UNITS,
+  ViewMode,
+} from "@/types/scheduler";
 import ShiftCard from "@/components/schedule-board/shift-card";
 import UnitGroup from "@/components/schedule-board/unit-group";
 import { useIsFetching } from "@tanstack/react-query";
@@ -54,7 +62,7 @@ const restrictToHorizontalAxis: Modifier = ({ transform }) => {
 interface ScheduleBoardProps {
   initialShifts: Shift[];
   staffList: Staff[];
-  units: any[]; // Define proper type
+  units: SimulatedUnit[];
   dates: Date[];
 }
 
@@ -81,7 +89,6 @@ export default function ScheduleBoard({
   const [simulatingSlotId, setSimulatingSlotId] = useState<string | null>(null); // Which slot are we hovering?
   const [simulationResult, setSimulationResult] =
     useState<SimulateActionResponse | null>(null);
-  const [isSimulating, setIsSimulating] = useState(false);
 
   // Expanded State for 2 Levels
   const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>({
@@ -114,7 +121,7 @@ export default function ScheduleBoard({
   // We use a Ref to keep track of the last request to avoid race conditions
   const lastSimulatedTarget = React.useRef<string | null>(null);
 
-  const handleDragOver = async (event: any) => {
+  const handleDragOver = async (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) {
       setSimulationResult(null);
@@ -123,20 +130,22 @@ export default function ScheduleBoard({
     }
 
     // 1. Identify the slot we are hovering over
-    const targetSlotId = over.id; // e.g., "st1::2023-10-01::DAY"
+    const targetSlotId = String(over.id); // e.g., "st1::2023-10-01::DAY"
 
     // 2. Debounce: If we are still hovering the same slot, do nothing
     if (lastSimulatedTarget.current === targetSlotId) return;
     lastSimulatedTarget.current = targetSlotId;
 
     setSimulatingSlotId(targetSlotId);
-    setIsSimulating(true);
 
     // 3. Extract Metadata from the ID (Parsing your format)
     // ID Format: "staffId::dateStr::shiftType"
-    const [targetWorkerId, targetDateStr, targetShiftType] =
-      targetSlotId.split("::");
-    const activeShift = active.data.current.shift;
+    const [targetWorkerId, targetDateStr, targetShiftType] = targetSlotId.split("::");
+    const activeShift = active.data.current?.shift as Shift | undefined;
+
+    if (!activeShift) {
+      return;
+    }
 
     try {
       // 4. Call Mock Backend (SimulateAction RPC)
@@ -153,14 +162,10 @@ export default function ScheduleBoard({
       }
     } catch (e) {
       console.error("Simulation failed", e);
-    } finally {
-      setIsSimulating(false);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    console.log("Drag End Event:", event);
-
     const { active, over } = event;
 
     // 1. Capture the LAST simulation result before we clear state
@@ -175,8 +180,16 @@ export default function ScheduleBoard({
 
     if (!over) return;
 
-    const activeData = active.data.current?.shift as Shift;
-    const { staffId, dateStr, typeKey } = over.data.current as any;
+    const activeData = active.data.current?.shift as Shift | undefined;
+    const overData = over.data.current as
+      | { staffId: string; dateStr: string; typeKey: Shift["shiftType"] }
+      | undefined;
+
+    if (!activeData || !overData) {
+      return;
+    }
+
+    const { staffId, dateStr, typeKey } = overData;
 
     // If we dropped it in the exact same spot (same day, same shift type), do nothing.
     if (activeData.dateStr === dateStr && activeData.shiftType === typeKey) {
@@ -314,7 +327,7 @@ export default function ScheduleBoard({
           <h2 className="font-semibold text-slate-800 flex items-center gap-2">
             <LayoutList size={18} className="text-blue-600" /> Master Schedule
           </h2>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center text-xs font-medium border rounded-lg p-1 bg-slate-50">
               <span className="px-2 text-slate-500">Sub-Group:</span>
               <button
@@ -384,16 +397,21 @@ export default function ScheduleBoard({
                   <button
                     onClick={handleCollapseAll}
                     className="p-1 rounded hover:bg-slate-100"
+                    aria-label="Collapse all groups"
                   >
                     <ChevronUp size={14} />
                   </button>
                   <button
                     onClick={handleExpandAll}
                     className="p-1 rounded hover:bg-slate-100"
+                    aria-label="Expand all groups"
                   >
                     <ChevronDown size={14} />
                   </button>
                 </div>
+              </div>
+              <div className="hidden md:flex items-center px-3 text-xs font-medium text-slate-500">
+                {units.length} units
               </div>
               {dates.map((date, i) => (
                 <div

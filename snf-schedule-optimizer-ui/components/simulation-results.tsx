@@ -110,7 +110,9 @@ export default function SimulationResults({
             <div className="p-3 flex justify-between items-center">
               <span className="text-gray-600">Variance</span>
               <span className="font-mono font-medium text-red-500">
-                +{result.metrics.variance}
+                {result.metrics.variance.startsWith("-")
+                  ? result.metrics.variance
+                  : `+${result.metrics.variance}`}
               </span>
             </div>
             <div className="p-3 flex justify-between items-center">

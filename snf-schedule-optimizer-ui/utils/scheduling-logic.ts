@@ -113,14 +113,6 @@ export function generateMockScheduleMap(
   startDate: Date,
   daysToGenerate: number = 14,
 ): Map<string, UIDaySchedule> {
-  console.log(
-    "Generating mock schedule map starting from:",
-    formatDateYYYMMDD(startDate),
-    "for",
-    daysToGenerate,
-    "days.",
-  );
-
   const map = new Map<string, UIDaySchedule>();
 
   // 1. Create a MUTABLE date object to track the current day of the iteration.
@@ -154,7 +146,6 @@ export function generateMockScheduleMap(
 // Helper to create an empty, unassigned shift for a specific date
 const createEmptyShift = (
   shiftName: "Morning" | "Afternoon" | "Night",
-  date: Date,
 ): UIShift => {
   const patientCount = 30 + Math.floor(Math.random() * 15);
   const requiredHPRD = 5.5;
@@ -185,7 +176,7 @@ export function generateEmptyScheduleMap(
     const dateString = formatDateYYYMMDD(mutableDate);
 
     const shifts: UIShift[] = SHIFT_NAMES.map((name) =>
-      createEmptyShift(name, mutableDate),
+      createEmptyShift(name),
     );
 
     map.set(dateString, {

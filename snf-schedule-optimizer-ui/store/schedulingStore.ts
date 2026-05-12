@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { OrgFacility } from "@/gen/scheduling/v1/scheduling_pb";
 import { ScheduleMap } from "@/types/scheduling";
 
 // --- Placeholder for Mock Hooks (replace with real API calls later) ---
@@ -11,6 +12,7 @@ interface SchedulingState {
   scheduleMap: ScheduleMap;
   isDataLoading: boolean;
   dataError: Error | null;
+  selectedFacility: OrgFacility | null;
 
   // --- GLOBAL APP STATE ---
   // Optimization flags used by loaders/spinners and query keys
@@ -23,29 +25,42 @@ interface SchedulingState {
     map: ScheduleMap,
     isLoading: boolean,
     error: Error | null,
+    facility?: OrgFacility | null,
   ) => void;
 
   setIsOptimizing: (status: boolean) => void;
   setIsOptimized: (status: boolean) => void;
+  resetDemoState: () => void;
 }
 
-export const useSchedulingStore = create<SchedulingState>((set, get) => ({
+export const useSchedulingStore = create<SchedulingState>((set) => ({
   // --- Initial State ---
   scheduleMap: new Map(),
   isDataLoading: false,
   dataError: null,
+  selectedFacility: null,
   isOptimized: false,
   isOptimizing: false,
 
   // Actions
-  setScheduleData: (map, isLoading, error) => {
+  setScheduleData: (map, isLoading, error, facility = null) => {
     set({
       scheduleMap: map,
       isDataLoading: isLoading,
       dataError: error,
+      selectedFacility: facility,
     });
   },
 
   setIsOptimized: (status) => set({ isOptimized: status }),
   setIsOptimizing: (status) => set({ isOptimizing: status }),
+  resetDemoState: () =>
+    set({
+      scheduleMap: new Map(),
+      isDataLoading: false,
+      dataError: null,
+      selectedFacility: null,
+      isOptimized: false,
+      isOptimizing: false,
+    }),
 }));

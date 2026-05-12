@@ -40,17 +40,6 @@ export default function ShiftCard({
     ? "bg-[image:repeating-linear-gradient(45deg,transparent,transparent_5px,rgba(0,0,0,0.05)_5px,rgba(0,0,0,0.05)_10px)]"
     : "";
 
-  const color =
-    mode === "BUDGET"
-      ? shift.isAgency
-        ? "bg-red-50 border-l-red-500 text-red-900"
-        : shift.isOvertime
-          ? "bg-amber-50 border-l-amber-500 text-amber-900"
-          : "bg-white border-l-slate-400 text-slate-700"
-      : shift.role === "RN"
-        ? "bg-blue-50/50 border-l-blue-500 text-blue-700"
-        : "bg-purple-50/50 border-l-purple-500 text-purple-700";
-
   const getColor = () => {
     if (mode === "BUDGET") {
       if (shift.isAgency) return "bg-red-50 border-l-red-500 text-red-900";

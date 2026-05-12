@@ -14,6 +14,8 @@ import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 import { useScheduling } from "@/hooks/use-scheduling";
 import { useSchedulingInitializer } from "@/hooks/use-scheduling-initializer";
 import LoadingOverlay from "@/components/ui/loading-overlay";
+import { ScheduleQueryError } from "@/hooks/use-schedule-query";
+import DashboardEmptyState from "@/components/dashboard-empty-state";
 
 // --- HELPERS (MUST BE COPIED OR MOVED) ---
 // You should move the Spinner, DAYS_OF_WEEK, and monthYearFormatter helpers
@@ -62,9 +64,17 @@ export default function ScheduleListView() {
     changeMonth,
     openShiftDetails,
     triggerOptimization, // Replaces handleOptimize
-  } = useScheduling(0);
+  } = useScheduling();
 
   const isOptimizing = useSchedulingStore((state) => state.isOptimizing);
+
+  const { dataError, scheduleCount, selectedFacility } = useSchedulingStore(
+    useShallow((state) => ({
+      dataError: state.dataError,
+      scheduleCount: state.scheduleMap.size,
+      selectedFacility: state.selectedFacility,
+    })),
+  );
 
   const { isAppLoading } = useSchedulingInitializer();
 
@@ -92,11 +102,13 @@ export default function ScheduleListView() {
 
       {/* --- EXISTING SCHEDULING MODULE --- */}
       <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-xl p-4 sm:p-6 mb-6">
-        <header className="flex justify-between items-center mb-6 border-b pb-4">
+        <header className="mb-6 border-b pb-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <button
             onClick={() => changeMonth(-1)}
             disabled={isTwoWeekView}
             className={`p-2 rounded-full text-gray-700 hover:bg-gray-100 transition duration-150 ${isTwoWeekView ? "opacity-30 cursor-not-allowed" : ""}`}
+            aria-label="Previous month"
           >
             <ChevronLeft size={24} />
           </button>
@@ -105,7 +117,7 @@ export default function ScheduleListView() {
             {monthYearFormatter.format(currentDate)}
           </h2>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
             {/* Optimize Button */}
             <button
               onClick={triggerOptimization}
@@ -157,11 +169,39 @@ export default function ScheduleListView() {
               onClick={() => changeMonth(1)}
               disabled={isTwoWeekView}
               className={`p-2 rounded-full text-gray-700 hover:bg-gray-100 transition duration-150 ${isTwoWeekView ? "opacity-30 cursor-not-allowed" : ""}`}
+              aria-label="Next month"
             >
               <ChevronRight size={24} />
             </button>
           </div>
+          </div>
         </header>
+
+        <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">
+          <span className="font-semibold text-slate-900">Current facility:</span>{" "}
+          {selectedFacility
+            ? `${selectedFacility.facilityId} (${selectedFacility.orgId})`
+            : "Waiting for facility context"}
+        </div>
+
+        {dataError ? (
+          <DashboardEmptyState
+            title={
+              dataError instanceof ScheduleQueryError &&
+              dataError.code === "NO_FACILITIES"
+                ? "No facilities available"
+                : "Schedule data is unavailable"
+            }
+            description={dataError.message}
+          />
+        ) : null}
+
+        {!dataError && !isAppLoading && scheduleCount === 0 ? (
+          <DashboardEmptyState
+            title="No schedules returned"
+            description="The selected period has no schedule data yet. Retry from the dashboard banner or switch to another month."
+          />
+        ) : null}
 
         {/* Weekday Names */}
         <div className="grid grid-cols-7 text-center font-semibold text-xs uppercase tracking-wide text-gray-500 mb-2">

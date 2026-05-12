@@ -22,32 +22,21 @@ const LOADING_PHASES = [
     "Finalizing the golden schedule...",
 ];
 
-// --- HELPER: Random Position within constrained radius ---
-const getRandomPosition = () => {
-    const theta = Math.random() * 2 * Math.PI;
-    const phi = Math.acos(2 * Math.random() - 1);
-    // Restrict radius to keep it in the "middle 1/3" visually
-    const r = SCATTER_RADIUS * (0.7 + Math.random() * 0.3);
+const seededValue = (seed: number) => {
+    const next = Math.sin(seed * 12.9898) * 43758.5453;
+    return next - Math.floor(next);
+};
+
+const getDeterministicPosition = (index: number) => {
+    const theta = seededValue(index + 1) * 2 * Math.PI;
+    const phi = Math.acos(2 * seededValue(index + 2) - 1);
+    const r = SCATTER_RADIUS * (0.7 + seededValue(index + 3) * 0.3);
 
     return [
         r * Math.sin(phi) * Math.cos(theta),
         r * Math.sin(phi) * Math.sin(theta),
-        r * Math.cos(phi) // Z-depth scatter
+        r * Math.cos(phi)
     ] as [number, number, number];
-};
-
-// --- 3D BLOCK COMPONENT ---
-const AnimatedBlock = ({position, color, rotation}: any) => {
-    return (
-        <a.mesh position={position} rotation={rotation} castShadow receiveShadow>
-            <boxGeometry args={[BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]}/>
-            <meshStandardMaterial
-                color={color}
-                roughness={0.2}
-                metalness={0.8}
-            />
-        </a.mesh>
-    );
 };
 
 // --- SCENE MANAGER ---
@@ -68,11 +57,21 @@ const BlocksScene = ({isLoading}: { isLoading: boolean }) => {
 
     const count = gridPositions.length;
     // Generate random scatter positions once
-    const scatteredPositions = useMemo(() => Array.from({length: count}, getRandomPosition), [count]);
+    const scatteredPositions = useMemo(
+        () => Array.from({length: count}, (_, index) => getDeterministicPosition(index)),
+        [count]
+    );
 
     // Random initial rotations for chaos
     const randomRotations = useMemo(() =>
-            Array.from({length: count}, () => [Math.random() * Math.PI, Math.random() * Math.PI, 0]),
+            Array.from(
+                {length: count},
+                (_, index) => [
+                    seededValue(index + 11) * Math.PI,
+                    seededValue(index + 17) * Math.PI,
+                    0,
+                ] as [number, number, number]
+            ),
         [count]);
 
     // 2. Animation Loop Logic
@@ -121,8 +120,8 @@ const BlocksScene = ({isLoading}: { isLoading: boolean }) => {
 
 
     // 4. Spring for the Entire Group (The "Spin")
-    const {groupRotation} = useSpring({
-        groupRotation: step === 2 ? [0, Math.PI, 0] : [0, 0, 0],
+    const {rotationY} = useSpring({
+        rotationY: step === 2 ? Math.PI : 0,
         config: {mass: 1, tension: 180, friction: 12}, // Springy spin
     });
 
@@ -132,16 +131,22 @@ const BlocksScene = ({isLoading}: { isLoading: boolean }) => {
         [count]);
 
     return (
-        // We rotate the whole group for the "Spin" phase
-        // @ts-ignore
-        <a.group rotation={groupRotation}>
+        <a.group rotation-y={rotationY}>
             {blockSprings.map((props, i) => (
-                <AnimatedBlock
+                <a.mesh
                     key={i}
-                    position={props.position}
-                    rotation={props.rotation}
-                    color={colors[i]}
-                />
+                    position={props.position as never}
+                    rotation={props.rotation as never}
+                    castShadow
+                    receiveShadow
+                >
+                    <boxGeometry args={[BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE]}/>
+                    <meshStandardMaterial
+                        color={colors[i]}
+                        roughness={0.2}
+                        metalness={0.8}
+                    />
+                </a.mesh>
             ))}
         </a.group>
     );

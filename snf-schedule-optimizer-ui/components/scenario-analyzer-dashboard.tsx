@@ -61,10 +61,9 @@ export default function ScenarioAnalyzerDashboard() {
   const openSimulation = (type: ModalType) =>
     setModalConfig({ isOpen: true, type });
   const closeSimulation = () =>
-    setModalConfig({ ...modalConfig, isOpen: false });
+    setModalConfig((current) => ({ ...current, isOpen: false }));
 
   const runSimulation = (type: ModalType | null, params: SimulationParams) => {
-    console.log("Running simulation of type:", type, "with params:", params);
 
     // Mock calculation logic for demo purposes
     let result: SimulationResult = {
@@ -121,8 +120,6 @@ export default function ScenarioAnalyzerDashboard() {
           "Converting 50% of agency usage to internal OT yields significant savings.",
       };
     }
-
-    console.log("Simulation result:", result);
 
     setSimulationResult(result);
   };

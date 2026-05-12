@@ -27,13 +27,7 @@ export default function OptimizerLoader(
         onComplete?: () => void
     }) {
     const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0);
-    const [shuffledPhases, setShuffledPhases] = useState(LOADING_PHASES);
-
-    // Randomize the phases on mount so it's different every time
-    useEffect(() => {
-        const randomStart = [...LOADING_PHASES].sort(() => Math.random() - 0.5);
-        setShuffledPhases(randomStart);
-    }, [isLoading]);
+    const [shuffledPhases] = useState(() => [...LOADING_PHASES]);
 
     // Cycle through messages
     useEffect(() => {
@@ -45,6 +39,12 @@ export default function OptimizerLoader(
 
         return () => clearInterval(interval);
     }, [isLoading, shuffledPhases]);
+
+    useEffect(() => {
+        if (!isLoading) {
+            onComplete?.();
+        }
+    }, [isLoading, onComplete]);
 
     // Helper to get the current phase object
     const activePhase = shuffledPhases[currentPhaseIndex];

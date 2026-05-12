@@ -18,6 +18,29 @@ import { format } from "date-fns";
 import GroupSummaryCell from "@/components/schedule-board/group-summary-cell";
 import RoleGroup from "@/components/schedule-board/role-group";
 import { calculateCellMetric } from "@/components/schedule-board/utils";
+import { SimulateActionResponse } from "@/hooks/proto-mocks";
+import { Shift, SimulatedUnit, ViewMode } from "@/types/scheduler";
+
+type NestedGroup = {
+  key: string;
+  label: string;
+  staff: Staff[];
+};
+
+interface UnitGroupProps {
+  unit: SimulatedUnit;
+  staffMembers: Staff[];
+  shifts: Shift[];
+  dates: Date[];
+  viewMode: ViewMode;
+  groupingMode: "ROLE" | "BUDGET";
+  isExpanded: boolean;
+  onToggle: () => void;
+  roleState: Record<string, boolean>;
+  toggleRole: (key: string) => void;
+  simulatingSlotId: string | null;
+  simulationResult: SimulateActionResponse | null;
+}
 
 export default function UnitGroup({
   unit,
@@ -32,7 +55,7 @@ export default function UnitGroup({
   toggleRole,
   simulatingSlotId,
   simulationResult,
-}: any) {
+}: UnitGroupProps) {
   // 1. Group Data inside this Unit
   const nestedGroups = useMemo(() => {
     if (groupingMode === "ROLE") {
@@ -64,6 +87,15 @@ export default function UnitGroup({
       <div className="flex bg-slate-200 border-b border-slate-300">
         <div
           onClick={onToggle}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onToggle();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isExpanded}
           className={cn(
             STAFF_COL_WIDTH,
             "sticky left-0 z-30 flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-300 bg-slate-200 border-r border-slate-300",
@@ -119,7 +151,7 @@ export default function UnitGroup({
             exit={{ height: 0 }}
             className="overflow-hidden bg-slate-100"
           >
-            {nestedGroups.map((group: any) => (
+            {nestedGroups.map((group: NestedGroup) => (
               <RoleGroup
                 key={group.key}
                 groupKey={group.key}

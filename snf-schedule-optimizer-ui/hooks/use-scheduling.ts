@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   UICalendarDay,
   UIDaySchedule as UIDaySchedule,
@@ -40,7 +40,7 @@ interface UseSchedulingReturn {
   SHIFT_NAMES: typeof SHIFT_NAMES;
 }
 
-export function useScheduling(optimizationCount: number): UseSchedulingReturn {
+export function useScheduling(): UseSchedulingReturn {
   const { scheduleMap, isLoading, setIsOptimized, setIsOptimizing } =
     useSchedulingStore(
       useShallow((state) => ({
@@ -73,9 +73,6 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
     setIsOptimized(false);
     setTimeout(() => setIsOptimized(true), 0);
   }, [setIsOptimized, setIsOptimizing]);
-
-  const [startOfWeek, setStartOfWeek] = useState(getStartOfWeek(TODAY));
-  const [isModalVisible, setIsModalVisible] = useState(false);
 
   const currentViewAnchorDate = useMemo(
     () => new Date(anchorDateStr),
@@ -160,7 +157,7 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
     // We no longer need the 'year' and 'month' variables from the currentDate for determining
     // `isCurrentMonth` since we want the 2-week view to not be constrained by the month.
     // However, we need to pass a context month for `isSelectable` logic if we want to keep it.
-    const contextMonth = startOfWeek.getMonth();
+    const contextMonth = currentViewAnchorDate.getMonth();
 
     for (let i = 0; i < totalDaysToRender; i++) {
       const dayDate = new Date(iterationDay);
@@ -217,11 +214,8 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
 
       iterationDay.setDate(iterationDay.getDate() + 1);
     }
-    console.log(
-      `Generated ${totalDaysToRender}-day calendar grid starting from ${formatDateYYYMMDD(startDate)}`,
-    );
     return days;
-  }, [startOfWeek, scheduleMap, isTwoWeekView, isLoading]);
+  }, [currentViewAnchorDate, scheduleMap, isTwoWeekView, isLoading]);
 
   // --- Utility Functions ---
 
@@ -253,17 +247,11 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
     // Await the first URL push
     await setIsTwoWeekView(nextState);
 
-    // When switching TO month view, reset to the current month's start date
     if (nextState) {
+      setAnchorDateStr(formatDateYYYMMDD(TODAY));
+    } else {
       setAnchorDateStr(formatDateYYYMMDD(getStartOfMonth(TODAY)));
     }
-    // When switching TO 2-week view, reset to the current week's start date (Sunday)
-    else {
-      setAnchorDateStr(formatDateYYYMMDD(TODAY));
-    }
-    // NOTE: Must include getStartOfWeek in the dependency array or define it outside
-    // the component or inside with useCallback/useMemo. Since it's a simple helper,
-    // defining it outside the hook is cleaner.
   }, [isTwoWeekView, setIsTwoWeekView, setAnchorDateStr]);
 
   const changeMonth = useCallback(
@@ -322,26 +310,16 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
         nurseId: nurse.id,
       };
 
-      console.log(`ACTION: Attempting to remove ${nurse.name} via RPC...`);
       try {
-        // This sends the mutation to the BE
         const response = await schedulingClient.removeNurseFromShift(request);
 
-        if (response.success) {
-          console.log("Nurse removed successfully.");
-
-          // OPTIONAL: If the response returns the updated day schedule,
-          // you can update the state locally here instead of waiting for a re-fetch.
-          // For simplicity, we'll just close the panel.
-        } else {
+        if (!response.success) {
           console.error("Failed to remove nurse:", response.message);
         }
       } catch (error) {
         console.error("RPC Error during nurse removal:", error);
       }
 
-      // Close the panel regardless of success
-      // setSelectedNurse(null);
     },
     [selectedDay, selectedShift],
   );
@@ -352,10 +330,7 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
   //     setSelectedNurse(null);
   // }, [selectedDay, selectedShift]);
 
-  const addNurseToShift = useCallback((): void => {
-    console.log(`ACTION: Adding a new nurse (mock). Would use RPC here.`);
-    // setSelectedNurse(null);
-  }, []);
+  const addNurseToShift = useCallback((): void => {}, []);
 
   const closeNurseDetails = useCallback(() => {
     // Setting this to null removes ?nurseId=... from the URL
@@ -364,19 +339,9 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
 
   // --- Side Effects & Lifecycle ---
 
-  // Modal Fade-in and Scroll Lock
   useEffect(() => {
-    console.log("useEffect: selectedDay changed:", selectedDay);
     const isDaySelected = !!selectedDay;
     document.body.style.overflow = isDaySelected ? "hidden" : "";
-
-    if (isDaySelected) {
-      setTimeout(() => {
-        setIsModalVisible(true);
-      }, 0);
-    } else {
-      setIsModalVisible(false);
-    }
 
     return () => {
       if (document.body.style.overflow === "hidden") {
@@ -387,7 +352,6 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
 
   // Escape Key Handler
   useEffect(() => {
-    console.log("useEffect: Setting up Escape key handler.");
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         if (selectedNurse) {
@@ -411,12 +375,7 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
     selectedDay,
     selectedShift,
     selectedNurse,
-    isModalVisible: !!selectedDay, // Modal is open if date param exists
-
-    // selectedDay,
-    // selectedShift,
-    // selectedNurse,
-    // isModalVisible,
+    isModalVisible: !!selectedDay,
 
     // Actions (Updates URL)
     openShiftDetails,
@@ -426,9 +385,6 @@ export function useScheduling(optimizationCount: number): UseSchedulingReturn {
     closeNurseDetails,
 
     changeMonth,
-    // openShiftDetails,
-    // selectShift,
-    // openNurseDetails,
 
     currentDate,
     calendarDays,

@@ -15,29 +15,6 @@ export function CalendarGrid({
   selectedDayDateString,
   isTwoWeekView,
 }: CalendarGridProps) {
-  console.log(
-    "Rendering CalendarGrid with",
-    calendarDays.length,
-    "days. TwoWeekView:",
-    isTwoWeekView,
-    "received: ",
-    calendarDays.length,
-    "passed calendar days.",
-  );
-  // print each for debug
-  calendarDays.forEach((day) => {
-    console.log(
-      "Day:",
-      day.dateString,
-      "Selectable:",
-      day.isSelectable,
-      "HPRD %:",
-      day.dayHPRDPercentage,
-      "schedule length",
-      day.schedule ? day.schedule.shifts.length : 0,
-    );
-  });
-
   // Conditionally adjust the height/padding based on the view mode
   // mb-8 adds a little space below the 2-row grid to keep the legend from floating too high
   const gridContainerClasses = isTwoWeekView

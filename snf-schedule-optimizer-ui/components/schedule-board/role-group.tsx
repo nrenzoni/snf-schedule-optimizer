@@ -9,6 +9,21 @@ import { AnimatePresence, motion } from "framer-motion";
 import TimelineSlot from "@/components/schedule-board/timeline-slot";
 import ShiftCard from "@/components/schedule-board/shift-card";
 import { calculateCellMetric } from "@/components/schedule-board/utils";
+import { SimulateActionResponse } from "@/hooks/proto-mocks";
+
+interface RoleGroupProps {
+  groupKey: string;
+  label: string;
+  staffMembers: Staff[];
+  shifts: Shift[];
+  dates: Date[];
+  viewMode: "ROLE" | "BUDGET";
+  groupingMode: "ROLE" | "BUDGET";
+  isExpanded: boolean;
+  onToggle: () => void;
+  simulatingSlotId: string | null;
+  simulationResult: SimulateActionResponse | null;
+}
 
 export default function RoleGroup({
   groupKey,
@@ -22,12 +37,21 @@ export default function RoleGroup({
   onToggle,
   simulatingSlotId,
   simulationResult,
-}: any) {
+}: RoleGroupProps) {
   return (
     <div className="border-b last:border-b-0 bg-white">
       <div className="flex bg-slate-50 border-b border-slate-200">
         <div
           onClick={onToggle}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onToggle();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isExpanded}
           className={cn(
             STAFF_COL_WIDTH,
             "sticky left-0 z-20 flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-slate-100 border-r border-slate-200 bg-slate-50 pl-8",
