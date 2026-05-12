@@ -1,4 +1,4 @@
-import React, { ReactNode, useMemo } from "react";
+import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { UICalendarDay, UINurse, UIShift } from "@/types/scheduling";
 import { X } from "lucide-react";
 
@@ -29,6 +29,13 @@ export default function ShiftModal({
   openNurseDetails,
   children,
 }: ShiftModalProps) {
+  const [renderedDay, setRenderedDay] = useState<UICalendarDay | null>(
+    selectedDay,
+  );
+  const [isVisible, setIsVisible] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const frameRef = useRef<number | null>(null);
+
   // Date formatter for the modal header (e.g., 'Nov 25, 2025')
   const modalDateFormatter = useMemo(
     () =>
@@ -40,23 +47,60 @@ export default function ShiftModal({
     [],
   );
 
+  useEffect(() => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
+    if (frameRef.current) {
+      cancelAnimationFrame(frameRef.current);
+      frameRef.current = null;
+    }
+
+    if (selectedDay && isModalVisible) {
+      frameRef.current = requestAnimationFrame(() => {
+        setRenderedDay(selectedDay);
+        frameRef.current = requestAnimationFrame(() => setIsVisible(true));
+      });
+      return;
+    }
+
+    frameRef.current = requestAnimationFrame(() => setIsVisible(false));
+    closeTimerRef.current = setTimeout(() => {
+      setRenderedDay(null);
+      closeTimerRef.current = null;
+    }, TRANSITION_DURATION);
+
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, [isModalVisible, selectedDay]);
+
   // Return null early if data isn't ready
-  if (!selectedDay || !selectedDay.schedule) return null;
+  if (!renderedDay || !renderedDay.schedule) return null;
 
   // --- Dynamic Class Control ---
-  const baseTransition = `transition-all duration-${TRANSITION_DURATION}`;
-
   // Backdrop fade-in/out
-  const backdropClasses = `${baseTransition} ${isModalVisible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`;
+  const backdropClasses = isVisible
+    ? "bg-black/60 opacity-100 backdrop-blur-sm pointer-events-auto"
+    : "bg-black/0 opacity-0 backdrop-blur-0 pointer-events-none";
 
   // Modal Content zoom/scale (to give depth illusion)
-  const contentClasses = `${baseTransition} transform ${isModalVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"}`;
+  const contentClasses = isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0";
 
   return (
     // 1. BACKDROP CONTAINER: Handles the blur and opacity fade of the whole screen
     <div
       // Use the dynamic classes for fade control
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm ${backdropClasses}`}
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out ${backdropClasses}`}
       onClick={closeModal}
       role="dialog"
       aria-modal="true"
@@ -65,16 +109,16 @@ export default function ShiftModal({
       {/* 2. MODAL CONTENT: Apply the zoom/scale transition */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col md:flex-row ${contentClasses}`}
+        className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col md:flex-row transition-all duration-300 ease-out ${contentClasses}`}
       >
         {/* Left Panel (Shift Summary & Nurse List - Level 1) */}
         <div className="flex-grow p-4 md:p-6 flex flex-col min-w-0 md:min-w-[20rem]">
           <div className="flex justify-between items-start mb-4 border-b pb-3">
             <h3 id="shift-modal-title" className="text-xl md:text-2xl font-semibold text-gray-800">
               Schedule:{" "}
-              {selectedDay.date
-                ? modalDateFormatter.format(selectedDay.date)
-                : selectedDay.dateString}
+              {renderedDay.date
+                ? modalDateFormatter.format(renderedDay.date)
+                : renderedDay.dateString}
             </h3>
             <button
               onClick={closeModal}
@@ -86,7 +130,7 @@ export default function ShiftModal({
           </div>
 
           <div className="space-y-4 mb-4">
-            {selectedDay.schedule.shifts.map((shift: UIShift) => (
+            {renderedDay.schedule.shifts.map((shift: UIShift) => (
               <button
                 key={shift.shiftName}
                 onClick={() => selectShift(shift)}
