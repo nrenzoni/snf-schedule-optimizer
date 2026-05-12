@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Mapping
 
 import whenever
 from connectrpc.request import RequestContext
@@ -19,7 +20,7 @@ from snf_schedule_optimizer.generated.scheduling.v1.scheduling_pb2 import (
 from snf_schedule_optimizer.infrastructure.sqid_converter import (
     IIdObfuscator,
 )
-from snf_schedule_optimizer.models import ShiftKey
+from snf_schedule_optimizer.models import Employee, Schedule, Shift, ShiftKey
 from snf_schedule_optimizer.service.facility.facility_facade import FacilityFacade
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacadePort,
@@ -293,9 +294,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
 
     def _map_monthly_schedule(
         self,
-        schedule: scheduling_pb2.GetMonthlyScheduleResponse | object,
-        shifts: dict[ShiftKey, object],
-        employees: dict[int, object],
+        schedule: Schedule,
+        shifts: Mapping[ShiftKey, Shift],
+        employees: Mapping[int, Employee],
         facility_tz: str,
     ) -> dict[str, scheduling_pb2.DaySchedule]:
         grouped: dict[str, list[scheduling_pb2.Shift]] = defaultdict(list)

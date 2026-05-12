@@ -20,7 +20,6 @@ from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
     FacilityConfig,
-    NurseProfile,
     PreferenceWeights,
     Schedule,
     Shift,
@@ -229,7 +228,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         timezone_map = {facility_config.facility_id: facility_config.tz}
 
         shift_keys = [
-            key for key in schedule.shift_assignments.keys() if key.facility_id == target_facility_id
+            key
+            for key in schedule.shift_assignments
+            if key.facility_id == target_facility_id
         ]
         shifts = await self.shift_retriever.get_shifts_by_keys(
             shift_keys=shift_keys,

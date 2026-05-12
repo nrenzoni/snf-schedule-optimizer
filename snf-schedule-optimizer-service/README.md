@@ -35,7 +35,8 @@ uv sync
 Set the required database URL:
 
 ```bash
-export DATABASE_URL=postgresql+asyncpg://snf_user:snf_password@localhost:5435/snf_optimizer_demo
+export DATABASE_URL=postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo
+
 ```
 
 ## Demo Database Path
@@ -45,6 +46,8 @@ If you want the backend demo database without running the full stack, use the se
 ```bash
 docker compose -f docker-compose-demo.yml up --build
 ```
+
+For the recommended local development workflow, use the repo-root `compose.dev.yml` via `just infra-up` and `just infra-seed`, then run the backend on the host with `just dev-be`.
 
 For the main product-demo flow, you can invoke the repo-root compose file from this directory as well:
 
@@ -64,6 +67,12 @@ Start the API:
 
 ```bash
 python -m snf_schedule_optimizer.api.main
+```
+
+Recommended host dev server with reload:
+
+```bash
+just dev-be
 ```
 
 Health check:
@@ -137,8 +146,6 @@ mypy
 - local startup requires `DATABASE_URL`
 - solver setup is not fully polished for every local environment
 - the active optimizer path currently uses a PuLP/CBC-style setup
-- `optimizer/engine.py` currently contains a Windows-specific CBC path, which may need adjustment outside the Docker demo flow
-- some tooling config is still platform-specific, including a Windows-style mypy Python executable path in `pyproject.toml`
 
 ## Solver Disclaimer
 

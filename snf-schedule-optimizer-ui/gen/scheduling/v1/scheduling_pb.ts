@@ -469,7 +469,7 @@ export const SchedulingService: GenService<{
   /**
    * admin section
    *
-   * 
+   *
    *
    * @generated from rpc scheduling.v1.SchedulingService.GetAllOrgFacilities
    */

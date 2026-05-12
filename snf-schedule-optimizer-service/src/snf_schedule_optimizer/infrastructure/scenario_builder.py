@@ -182,7 +182,7 @@ class ScenarioBuilder:
 
             # Use seeded RNG for ID generation instead of non-deterministic uuid.uuid4()
             # rand_hex = f"{self.rng.getrandbits(24):06x}"
-            emp_id = self._next_employee_id
+            emp_id = (self.facility_id * 100000) + self._next_employee_id
             self._next_employee_id += 1
 
             # 1. Pay Band

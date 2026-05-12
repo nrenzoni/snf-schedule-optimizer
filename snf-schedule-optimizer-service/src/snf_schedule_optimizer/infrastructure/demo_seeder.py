@@ -6,10 +6,15 @@ from snf_schedule_optimizer.domain.hr.interfaces import (
     IEmployeeRepo,
     IStaffCompensationRepo,
 )
-from snf_schedule_optimizer.domain.scheduling.interfaces import IScheduleRepo
 from snf_schedule_optimizer.domain.repositories import IFacilityRepo, IShiftRepo
+from snf_schedule_optimizer.domain.scheduling.interfaces import IScheduleRepo
 from snf_schedule_optimizer.infrastructure.scenario_builder import ScenarioBuilder
-from snf_schedule_optimizer.models import Schedule, ShiftAssignmentsType
+from snf_schedule_optimizer.models import (
+    NurseProfile,
+    Schedule,
+    Shift,
+    ShiftAssignmentsType,
+)
 from snf_schedule_optimizer.persistence import INurseRepo
 
 
@@ -91,8 +96,8 @@ class DemoSeeder:
         self,
         org_id: int,
         facility_id: int,
-        shifts: list,
-        nurses: list,
+        shifts: list[Shift],
+        nurses: list[NurseProfile],
     ) -> Schedule:
         assignments: ShiftAssignmentsType = defaultdict(list)
         nurse_ids = [nurse.employee_id for nurse in nurses]

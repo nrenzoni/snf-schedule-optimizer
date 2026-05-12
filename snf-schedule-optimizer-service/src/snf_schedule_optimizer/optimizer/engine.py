@@ -1,3 +1,5 @@
+import os
+import shutil
 import time
 
 import pulp
@@ -133,11 +135,7 @@ class NurseShiftScheduleOptimizer:
         # Measure Execution Time
         start_time = time.perf_counter()
 
-        # solver = pulp.PULP_CBC_CMD(timeLimit=60)
-        solver = pulp.COIN_CMD(
-            timeLimit=60,
-            path=r"C:\dev\bin\Cbc-releases.2.10.12-windows-2022-msvs-v17-Release-x64\bin\cbc.exe",
-        )
+        solver = self._build_solver()
         problem.solve(solver)
 
         end_time = time.perf_counter()
@@ -194,3 +192,14 @@ class NurseShiftScheduleOptimizer:
             infeasibility_reason=None,
             statistics=stats,
         )
+
+    def _build_solver(self) -> pulp.LpSolver:
+        cbc_path = os.getenv("CBC_PATH")
+        if cbc_path:
+            return pulp.COIN_CMD(timeLimit=60, path=cbc_path)
+
+        detected_cbc = shutil.which("cbc")
+        if detected_cbc:
+            return pulp.COIN_CMD(timeLimit=60, path=detected_cbc)
+
+        return pulp.PULP_CBC_CMD(timeLimit=60)

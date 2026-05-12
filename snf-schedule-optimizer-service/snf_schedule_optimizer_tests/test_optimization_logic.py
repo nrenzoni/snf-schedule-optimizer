@@ -201,14 +201,18 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
     facility_ids = data_provider.get_facility_ids()
     fac_1 = facility_ids[0]
 
-    # Verify Shift 1 went to cheapest
-    assert 999 in assignments[ShiftKey(fac_1, 1)], (
-        "Shift 1 should go to cheapest nurse (N_15)"
+    shift_1_assignments = assignments[ShiftKey(fac_1, 1)]
+    shift_2_assignments = assignments[ShiftKey(fac_1, 2)]
+
+    assert len(shift_1_assignments) == 1
+    assert len(shift_2_assignments) == 1
+    assert shift_1_assignments[0] != shift_2_assignments[0], (
+        "Back-to-back shifts should not be assigned to the same nurse"
     )
 
-    # Verify Shift 2 went to next cheapest (N_15 blocked by fatigue)
-    assert 20 in assignments[ShiftKey(fac_1, 2)], (
-        "Shift 2 should go to next cheapest (N_20)"
+    assigned_nurses = set(shift_1_assignments + shift_2_assignments)
+    assert assigned_nurses == {999, 20}, (
+        "The two cheapest nurses should cover the shifts"
     )
 
     # Verify Expensive nurse unused

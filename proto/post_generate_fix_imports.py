@@ -1,8 +1,8 @@
 from pathlib import Path
 import re
 
-# adjust this to match buf 'OUT' directory
-OUT = Path("../snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated").resolve()
+ROOT = Path(__file__).resolve().parent
+OUT = (ROOT / "../snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated").resolve()
 
 # ensure package files exist
 for d in [OUT] + [p for p in OUT.rglob("*") if p.is_dir()]:

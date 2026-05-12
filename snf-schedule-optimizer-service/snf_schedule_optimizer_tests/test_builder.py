@@ -1,5 +1,5 @@
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from snf_schedule_optimizer.domain.payroll.calculations.schedule_cost_evaluator import (
     ScheduleCostEvaluator,
@@ -162,7 +162,7 @@ class OptimizerTestBuilder:
         if pay is not None:
             self._global_pay_strategies = pay
         if constraints is not None:
-            self._facility_constraint_strategies = constraints
+            self._facility_constraint_strategies.extend(constraints)
         return self
 
     def with_acuity_data(self, data: list[ResidentAcuity]) -> "OptimizerTestBuilder":
@@ -213,10 +213,10 @@ class OptimizerTestBuilder:
         # We use a real Slicer and a mocked Rate Calculator for simplicity
 
         mock_eligibility = MagicMock()
-        mock_eligibility.get_applicable_rules.return_value = (
+        mock_eligibility.get_applicable_rules = AsyncMock(return_value=(
             [],
             [],
-        )  # No diffs/OT rules by default
+        ))  # No diffs/OT rules by default
 
         self.pay_processor = ShiftPayProcessor(
             eligibility_service=mock_eligibility,
@@ -263,12 +263,15 @@ class OptimizerTestBuilder:
         hours_snapshot = self._accumulated_hours
         original_create = self._factory.create
 
+        async def get_accumulated_hours_for_pay_period(emp_id: EmployeeIdType) -> float:
+            return hours_snapshot.get(emp_id, 0.0)
+
         def side_effect_create(*args: Any, **kwargs: Any) -> IScenarioDataProvider:
             provider = original_create(*args, **kwargs)
             setattr(
                 provider,
                 "get_accumulated_hours_for_pay_period",
-                lambda emp_id: hours_snapshot.get(emp_id, 0.0),
+                get_accumulated_hours_for_pay_period,
             )
 
             # Spy: Capture provider

@@ -42,6 +42,8 @@ Start the full product demo:
 docker compose -f compose.demo.yml up --build -d
 ```
 
+For day-to-day development, prefer the faster host-dev workflow described in `AGENTS.md` and exposed via `just`.
+
 Stop the demo:
 
 ```bash
@@ -174,6 +176,28 @@ The seeded schedule is deterministic, which makes stakeholder demos and repeated
 ## Local Development
 
 This root README is primarily for the product-demo path.
+
+For the lowest-friction local dev loop:
+
+```bash
+just infra-up
+just infra-seed
+just dev-be
+just dev-ui
+```
+
+That keeps Postgres in Docker while running the backend and Next.js dev server on the host for faster iteration.
+
+The infra-first dev database is published on host port `35435` to avoid common local Postgres conflicts.
+
+Common local commands:
+
+```bash
+just check-ui
+just check-be
+just proto
+just smoke-demo
+```
 
 For project-level development details, see:
 

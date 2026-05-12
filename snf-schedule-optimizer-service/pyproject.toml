@@ -31,6 +31,7 @@ dev = [
     "mypy>=1.19.1",
     "pip>=25.3",
     "pytest>=9.0.2",
+    "pytest-asyncio>=1.2.0",
     "ruff>=0.14.10",
 ]
 
@@ -58,12 +59,13 @@ plugins = [
 # Best practice is to install stubs (see step 1) and keep this as 'false' or omit it.
 ignore_missing_imports = false
 
-# Allows MyPy to find stubs for packages that are installed in your venv
-python_executable = ".venv/Scripts/python.exe"
-
 [[tool.uv.index]]
 name = "hexaly"
 url = "https://pip.hexaly.com/"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src"]
 
 [[tool.mypy.overrides]]
 module = "pulp"
@@ -118,6 +120,10 @@ ignore = [
     "SIM102",
     "B010", # mypy doesn't like assignment to functions in tests
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"src/snf_schedule_optimizer/models/__init__.py" = ["F403"]
+"src/snf_schedule_optimizer/persistence/__init__.py" = ["F403"]
 
 [tool.ruff.format]
 quote-style = "double"

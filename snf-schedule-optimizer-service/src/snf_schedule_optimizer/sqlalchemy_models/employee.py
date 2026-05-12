@@ -35,8 +35,6 @@ class EmployeeModel(SQLABase):
         """
         Converts the database model to the domain Employee entity.
         """
-        hire_instant = self.hire_date
-
         return Employee(
             employee_id=self.id,
             name=str(self.name),

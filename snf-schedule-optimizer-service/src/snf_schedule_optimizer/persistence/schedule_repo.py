@@ -1,8 +1,7 @@
 from collections import defaultdict
 from collections.abc import Sequence
 
-from sqlalchemy import delete
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.domain.scheduling.interfaces import (

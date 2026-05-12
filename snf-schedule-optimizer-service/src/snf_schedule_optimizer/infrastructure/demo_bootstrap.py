@@ -37,7 +37,7 @@ async def bootstrap() -> None:
 
     # 2. Check if seeding is required
     # Use a scoped session from the container
-    async with session.begin() as transaction:
+    async with session.begin():
         # Check for existing employees as a marker for seeded data
         stmt = select(func.count()).select_from(EmployeeModel)
         result = await session.execute(stmt)

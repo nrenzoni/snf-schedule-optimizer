@@ -14,7 +14,7 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "5435:5432"  # host port 5435 to avoid local conflicts, internally still 5432
+      - "35435:5432"  # host port 35435 to avoid local conflicts, internally still 5432
 
   # One-shot service to handle schema creation and seeding
   seeder:

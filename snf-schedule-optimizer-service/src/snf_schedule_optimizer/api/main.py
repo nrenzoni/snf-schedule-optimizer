@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import cast
 
 from fastapi import FastAPI
@@ -21,37 +23,22 @@ from snf_schedule_optimizer.infrastructure.composition import (
     build_scheduler_container,
 )
 
-db_url = os.environ["DATABASE_URL"]
-engine = create_async_engine(db_url, pool_pre_ping=True)
-SessionLocal = async_sessionmaker(bind=engine)
 
-app = FastAPI(
-    title="Workforce Optimizer API",
-    version="0.0.1",
-)
-
-allowed_origins = [
-    origin.strip()
-    for origin in os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000").split(",")
-    if origin.strip()
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def _allowed_origins() -> list[str]:
+    return [
+        origin.strip()
+        for origin in os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:3000").split(",")
+        if origin.strip()
+    ]
 
 
-@app.get("/health")
-def health_check() -> dict[str, str]:
-    return {"status": "healthy"}
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    db_url = os.environ["DATABASE_URL"]
+    engine = create_async_engine(db_url, pool_pre_ping=True)
+    session_local = async_sessionmaker(bind=engine)
 
-
-async def main() -> None:
-    retrievers_container_type = build_repos_container(engine, SessionLocal)
+    retrievers_container_type = build_repos_container(engine, session_local)
     scheduler_container_type = build_scheduler_container(retrievers_container_type)
     facility_container_type = build_facility_container(retrievers_container_type)
     infra_container_type = build_infra_container()
@@ -65,10 +52,50 @@ async def main() -> None:
         facility_facade,
         id_obfuscator,
     )
-    scheduling_rpc_app = SchedulingServiceASGIApplication(rpc_handler)
 
-    app.mount("/scheduling.v1.SchedulingService", scheduling_rpc_app)
+    if not getattr(app.state, "rpc_mounted", False):
+        app.mount(
+            "/scheduling.v1.SchedulingService",
+            SchedulingServiceASGIApplication(rpc_handler),
+        )
+        app.state.rpc_mounted = True
 
+    app.state.engine = engine
+    app.state.scheduler_facade = scheduler_facade
+
+    try:
+        yield
+    finally:
+        await scheduler_facade.close()
+        await engine.dispose()
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="Workforce Optimizer API",
+        version="0.0.1",
+        lifespan=lifespan,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_allowed_origins(),
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.get("/health")
+    def health_check() -> dict[str, str]:
+        return {"status": "healthy"}
+
+    return app
+
+
+app = create_app()
+
+
+async def main() -> None:
     config = Config()
     config.bind = ["0.0.0.0:8000"]
 
@@ -77,12 +104,8 @@ async def main() -> None:
     config.errorlog = "-"
     config.loglevel = "debug"
 
-    try:
-        logging.info("Starting Workforce Optimizer API server")
-        await serve(cast(ASGIFramework, cast(object, app)), config)
-    finally:
-        await scheduler_facade.close()
-        await engine.dispose()
+    logging.info("Starting Workforce Optimizer API server")
+    await serve(cast(ASGIFramework, cast(object, app)), config)
 
 
 if __name__ == "__main__":

@@ -112,7 +112,7 @@ class LpNurseShiftVariableHolder:
     def get_all_employees(self) -> set[DomainPrimaryKeyType]:
         """Returns a set of all employee IDs with assignment variables."""
         # Unpack 3 keys: facility_id, employee_id, shift_id
-        return set(var.employee_id for var in self._assignment_vars.keys())
+        return {var.employee_id for var in self._assignment_vars}
 
 
 class HprdShiftNurseRequirementHolder:

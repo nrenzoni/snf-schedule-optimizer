@@ -65,6 +65,8 @@ docker compose -f ../compose.demo.yml up --build -d
 
 That path runs the UI against the backend and seeded demo data automatically.
 
+For the fastest local edit loop, use the root `justfile` and run the UI on the host with `just dev-ui` instead of rebuilding the demo container on every change.
+
 ## Important UI Areas
 
 - `app/`: route entrypoints
@@ -120,3 +122,4 @@ pnpm lint
 - schedule loading depends on generated protobuf artifacts under `gen/`
 - the backend contract lives in `../proto/`
 - the root `compose.demo.yml` is the easiest way to verify the real product-demo flow
+- the root `compose.dev.yml` plus `just dev-ui` and `just dev-be` is the recommended local development path
