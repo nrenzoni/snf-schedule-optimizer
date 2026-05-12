@@ -75,7 +75,6 @@ ignore_missing_imports = true
 module = "snf_schedule_optimizer.generated.*"
 ignore_errors = true
 
-
 [tool.ruff]
 # Ruff respects .gitignore by default
 exclude = [

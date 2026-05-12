@@ -25,7 +25,7 @@ jobs:
       proto: ${{ steps.filter.outputs.proto }}
       shared: ${{ steps.filter.outputs.shared }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - id: filter
         uses: dorny/paths-filter@v3
@@ -53,11 +53,11 @@ jobs:
       run:
         working-directory: snf-schedule-optimizer-ui
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
 
       - uses: pnpm/action-setup@v4
         with:
@@ -86,9 +86,9 @@ jobs:
       run:
         working-directory: snf-schedule-optimizer-service
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
@@ -112,11 +112,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.proto == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Generate proto outputs
         run: npm install --no-package-lock && npx buf generate && python3 post_generate_fix_imports.py
@@ -129,7 +129,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && inputs.run_demo_smoke
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Build and start demo stack
         run: docker compose -f compose.demo.yml up --build -d

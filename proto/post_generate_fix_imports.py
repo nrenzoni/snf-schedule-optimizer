@@ -10,6 +10,10 @@ for d in [OUT] + [p for p in OUT.rglob("*") if p.is_dir()]:
     if not init.exists():
         init.write_text("# generated package\n")
 
+py_typed = OUT / "py.typed"
+if not py_typed.exists():
+    py_typed.write_text("")
+
 # patterns to rewrite
 replacements = [
     (re.compile(r"\bimport\s+scheduling\.v1\."), "import snf_schedule_optimizer.generated.scheduling.v1."),

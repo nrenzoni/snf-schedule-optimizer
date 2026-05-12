@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS buf-builder
+FROM node:24-bookworm-slim AS buf-builder
 
 WORKDIR /workspace/proto
 
