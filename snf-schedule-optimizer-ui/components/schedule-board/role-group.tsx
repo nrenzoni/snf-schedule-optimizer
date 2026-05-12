@@ -2,7 +2,7 @@
 import { STAFF_COL_WIDTH } from "@/components/schedule-board/schedule-board";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { Shift, SHIFT_TYPES, ShiftTypeKey, Staff } from "@/types/scheduler";
 import GroupSummaryCell from "@/components/schedule-board/group-summary-cell";
 import { AnimatePresence, motion } from "framer-motion";
@@ -67,6 +67,7 @@ export default function RoleGroup({
         <div className="flex">
           {dates.map((date: Date) => {
             const dateStr = format(date, "yyyy-MM-dd");
+            const isToday = isSameDay(date, new Date());
             return (Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map(
               (shiftKey) => {
                 const metric = calculateCellMetric(
@@ -82,6 +83,7 @@ export default function RoleGroup({
                   <GroupSummaryCell
                     key={`${groupKey}-${dateStr}-${shiftKey}`}
                     metric={metric}
+                    isToday={isToday}
                   />
                 );
               },
@@ -119,6 +121,7 @@ export default function RoleGroup({
                 <div className="flex">
                   {dates.map((date: Date, dayIndex: number) => {
                     const dateStr = format(date, "yyyy-MM-dd");
+                    const isToday = isSameDay(date, new Date());
                     return (Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map(
                       (shiftKey, idx) => {
                         const slotId = `${staff.id}::${dateStr}::${shiftKey}`;
@@ -132,6 +135,7 @@ export default function RoleGroup({
                               typeKey: shiftKey,
                             }}
                             isEvenDay={dayIndex % 2 === 0}
+                            isToday={isToday}
                             isLastShift={idx === 2}
                             isSimulatingTarget={simulatingSlotId === slotId}
                             simulationResult={simulationResult}

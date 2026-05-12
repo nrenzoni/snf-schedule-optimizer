@@ -8,9 +8,11 @@ import React from "react";
 export default function GroupSummaryCell({
   metric,
   isTotal,
+  isToday,
 }: {
   metric: GroupMetric;
   isTotal?: boolean;
+  isToday?: boolean;
 }) {
   const { filledPct, label, status } = metric;
   const barColor =
@@ -40,7 +42,7 @@ export default function GroupSummaryCell({
       className={cn(
         CELL_WIDTH,
         "h-full flex flex-col justify-end border-r border-slate-200/50 relative group/cell",
-        bgColor,
+        isToday ? "bg-blue-50/30" : bgColor,
       )}
     >
       {/* Percentage Text */}

@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { STAFF_COL_WIDTH } from "@/components/schedule-board/schedule-board";
 import { Building2, ChevronDown, ChevronUp } from "lucide-react";
-import { format } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import GroupSummaryCell from "@/components/schedule-board/group-summary-cell";
 import RoleGroup from "@/components/schedule-board/role-group";
 import { calculateCellMetric } from "@/components/schedule-board/utils";
@@ -118,6 +118,7 @@ export default function UnitGroup({
         <div className="flex">
           {dates.map((date: Date) => {
             const dateStr = format(date, "yyyy-MM-dd");
+            const isToday = isSameDay(date, new Date());
             return (Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map(
               (shiftKey) => {
                 const metric = calculateCellMetric(
@@ -134,6 +135,7 @@ export default function UnitGroup({
                     key={`${unit.id}-${dateStr}-${shiftKey}`}
                     metric={metric}
                     isTotal
+                    isToday={isToday}
                   />
                 );
               },

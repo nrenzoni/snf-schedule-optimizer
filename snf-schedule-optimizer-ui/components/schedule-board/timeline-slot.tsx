@@ -17,6 +17,7 @@ export default function TimelineSlot({
   data,
   children,
   isEvenDay,
+  isToday,
   isLastShift,
   isSimulatingTarget,
   simulationResult,
@@ -25,6 +26,7 @@ export default function TimelineSlot({
   data: TimelineSlotData;
   children: React.ReactNode;
   isEvenDay: boolean;
+  isToday: boolean;
   isLastShift: boolean;
   isSimulatingTarget: boolean;
   simulationResult: SimulateActionResponse | null;
@@ -36,7 +38,11 @@ export default function TimelineSlot({
   const isEmpty = React.Children.count(children) === 0;
 
   // --- DYNAMIC BACKGROUND LOGIC ---
-  let bgClass = isEvenDay ? "bg-slate-50/40" : "bg-white";
+  let bgClass = isToday
+    ? "bg-blue-50/25"
+    : isEvenDay
+      ? "bg-slate-50/40"
+      : "bg-white";
   let ringClass = "";
 
   if (isOver) {

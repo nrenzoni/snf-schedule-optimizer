@@ -13,10 +13,12 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { format, isSameDay } from "date-fns";
+import { addDays, format, isSameDay, subDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
   Activity,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   ChevronUp,
   DollarSign,
@@ -42,6 +44,8 @@ import ShiftCard from "@/components/schedule-board/shift-card";
 import UnitGroup from "@/components/schedule-board/unit-group";
 import { useIsFetching } from "@tanstack/react-query";
 import LoadingOverlay from "../ui/loading-overlay";
+import { parseAsString, useQueryState } from "nuqs";
+import { formatDateYYYMMDD, TODAY_STRING } from "@/utils/scheduling-logic";
 
 // --- CONFIGURATION ---
 
@@ -59,6 +63,8 @@ const restrictToHorizontalAxis: Modifier = ({ transform }) => {
   };
 };
 
+const VISIBLE_DAY_COUNT = 6;
+
 interface ScheduleBoardProps {
   initialShifts: Shift[];
   staffList: Staff[];
@@ -71,13 +77,16 @@ export default function ScheduleBoard({
   initialShifts,
   staffList,
   units,
-  dates,
 }: ScheduleBoardProps) {
   // 2. Generate a stable ID
   const dndContextId = useId();
 
   // This returns > 0 if any query is currently fetching in the background
   const isFetching = useIsFetching();
+  const [anchorDateStr, setAnchorDateStr] = useQueryState(
+    "anchor",
+    parseAsString.withDefault(TODAY_STRING),
+  );
 
   const [shifts, setShifts] = useState<Shift[]>(initialShifts);
 
@@ -108,6 +117,20 @@ export default function ScheduleBoard({
       staff: staffList.filter((s) => s.unitId === unit.id),
     }));
   }, [staffList]);
+
+  const anchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
+  const visibleStartDate = useMemo(() => subDays(anchorDate, 2), [anchorDate]);
+  const visibleDates = useMemo(
+    () =>
+      Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) =>
+        addDays(visibleStartDate, index),
+      ),
+    [visibleStartDate],
+  );
+
+  const pageSchedule = (dayDelta: number) => {
+    setAnchorDateStr(formatDateYYYMMDD(addDays(anchorDate, dayDelta)));
+  };
 
   // Expand/Collapse Logic
   const handleCollapseAll = () => {
@@ -326,9 +349,33 @@ export default function ScheduleBoard({
 
         {/* HEADER TOOLBAR */}
         <div className="px-4 py-3 border-b flex items-center justify-between bg-white z-50">
-          <h2 className="font-semibold text-slate-800 flex items-center gap-2">
-            <LayoutList size={18} className="text-blue-600" /> Master Schedule
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="font-semibold text-slate-800 flex items-center gap-2">
+              <LayoutList size={18} className="text-blue-600" /> Master Schedule
+            </h2>
+            <div className="flex items-center gap-1 rounded-lg border bg-slate-50 p-1">
+              <button
+                type="button"
+                onClick={() => pageSchedule(-VISIBLE_DAY_COUNT)}
+                className="rounded p-1 text-slate-500 transition-colors hover:bg-white hover:text-slate-800 hover:shadow"
+                aria-label="Show previous 6 days"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="px-2 text-xs font-medium text-slate-500">
+                {format(visibleDates[0], "MMM d")} -{" "}
+                {format(visibleDates[VISIBLE_DAY_COUNT - 1], "MMM d")}
+              </span>
+              <button
+                type="button"
+                onClick={() => pageSchedule(VISIBLE_DAY_COUNT)}
+                className="rounded p-1 text-slate-500 transition-colors hover:bg-white hover:text-slate-800 hover:shadow"
+                aria-label="Show next 6 days"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center text-xs font-medium border rounded-lg p-1 bg-slate-50">
               <span className="px-2 text-slate-500">Sub-Group:</span>
@@ -415,38 +462,42 @@ export default function ScheduleBoard({
               <div className="hidden md:flex items-center px-3 text-xs font-medium text-slate-500">
                 {units.length} units
               </div>
-              {dates.map((date, i) => (
-                <div
-                  key={i}
-                  className="flex border-r border-slate-300 last:border-0"
-                >
-                  <div className="flex flex-col">
-                    <div
-                      className={cn(
-                        "text-center py-1.5 text-xs font-bold border-b border-slate-100 w-full",
-                        isSameDay(date, new Date())
-                          ? "bg-blue-50 text-blue-700"
-                          : "bg-slate-50 text-slate-600",
-                      )}
-                    >
-                      {format(date, "EEE, MMM d")}
-                    </div>
-                    <div className="flex">
-                      {Object.values(SHIFT_TYPES).map((shift) => (
-                        <div
-                          key={shift.id}
-                          className={cn(
-                            CELL_WIDTH,
-                            "text-center text-[10px] text-slate-400 py-1 bg-white border-r border-slate-100 last:border-r-0",
-                          )}
-                        >
-                          {shift.label}
-                        </div>
-                      ))}
+              {visibleDates.map((date, i) => {
+                const isToday = isSameDay(date, new Date());
+                return (
+                  <div
+                    key={i}
+                    className="flex border-r border-slate-300 last:border-0"
+                  >
+                    <div className="flex flex-col">
+                      <div
+                        className={cn(
+                          "text-center py-1.5 text-xs font-bold border-b border-slate-100 w-full",
+                          isToday
+                            ? "bg-blue-50/70 text-blue-700"
+                            : "bg-slate-50 text-slate-600",
+                        )}
+                      >
+                        {format(date, "EEE, MMM d")}
+                      </div>
+                      <div className="flex">
+                        {Object.values(SHIFT_TYPES).map((shift) => (
+                          <div
+                            key={shift.id}
+                            className={cn(
+                              CELL_WIDTH,
+                              "text-center text-[10px] text-slate-400 py-1 border-r border-slate-100 last:border-r-0",
+                              isToday ? "bg-blue-50/30" : "bg-white",
+                            )}
+                          >
+                            {shift.label}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* UNIT GROUPS */}
@@ -463,7 +514,7 @@ export default function ScheduleBoard({
                   unit={group.unit}
                   staffMembers={group.staff}
                   shifts={shifts}
-                  dates={dates}
+                  dates={visibleDates}
                   viewMode={viewMode}
                   groupingMode={groupingMode}
                   isExpanded={expandedUnits[group.unit.id]}

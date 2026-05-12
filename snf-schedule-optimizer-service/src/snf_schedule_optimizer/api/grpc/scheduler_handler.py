@@ -167,7 +167,10 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 self.id_obfuscator.encode(facility_config.facility_id),
             ),
         )
+        end_date = request.end_date or request.start_date
         for day, day_schedule in day_schedules.items():
+            if day < request.start_date or day > end_date:
+                continue
             response.schedules[day].CopyFrom(day_schedule)
         return response
 

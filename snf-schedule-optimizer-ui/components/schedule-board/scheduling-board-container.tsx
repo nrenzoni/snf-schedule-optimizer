@@ -17,10 +17,8 @@ async function getScheduleData() {
     { id: "st11", name: "Tessa Garcia, PT", role: "THERAPIST", unitId: "U1", fte: 0.6 },
   ];
 
-  const firstOfThisMonth = new Date();
-  firstOfThisMonth.setDate(1);
-  const firstOfPreviousMonth = new Date(firstOfThisMonth);
-  firstOfPreviousMonth.setMonth(firstOfPreviousMonth.getMonth() - 1);
+  const firstVisibleDay = new Date();
+  firstVisibleDay.setDate(firstVisibleDay.getDate() - 2);
 
   const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
@@ -28,21 +26,21 @@ async function getScheduleData() {
     {
       id: "s1",
       staffId: "st1",
-      dateStr: formatDate(firstOfPreviousMonth),
+      dateStr: formatDate(firstVisibleDay),
       shiftType: "DAY",
       role: "RN",
     },
     {
       id: "s2",
       staffId: "st5",
-      dateStr: formatDate(firstOfPreviousMonth),
+      dateStr: formatDate(firstVisibleDay),
       shiftType: "EVE",
       role: "LPN",
     },
     {
       id: "s3",
       staffId: "st9",
-      dateStr: formatDate(firstOfPreviousMonth),
+      dateStr: formatDate(firstVisibleDay),
       shiftType: "NIGHT",
       role: "CNA",
       isAgency: true,
@@ -57,7 +55,7 @@ async function getScheduleData() {
   ];
 
   const dates = Array.from({ length: 91 }).map((_, i) => {
-    const date = new Date(firstOfPreviousMonth);
+    const date = new Date(firstVisibleDay);
     date.setDate(date.getDate() + i);
     return date;
   });

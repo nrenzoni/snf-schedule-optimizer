@@ -31,10 +31,11 @@ message GetAllOrgFacilitiesResponse {
 }
 
 message GetMonthlyScheduleRequest {
-  // Date in YYYY-MM-DD format, usually the start of the month to query.
+  // Dates in YYYY-MM-DD format for the inclusive schedule range to query.
   string org_id = 1;
   optional string facility_id = 2;
   string start_date = 3;
+  optional string end_date = 4;
 }
 
 message GetMonthlyScheduleResponse {

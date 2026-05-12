@@ -1,8 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  formatDateYYYMMDD,
-  getStartOfMonth,
-} from "@/utils/scheduling-logic";
+import { formatDateYYYMMDD } from "@/utils/scheduling-logic";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { ScheduleMap, UIDaySchedule, UINurse, UIShift } from "@/types/scheduling";
 import { useShallow } from "zustand/react/shallow";
@@ -54,17 +51,18 @@ const protoDayToUI = (d: ProtoDaySchedule): UIDaySchedule => ({
 
 // Define the shape of the query key for type safety
 interface ScheduleQueryKey {
-  anchorMonth: string; // YYYY-MM
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
   isOptimized: boolean; // Optimization state for mock data generation
 }
 
 async function fetchScheduleData({
-  anchorMonth,
+  startDate,
+  endDate,
 }: ScheduleQueryKey): Promise<{
   scheduleMap: ScheduleMap;
   selectedFacility: OrgFacility;
 }> {
-  const anchorDate = new Date(anchorMonth);
   const facilities = await schedulingClient.getAllOrgFacilities({}).catch(
     (error) => {
       throw new ScheduleQueryError(
@@ -87,7 +85,8 @@ async function fetchScheduleData({
   const response = await schedulingClient.getMonthlySchedule({
     orgId: selectedFacility.orgId,
     facilityId: selectedFacility.facilityId,
-    startDate: formatDateYYYMMDD(getStartOfMonth(anchorDate)),
+    startDate,
+    endDate,
   });
 
   const newSchedules = new Map<string, UIDaySchedule>();
@@ -99,18 +98,24 @@ async function fetchScheduleData({
 
 export default function useScheduleQuery(anchorDate: Date) {
   // 1. Get current data anchor and optimization state from the store
-  const { isOptimized, setScheduleData, setIsOptimizing } = useSchedulingStore(
+  const { isOptimized, mergeScheduleData, setIsOptimizing } = useSchedulingStore(
     useShallow((state) => ({
       isOptimized: state.isOptimized,
-      setScheduleData: state.setScheduleData,
+      mergeScheduleData: state.mergeScheduleData,
       // 1. Get the spinner setter
       setIsOptimizing: state.setIsOptimizing,
     })),
   );
 
-  // 2. Derive a stable query key based on the month and optimization status
+  const startDate = new Date(anchorDate);
+  startDate.setDate(startDate.getDate() - 2);
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 5);
+
+  // 2. Derive a stable query key based on the visible schedule range.
   const queryKey: ScheduleQueryKey = {
-    anchorMonth: `${anchorDate.getFullYear()}-${(anchorDate.getMonth() + 1).toString().padStart(2, "0")}`,
+    startDate: formatDateYYYMMDD(startDate),
+    endDate: formatDateYYYMMDD(endDate),
     isOptimized: isOptimized,
   };
 
@@ -132,23 +137,23 @@ export default function useScheduleQuery(anchorDate: Date) {
     }
 
     if (query.status === "success") {
-      setScheduleData(
+      mergeScheduleData(
         query.data.scheduleMap,
         false,
         null,
         query.data.selectedFacility,
       );
     } else if (query.status === "error") {
-      setScheduleData(new Map(), false, query.error as Error, null);
+      mergeScheduleData(new Map(), false, query.error as Error, null);
     } else if (query.status === "pending") {
-      setScheduleData(new Map(), true, null, null);
+      mergeScheduleData(new Map(), true, null, null);
     }
   }, [
     query.status,
     query.isFetching,
     query.data,
     query.error,
-    setScheduleData,
+    mergeScheduleData,
     setIsOptimizing,
   ]);
 

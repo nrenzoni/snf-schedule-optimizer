@@ -27,6 +27,12 @@ interface SchedulingState {
     error: Error | null,
     facility?: OrgFacility | null,
   ) => void;
+  mergeScheduleData: (
+    map: ScheduleMap,
+    isLoading: boolean,
+    error: Error | null,
+    facility?: OrgFacility | null,
+  ) => void;
 
   setIsOptimizing: (status: boolean) => void;
   setIsOptimized: (status: boolean) => void;
@@ -49,6 +55,19 @@ export const useSchedulingStore = create<SchedulingState>((set) => ({
       isDataLoading: isLoading,
       dataError: error,
       selectedFacility: facility,
+    });
+  },
+
+  mergeScheduleData: (map, isLoading, error, facility = null) => {
+    set((state) => {
+      const scheduleMap = new Map(state.scheduleMap);
+      map.forEach((schedule, date) => scheduleMap.set(date, schedule));
+      return {
+        scheduleMap,
+        isDataLoading: isLoading,
+        dataError: error,
+        selectedFacility: facility ?? state.selectedFacility,
+      };
     });
   },
 
