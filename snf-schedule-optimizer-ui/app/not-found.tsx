@@ -2,9 +2,9 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-sm ring-1 ring-black/5">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">
+    <div className="app-bg flex min-h-screen items-center justify-center px-4">
+      <div className="app-card w-full max-w-lg p-8">
+        <p className="app-eyebrow">
           Not Found
         </p>
         <h1 className="mt-3 text-2xl font-semibold text-slate-900">
@@ -15,7 +15,7 @@ export default function NotFound() {
         </p>
         <Link
           href="/"
-          className="mt-6 inline-flex rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+          className="app-button-primary mt-6"
         >
           Open Dashboard
         </Link>

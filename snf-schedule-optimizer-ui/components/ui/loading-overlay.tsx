@@ -14,16 +14,16 @@ export default function LoadingOverlay({ isVisible }: { isVisible: boolean }) {
         "flex items-center justify-center",
 
         // 3. Visuals: Semi-transparent white + Blur effect
-        "bg-white/50 backdrop-blur-sm",
+        "bg-white/70",
 
         // 4. Interaction: Block clicks to underlying elements
         "cursor-wait",
       )}
     >
-      <div className="bg-white p-4 rounded-xl shadow-xl border border-slate-100 animate-in zoom-in-95 duration-200">
+      <div className="animate-in zoom-in-95 rounded-lg border border-[#E0E0E0] bg-white p-4 shadow-sm duration-200">
         <div className="flex items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-          <span className="text-sm font-semibold text-slate-700">
+          <Loader2 className="h-6 w-6 animate-spin text-[#168039]" />
+          <span className="text-sm font-medium text-[#212529]">
             Refreshing...
           </span>
         </div>

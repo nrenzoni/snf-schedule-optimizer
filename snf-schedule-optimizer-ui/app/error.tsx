@@ -11,9 +11,9 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-8 shadow-sm ring-1 ring-black/5">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">
+    <div className="app-bg flex min-h-screen items-center justify-center px-4">
+      <div className="app-card w-full max-w-lg p-8">
+        <p className="app-eyebrow">
           App Error
         </p>
         <h1 className="mt-3 text-2xl font-semibold text-slate-900">
@@ -23,19 +23,19 @@ export default function GlobalError({
           Refresh the page or retry the last render. If the issue keeps
           happening, check the API connection and browser console.
         </p>
-        <pre className="mt-6 overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">
+        <pre className="mt-6 overflow-x-auto rounded-lg bg-[#212529] p-4 text-xs text-white">
           {error.message}
         </pre>
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             onClick={reset}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            className="app-button-primary"
           >
             Retry
           </button>
           <Link
             href="/"
-            className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            className="app-button-secondary"
           >
             Go Home
           </Link>

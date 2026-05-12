@@ -12,27 +12,23 @@ import {
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-1/2 top-[-16rem] h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-indigo-500/30 blur-3xl" />
-        <div className="absolute right-[-10rem] top-40 h-[28rem] w-[28rem] rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="absolute bottom-[-14rem] left-[-8rem] h-[32rem] w-[32rem] rounded-full bg-emerald-400/10 blur-3xl" />
-      </div>
+    <main className="app-bg min-h-screen overflow-hidden text-slate-950">
+      <div className="pointer-events-none absolute inset-0" />
 
       <section className="relative mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-        <header className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 shadow-2xl shadow-black/20 backdrop-blur">
+        <header className="app-shell-card flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-950 shadow-lg shadow-indigo-500/20">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#168039] text-white">
               <CalendarClock size={20} />
             </div>
             <div>
               <p className="text-sm font-bold tracking-tight">SNF Schedule Optimizer</p>
-              <p className="text-xs text-slate-400">AI-assisted staffing command center</p>
+              <p className="text-xs text-slate-500">AI-assisted staffing command center</p>
             </div>
           </div>
           <Link
             href="/schedule?tab=scheduling&view=timeline"
-            className="hidden rounded-full bg-white px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-indigo-100 sm:inline-flex"
+            className="app-button-primary hidden sm:inline-flex"
           >
             Launch Demo
           </Link>
@@ -40,15 +36,15 @@ export default function HomePage() {
 
         <div className="grid flex-1 items-center gap-10 py-12 lg:grid-cols-[1fr_0.92fr] lg:py-16">
           <div className="max-w-3xl">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-300/30 bg-indigo-400/10 px-3 py-1.5 text-sm font-semibold text-indigo-100 shadow-lg shadow-indigo-950/30">
-              <Sparkles size={16} className="text-cyan-200" />
+            <div className="mb-6 inline-flex items-center gap-2 rounded-lg border border-[#E0E0E0] bg-white px-3 py-1.5 text-sm font-medium text-[#168039]">
+              <Sparkles size={16} className="text-[#168039]" />
               Guided demo with live schedule reads and repeatable AI workflows
             </div>
 
-            <h1 className="text-balance text-5xl font-black tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
+            <h1 className="text-balance text-5xl font-semibold tracking-tight text-[#212529] sm:text-6xl lg:text-7xl">
               Make SNF staffing feel predictable, compliant, and cost-aware.
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-300">
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#6C757D]">
               Explore a polished operating dashboard for schedule optimization,
               scenario analysis, and ML-driven staffing forecasts built for skilled
               nursing leaders.
@@ -57,14 +53,14 @@ export default function HomePage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/schedule?tab=scheduling&view=timeline"
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-indigo-400 px-6 py-3 text-sm font-black text-slate-950 shadow-xl shadow-indigo-500/30 transition hover:-translate-y-0.5 hover:bg-cyan-300"
+                className="app-button-primary px-6 py-3"
               >
                 Launch Interactive Demo
                 <ArrowRight size={18} />
               </Link>
               <Link
                 href="/schedule?tab=ml-forecasts"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-bold text-white backdrop-blur transition hover:-translate-y-0.5 hover:bg-white/10"
+                className="app-button-secondary px-6 py-3"
               >
                 View Forecasts
                 <Brain size={18} />
@@ -79,26 +75,26 @@ export default function HomePage() {
               ].map(([Icon, title, copy]) => (
                 <div
                   key={title as string}
-                  className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-xl shadow-black/10 backdrop-blur"
+                  className="app-card p-4"
                 >
-                  <Icon className="mb-3 text-cyan-200" size={22} />
-                  <h2 className="font-bold text-white">{title as string}</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">{copy as string}</p>
+                  <Icon className="mb-3 text-[#168039]" size={22} />
+                  <h2 className="font-medium text-[#212529]">{title as string}</h2>
+                  <p className="mt-2 text-sm leading-6 text-[#6C757D]">{copy as string}</p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="relative">
-            <div className="absolute -inset-4 rounded-[2rem] bg-gradient-to-br from-indigo-400/30 via-cyan-300/10 to-emerald-300/20 blur-2xl" />
-            <div className="relative overflow-hidden rounded-[2rem] border border-white/15 bg-slate-900/90 shadow-2xl shadow-black/40 backdrop-blur">
-              <div className="border-b border-white/10 bg-white/[0.04] px-5 py-4">
+            <div className="absolute -inset-3 rounded-xl bg-[#168039]/5" />
+            <div className="app-shell-card relative overflow-hidden">
+              <div className="border-b border-[#E0E0E0] bg-white px-5 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-cyan-200">Demo Preview</p>
-                    <h2 className="mt-1 text-xl font-black tracking-tight">Staffing Control Room</h2>
+                    <p className="app-eyebrow">Demo Preview</p>
+                    <h2 className="app-title mt-1 text-xl">Staffing Control Room</h2>
                   </div>
-                  <div className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs font-bold text-emerald-200 ring-1 ring-emerald-300/20">
+                  <div className="rounded-lg bg-[#DFFFEA] px-3 py-1 text-xs font-medium text-[#28A745] ring-1 ring-[#28A745]/30">
                     96% coverage
                   </div>
                 </div>
@@ -107,22 +103,22 @@ export default function HomePage() {
               <div className="space-y-4 p-5">
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    ["Open Shifts", "7", "text-amber-200"],
-                    ["Agency Hours", "-18%", "text-emerald-200"],
-                    ["OT Risk", "Medium", "text-cyan-200"],
+                    ["Open Shifts", "7", "text-amber-600"],
+                    ["Agency Hours", "-18%", "text-emerald-600"],
+                    ["OT Risk", "Medium", "text-[#168039]"],
                   ].map(([label, value, color]) => (
-                    <div key={label} className="rounded-2xl bg-white/[0.06] p-3 ring-1 ring-white/10">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+                    <div key={label} className="rounded-lg bg-white p-3 ring-1 ring-[#E0E0E0]">
+                      <p className="text-[10px] font-medium uppercase tracking-wide text-[#6C757D]">{label}</p>
                       <p className={`mt-2 text-2xl font-black ${color}`}>{value}</p>
                     </div>
                   ))}
                 </div>
 
-                <div className="rounded-2xl bg-white p-4 text-slate-950 shadow-2xl">
+                <div className="rounded-lg border border-[#E0E0E0] bg-white p-4 text-[#212529] shadow-sm">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Timeline</p>
-                      <p className="font-black">Unit A: RN Coverage</p>
+                      <p className="text-xs font-medium uppercase tracking-wide text-[#6C757D]">Timeline</p>
+                      <p className="font-semibold">Unit A: RN Coverage</p>
                     </div>
                     <CheckCircle2 size={20} className="text-emerald-500" />
                   </div>
@@ -132,19 +128,19 @@ export default function HomePage() {
                         key={index}
                         className={`h-12 rounded-xl ${
                           index % 7 === 0
-                            ? "bg-amber-100 ring-1 ring-amber-200"
+                            ? "bg-[#FFF8E1] ring-1 ring-[#FBC02D]/40"
                             : index % 5 === 0
-                              ? "bg-indigo-100 ring-1 ring-indigo-200"
-                              : "bg-slate-100 ring-1 ring-slate-200"
+                              ? "bg-[#DFFFEA] ring-1 ring-[#28A745]/40"
+                              : "bg-[#F4F6F8] ring-1 ring-[#E0E0E0]"
                         }`}
                       />
                     ))}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
-                  <p className="text-sm font-bold text-cyan-100">AI recommendation</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-300">
+                <div className="rounded-lg border border-[#28A745]/30 bg-[#DFFFEA] p-4">
+                  <p className="text-sm font-medium text-[#168039]">AI recommendation</p>
+                  <p className="mt-1 text-sm leading-6 text-[#212529]">
                     Convert 2 agency evening shifts to internal PRN coverage to lower projected labor variance.
                   </p>
                 </div>

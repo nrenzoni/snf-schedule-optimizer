@@ -90,7 +90,7 @@ export default function ScheduleListView() {
     // WRAPPER FOR TRANSITION
     <div
       key="scheduling"
-      className="relative animate-in fade-in slide-in-from-bottom-4 duration-500 min-h-[600px]"
+      className="relative min-h-[600px] animate-in fade-in slide-in-from-bottom-4 duration-500"
     >
       {/* 5. RENDER THE OVERLAY */}
       {/* It sits on top of the content below because of absolute positioning */}
@@ -101,20 +101,20 @@ export default function ScheduleListView() {
       <ThreeDAssemblyLoader isLoading={isOptimizing} />
 
       {/* --- EXISTING SCHEDULING MODULE --- */}
-      <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-xl p-4 sm:p-6 mb-6">
-        <header className="mb-6 border-b pb-4">
+      <div className="app-card mx-auto mb-6 max-w-5xl p-4 sm:p-6">
+        <header className="mb-6 border-b border-slate-200/70 pb-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <button
               data-testid="previous-month"
               onClick={() => changeMonth(-1)}
               disabled={isTwoWeekView}
-              className={`p-2 rounded-full text-gray-700 hover:bg-gray-100 transition duration-150 ${isTwoWeekView ? "opacity-30 cursor-not-allowed" : ""}`}
+              className={`rounded-lg p-2 text-[#6C757D] transition duration-150 hover:bg-[#E9EEF1] hover:text-[#212529] ${isTwoWeekView ? "cursor-not-allowed opacity-30" : ""}`}
               aria-label="Previous month"
             >
               <ChevronLeft size={24} />
             </button>
 
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 tracking-tight">
+            <h2 className="app-title text-2xl sm:text-3xl">
               {monthYearFormatter.format(currentDate)}
             </h2>
 
@@ -124,12 +124,7 @@ export default function ScheduleListView() {
               data-testid="optimize-schedule"
               onClick={triggerOptimization}
               disabled={isOptimizing}
-              className={`py-2 px-3 text-sm font-semibold rounded-lg shadow-sm transition duration-200 flex items-center gap-2 whitespace-nowrap
-                                ${
-                                  isOptimizing
-                                    ? "bg-indigo-400 text-white cursor-not-allowed"
-                                    : "bg-indigo-600 text-white hover:bg-indigo-700"
-                                }`}
+              className="app-button-primary whitespace-nowrap"
             >
               {isOptimizing ? <Spinner /> : <Zap size={16} />}
               <span>{isOptimizing ? "Optimizing..." : "Optimize"}</span>
@@ -139,7 +134,7 @@ export default function ScheduleListView() {
             <button
               data-testid="open-schedule-summary"
               onClick={openSummaryModal}
-              className={`py-2 px-3 text-sm font-semibold rounded-lg shadow-sm border transition duration-200 bg-white text-indigo-600 hover:bg-indigo-50 border-indigo-200 flex items-center gap-1`}
+              className="app-button-secondary"
             >
               <ListChecks size={16} />
               Summary
@@ -149,7 +144,7 @@ export default function ScheduleListView() {
             <button
               data-testid="open-scheduling-config"
               onClick={openConfigModal}
-              className={`py-2 px-3 text-sm font-semibold rounded-lg shadow-sm border transition duration-200 bg-white text-gray-700 hover:bg-gray-50 border-gray-200 flex items-center gap-1`}
+              className="app-button-secondary"
             >
               <Settings size={16} />
               Configure
@@ -159,11 +154,11 @@ export default function ScheduleListView() {
             <button
               data-testid="toggle-calendar-view"
               onClick={toggleCalendarView}
-              className={`py-2 px-3 text-sm font-semibold rounded-lg shadow-sm border transition duration-200
+              className={`rounded-full border px-3 py-2 text-sm font-bold shadow-sm transition duration-200
                             ${
                               isTwoWeekView
-                                ? "bg-indigo-600 text-white hover:bg-indigo-700 border-transparent"
-                                : "bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
+                                ? "border-transparent bg-[#168039] text-white hover:bg-[#126E31]"
+                                : "border-[#CED4DA] bg-white text-[#212529] hover:bg-[#DFFFEA] hover:text-[#168039]"
                             }`}
             >
               {isTwoWeekView ? "View: 2 Week" : "View: Month"}
@@ -174,7 +169,7 @@ export default function ScheduleListView() {
               data-testid="next-month"
               onClick={() => changeMonth(1)}
               disabled={isTwoWeekView}
-              className={`p-2 rounded-full text-gray-700 hover:bg-gray-100 transition duration-150 ${isTwoWeekView ? "opacity-30 cursor-not-allowed" : ""}`}
+              className={`rounded-lg p-2 text-[#6C757D] transition duration-150 hover:bg-[#E9EEF1] hover:text-[#212529] ${isTwoWeekView ? "cursor-not-allowed opacity-30" : ""}`}
               aria-label="Next month"
             >
               <ChevronRight size={24} />
@@ -183,7 +178,7 @@ export default function ScheduleListView() {
           </div>
         </header>
 
-        <div className="mb-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-600 ring-1 ring-slate-200">
+        <div className="app-soft-panel mb-4 px-4 py-3 text-sm text-slate-600">
           <span className="font-semibold text-slate-900">Current facility:</span>{" "}
           {selectedFacility
             ? `${selectedFacility.facilityId} (${selectedFacility.orgId})`
@@ -210,7 +205,7 @@ export default function ScheduleListView() {
         ) : null}
 
         {/* Weekday Names */}
-        <div className="grid grid-cols-7 text-center font-semibold text-xs uppercase tracking-wide text-gray-500 mb-2">
+        <div className="mb-2 grid grid-cols-7 text-center text-xs font-black uppercase tracking-[0.16em] text-slate-400">
           {DAYS_OF_WEEK.map((day) => (
             <div key={day} className="py-2">
               {day}
@@ -227,7 +222,7 @@ export default function ScheduleListView() {
         />
 
         {/* Legend */}
-        <div className="mt-8 pt-4 border-t flex flex-wrap justify-center gap-6 text-sm text-gray-600">
+        <div className="mt-8 flex flex-wrap justify-center gap-6 border-t border-slate-200/70 pt-4 text-sm text-slate-600">
           {/* 🟢 Ideal: 100% and above */}
           <div className="flex items-center space-x-2">
             <span className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></span>

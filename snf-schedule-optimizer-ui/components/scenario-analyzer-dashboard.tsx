@@ -130,7 +130,7 @@ export default function ScenarioAnalyzerDashboard() {
       value: "$142,500",
       trend: "+4.2%",
       icon: DollarSign,
-      color: "text-green-600",
+      color: "text-[#168039]",
       trendColor: "text-red-500",
     },
     {
@@ -138,24 +138,24 @@ export default function ScenarioAnalyzerDashboard() {
       value: "18.5%",
       trend: "-2.1%",
       icon: Users,
-      color: "text-indigo-600",
-      trendColor: "text-green-500",
+      color: "text-[#168039]",
+      trendColor: "text-[#28A745]",
     },
     {
       label: "Avg HPPD",
       value: "3.82",
       trend: "Target: 3.6",
       icon: Activity,
-      color: "text-blue-600",
-      trendColor: "text-gray-500",
+      color: "text-[#168039]",
+      trendColor: "text-[#6C757D]",
     },
     {
       label: "Overtime %",
       value: "8.4%",
       trend: "Target: <5%",
       icon: PieChart,
-      color: "text-orange-600",
-      trendColor: "text-orange-500",
+      color: "text-[#FBC02D]",
+      trendColor: "text-[#FBC02D]",
     },
   ];
 
@@ -172,16 +172,16 @@ export default function ScenarioAnalyzerDashboard() {
         {typedMetrics.map((kpi, idx) => (
           <div
             key={idx}
-            className="flex flex-col justify-between rounded-xl border border-gray-100 bg-white p-3 shadow-sm transition hover:shadow-md"
+            className="app-card flex flex-col justify-between p-3 transition hover:border-[#28A745]"
           >
             <div className="mb-1.5 flex items-start justify-between">
-              <span className="text-gray-500 text-xs font-bold uppercase tracking-wider">
+              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
                 {kpi.label}
               </span>
               <kpi.icon size={18} className={kpi.color} />
             </div>
             <div>
-              <span className="text-xl font-bold text-gray-900">
+              <span className="app-title text-xl">
                 {kpi.value}
               </span>
               <span className={`text-xs ml-2 font-medium ${kpi.trendColor}`}>
@@ -194,27 +194,27 @@ export default function ScenarioAnalyzerDashboard() {
 
       <div className="grid gap-3 lg:grid-cols-3">
         {/* Simulation Launcher */}
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm lg:col-span-1">
-          <h3 className="mb-3 flex items-center gap-2 font-bold text-gray-800">
-            <Play size={18} className="text-indigo-600" />
+        <div className="app-card p-4 lg:col-span-1">
+          <h3 className="mb-3 flex items-center gap-2 font-semibold text-[#212529]">
+            <Play size={18} className="text-[#168039]" />
             Run New Simulation
           </h3>
           <div className="space-y-2">
             <button
               data-testid="simulation-wage-impact"
               onClick={() => openSimulation("WAGE_IMPACT")}
-              className="group w-full rounded-lg border p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
+              className="group w-full rounded-lg border border-[#E0E0E0] bg-white p-3 text-left transition hover:border-[#28A745] hover:bg-[#DFFFEA]"
             >
               <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700 group-hover:text-indigo-700">
+                <span className="font-medium text-[#212529] group-hover:text-[#168039]">
                   Wage Impact Analysis
                 </span>
                 <ArrowRight
                   size={16}
-                  className="text-gray-400 group-hover:text-indigo-500"
+                  className="text-[#6C757D] group-hover:text-[#168039]"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="mt-1 text-xs text-slate-500">
                 Model budget changes vs rate hikes
               </p>
             </button>
@@ -222,18 +222,18 @@ export default function ScenarioAnalyzerDashboard() {
             <button
               data-testid="simulation-census-impact"
               onClick={() => openSimulation("CENSUS_IMPACT")}
-              className="group w-full rounded-lg border p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
+              className="group w-full rounded-lg border border-[#E0E0E0] bg-white p-3 text-left transition hover:border-[#28A745] hover:bg-[#DFFFEA]"
             >
               <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700 group-hover:text-indigo-700">
+                <span className="font-medium text-[#212529] group-hover:text-[#168039]">
                   Census Volatility
                 </span>
                 <ArrowRight
                   size={16}
-                  className="text-gray-400 group-hover:text-indigo-500"
+                  className="text-[#6C757D] group-hover:text-[#168039]"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="mt-1 text-xs text-slate-500">
                 HPPD adjustments based on occupancy
               </p>
             </button>
@@ -241,18 +241,18 @@ export default function ScenarioAnalyzerDashboard() {
             <button
               data-testid="simulation-agency-reduction"
               onClick={() => openSimulation("AGENCY_REDUCTION")}
-              className="group w-full rounded-lg border p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
+              className="group w-full rounded-lg border border-[#E0E0E0] bg-white p-3 text-left transition hover:border-[#28A745] hover:bg-[#DFFFEA]"
             >
               <div className="flex justify-between items-center">
-                <span className="font-medium text-gray-700 group-hover:text-indigo-700">
+                <span className="font-medium text-[#212529] group-hover:text-[#168039]">
                   Agency Reduction Strategy
                 </span>
                 <ArrowRight
                   size={16}
-                  className="text-gray-400 group-hover:text-indigo-500"
+                  className="text-[#6C757D] group-hover:text-[#168039]"
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="mt-1 text-xs text-slate-500">
                 Cost benefit of internal hiring
               </p>
             </button>
@@ -267,14 +267,14 @@ export default function ScenarioAnalyzerDashboard() {
               onClear={() => setSimulationResult(null)}
             />
           ) : (
-            <div className="h-full min-h-[300px] bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-center p-8">
-              <div className="bg-white p-4 rounded-full shadow-sm mb-4">
-                <TrendingUp size={32} className="text-gray-300" />
+            <div className="app-card flex h-full min-h-[300px] flex-col items-center justify-center border-dashed border-indigo-200/80 p-8 text-center">
+              <div className="mb-4 rounded-lg bg-white p-4 shadow-sm">
+                <TrendingUp size={32} className="text-[#168039]" />
               </div>
-              <h3 className="text-gray-600 font-medium">
+              <h3 className="font-bold text-slate-700">
                 No Active Simulation
               </h3>
-              <p className="text-gray-400 text-sm mt-2 max-w-xs">
+              <p className="mt-2 max-w-xs text-sm text-slate-500">
                 Select a simulation type from the left to model financial and
                 operational scenarios.
               </p>

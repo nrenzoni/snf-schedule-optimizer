@@ -148,37 +148,30 @@ export default function DashboardContent({
       value: scheduleCount > 0 ? "96%" : "--",
       detail: "Target-ready census coverage",
       icon: CheckCircle2,
-      tone: "text-emerald-600 bg-emerald-50 ring-emerald-100",
+      tone: "text-[#28A745] bg-[#DFFFEA] ring-[#28A745]/30",
     },
     {
       label: "Open Shifts",
       value: scheduleCount > 0 ? "7" : "--",
       detail: "Needs planner review",
       icon: AlertTriangle,
-      tone: "text-amber-600 bg-amber-50 ring-amber-100",
+      tone: "text-[#FBC02D] bg-[#FFF8E1] ring-[#FBC02D]/40",
     },
     {
       label: "Agency Hours",
       value: scheduleCount > 0 ? "-18%" : "--",
       detail: "Projected vs baseline",
       icon: TrendingDown,
-      tone: "text-indigo-600 bg-indigo-50 ring-indigo-100",
+      tone: "text-[#168039] bg-[#DFFFEA] ring-[#28A745]/30",
     },
     {
       label: "Staff Mix",
       value: scheduleCount > 0 ? "82%" : "--",
       detail: "Internal team utilization",
       icon: Users,
-      tone: "text-cyan-700 bg-cyan-50 ring-cyan-100",
+      tone: "text-[#168039] bg-[#DFFFEA] ring-[#28A745]/30",
     },
   ];
-
-  const activeModuleLabel =
-    activeModule === "scheduling"
-      ? "Scheduling"
-      : activeModule === "analyzer"
-        ? "Scenario Analyzer"
-        : "ML Forecasts";
 
   const isTimelineScheduling =
     activeModule === "scheduling" && viewMode === "timeline";
@@ -196,15 +189,15 @@ export default function DashboardContent({
           data-testid={`tab-${value}`}
           value={value}
           className={cn(
-          "flex min-w-fit items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold h-auto transition-all sm:text-sm",
-          "text-slate-500 hover:text-slate-800 hover:bg-white/70",
-          "data-[state=active]:bg-slate-950 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-slate-900/10",
+          "flex min-w-fit items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium h-auto transition-all sm:text-sm",
+          "text-[#6C757D] hover:text-[#212529] hover:bg-white",
+          "data-[state=active]:bg-[#168039] data-[state=active]:text-white data-[state=active]:shadow-none",
           value === "ml-forecasts" && isActive
-            ? "data-[state=active]:bg-purple-700 data-[state=active]:text-white"
+            ? "data-[state=active]:bg-[#168039] data-[state=active]:text-white"
             : "data-[state=active]:text-white",
           isPulse &&
             showPulse &&
-            "animate-pulse bg-purple-200 ring-2 ring-purple-500/50 hover:bg-purple-200/80",
+            "animate-pulse bg-[#DFFFEA] ring-2 ring-[#28A745]/30 hover:bg-[#DFFFEA]",
         )}
       >
         {icon}
@@ -214,7 +207,7 @@ export default function DashboardContent({
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.16),transparent_34rem),linear-gradient(180deg,#f8fafc_0%,#eef2ff_45%,#f8fafc_100%)] p-2 font-sans md:p-3">
+    <div className="app-bg min-h-screen p-2 font-sans md:p-3">
       <div
         className={cn(
           "mx-auto transition-all duration-300 ease-in-out",
@@ -224,7 +217,7 @@ export default function DashboardContent({
         <DemoModeBanner />
 
         {isUsingFallbackApiBaseUrl ? (
-          <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="mb-6 rounded-lg border border-[#FBC02D]/40 bg-[#FFF8E1] px-4 py-3 text-sm text-[#212529] shadow-none">
             <span className="font-semibold">API base URL fallback in use.</span>{" "}
             Set <code>NEXT_PUBLIC_API_BASE_URL</code> to point the demo at the
             intended backend instead of the default local address.
@@ -236,29 +229,29 @@ export default function DashboardContent({
           onValueChange={(value) => void setActiveModule(value as typeof moduleOptions[number])}
           className="w-full"
         >
-          <div className="mb-2 overflow-hidden rounded-2xl border border-white/70 bg-white/85 p-2.5 shadow-lg shadow-indigo-950/5 backdrop-blur">
+          <div className="app-shell-card mb-6 overflow-hidden p-4">
             <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-indigo-600">
+                <div className="app-eyebrow flex items-center gap-2">
                   <Calendar size={15} />
                   Staffing Command Center
                 </div>
-                <div className="hidden h-5 w-px bg-slate-200 sm:block" />
-                <h1 className="truncate text-sm font-black text-slate-950 sm:text-base">
-                  {activeModuleLabel}
+                <div className="hidden h-5 w-px bg-[#E0E0E0] sm:block" />
+                <h1 className="app-title truncate text-sm sm:text-base">
+                  Explore scheduling, scenarios, and forecasts
                 </h1>
               </div>
 
               <div className="flex flex-col gap-2 lg:items-end">
-                <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-full border border-slate-200 bg-slate-100/80 p-1 shadow-inner lg:w-fit" data-testid="module-menu">
+                <TabsList className="app-segmented flex h-auto w-full flex-wrap justify-start gap-1 lg:w-fit" data-testid="module-menu">
                   {renderTabTrigger("scheduling", <Calendar size={16} />, "Scheduling")}
                   {renderTabTrigger("analyzer", <BarChart2 size={16} />, "Scenario Analyzer")}
                   {renderTabTrigger("ml-forecasts", <Brain size={16} />, "ML Forecasts", true)}
                 </TabsList>
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-full bg-slate-950 px-3 py-1.5 text-xs text-slate-300 shadow-md shadow-slate-950/10 ring-1 ring-black/5">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-[#E0E0E0] bg-[#F4F6F8] px-3 py-1.5 text-xs text-[#6C757D] shadow-none">
                   <div>
-                    <span className="font-bold text-white">Facility:</span>{" "}
+                    <span className="font-medium text-[#212529]">Facility:</span>{" "}
                     {selectedFacility
                       ? `${selectedFacility.facilityId} (${selectedFacility.orgId})`
                       : isLoading
@@ -266,7 +259,7 @@ export default function DashboardContent({
                         : "None"}
                   </div>
                   <div>
-                    <span className="font-bold text-white">Loaded days:</span>{" "}
+                    <span className="font-medium text-[#212529]">Loaded days:</span>{" "}
                     {scheduleCount}
                   </div>
                 </div>
@@ -307,34 +300,34 @@ export default function DashboardContent({
 
                 <div className={cn(
                   "grid gap-2 md:grid-cols-2 xl:grid-cols-4",
-                  isTimelineScheduling && "rounded-2xl border border-white/70 bg-white/80 p-2 shadow-lg shadow-indigo-950/[0.03] backdrop-blur",
+                  isTimelineScheduling && "app-card p-2",
                 )}>
                   {executiveMetrics.map((metric) => (
                     <div
                       key={metric.label}
                       className={cn(
-                        "rounded-2xl border border-white/70 bg-white/85 shadow-lg shadow-slate-950/[0.03] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-xl",
+                        "rounded-lg border border-[#E0E0E0] bg-white shadow-sm transition hover:border-[#CED4DA]",
                         isTimelineScheduling ? "p-2.5" : "p-4",
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-[#6C757D]">
                             {metric.label}
                           </p>
                           <p className={cn(
-                            "font-black tracking-tight text-slate-950",
+                            "app-title",
                             isTimelineScheduling ? "mt-1 text-xl" : "mt-2 text-3xl",
                           )}>
                             {metric.value}
                           </p>
                         </div>
-                        <div className={cn("rounded-2xl p-1.5 ring-1", metric.tone)}>
+                        <div className={cn("rounded-lg p-1.5 ring-1", metric.tone)}>
                           <metric.icon size={isTimelineScheduling ? 16 : 19} />
                         </div>
                       </div>
                       <p className={cn(
-                        "font-medium text-slate-500",
+                         "font-normal text-[#6C757D]",
                         isTimelineScheduling ? "mt-1 text-xs" : "mt-2 text-sm",
                       )}>
                         {metric.detail}
@@ -350,7 +343,7 @@ export default function DashboardContent({
                         <button
                           data-testid="open-schedule-summary"
                           onClick={uiStore.openSummaryModal}
-                          className="flex items-center gap-1 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-600 shadow-sm transition duration-200 hover:bg-indigo-50"
+                          className="app-button-secondary"
                         >
                           <ListChecks size={16} />
                           Summary
@@ -358,22 +351,22 @@ export default function DashboardContent({
                         <button
                           data-testid="open-scheduling-config"
                           onClick={uiStore.openConfigModal}
-                          className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 shadow-sm transition duration-200 hover:bg-gray-50"
+                          className="app-button-secondary"
                         >
                           <Settings size={16} />
                           Configure
                         </button>
                       </>
                     ) : null}
-                  <div className="flex space-x-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+                  <div className="app-segmented flex space-x-1">
                     <button
                       data-testid="view-list"
                       onClick={() => setViewMode("list")}
                       className={cn(
-                        "px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-colors",
+                        "px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors",
                         viewMode === "list"
-                          ? "bg-indigo-50 text-indigo-600"
-                          : "text-gray-500 hover:bg-gray-50",
+                          ? "bg-white text-[#168039] shadow-none"
+                          : "text-[#6C757D] hover:bg-white",
                       )}
                     >
                       <LayoutList size={14} /> <span>List</span>
@@ -382,10 +375,10 @@ export default function DashboardContent({
                       data-testid="view-timeline"
                       onClick={() => setViewMode("timeline")}
                       className={cn(
-                        "px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-2 transition-colors",
+                        "px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors",
                         viewMode === "timeline"
-                          ? "bg-indigo-50 text-indigo-600"
-                          : "text-gray-500 hover:bg-gray-50",
+                          ? "bg-white text-[#168039] shadow-none"
+                          : "text-[#6C757D] hover:bg-white",
                       )}
                     >
                       <GanttChartSquare size={14} /> <span>Timeline</span>
@@ -397,7 +390,7 @@ export default function DashboardContent({
                 {viewMode === "list" ? (
                   <ScheduleListView />
                 ) : (
-                    <div className="h-[calc(100vh-170px)] min-h-[560px] rounded-2xl border border-white/80 bg-white/90 p-2 shadow-xl shadow-indigo-950/5 backdrop-blur">
+                    <div className="app-card h-[calc(100vh-170px)] min-h-[560px] p-2">
                       {timelineView}
                     </div>
                 )}

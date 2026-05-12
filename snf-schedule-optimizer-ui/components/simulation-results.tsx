@@ -28,43 +28,43 @@ export default function SimulationResults({
   if (!result) return null;
 
   return (
-    <div className="mt-8 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm animate-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-gray-50 border-b p-4 flex justify-between items-center">
+    <div className="app-card mt-8 overflow-hidden animate-in slide-in-from-bottom-4 duration-500">
+      <div className="flex items-center justify-between border-b border-[#E0E0E0] bg-white p-4">
         <div>
-          <h3 className="font-bold text-gray-800 flex items-center gap-2">
-            <FileText size={18} className="text-indigo-600" />
+          <h3 className="flex items-center gap-2 font-black text-slate-900">
+            <FileText size={18} className="text-[#168039]" />
             Simulation Report: {result.name}
           </h3>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-xs text-slate-500">
             Generated: {new Date().toLocaleString()}
           </p>
         </div>
         <div className="flex space-x-2">
-          <button className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-lg border border-transparent hover:border-gray-200 transition">
+          <button className="rounded-full border border-transparent p-2 text-slate-600 transition hover:border-slate-200 hover:bg-white hover:shadow-sm">
             <Download size={18} />
           </button>
           <button
             onClick={onClear}
-            className="p-2 text-gray-600 hover:bg-white hover:shadow-sm rounded-lg border border-transparent hover:border-gray-200 transition"
+            className="rounded-full border border-transparent p-2 text-slate-600 transition hover:border-slate-200 hover:bg-white hover:shadow-sm"
           >
             <X size={18} />
           </button>
         </div>
       </div>
 
-      <div className="p-6 grid md:grid-cols-2 gap-8">
+      <div className="grid gap-8 p-6 md:grid-cols-2">
         {/* Visual Representation (Mock Chart) */}
         <div className="space-y-4">
-          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+          <h4 className="text-sm font-black uppercase tracking-[0.16em] text-slate-500">
             Projected Impact
           </h4>
-          <div className="h-48 flex items-end justify-around space-x-4 p-4 border rounded-lg bg-gray-50/50">
+          <div className="flex h-48 items-end justify-around space-x-4 rounded-lg border border-dashed border-[#E0E0E0] bg-[#F4F6F8] p-4">
             {/* Current Bar */}
             <div
-              className="relative w-16 bg-gray-300 rounded-t-lg transition-all hover:bg-gray-400 group"
+              className="group relative w-16 rounded-t-lg bg-[#CED4DA] transition-all hover:bg-[#6C757D]"
               style={{ height: "60%" }}
             >
-              <div className="absolute -top-6 left-0 right-0 text-center text-xs font-bold text-gray-600">
+              <div className="absolute -top-6 left-0 right-0 text-center text-xs font-bold text-slate-600">
                 Current
               </div>
               <div className="absolute inset-0 flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 text-xs font-bold text-white transition-opacity">
@@ -73,10 +73,10 @@ export default function SimulationResults({
             </div>
             {/* Projected Bar */}
             <div
-              className="relative w-16 bg-indigo-500 rounded-t-lg shadow-lg transition-all hover:bg-indigo-600 group"
+              className="group relative w-16 rounded-t-lg bg-[#168039] shadow-none transition-all hover:bg-[#126E31]"
               style={{ height: "85%" }}
             >
-              <div className="absolute -top-6 left-0 right-0 text-center text-xs font-bold text-indigo-600">
+              <div className="absolute -top-6 left-0 right-0 text-center text-xs font-medium text-[#168039]">
                 Proj.
               </div>
               <div className="absolute inset-0 flex items-end justify-center pb-2 opacity-0 group-hover:opacity-100 text-xs font-bold text-white transition-opacity">
@@ -84,46 +84,46 @@ export default function SimulationResults({
               </div>
             </div>
           </div>
-          <p className="text-sm text-center text-gray-500 italic">
+          <p className="text-center text-sm italic text-slate-500">
             Visualizing annual cost variance
           </p>
         </div>
 
         {/* Key Metrics Table */}
         <div>
-          <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+          <h4 className="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-500">
             Analysis Details
           </h4>
-          <div className="bg-white rounded-lg border divide-y">
-            <div className="p-3 flex justify-between items-center">
-              <span className="text-gray-600">Base Labor Cost</span>
+          <div className="overflow-hidden rounded-lg border border-[#E0E0E0] bg-white divide-y divide-[#E0E0E0]">
+            <div className="flex items-center justify-between p-3">
+              <span className="text-slate-600">Base Labor Cost</span>
               <span className="font-mono font-medium">$1,200,000</span>
             </div>
-            <div className="p-3 flex justify-between items-center bg-indigo-50/50">
-              <span className="text-indigo-900 font-medium">
+            <div className="flex items-center justify-between bg-[#DFFFEA] p-3">
+              <span className="font-medium text-[#168039]">
                 Projected Cost
               </span>
-              <span className="font-mono font-bold text-indigo-700">
+              <span className="font-mono font-semibold text-[#168039]">
                 {result.metrics.projectedTotal}
               </span>
             </div>
-            <div className="p-3 flex justify-between items-center">
-              <span className="text-gray-600">Variance</span>
-              <span className="font-mono font-medium text-red-500">
+            <div className="flex items-center justify-between p-3">
+              <span className="text-slate-600">Variance</span>
+              <span className="font-mono font-medium text-rose-500">
                 {result.metrics.variance.startsWith("-")
                   ? result.metrics.variance
                   : `+${result.metrics.variance}`}
               </span>
             </div>
-            <div className="p-3 flex justify-between items-center">
-              <span className="text-gray-600">Efficiency Score</span>
+            <div className="flex items-center justify-between p-3">
+              <span className="text-slate-600">Efficiency Score</span>
               <span className="font-mono font-medium">
                 {result.metrics.efficiency}
               </span>
             </div>
           </div>
 
-          <div className="mt-4 p-3 bg-yellow-50 text-yellow-800 text-sm rounded-lg border border-yellow-100 flex items-start space-x-2">
+          <div className="mt-4 flex items-start space-x-2 rounded-lg border border-[#FBC02D]/40 bg-[#FFF8E1] p-3 text-sm text-[#212529]">
             <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
             <p>
               <strong>Insight:</strong> {result.insight}

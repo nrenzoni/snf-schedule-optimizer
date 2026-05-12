@@ -19,18 +19,18 @@ export default function NurseDetailsPanel({
   return (
     <div
       className={`
-        ${selectedNurse ? "w-full md:w-80 border-l p-6 bg-gray-50" : "w-0 overflow-hidden"}
+        ${selectedNurse ? "w-full border-l border-[#E0E0E0] bg-[#F4F6F8] p-6 md:w-80" : "w-0 overflow-hidden"}
         flex flex-col transition-all duration-300 ease-in-out`}
     >
       {selectedNurse ? (
         <>
-          <div className="flex justify-between items-start mb-4">
-            <h4 className="text-2xl font-bold text-indigo-700">
+          <div className="mb-4 flex items-start justify-between">
+            <h4 className="text-2xl font-semibold text-[#168039]">
               {selectedNurse.name}
             </h4>
             <button
               onClick={closeNurseDetails}
-              className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition"
+              className="rounded-lg p-1 text-[#6C757D] transition hover:bg-white hover:text-[#212529]"
             >
               <svg
                 className="w-5 h-5"
@@ -49,40 +49,40 @@ export default function NurseDetailsPanel({
             </button>
           </div>
 
-          <div className="mb-6 p-4 bg-white rounded-lg shadow-md">
-            <p className="font-semibold text-gray-700 mb-2">
+          <div className="app-card-solid mb-6 p-4">
+            <p className="mb-2 font-bold text-slate-700">
               Scheduling Rationale:
             </p>
-            <p className="text-sm text-gray-600 italic">
+            <p className="text-sm italic text-slate-600">
               {selectedNurse.schedulingRationale}
             </p>
           </div>
 
-          <p className="text-lg font-semibold mb-4">Shift Control</p>
+          <p className="mb-4 text-lg font-black text-slate-900">Shift Control</p>
 
           {/* Control Buttons (These will eventually trigger Connect-ES mutations via the hook) */}
           <div className="space-y-3">
             <button
               onClick={() => removeNurseFromShift(selectedNurse)}
-              className="w-full py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition shadow-md active:shadow-none"
+              className="app-button-danger w-full py-3"
             >
               Remove from Shift ({selectedNurse.shiftHours} hrs)
             </button>
 
             <button
               onClick={addNurseToShift}
-              className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition shadow-md active:shadow-none"
+              className="app-button-primary w-full py-3"
             >
               Add Available Nurse... (Mock)
             </button>
           </div>
 
-          <div className="mt-auto pt-4 text-xs text-gray-500 border-t">
+          <div className="mt-auto border-t border-slate-200/70 pt-4 text-xs text-slate-500">
             <p>Nurse ID: {selectedNurse.id}</p>
           </div>
         </>
       ) : (
-        <div className="h-full flex items-center justify-center text-center text-gray-500 italic">
+        <div className="flex h-full items-center justify-center text-center italic text-slate-500">
           Select a nurse on the left to view details and controls.
         </div>
       )}

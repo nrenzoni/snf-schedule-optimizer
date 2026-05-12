@@ -73,17 +73,17 @@ export function ScheduleSummaryModal({
     >
       {/* 2. Content starts directly with the outermost content div,
                which no longer needs transition classes. */}
-      <div className="bg-white rounded-xl shadow-2xl w-full overflow-hidden">
+      <div className="w-full overflow-hidden bg-white/82">
         {/* HEADER */}
-        <div className="border-b p-4 flex justify-between items-center bg-indigo-600 text-white">
+        <div className="flex items-center justify-between border-b border-[#E0E0E0] bg-white p-4 text-[#212529]">
           <div className="flex items-center space-x-2">
             <ListChecks size={24} />
-            <h3 className="font-bold text-xl">Monthly Schedule Summary</h3>
+            <h3 className="text-xl font-black">Monthly Schedule Summary</h3>
           </div>
           {/* Close Button relies on onClose prop */}
           <button
             onClick={onClose}
-            className="hover:bg-indigo-700 p-1 rounded-full"
+            className="rounded-lg p-1 text-[#6C757D] hover:bg-[#E9EEF1] hover:text-[#212529]"
           >
             <X size={20} />
           </button>
@@ -93,21 +93,21 @@ export function ScheduleSummaryModal({
         <div className="p-6 grid lg:grid-cols-3 gap-8 max-h-[80vh] overflow-y-auto">
           {/* COLUMN 1: Operational Metrics */}
           <div>
-            <h4 className="text-lg font-semibold text-indigo-700 border-b pb-2 mb-4 flex items-center gap-2">
+            <h4 className="mb-4 flex items-center gap-2 border-b border-[#E0E0E0] pb-2 text-lg font-semibold text-[#168039]">
               <CheckCircle size={18} /> Operational Compliance
             </h4>
             <div className="space-y-3">
-              <div className="flex justify-between p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+              <div className="flex justify-between rounded-lg border border-[#28A745]/30 bg-[#DFFFEA] p-3">
                 <span className="text-gray-700 font-medium">
                   Avg. Daily Coverage
                 </span>
-                <span className="font-bold text-xl text-indigo-700">
+                <span className="text-xl font-semibold text-[#168039]">
                   {metrics.avgCoverage}
                 </span>
               </div>
 
               <div
-                className={`flex justify-between p-3 rounded-lg border ${metrics.shiftsBelowThreshold > 5 ? "bg-red-50 border-red-200" : "bg-green-50 border-green-200"}`}
+                className={`flex justify-between rounded-lg border p-3 ${metrics.shiftsBelowThreshold > 5 ? "border-red-200 bg-red-50" : "border-[#28A745]/30 bg-[#DFFFEA]"}`}
               >
                 <div>
                   <span className="text-gray-700 font-medium">
@@ -115,14 +115,14 @@ export function ScheduleSummaryModal({
                   </span>
                 </div>
                 <span
-                  className={`font-bold text-xl ${metrics.shiftsBelowThreshold > 5 ? "text-red-600" : "text-green-600"}`}
+                  className={`text-xl font-black ${metrics.shiftsBelowThreshold > 5 ? "text-rose-600" : "text-emerald-600"}`}
                 >
                   {metrics.shiftsBelowThreshold}
                 </span>
               </div>
 
               <div
-                className={`flex justify-between p-3 rounded-lg border ${metrics.restPeriodViolations > 0 ? "bg-yellow-50 border-yellow-200" : "bg-white border-gray-200"}`}
+                className={`flex justify-between rounded-lg border p-3 ${metrics.restPeriodViolations > 0 ? "border-[#FBC02D]/40 bg-[#FFF8E1]" : "border-[#E0E0E0] bg-white"}`}
               >
                 <div>
                   <span className="text-gray-700 font-medium">
@@ -130,14 +130,14 @@ export function ScheduleSummaryModal({
                   </span>
                 </div>
                 <span
-                  className={`font-bold text-xl ${metrics.restPeriodViolations > 0 ? "text-yellow-600" : "text-gray-700"}`}
+                  className={`text-xl font-black ${metrics.restPeriodViolations > 0 ? "text-amber-600" : "text-slate-700"}`}
                 >
                   {metrics.restPeriodViolations}
                 </span>
               </div>
 
               <div
-                className={`flex justify-between p-3 rounded-lg border ${metrics.maxShiftViolations > 0 ? "bg-yellow-50 border-yellow-200" : "bg-white border-gray-200"}`}
+                className={`flex justify-between rounded-lg border p-3 ${metrics.maxShiftViolations > 0 ? "border-[#FBC02D]/40 bg-[#FFF8E1]" : "border-[#E0E0E0] bg-white"}`}
               >
                 <div>
                   <span className="text-gray-700 font-medium">
@@ -145,7 +145,7 @@ export function ScheduleSummaryModal({
                   </span>
                 </div>
                 <span
-                  className={`font-bold text-xl ${metrics.maxShiftViolations > 0 ? "text-yellow-600" : "text-gray-700"}`}
+                  className={`text-xl font-black ${metrics.maxShiftViolations > 0 ? "text-amber-600" : "text-slate-700"}`}
                 >
                   {metrics.maxShiftViolations}
                 </span>
@@ -155,20 +155,20 @@ export function ScheduleSummaryModal({
 
           {/* COLUMN 2: Financial Metrics */}
           <div>
-            <h4 className="text-lg font-semibold text-indigo-700 border-b pb-2 mb-4 flex items-center gap-2">
+            <h4 className="mb-4 flex items-center gap-2 border-b border-[#E0E0E0] pb-2 text-lg font-semibold text-[#168039]">
               <DollarSign size={18} /> Financial Impact
             </h4>
             <div className="space-y-3">
-              <div className="flex justify-between p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+              <div className="flex justify-between rounded-lg border border-[#28A745]/30 bg-[#DFFFEA] p-3">
                 <span className="text-gray-700 font-medium">
                   Est. Labor Cost
                 </span>
-                <span className="font-bold text-xl text-indigo-700">
+                <span className="text-xl font-semibold text-[#168039]">
                   {metrics.totalLaborCost}
                 </span>
               </div>
 
-              <div className="flex justify-between p-3 bg-white rounded-lg border border-gray-200">
+              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
                 <span className="text-gray-700 font-medium">
                   Cost Per Patient Day
                 </span>
@@ -177,16 +177,16 @@ export function ScheduleSummaryModal({
                 </span>
               </div>
 
-              <div className="flex justify-between p-3 bg-white rounded-lg border border-gray-200">
+              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
                 <span className="text-gray-700 font-medium">Overtime %</span>
                 <span
-                  className={`font-bold text-xl ${metrics.overtimeNumerical > 5.0 ? "text-red-600" : "text-green-600"}`}
+                  className={`text-xl font-black ${metrics.overtimeNumerical > 5.0 ? "text-rose-600" : "text-emerald-600"}`}
                 >
                   {metrics.overtimePercentage}
                 </span>
               </div>
 
-              <div className="flex justify-between p-3 bg-white rounded-lg border border-gray-200">
+              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
                 <div>
                   <span className="text-gray-700 font-medium">Premium Pay</span>
                 </div>
@@ -199,25 +199,25 @@ export function ScheduleSummaryModal({
 
           {/* COLUMN 3: Wellbeing Metrics */}
           <div>
-            <h4 className="text-lg font-semibold text-pink-600 border-b pb-2 mb-4 flex items-center gap-2">
+            <h4 className="mb-4 flex items-center gap-2 border-b border-[#E0E0E0] pb-2 text-lg font-semibold text-[#168039]">
               <Heart size={18} className="text-pink-600" />
               Staff Wellbeing
             </h4>
             <div className="space-y-3">
               {/* Preference Match */}
-              <div className="p-3 bg-pink-50 rounded-lg border border-pink-100">
+              <div className="rounded-lg border border-[#28A745]/30 bg-[#DFFFEA] p-3">
                 <div className="flex justify-between mb-1">
                   <span className="text-gray-700 font-medium flex items-center gap-2">
-                    <Smile size={16} className="text-pink-600" /> Preferences
+                    <Smile size={16} className="text-[#168039]" /> Preferences
                     Met
                   </span>
-                  <span className="font-bold text-xl text-pink-700">
+                  <span className="text-xl font-semibold text-[#168039]">
                     {metrics.preferenceMatch}
                   </span>
                 </div>
-                <div className="w-full bg-pink-200 rounded-full h-2">
+                <div className="h-2 w-full rounded-full bg-[#E9EEF1]">
                   <div
-                    className="bg-pink-500 h-2 rounded-full"
+                    className="h-2 rounded-full bg-[#28A745]"
                     style={{ width: `${metrics.preferenceMatchNumerical}%` }}
                   ></div>
                 </div>
@@ -227,7 +227,7 @@ export function ScheduleSummaryModal({
               </div>
 
               {/* Team Synergy */}
-              <div className="flex justify-between p-3 bg-white rounded-lg border border-gray-200">
+              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
                 <div>
                   <span className="text-gray-700 font-medium flex items-center gap-2">
                     <Users size={16} /> Team Synergy
@@ -242,7 +242,7 @@ export function ScheduleSummaryModal({
               </div>
 
               {/* Fairness Score */}
-              <div className="flex justify-between p-3 bg-white rounded-lg border border-gray-200">
+              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
                 <div>
                   <span className="text-gray-700 font-medium flex items-center gap-2">
                     <Scale size={16} /> Fairness Index
@@ -251,13 +251,13 @@ export function ScheduleSummaryModal({
                     Weekend/Holiday equity
                   </p>
                 </div>
-                <span className="font-bold text-lg text-green-600 px-2 py-0.5 bg-green-50 rounded">
+                <span className="rounded-lg bg-[#DFFFEA] px-2 py-0.5 text-lg font-semibold text-[#28A745]">
                   {metrics.weekendFairness}
                 </span>
               </div>
 
               {/* Fatigue Watch */}
-              <div className="flex justify-between p-3 bg-white rounded-lg border border-gray-200">
+              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
                 <div>
                   <span className="text-gray-700 font-medium flex items-center gap-2">
                     <Clock size={16} /> Fatigue Watch
@@ -272,14 +272,14 @@ export function ScheduleSummaryModal({
           </div>
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-b-xl flex justify-between items-center border-t">
+        <div className="flex items-center justify-between border-t border-slate-200/70 bg-slate-50/85 p-4">
           <p className="text-sm text-gray-500 italic pl-2">
             * Recommendation: High synergy score suggests strong team morale for
             this period.
           </p>
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md transition font-medium"
+            className="app-button-primary px-6"
           >
             Close Summary
           </button>

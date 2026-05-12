@@ -42,19 +42,19 @@ export default function ShiftCard({
 
   const getColor = () => {
     if (mode === "BUDGET") {
-      if (shift.isAgency) return "bg-red-50 border-l-red-500 text-red-900";
+      if (shift.isAgency) return "bg-red-50 border-l-red-500 text-red-700";
       if (shift.isOvertime)
-        return "bg-amber-50 border-l-amber-500 text-amber-900";
-      return "bg-white border-l-slate-400 text-slate-700";
+        return "bg-[#FFF8E1] border-l-[#FBC02D] text-[#FBC02D]";
+      return "bg-white border-l-[#CED4DA] text-[#212529]";
     }
     // Role Colors - Using white backgrounds with strong borders is cleaner
     if (shift.role === "RN")
-      return "bg-blue-50/50 border-l-blue-500 text-blue-700";
+      return "bg-[#DFFFEA] border-l-[#28A745] text-[#28A745]";
     if (shift.role === "LPN")
-      return "bg-emerald-50/50 border-l-emerald-500 text-emerald-700";
+      return "bg-[#DFFFEA] border-l-[#28A745] text-[#28A745]";
     if (shift.role === "THERAPIST")
-      return "bg-orange-50/50 border-l-orange-500 text-orange-700";
-    return "bg-purple-50/50 border-l-purple-500 text-purple-700";
+      return "bg-[#FFF8E1] border-l-[#FBC02D] text-[#FBC02D]";
+    return "bg-[#DFFFEA] border-l-[#28A745] text-[#28A745]";
   };
 
   const renderContent = () => (
@@ -70,12 +70,12 @@ export default function ShiftCard({
         damping: 30,
       }}
       className={cn(
-        "group relative h-[90%] w-[96%] mx-auto rounded-md shadow-sm border border-l-4 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow select-none flex flex-col justify-center text-[10px]",
+        "group relative mx-auto flex h-[90%] w-[96%] cursor-grab select-none flex-col justify-center rounded-lg border border-l-4 text-[10px] shadow-none transition-shadow active:cursor-grabbing hover:shadow-sm",
         getColor(),
         agencyStripe,
         // Remove 'scale' transforms from here, rely on dnd-kit or framer
         isOverlay &&
-          "shadow-xl ring-2 ring-primary bg-white opacity-90 scale-105",
+          "scale-105 bg-white opacity-90 shadow-md ring-2 ring-[#168039]",
       )}
     >
       <div className="flex justify-between">
@@ -115,16 +115,16 @@ export default function ShiftCard({
         <HoverCard openDelay={200} closeDelay={0}>
           <HoverCardTrigger asChild>{renderContent()}</HoverCardTrigger>
           <HoverCardContent
-            className="w-64 p-3 bg-slate-900 border-slate-700 text-slate-100 z-[9999]"
+            className="z-[9999] w-64 rounded-lg border-[#E0E0E0] bg-white p-3 text-[#212529] shadow-md"
             align="start"
           >
             <div className="space-y-2">
-              <div className="flex justify-between border-b border-slate-700 pb-2">
+              <div className="flex justify-between border-b border-[#E0E0E0] pb-2">
                 <span className="font-bold">{ROLES[shift.role].label}</span>
                 <span
                   className={cn(
                     "px-1 rounded text-[10px]",
-                    shift.isAgency ? "bg-red-600" : "bg-slate-700",
+                     shift.isAgency ? "bg-red-600 text-white" : "bg-[#E9EEF1] text-[#6C757D]",
                   )}
                 >
                   {shift.isAgency ? "AGENCY" : "STAFF"}
@@ -132,16 +132,16 @@ export default function ShiftCard({
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <div className="text-slate-400">Rate</div>
+                  <div className="text-[#6C757D]">Rate</div>
                   <div className="font-mono">
                     ${ROLES[shift.role].baseRate}/hr
                   </div>
                 </div>
                 <div>
-                  <div className="text-slate-400">Status</div>
+                  <div className="text-[#6C757D]">Status</div>
                   <div
                     className={
-                      shift.isOvertime ? "text-amber-400" : "text-emerald-400"
+                      shift.isOvertime ? "text-[#FBC02D]" : "text-[#28A745]"
                     }
                   >
                     {shift.isOvertime ? "Overtime" : "Standard"}

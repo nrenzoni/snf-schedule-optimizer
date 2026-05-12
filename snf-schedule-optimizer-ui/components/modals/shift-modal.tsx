@@ -90,8 +90,8 @@ export default function ShiftModal({
   // --- Dynamic Class Control ---
   // Backdrop fade-in/out
   const backdropClasses = isVisible
-    ? "bg-black/60 opacity-100 backdrop-blur-sm pointer-events-auto"
-    : "bg-black/0 opacity-0 backdrop-blur-0 pointer-events-none";
+    ? "bg-[#212529]/35 opacity-100 pointer-events-auto"
+    : "bg-[#212529]/0 opacity-0 pointer-events-none";
 
   // Modal Content zoom/scale (to give depth illusion)
   const contentClasses = isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0";
@@ -109,12 +109,12 @@ export default function ShiftModal({
       {/* 2. MODAL CONTENT: Apply the zoom/scale transition */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col md:flex-row transition-all duration-300 ease-out ${contentClasses}`}
+        className={`flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-[#E0E0E0] bg-white shadow-md transition-all duration-300 ease-out md:flex-row ${contentClasses}`}
       >
         {/* Left Panel (Shift Summary & Nurse List - Level 1) */}
-        <div className="flex-grow p-4 md:p-6 flex flex-col min-w-0 md:min-w-[20rem]">
-          <div className="flex justify-between items-start mb-4 border-b pb-3">
-            <h3 id="shift-modal-title" className="text-xl md:text-2xl font-semibold text-gray-800">
+        <div className="flex min-w-0 flex-grow flex-col p-4 md:min-w-[20rem] md:p-6">
+          <div className="mb-4 flex items-start justify-between border-b border-slate-200/70 pb-3">
+            <h3 id="shift-modal-title" className="app-title text-xl md:text-2xl">
               Schedule:{" "}
               {renderedDay.date
                 ? modalDateFormatter.format(renderedDay.date)
@@ -122,7 +122,7 @@ export default function ShiftModal({
             </h3>
             <button
               onClick={closeModal}
-              className="text-gray-400 hover:text-gray-600"
+              className="rounded-lg p-1 text-[#6C757D] hover:bg-[#E9EEF1] hover:text-[#212529]"
               aria-label="Close shift details"
             >
               <X size={24} />
@@ -135,24 +135,24 @@ export default function ShiftModal({
                 key={shift.shiftName}
                 onClick={() => selectShift(shift)}
                 type="button"
-                className={`p-3 rounded-lg border transition duration-150 cursor-pointer 
-                              ${selectedShift?.shiftName === shift.shiftName ? "ring-2 ring-indigo-500 shadow-lg bg-indigo-50" : "hover:shadow-md"}
-                              ${shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? "bg-green-100" : ""}
-                              ${!shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? "bg-red-100" : ""}`}
+                  className={`cursor-pointer rounded-lg border p-3 text-left transition duration-150 
+                              ${selectedShift?.shiftName === shift.shiftName ? "border-[#168039] bg-[#DFFFEA] ring-1 ring-[#168039]" : "hover:border-[#28A745]"}
+                              ${shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? "border-[#28A745] bg-[#DFFFEA]" : ""}
+                              ${!shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? "border-red-200 bg-red-50" : ""}`}
                 aria-pressed={selectedShift?.shiftName === shift.shiftName}
               >
                 <div className="flex justify-between items-center mb-1">
                   <p
-                    className={`font-bold text-lg ${shift.isHPRDMet ? "text-green-700" : "text-red-700"}`}
+                    className={`text-lg font-semibold ${shift.isHPRDMet ? "text-[#28A745]" : "text-red-700"}`}
                   >
                     {shift.shiftName} Shift:{" "}
                     {shift.isHPRDMet ? "MET" : "NOT MET"}
                   </p>
-                  <span className="text-sm font-medium text-gray-500">
+                  <span className="text-sm font-bold text-slate-500">
                     ({shift.nurses.length} Nurses)
                   </span>
                 </div>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-slate-600">
                   Required: {shift.requiredHours.toFixed(1)} hrs | Actual:{" "}
                   {shift.actualHours.toFixed(1)} hrs
                 </p>
@@ -161,7 +161,7 @@ export default function ShiftModal({
           </div>
 
           {/* Nurse List (Active Shift) */}
-          <h4 className="text-xl font-medium mb-3 border-t pt-3">
+          <h4 className="mb-3 border-t border-slate-200/70 pt-3 text-xl font-black text-slate-900">
             Nurses for {selectedShift?.shiftName || "Selected"} Shift
           </h4>
           <div className="overflow-y-auto space-y-2 flex-grow pr-1">
@@ -172,25 +172,25 @@ export default function ShiftModal({
                     key={nurse.id}
                     onClick={() => openNurseDetails(nurse)}
                     type="button"
-                    className={`p-3 border rounded-lg flex justify-between items-center cursor-pointer hover:bg-indigo-50 transition duration-150 
-                                  ${selectedNurse?.id === nurse.id ? "bg-indigo-100 border-indigo-400" : "bg-white border-gray-200"}`}
+                    className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition duration-150 hover:bg-[#DFFFEA] 
+                                  ${selectedNurse?.id === nurse.id ? "border-[#168039] bg-[#DFFFEA]" : "border-[#E0E0E0] bg-white"}`}
                     aria-pressed={selectedNurse?.id === nurse.id}
                   >
-                    <span className="font-medium text-gray-800">
+                    <span className="font-bold text-slate-800">
                       {nurse.name}
                     </span>
-                    <span className="text-sm font-semibold text-indigo-600">
+                    <span className="text-sm font-medium text-[#168039]">
                       {nurse.shiftHours} hrs
                     </span>
                   </button>
                 ))
               ) : (
-                <p className="text-gray-500 italic">
+                <p className="italic text-slate-500">
                   No nurses currently scheduled for this shift.
                 </p>
               )
             ) : (
-              <p className="text-gray-500 italic">
+              <p className="italic text-slate-500">
                 Select a shift above to view the nurse list.
               </p>
             )}

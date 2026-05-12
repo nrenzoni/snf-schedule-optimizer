@@ -68,33 +68,33 @@ export function SchedulingConfigModal({
     >
       {/* 2. Content starts directly with the modal's main content div,
                which no longer needs external transition classes. */}
-      <div className="bg-white rounded-xl shadow-2xl w-full overflow-hidden">
+      <div className="w-full overflow-hidden bg-white/82">
         {/* HEADER */}
-        <div className="border-b p-4 flex justify-between items-center bg-indigo-50">
-          <div className="flex items-center space-x-2 text-indigo-800">
+        <div className="flex items-center justify-between border-b border-[#E0E0E0] bg-white p-4">
+          <div className="flex items-center space-x-2 text-[#168039]">
             <Settings size={20} />
-            <h3 className="font-bold text-xl">Scheduler Configuration</h3>
+            <h3 className="text-xl font-black">Scheduler Configuration</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded-full"
+            className="rounded-full p-1 text-slate-400 hover:bg-white/80 hover:text-slate-700"
           >
             <X size={20} />
           </button>
         </div>
 
         <div className="p-6 space-y-8 max-h-[80vh] overflow-y-auto">
-          <h4 className="text-lg font-semibold text-gray-700 border-b pb-2">
+          <h4 className="border-b border-slate-200/70 pb-2 text-lg font-black text-slate-800">
             Staffing & ML Integration
           </h4>
           <div className="grid md:grid-cols-2 gap-8">
             {/* 1. HPPD ML Forecast */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+            <div className="app-soft-panel flex items-center justify-between p-3">
               <div>
-                <label className="text-sm font-bold text-gray-800">
+                <label className="text-sm font-bold text-slate-800">
                   Factor in HPPD ML Forecast
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-500">
                   Adjust staffing based on AI predictions
                 </p>
               </div>
@@ -106,7 +106,7 @@ export function SchedulingConfigModal({
                   }))
                 }
                 type="button"
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${draftSettings.useMLForecast ? "bg-indigo-600" : "bg-gray-200"}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${draftSettings.useMLForecast ? "bg-[#168039]" : "bg-[#CED4DA]"}`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${draftSettings.useMLForecast ? "translate-x-6" : "translate-x-1"}`}
@@ -115,12 +115,12 @@ export function SchedulingConfigModal({
             </div>
 
             {/* 2. Call-out Buffer Toggle */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+            <div className="app-soft-panel flex items-center justify-between p-3">
               <div>
-                <label className="text-sm font-bold text-gray-800">
+                <label className="text-sm font-bold text-slate-800">
                   Include Call-out Buffer
                 </label>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-slate-500">
                   Reserve extra staff for high-risk shifts
                 </p>
               </div>
@@ -132,7 +132,7 @@ export function SchedulingConfigModal({
                   }))
                 }
                 type="button"
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${draftSettings.useCalloutBuffer ? "bg-green-600" : "bg-gray-200"}`}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${draftSettings.useCalloutBuffer ? "bg-[#168039]" : "bg-[#CED4DA]"}`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${draftSettings.useCalloutBuffer ? "translate-x-6" : "translate-x-1"}`}
@@ -142,13 +142,13 @@ export function SchedulingConfigModal({
 
             {/* 3. Buffer Threshold Slider */}
             <div
-              className={`space-y-3 p-3 rounded-lg border ${!draftSettings.useCalloutBuffer ? "opacity-50 pointer-events-none bg-gray-100" : "bg-white"}`}
+                className={`space-y-3 rounded-lg border border-[#E0E0E0] p-3 ${!draftSettings.useCalloutBuffer ? "pointer-events-none bg-[#F4F6F8] opacity-50" : "bg-white"}`}
             >
               <div className="flex justify-between items-center">
-                <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
                   <Sliders size={16} /> Buffer Threshold
                 </label>
-                <span className="text-sm font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
+              <span className="rounded bg-[#DFFFEA] px-2 py-1 font-mono text-sm font-medium text-[#168039]">
                   {draftSettings.bufferThreshold}%
                 </span>
               </div>
@@ -160,22 +160,22 @@ export function SchedulingConfigModal({
                 onChange={(e) =>
                   handleUpdate("bufferThreshold", parseInt(e.target.value))
                 }
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-indigo-600"
                 disabled={!draftSettings.useCalloutBuffer}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Percentage of shift capacity to hold as reserve.
               </p>
             </div>
           </div>
 
-          <h4 className="text-lg font-semibold text-gray-700 border-b pb-2 pt-4">
+          <h4 className="border-b border-slate-200/70 pb-2 pt-4 text-lg font-black text-slate-800">
             Compliance & Shift Rules
           </h4>
           <div className="grid md:grid-cols-2 gap-8">
             {/* 4. Min Rest Period */}
-            <div className="space-y-3 p-3 bg-white rounded-lg border">
-              <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+            <div className="space-y-3 rounded-lg border border-[#E0E0E0] bg-white p-3">
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 <Clock size={16} /> Minimum Rest Period (Hours)
               </label>
               <input
@@ -187,17 +187,17 @@ export function SchedulingConfigModal({
                 onChange={(e) =>
                   handleUpdate("minRestPeriod", parseInt(e.target.value))
                 }
-                className="w-full border rounded-lg p-2 text-lg font-bold"
+                className="app-input w-full text-lg"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Enforce minimum rest time between shifts (Current:{" "}
                 {draftSettings.minRestPeriod} hrs).
               </p>
             </div>
 
             {/* 5. Max Shift Length */}
-            <div className="space-y-3 p-3 bg-white rounded-lg border">
-              <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+            <div className="space-y-3 rounded-lg border border-[#E0E0E0] bg-white p-3">
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 <AlertTriangle size={16} /> Maximum Shift Length (Hours)
               </label>
               <input
@@ -209,17 +209,17 @@ export function SchedulingConfigModal({
                 onChange={(e) =>
                   handleUpdate("maxShiftLength", parseFloat(e.target.value))
                 }
-                className="w-full border rounded-lg p-2 text-lg font-bold"
+                className="app-input w-full text-lg"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Prevent burnout/fatigue by limiting shift duration (Current:{" "}
                 {draftSettings.maxShiftLength} hrs).
               </p>
             </div>
 
             {/* 6. Premium Shift Criteria */}
-            <div className="md:col-span-2 space-y-3 p-3 bg-white rounded-lg border">
-              <label className="text-sm font-bold text-gray-800 flex items-center gap-2">
+            <div className="space-y-3 rounded-lg border border-[#E0E0E0] bg-white p-3 md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 <DollarSign size={16} /> Premium Shift Criteria
               </label>
               <div className="flex space-x-4">
@@ -230,9 +230,9 @@ export function SchedulingConfigModal({
                     onChange={(e) =>
                       handleUpdate("premiumWeekend", e.target.checked)
                     }
-                    className="rounded text-indigo-600"
+                    className="rounded text-[#168039]"
                   />
-                  <label className="text-sm text-gray-700">
+                  <label className="text-sm text-slate-700">
                     Weekend Shifts
                   </label>
                 </div>
@@ -243,14 +243,14 @@ export function SchedulingConfigModal({
                     onChange={(e) =>
                       handleUpdate("premiumHoliday", e.target.checked)
                     }
-                    className="rounded text-indigo-600"
+                    className="rounded text-[#168039]"
                   />
-                  <label className="text-sm text-gray-700">
+                  <label className="text-sm text-slate-700">
                     Holiday Shifts
                   </label>
                 </div>
               </div>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-slate-500">
                 Shifts matching selected criteria will be flagged for premium
                 pay/priority scheduling.
               </p>
@@ -258,20 +258,20 @@ export function SchedulingConfigModal({
           </div>
         </div>
 
-        <div className="bg-gray-50 p-4 rounded-b-xl flex justify-end space-x-3 border-t">
+        <div className="flex justify-end space-x-3 border-t border-slate-200/70 bg-slate-50/85 p-4">
           <button
             onClick={() => {
               setDraftSettings(settings);
               onClose();
             }}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg"
+            className="app-button-ghost"
           >
             Cancel
           </button>
           <button
             data-testid="save-scheduling-config"
             onClick={handleSave}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md transition"
+            className="app-button-primary"
           >
             Save & Apply Settings
           </button>

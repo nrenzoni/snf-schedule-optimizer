@@ -175,7 +175,7 @@ export default function ThreeDAssemblyLoader({isLoading}: { isLoading: boolean }
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
           // Added z-[100] to ensure it's on top of everything
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#F4F6F8]/95"
         >
 
           {/* 3D Container */}
@@ -211,16 +211,16 @@ export default function ThreeDAssemblyLoader({isLoading}: { isLoading: boolean }
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -20, opacity: 0 }}
-                    className="text-lg font-semibold tracking-wide text-white"
+                    className="text-lg font-semibold tracking-wide text-[#212529]"
                 >
                     {LOADING_PHASES[msgIndex]}
                 </motion.p>
                 </AnimatePresence>
             </div>
 
-            <div className="w-48 h-1 mt-4 bg-slate-800 rounded-full overflow-hidden">
+            <div className="w-48 h-1 mt-4 bg-[#E9EEF1] rounded-full overflow-hidden">
                  <motion.div
-                    className="h-full bg-indigo-500"
+                    className="h-full bg-[#168039]"
                     initial={{ width: "0%" }}
                     animate={{ width: "100%" }}
                     transition={{ duration: 8, ease: "linear", repeat: Infinity }}

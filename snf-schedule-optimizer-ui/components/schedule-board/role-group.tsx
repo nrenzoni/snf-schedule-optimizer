@@ -39,8 +39,8 @@ export default function RoleGroup({
   simulationResult,
 }: RoleGroupProps) {
   return (
-    <div className="border-b last:border-b-0 bg-white">
-      <div className="flex bg-slate-50 border-b border-slate-200">
+    <div className="border-b border-[#E0E0E0] bg-white last:border-b-0">
+      <div className="flex border-b border-[#E0E0E0] bg-[#F4F6F8]">
         <div
           onClick={onToggle}
           onKeyDown={(event) => {
@@ -54,7 +54,7 @@ export default function RoleGroup({
           aria-expanded={isExpanded}
           className={cn(
             STAFF_COL_WIDTH,
-            "sticky left-0 z-20 flex items-center gap-2 px-3 py-1.5 cursor-pointer hover:bg-slate-100 border-r border-slate-200 bg-slate-50 pl-8",
+            "sticky left-0 z-20 flex cursor-pointer items-center gap-2 border-r border-[#E0E0E0] bg-[#F4F6F8] px-3 py-1.5 pl-8 hover:bg-[#DFFFEA]",
           )}
         >
           {isExpanded ? (
@@ -62,7 +62,7 @@ export default function RoleGroup({
           ) : (
             <ChevronDown size={14} className="text-slate-400" />
           )}
-          <div className="text-xs font-semibold text-slate-600">{label}</div>
+          <div className="text-xs font-medium text-[#6C757D]">{label}</div>
         </div>
         <div className="flex">
           {dates.map((date: Date) => {
@@ -103,18 +103,18 @@ export default function RoleGroup({
             {staffMembers.map((staff: Staff) => (
               <div
                 key={staff.id}
-                className="flex border-b border-slate-100 hover:bg-slate-50 h-14 group"
+                className="group flex h-14 border-b border-[#E0E0E0] hover:bg-[#DFFFEA]"
               >
                 <div
                   className={cn(
                     STAFF_COL_WIDTH,
-                    "sticky left-0 bg-white z-10 flex flex-col justify-center px-4 border-r border-slate-200 group-hover:bg-slate-50 pl-8",
+                    "sticky left-0 z-10 flex flex-col justify-center border-r border-[#E0E0E0] bg-white px-4 pl-8 group-hover:bg-[#DFFFEA]",
                   )}
                 >
-                  <div className="font-medium text-sm text-slate-800 truncate">
+                  <div className="truncate text-sm font-medium text-[#212529]">
                     {staff.name}
                   </div>
-                  <div className="text-[10px] text-slate-400">
+                  <div className="text-[10px] font-normal text-[#6C757D]">
                     {staff.fte} FTE
                   </div>
                 </div>

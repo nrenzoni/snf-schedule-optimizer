@@ -88,8 +88,8 @@ export default function ModalContainer({
   if (!isMounted) return null;
 
   const backdropClasses = isVisible
-    ? "bg-black/60 opacity-100 backdrop-blur-sm"
-    : "pointer-events-none bg-black/0 opacity-0 backdrop-blur-0";
+    ? "bg-[#212529]/35 opacity-100"
+    : "pointer-events-none bg-[#212529]/0 opacity-0";
   const contentClasses = isVisible
     ? "scale-100 opacity-100"
     : "scale-95 opacity-0";
@@ -106,7 +106,7 @@ export default function ModalContainer({
       {/* 2. MODAL CONTENT: Handles the content's scale and zoom effect */}
       <div
         // Base styling for the content box
-        className={`bg-white rounded-xl shadow-2xl w-full overflow-hidden transition-all duration-300 ease-out ${contentClassName} ${contentClasses}`}
+        className={`w-full overflow-hidden rounded-lg border border-[#E0E0E0] bg-white shadow-md transition-all duration-300 ease-out ${contentClassName} ${contentClasses}`}
         onClick={(e) => e.stopPropagation()} // Prevent click from closing the modal
       >
         {children}

@@ -45,12 +45,12 @@ export default function SimulationConfigModal({
     title = "Wage Sensitivity Analysis";
     content = (
       <div className="space-y-4">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-slate-500">
           Project the impact of across-the-board wage increases on the annual
           budget.
         </p>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-bold text-slate-700">
             Proj. Wage Increase (%)
           </label>
           <input
@@ -62,11 +62,11 @@ export default function SimulationConfigModal({
             onChange={(e) =>
               setParams({ ...params, wageIncrease: Number(e.target.value) })
             }
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-indigo-600"
           />
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <div className="mt-1 flex justify-between text-xs text-slate-500">
             <span>0%</span>
-            <span className="font-bold text-indigo-600 text-lg">
+            <span className="text-lg font-semibold text-[#168039]">
               {params.wageIncrease}%
             </span>
             <span>20%</span>
@@ -78,12 +78,12 @@ export default function SimulationConfigModal({
     title = "Agency Utilization Strategy";
     content = (
       <div className="space-y-4">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-slate-500">
           Analyze savings by converting agency hours to internal overtime or new
           hires.
         </p>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-bold text-slate-700">
             Target Reduction in Agency Hours (%)
           </label>
           <input
@@ -95,7 +95,7 @@ export default function SimulationConfigModal({
                 targetAgencyReduction: Number(e.target.value),
               })
             }
-            className="w-full border rounded-lg p-2"
+            className="app-input w-full"
           />
         </div>
       </div>
@@ -104,12 +104,12 @@ export default function SimulationConfigModal({
     title = "Census Volatility Modeling";
     content = (
       <div className="space-y-4">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-slate-500">
           Calculate HPPD and labor cost per patient day (PPD) based on census
           shifts.
         </p>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-bold text-slate-700">
             Projected Census Change (Residents)
           </label>
           <div className="flex items-center space-x-2">
@@ -119,9 +119,9 @@ export default function SimulationConfigModal({
               onChange={(e) =>
                 setParams({ ...params, censusChange: Number(e.target.value) })
               }
-              className="w-full border rounded-lg p-2"
+              className="app-input w-full"
             />
-            <span className="text-sm text-gray-500">residents</span>
+            <span className="text-sm text-slate-500">residents</span>
           </div>
         </div>
       </div>
@@ -136,17 +136,17 @@ export default function SimulationConfigModal({
       contentClassName="max-w-md"
     >
       {/* 2. Content starts directly with the modal's main content div */}
-      <div className="bg-white rounded-xl shadow-2xl w-full">
+      <div className="w-full bg-white/80">
         {/* HEADER */}
-        <div className="border-b p-4 flex justify-between items-center">
-          <div className="flex items-center space-x-2 text-indigo-700">
+        <div className="flex items-center justify-between border-b border-[#E0E0E0] bg-white p-4">
+          <div className="flex items-center space-x-2 text-[#168039]">
             {/* Assuming Activity, title, and X are available via props/imports */}
             <Activity size={20} />
-            <h3 className="font-bold text-lg">{title}</h3>
+            <h3 className="text-lg font-semibold">{title}</h3>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="rounded-full p-1 text-slate-400 hover:bg-white/80 hover:text-slate-700"
           >
             <X size={20} />
           </button>
@@ -158,17 +158,17 @@ export default function SimulationConfigModal({
         </div>
 
         {/* FOOTER / ACTIONS */}
-        <div className="bg-gray-50 p-4 rounded-b-xl flex justify-end space-x-3 border-t">
+        <div className="flex justify-end space-x-3 border-t border-slate-200/70 bg-slate-50/80 p-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+            className="app-button-ghost"
           >
             Cancel
           </button>
           <button
             data-testid="run-simulation"
             onClick={handleRun}
-            className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md transition"
+            className="app-button-primary"
           >
             <Play size={16} fill="currentColor" />
             <span>Run Simulation</span>

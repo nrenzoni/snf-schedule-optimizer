@@ -18,7 +18,7 @@ export function CalendarGrid({
   // Conditionally adjust the height/padding based on the view mode
   // mb-8 adds a little space below the 2-row grid to keep the legend from floating too high
   const gridContainerClasses = isTwoWeekView
-    ? "grid grid-cols-7 gap-1 sm:gap-2 mb-8"
+    ? "mb-8 grid grid-cols-7 gap-1 sm:gap-2"
     : "grid grid-cols-7 gap-1 sm:gap-2";
 
   return (
@@ -68,21 +68,21 @@ const getContainerClasses = (
   selectedDayDateString: string | null,
 ): string => {
   let classes =
-    "text-center relative h-20 sm:h-24 flex flex-col justify-start items-stretch p-0.5 rounded-lg border border-gray-200 shadow-sm transition duration-150 ease-in-out";
+    "relative flex h-20 flex-col items-stretch justify-start rounded-lg border border-[#E0E0E0] bg-white p-1 text-center shadow-none transition duration-150 ease-in-out sm:h-24";
 
   if (!day.isSelectable) {
-    classes += " opacity-50 bg-gray-50 cursor-default";
+    classes += " cursor-default bg-[#F4F6F8] opacity-50";
   } else {
     classes +=
-      " bg-white cursor-pointer hover:shadow-lg active:shadow-inner active:scale-[0.98]";
+      " cursor-pointer hover:border-[#28A745] hover:bg-[#DFFFEA] active:scale-[0.99]";
   }
 
   if (selectedDayDateString === day.dateString) {
-    classes += " ring-4 ring-indigo-400 ring-offset-2";
+    classes += " ring-2 ring-[#168039] ring-offset-2 ring-offset-white";
   }
 
   if (!day.isCurrentMonth) {
-    classes = classes.replace("bg-white", "bg-gray-100");
+    classes = classes.replace("bg-white", "bg-[#F4F6F8]");
   }
 
   return classes;
@@ -91,14 +91,14 @@ const getContainerClasses = (
 // Day number classes (to make today stand out)
 function getDayNumberClasses(day: UICalendarDay): string {
   let classes =
-    "transition duration-150 mx-auto w-6 h-6 flex items-center justify-center rounded-full mb-0.5 text-xs font-medium";
+    "mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium transition duration-150";
 
   if (day.isToday && day.isCurrentMonth) {
-    classes += " bg-indigo-600 text-white font-bold shadow-md";
+    classes += " bg-[#168039] text-white";
   } else if (day.isCurrentMonth && day.isSelectable) {
-    classes += " text-gray-800";
+    classes += " text-[#212529]";
   } else {
-    classes += " text-gray-400";
+    classes += " text-[#6C757D]";
   }
   return classes;
 }
@@ -111,8 +111,8 @@ function getIndicatorDotClass(percentage: number): string {
   }
   // WARNING: 70% to 99%
   if (percentage < 100) {
-    return "bg-yellow-400";
+    return "bg-[#FBC02D]";
   }
   // IDEAL: 100% and above
-  return "bg-green-500";
+  return "bg-[#28A745]";
 }
