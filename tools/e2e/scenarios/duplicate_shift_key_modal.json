@@ -1,0 +1,22 @@
+{
+  "name": "duplicate_shift_key_modal",
+  "description": "Reproduce duplicate React child keys when opening the list-view shift modal for a day with multiple unit-level Morning shifts.",
+  "steps": [
+    {
+      "name": "open list view shift modal",
+      "action": "goto",
+      "url": "/?view=list&date=2026-05-12&shift=Morning"
+    },
+    {
+      "name": "shift modal visible",
+      "action": "expect_role",
+      "role": "dialog",
+      "namePattern": "Schedule"
+    },
+    {
+      "name": "allow console warnings to flush",
+      "action": "sleep",
+      "durationMs": 1000
+    }
+  ]
+}
