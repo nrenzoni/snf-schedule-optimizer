@@ -6,6 +6,7 @@ import os
 import signal
 import socket
 import subprocess
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -295,7 +296,13 @@ def classify_findings(summary: dict) -> list[dict[str, str]]:
     return findings
 
 
-def write_run_summary(run_dir: Path, run_id: str, mode: str, scenario: str) -> None:
+def write_run_summary(
+    run_dir: Path,
+    run_id: str,
+    mode: str,
+    scenario: str,
+    runner_error: str | None = None,
+) -> None:
     summary_path = run_dir / "browser" / "summary.json"
     if not summary_path.exists():
         summary = {
@@ -306,7 +313,7 @@ def write_run_summary(run_dir: Path, run_id: str, mode: str, scenario: str) -> N
             "failures": [
                 {
                     "type": "runner",
-                    "message": "Browser summary.json was not produced.",
+                    "message": runner_error or "Browser summary.json was not produced.",
                 }
             ],
         }
@@ -315,6 +322,7 @@ def write_run_summary(run_dir: Path, run_id: str, mode: str, scenario: str) -> N
 
     result = {
         "runId": run_id,
+        "runDir": str(run_dir.relative_to(ROOT)),
         "mode": mode,
         "scenario": scenario,
         "status": summary.get("status", "failed"),
@@ -343,12 +351,17 @@ def main() -> int:
         raise FileNotFoundError(f"Scenario not found: {scenario_path}")
 
     exit_code = 1
-    if args.mode == "dev":
-        exit_code = run_dev_mode(run_id, run_dir, scenario_path)
-    else:
-        exit_code = run_demo_mode(run_id, run_dir, scenario_path)
+    runner_error = None
+    try:
+        if args.mode == "dev":
+            exit_code = run_dev_mode(run_id, run_dir, scenario_path)
+        else:
+            exit_code = run_demo_mode(run_id, run_dir, scenario_path)
+    except Exception as error:
+        runner_error = f"{type(error).__name__}: {error}"
+        print(runner_error, file=sys.stderr)
 
-    write_run_summary(run_dir, run_id, args.mode, args.scenario)
+    write_run_summary(run_dir, run_id, args.mode, args.scenario, runner_error)
     print(str(run_dir))
     return exit_code
 

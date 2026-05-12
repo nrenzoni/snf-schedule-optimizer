@@ -7,6 +7,7 @@ db_url := "postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimi
 api_url := "http://localhost:8000"
 demo_api_url := "http://localhost:8080"
 ui_url := "http://localhost:3000"
+e2e_runs := "uv run --project snf-schedule-optimizer-service python tools/e2e/runs.py"
 
 install: install-ui install-be
 
@@ -89,14 +90,26 @@ check-proto:
 test-e2e:
   cd snf-schedule-optimizer-ui && NEXT_PUBLIC_API_BASE_URL={{api_url}} node node_modules/@playwright/test/cli.js test
 
-e2e-agent-dev scenario="dashboard_smoke":
-  uv run --project snf-schedule-optimizer-service python tools/e2e/orchestrator.py --mode dev --scenario {{scenario}}
+e2e-scenarios scenario="dashboard_smoke" mode="dev":
+  {{e2e_runs}} run --mode {{mode}} --scenario {{scenario}}
 
-e2e-agent-demo scenario="dashboard_smoke":
-  uv run --project snf-schedule-optimizer-service python tools/e2e/orchestrator.py --mode demo --scenario {{scenario}}
+e2e-scenarios-all mode="dev":
+  {{e2e_runs}} run-all --mode {{mode}}
 
-e2e-agent-autofix scenario="dashboard_smoke" mode="dev":
-  uv run --project snf-schedule-optimizer-service python tools/e2e/autofix.py --mode {{mode}} --scenario {{scenario}}
+e2e-scenarios-list:
+  {{e2e_runs}} list-scenarios
+
+e2e-scenarios-latest-failed:
+  {{e2e_runs}} latest-unresolved-failed
+
+e2e-scenarios-unresolved:
+  {{e2e_runs}} unresolved-failed
+
+e2e-scenarios-resolve target mode="dev":
+  {{e2e_runs}} resolve {{target}} --mode {{mode}}
+
+e2e-scenarios-mark-resolved failed resolved:
+  {{e2e_runs}} mark-resolved --failed-run {{failed}} --resolved-by {{resolved}}
 
 smoke-demo:
   docker compose -f compose.demo.yml up --build -d
