@@ -2,7 +2,8 @@ from pathlib import Path
 import re
 
 ROOT = Path(__file__).resolve().parent
-OUT = (ROOT / "../snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated").resolve()
+PKG = (ROOT / "../snf-schedule-optimizer-service/src/snf_schedule_optimizer").resolve()
+OUT = (PKG / "generated").resolve()
 
 # ensure package files exist
 for d in [OUT] + [p for p in OUT.rglob("*") if p.is_dir()]:
@@ -10,9 +11,9 @@ for d in [OUT] + [p for p in OUT.rglob("*") if p.is_dir()]:
     if not init.exists():
         init.write_text("# generated package\n")
 
-py_typed = OUT / "py.typed"
-if not py_typed.exists():
-    py_typed.write_text("")
+for py_typed in (PKG / "py.typed", OUT / "py.typed"):
+    if not py_typed.exists():
+        py_typed.write_text("")
 
 # patterns to rewrite
 replacements = [
