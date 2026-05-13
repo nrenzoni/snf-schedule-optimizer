@@ -1,5 +1,5 @@
-import AppShellSkeleton from "@/components/app-shell-skeleton";
+import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 
 export default function Loading() {
-  return <AppShellSkeleton />;
+  return <ThreeDAssemblyLoader isLoading />;
 }

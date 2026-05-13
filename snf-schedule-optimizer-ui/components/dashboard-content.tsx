@@ -39,6 +39,7 @@ import DashboardEmptyState from "@/components/dashboard-empty-state";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { ScheduleQueryError } from "@/hooks/use-schedule-query";
 import { isUsingFallbackApiBaseUrl } from "@/api/scheduling-client";
+import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 import {
   metricToneVariants,
   segmentedButtonVariants,
@@ -207,6 +208,9 @@ export default function DashboardContent({
 
   return (
     <div className="app-bg min-h-screen p-2 font-sans md:p-3">
+      <ThreeDAssemblyLoader
+        isLoading={isOptimizing || (!error && isLoading && scheduleCount === 0)}
+      />
       <div
         className={cn(
           "mx-auto transition-all duration-300 ease-in-out",

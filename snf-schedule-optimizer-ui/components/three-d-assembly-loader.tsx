@@ -153,7 +153,11 @@ const BlocksScene = ({isLoading}: { isLoading: boolean }) => {
 };
 
 // --- MAIN EXPORT ---
-export default function ThreeDAssemblyLoader({isLoading}: { isLoading: boolean }) {
+export default function ThreeDAssemblyLoader({
+  isLoading,
+}: {
+  isLoading: boolean;
+}) {
     const [msgIndex, setMsgIndex] = useState(0);
 
     useEffect(() => {

@@ -6,7 +6,6 @@ import {
 import { CalendarGrid } from "@/components/scheduling/calendar-grid";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { useShallow } from "zustand/react/shallow";
-import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 import { useScheduling } from "@/hooks/use-scheduling";
 import { useSchedulingInitializer } from "@/hooks/use-scheduling-initializer";
 import LoadingOverlay from "@/components/ui/loading-overlay";
@@ -49,12 +48,7 @@ export default function ScheduleListView() {
       key="scheduling"
       className="relative min-h-[600px] animate-in fade-in slide-in-from-bottom-4 duration-500"
     >
-      {/* 5. RENDER THE OVERLAY */}
-      {/* It sits on top of the content below because of absolute positioning */}
-      <LoadingOverlay isVisible={isAppLoading} />
-
-      {/* loader handled via React Portal or Fixed positioning, so it overlays automatically */}
-      <ThreeDAssemblyLoader isLoading={isOptimizing} />
+      <LoadingOverlay isVisible={isAppLoading && !isOptimizing && scheduleCount > 0} />
 
       {/* --- EXISTING SCHEDULING MODULE --- */}
       <div className="app-card mb-6 p-4 sm:p-6">

@@ -44,6 +44,8 @@ import ShiftCard from "@/components/schedule-board/shift-card";
 import UnitGroup from "@/components/schedule-board/unit-group";
 import { useIsFetching } from "@tanstack/react-query";
 import LoadingOverlay from "../ui/loading-overlay";
+import { useSchedulingStore } from "@/store/schedulingStore";
+import { useShallow } from "zustand/react/shallow";
 import { parseAsString, useQueryState } from "nuqs";
 import { formatDateYYYMMDD, TODAY_STRING } from "@/utils/scheduling-logic";
 import { iconButtonVariants, segmentedButtonVariants } from "@/components/ui/styles";
@@ -84,6 +86,12 @@ export default function ScheduleBoard({
 
   // This returns > 0 if any query is currently fetching in the background
   const isFetching = useIsFetching();
+  const { isOptimizing, scheduleCount } = useSchedulingStore(
+    useShallow((state) => ({
+      isOptimizing: state.isOptimizing,
+      scheduleCount: state.scheduleMap.size,
+    })),
+  );
   const [anchorDateStr, setAnchorDateStr] = useQueryState(
     "anchor",
     parseAsString.withDefault(TODAY_STRING),
@@ -345,8 +353,9 @@ export default function ScheduleBoard({
       onDragEnd={handleDragEnd}
     >
       <div className="app-card relative flex h-full flex-col overflow-hidden">
-        {/* It will sit on top of everything inside this div */}
-        <LoadingOverlay isVisible={isFetching > 0} />
+        <LoadingOverlay
+          isVisible={isFetching > 0 && !isOptimizing && scheduleCount > 0}
+        />
 
         {/* HEADER TOOLBAR */}
         <div className="z-50 flex items-center justify-between border-b border-border bg-card px-4 py-3">
