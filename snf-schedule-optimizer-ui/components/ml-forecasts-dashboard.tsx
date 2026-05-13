@@ -108,7 +108,7 @@ export default function MlForecastsDashboard() {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="xl:my-auto">
       <div className="grid gap-3 lg:grid-cols-3">
         {/* Forecast Cards Column */}
         <div className="space-y-2 lg:col-span-1">

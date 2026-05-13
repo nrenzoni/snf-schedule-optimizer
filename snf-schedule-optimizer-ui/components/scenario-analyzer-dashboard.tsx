@@ -1,13 +1,8 @@
 import React, { useState } from "react";
 import {
-  Activity,
   ArrowRight,
-  DollarSign,
-  LucideIcon,
-  PieChart,
   Play,
   TrendingUp,
-  Users,
 } from "lucide-react";
 import { ModalType } from "@/types/modal-type";
 import SimulationConfigModal from "@/components/modals/simulation-config-modal";
@@ -124,74 +119,8 @@ export default function ScenarioAnalyzerDashboard() {
     setSimulationResult(result);
   };
 
-  const metrics = [
-    {
-      label: "Total Labor Spend (MTD)",
-      value: "$142,500",
-      trend: "+4.2%",
-      icon: DollarSign,
-      color: "text-primary",
-      trendColor: "text-red-500",
-    },
-    {
-      label: "Agency Utilization",
-      value: "18.5%",
-      trend: "-2.1%",
-      icon: Users,
-      color: "text-primary",
-      trendColor: "text-green-600",
-    },
-    {
-      label: "Avg HPPD",
-      value: "3.82",
-      trend: "Target: 3.6",
-      icon: Activity,
-      color: "text-primary",
-      trendColor: "text-muted-foreground",
-    },
-    {
-      label: "Overtime %",
-      value: "8.4%",
-      trend: "Target: <5%",
-      icon: PieChart,
-      color: "text-amber-600",
-      trendColor: "text-amber-600",
-    },
-  ];
-
-  const typedMetrics: Array<
-    (typeof metrics)[number] & {
-      icon: LucideIcon;
-    }
-  > = metrics;
-
   return (
-    <div className="mx-auto max-w-6xl space-y-3">
-      {/* Header / KPI Cards */}
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-4">
-        {typedMetrics.map((kpi, idx) => (
-          <div
-            key={idx}
-            className="app-card flex flex-col justify-between p-3 transition hover:border-primary/40"
-          >
-            <div className="mb-1.5 flex items-start justify-between">
-              <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-                {kpi.label}
-              </span>
-              <kpi.icon size={18} className={kpi.color} />
-            </div>
-            <div>
-              <span className="app-title text-xl">
-                {kpi.value}
-              </span>
-              <span className={`text-xs ml-2 font-medium ${kpi.trendColor}`}>
-                {kpi.trend}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-
+    <div className="space-y-3 xl:my-auto">
       <div className="grid gap-3 lg:grid-cols-3">
         {/* Simulation Launcher */}
         <div className="app-card p-4 lg:col-span-1">

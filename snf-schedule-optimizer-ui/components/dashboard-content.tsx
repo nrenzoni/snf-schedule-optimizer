@@ -45,6 +45,16 @@ import {
   segmentedButtonVariants,
 } from "@/components/ui/styles";
 
+type MetricTone = "success" | "warning" | "neutral";
+
+interface ExecutiveMetric {
+  label: string;
+  value: string;
+  detail: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  tone: MetricTone;
+}
+
 interface DashboardShellProps {
   timelineView: React.ReactNode;
 }
@@ -150,36 +160,100 @@ export default function DashboardContent({
     return () => clearTimeout(timer);
   }, []);
 
-  const executiveMetrics = [
-    {
-      label: "Coverage Score",
-      value: scheduleCount > 0 ? "96%" : "--",
-      detail: "Target-ready census coverage",
-      icon: CheckCircle2,
-      tone: "success" as const,
-    },
-    {
-      label: "Open Shifts",
-      value: scheduleCount > 0 ? "7" : "--",
-      detail: "Needs planner review",
-      icon: AlertTriangle,
-      tone: "warning" as const,
-    },
-    {
-      label: "Agency Hours",
-      value: scheduleCount > 0 ? "-18%" : "--",
-      detail: "Projected vs baseline",
-      icon: TrendingDown,
-      tone: "success" as const,
-    },
-    {
-      label: "Staff Mix",
-      value: scheduleCount > 0 ? "82%" : "--",
-      detail: "Internal team utilization",
-      icon: Users,
-      tone: "success" as const,
-    },
-  ];
+  const executiveMetrics: Record<(typeof moduleOptions)[number], ExecutiveMetric[]> = {
+    scheduling: [
+      {
+        label: "Coverage Score",
+        value: scheduleCount > 0 ? "96%" : "--",
+        detail: "Target-ready census coverage",
+        icon: CheckCircle2,
+        tone: "success",
+      },
+      {
+        label: "Open Shifts",
+        value: scheduleCount > 0 ? "7" : "--",
+        detail: "Needs planner review",
+        icon: AlertTriangle,
+        tone: "warning",
+      },
+      {
+        label: "Agency Hours",
+        value: scheduleCount > 0 ? "-18%" : "--",
+        detail: "Projected vs baseline",
+        icon: TrendingDown,
+        tone: "success",
+      },
+      {
+        label: "Staff Mix",
+        value: scheduleCount > 0 ? "82%" : "--",
+        detail: "Internal team utilization",
+        icon: Users,
+        tone: "success",
+      },
+    ],
+    analyzer: [
+      {
+        label: "Labor Spend",
+        value: "$142.5k",
+        detail: "Month-to-date cost baseline",
+        icon: BarChart2,
+        tone: "neutral",
+      },
+      {
+        label: "Agency Utilization",
+        value: "18.5%",
+        detail: "Down 2.1% from last cycle",
+        icon: Users,
+        tone: "success",
+      },
+      {
+        label: "Avg HPPD",
+        value: "3.82",
+        detail: "Tracking above 3.6 target",
+        icon: CheckCircle2,
+        tone: "success",
+      },
+      {
+        label: "Overtime Risk",
+        value: "8.4%",
+        detail: "Needs reduction below 5%",
+        icon: AlertTriangle,
+        tone: "warning",
+      },
+    ],
+    "ml-forecasts": [
+      {
+        label: "Weekend HPPD",
+        value: "3.41",
+        detail: "Forecasted dip late this month",
+        icon: TrendingDown,
+        tone: "warning",
+      },
+      {
+        label: "Burnout Flags",
+        value: "3 RNs",
+        detail: "High-retention staff at risk",
+        icon: Users,
+        tone: "warning",
+      },
+      {
+        label: "Compliance Score",
+        value: "98%",
+        detail: "Safety indicators remain stable",
+        icon: CheckCircle2,
+        tone: "success",
+      },
+      {
+        label: "Action Queue",
+        value: "2 PRN",
+        detail: "Pre-book weekend coverage",
+        icon: Brain,
+        tone: "neutral",
+      },
+    ],
+  };
+
+  const activeExecutiveMetrics = executiveMetrics[activeModule];
 
   const renderTabTrigger = (
     value: (typeof moduleOptions)[number],
@@ -207,16 +281,11 @@ export default function DashboardContent({
   };
 
   return (
-    <div className="app-bg min-h-screen p-2 font-sans md:p-3">
+    <div className="app-bg min-h-screen p-2 font-sans md:p-3 xl:h-screen xl:overflow-hidden">
       <ThreeDAssemblyLoader
         isLoading={isOptimizing || (!error && isLoading && scheduleCount === 0)}
       />
-      <div
-        className={cn(
-          "mx-auto transition-all duration-300 ease-in-out",
-          activeModule === "scheduling" ? "max-w-[1800px]" : "max-w-4xl",
-        )}
-      >
+      <div className="mx-auto max-w-[1800px] xl:flex xl:h-full xl:flex-col">
         {isUsingFallbackApiBaseUrl ? (
           <div className="app-callout-warning mb-6 px-4 py-3 text-sm">
             <span className="font-semibold">API base URL fallback in use.</span>{" "}
@@ -228,7 +297,7 @@ export default function DashboardContent({
         <Tabs
           value={activeModule}
           onValueChange={(value) => void setActiveModule(value as typeof moduleOptions[number])}
-          className="w-full"
+          className="w-full xl:min-h-0 xl:flex-1 xl:overflow-hidden"
         >
           <div className="app-shell-card mb-6 overflow-hidden p-4">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-center">
@@ -286,7 +355,7 @@ export default function DashboardContent({
           </div>
 
           {/*Tabs Content*/}
-          <div className="min-h-[600px]">
+          <div className="min-h-[600px] xl:min-h-0 xl:flex-1 xl:overflow-hidden xl:pb-4">
             {error && (
               <DashboardEmptyState
                 title={
@@ -303,118 +372,138 @@ export default function DashboardContent({
               />
             )}
 
-            <TabsContent value="scheduling" className="mt-0">
-              <div className="space-y-2">
-                {!error && !isLoading && scheduleCount === 0 ? (
-                  <DashboardEmptyState
-                    title="No schedule data returned"
-                    description="The API responded successfully but did not return any days for the selected month. Try another month or retry the query."
-                    actionLabel="Reload month"
-                    onAction={() => {
-                      void refetch();
-                    }}
-                    />
-                ) : null}
+            {!error ? (
+              <div className="grid items-start gap-3 xl:h-full xl:min-h-0 xl:items-stretch xl:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col">
+                  <TabsContent
+                    value="scheduling"
+                    className="mt-0 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-hidden"
+                  >
+                    <div className="space-y-2 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:gap-2 xl:space-y-0">
+                      {!error && !isLoading && scheduleCount === 0 ? (
+                        <DashboardEmptyState
+                          title="No schedule data returned"
+                          description="The API responded successfully but did not return any days for the selected month. Try another month or retry the query."
+                          actionLabel="Reload month"
+                          onAction={() => {
+                            void refetch();
+                          }}
+                        />
+                      ) : null}
 
-                <div className="flex justify-end">
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <button
-                      data-testid="optimize-schedule"
-                      onClick={triggerOptimization}
-                      disabled={isOptimizing}
-                      className="app-button-primary min-h-9 whitespace-nowrap px-4 py-2"
-                    >
-                      <Zap size={16} />
-                      <span>{isOptimizing ? "Optimizing..." : "Optimize"}</span>
-                    </button>
-                    <button
-                      data-testid="open-schedule-summary"
-                      onClick={uiStore.openSummaryModal}
-                      className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
-                    >
-                      <ListChecks size={16} />
-                      Summary
-                    </button>
-                    <button
-                      data-testid="open-scheduling-config"
-                      onClick={uiStore.openConfigModal}
-                      className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
-                    >
-                      <Settings size={16} />
-                      Configure
-                    </button>
-                    <div className="app-segmented flex space-x-1">
-                      <button
-                        data-testid="view-list"
-                        onClick={() => setViewMode("list")}
-                      className={segmentedButtonVariants({
-                        size: "md",
-                        active: viewMode === "list",
-                      })}
-                    >
-                      <LayoutList size={14} /> <span>List</span>
-                    </button>
-                    <button
-                      data-testid="view-timeline"
-                      onClick={() => setViewMode("timeline")}
-                      className={segmentedButtonVariants({
-                        size: "md",
-                        active: viewMode === "timeline",
-                      })}
-                    >
-                        <GanttChartSquare size={14} /> <span>Timeline</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {viewMode === "list" ? (
-                  <ScheduleListView />
-                ) : (
-                    <div className="app-card h-[calc(100vh-170px)] min-h-[560px] p-2">
-                      {timelineView}
-                    </div>
-                )}
-
-                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                  {executiveMetrics.map((metric) => (
-                    <div
-                      key={metric.label}
-                      className="app-card-interactive p-4"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            {metric.label}
-                          </p>
-                          <p className="app-title mt-2 text-3xl">{metric.value}</p>
-                        </div>
-                        <div className={metricToneVariants({ tone: metric.tone })}>
-                          <metric.icon size={19} />
+                      <div className="flex justify-end">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          <button
+                            data-testid="optimize-schedule"
+                            onClick={triggerOptimization}
+                            disabled={isOptimizing}
+                            className="app-button-primary min-h-9 whitespace-nowrap px-4 py-2"
+                          >
+                            <Zap size={16} />
+                            <span>{isOptimizing ? "Optimizing..." : "Optimize"}</span>
+                          </button>
+                          <button
+                            data-testid="open-schedule-summary"
+                            onClick={uiStore.openSummaryModal}
+                            className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
+                          >
+                            <ListChecks size={16} />
+                            Summary
+                          </button>
+                          <button
+                            data-testid="open-scheduling-config"
+                            onClick={uiStore.openConfigModal}
+                            className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
+                          >
+                            <Settings size={16} />
+                            Configure
+                          </button>
+                          <div className="app-segmented flex space-x-1">
+                            <button
+                              data-testid="view-list"
+                              onClick={() => setViewMode("list")}
+                              className={segmentedButtonVariants({
+                                size: "md",
+                                active: viewMode === "list",
+                              })}
+                            >
+                              <LayoutList size={14} /> <span>List</span>
+                            </button>
+                            <button
+                              data-testid="view-timeline"
+                              onClick={() => setViewMode("timeline")}
+                              className={segmentedButtonVariants({
+                                size: "md",
+                                active: viewMode === "timeline",
+                              })}
+                            >
+                              <GanttChartSquare size={14} /> <span>Timeline</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <p className="mt-2 text-sm font-normal text-muted-foreground">
-                        {metric.detail}
-                      </p>
+
+                      {viewMode === "list" ? (
+                        <div className="xl:min-h-0 xl:flex-1 xl:overflow-auto xl:pb-4">
+                          <ScheduleListView />
+                        </div>
+                      ) : (
+                        <div className="app-card min-h-[560px] p-2 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
+                          <div className="xl:flex xl:h-full xl:min-h-0 xl:flex-col">{timelineView}</div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  </TabsContent>
+
+                  <TabsContent
+                    value="analyzer"
+                    className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-auto"
+                  >
+                    <div className="xl:flex xl:min-h-full xl:flex-col xl:justify-center xl:pb-4">
+                      <ScenarioAnalyzerDashboard />
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent
+                    value="ml-forecasts"
+                    className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-auto"
+                  >
+                    <div className="xl:flex xl:min-h-full xl:flex-col xl:justify-center xl:pb-4">
+                      <MlForecastsDashboard />
+                    </div>
+                  </TabsContent>
                 </div>
+
+                <aside className="xl:flex xl:min-h-0 xl:self-stretch xl:items-center">
+                  <div
+                    key={activeModule}
+                    className="grid gap-2 md:grid-cols-2 xl:w-full xl:max-w-xs xl:grid-cols-1 xl:overflow-auto animate-in fade-in slide-in-from-bottom-4 duration-500"
+                  >
+                    {activeExecutiveMetrics.map((metric) => (
+                      <div
+                        key={metric.label}
+                        className="app-card-interactive p-4"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                              {metric.label}
+                            </p>
+                            <p className="app-title mt-2 text-3xl">{metric.value}</p>
+                          </div>
+                          <div className={metricToneVariants({ tone: metric.tone })}>
+                            <metric.icon size={19} />
+                          </div>
+                        </div>
+                        <p className="mt-2 text-sm font-normal text-muted-foreground">
+                          {metric.detail}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </aside>
               </div>
-            </TabsContent>
-
-            <TabsContent
-              value="analyzer"
-              className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500"
-            >
-              <ScenarioAnalyzerDashboard />
-            </TabsContent>
-
-            <TabsContent
-              value="ml-forecasts"
-              className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500"
-            >
-              <MlForecastsDashboard />
-            </TabsContent>
+            ) : null}
           </div>
         </Tabs>
 

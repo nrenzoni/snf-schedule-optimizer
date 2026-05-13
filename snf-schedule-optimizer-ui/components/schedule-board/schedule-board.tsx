@@ -352,7 +352,7 @@ export default function ScheduleBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="app-card relative flex h-full flex-col overflow-hidden">
+      <div className="app-card relative flex h-full min-h-0 flex-col overflow-hidden xl:min-h-0">
         <LoadingOverlay
           isVisible={isFetching > 0 && !isOptimizing && scheduleCount > 0}
         />
@@ -421,7 +421,7 @@ export default function ScheduleBoard({
         </div>
 
         {/* SCROLL AREA */}
-        <div className="relative flex-1 overflow-auto bg-background">
+        <div className="relative flex-1 overflow-auto bg-background xl:min-h-0">
           <div className="min-w-max p-4 pb-20">
             {/* GLOBAL DATE HEADER (Stays sticky, does NOT fade) */}
             <div className="sticky top-0 z-40 mb-2 flex rounded-lg border border-border bg-card shadow-none">
