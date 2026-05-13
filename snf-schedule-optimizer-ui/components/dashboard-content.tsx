@@ -11,6 +11,7 @@ import {
   Brain,
   Calendar,
   CheckCircle2,
+  FlaskConical,
   GanttChartSquare,
   LayoutList,
   ListChecks,
@@ -34,7 +35,6 @@ import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { TODAY_STRING } from "@/utils/scheduling-logic";
 import { useScheduling } from "@/hooks/use-scheduling";
 import NurseDetailsPanel from "@/components/nurse-details-panel";
-import DemoModeBanner from "@/components/demo-mode-banner";
 import DashboardEmptyState from "@/components/dashboard-empty-state";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { ScheduleQueryError } from "@/hooks/use-schedule-query";
@@ -213,8 +213,6 @@ export default function DashboardContent({
           activeModule === "scheduling" ? "max-w-[1800px]" : "max-w-4xl",
         )}
       >
-        <DemoModeBanner />
-
         {isUsingFallbackApiBaseUrl ? (
           <div className="app-callout-warning mb-6 px-4 py-3 text-sm">
             <span className="font-semibold">API base URL fallback in use.</span>{" "}
@@ -229,26 +227,35 @@ export default function DashboardContent({
           className="w-full"
         >
           <div className="app-shell-card mb-6 overflow-hidden p-4">
-            <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="app-eyebrow flex items-center gap-2">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-center">
+              <div className="min-w-0">
+                <div className="app-eyebrow mb-2 flex items-center gap-2">
                   <Calendar size={15} />
-                  Staffing Command Center
+                  Command Dashboard
                 </div>
-                <div className="hidden h-5 w-px bg-border sm:block" />
-                <h1 className="app-title truncate text-sm sm:text-base">
-                  Explore scheduling, scenarios, and forecasts
+                <h1 className="app-title text-xl sm:text-2xl">
+                  Staffing Command Center
                 </h1>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                  <div
+                    data-testid="dashboard-demo-mode"
+                    className="flex items-center gap-1.5 font-medium text-primary"
+                  >
+                    <FlaskConical size={14} />
+                    <span>Demo mode</span>
+                  </div>
+                  <span className="hidden text-border sm:inline">/</span>
+                  <p className="min-w-0">
+                    Explore scheduling, scenarios, and forecasts
+                  </p>
+                </div>
               </div>
 
-              <div className="flex flex-col gap-2 lg:items-end">
-                <TabsList className="app-segmented flex h-auto w-full flex-wrap justify-start gap-1 lg:w-fit" data-testid="module-menu">
-                  {renderTabTrigger("scheduling", <Calendar size={16} />, "Scheduling")}
-                  {renderTabTrigger("analyzer", <BarChart2 size={16} />, "Scenario Analyzer")}
-                  {renderTabTrigger("ml-forecasts", <Brain size={16} />, "ML Forecasts", true)}
-                </TabsList>
-
-                <div className="app-soft-panel flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 text-xs text-muted-foreground">
+              <div className="flex justify-center xl:justify-self-center">
+                <div
+                  data-testid="facility-summary"
+                  className="app-soft-panel flex w-full max-w-md flex-col items-center gap-1 px-4 py-2 text-center text-xs text-muted-foreground sm:w-auto sm:min-w-[320px]"
+                >
                   <div>
                     <span className="font-medium text-foreground">Facility:</span>{" "}
                     {selectedFacility
@@ -262,6 +269,14 @@ export default function DashboardContent({
                     {scheduleCount}
                   </div>
                 </div>
+              </div>
+
+              <div className="flex xl:justify-end">
+                <TabsList className="app-segmented flex h-auto w-full flex-wrap justify-start gap-1 xl:w-fit" data-testid="module-menu">
+                  {renderTabTrigger("scheduling", <Calendar size={16} />, "Scheduling")}
+                  {renderTabTrigger("analyzer", <BarChart2 size={16} />, "Scenario Analyzer")}
+                  {renderTabTrigger("ml-forecasts", <Brain size={16} />, "ML Forecasts", true)}
+                </TabsList>
               </div>
             </div>
           </div>

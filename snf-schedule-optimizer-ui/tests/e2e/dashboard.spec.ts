@@ -1,17 +1,19 @@
 import { test, expect } from "@playwright/test";
 
-test("dashboard loads demo banner and scheduling module", async ({ page }) => {
+test("dashboard loads inline demo mode header and scheduling module", async ({ page }) => {
   await page.goto("/schedule");
 
-  await expect(page.getByTestId("demo-mode-banner")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /staffing command center/i })).toBeVisible();
+  await expect(page.getByTestId("dashboard-demo-mode")).toBeVisible();
+  await expect(page.getByTestId("facility-summary")).toContainText(/loaded days:/i);
 
   await expect(
     page.getByRole("tab", { name: /scheduling/i }),
   ).toBeVisible();
-
-  await expect(
-    page.getByRole("heading", { name: /scheduling/i }),
-  ).toBeVisible();
+  await expect(page.getByRole("tab", { name: /scheduling/i })).toHaveAttribute(
+    "data-state",
+    "active",
+  );
 });
 
 test("landing page launches the interactive demo", async ({ page }) => {
