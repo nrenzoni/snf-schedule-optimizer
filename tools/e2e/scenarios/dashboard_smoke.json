@@ -5,12 +5,12 @@
     {
       "name": "open dashboard",
       "action": "goto",
-      "url": "/"
+      "url": "/schedule"
     },
     {
       "name": "demo banner visible",
       "action": "expect_test_id",
-      "testId": "demo-mode-banner"
+      "testId": "dashboard-demo-mode"
     },
     {
       "name": "module menu visible",
@@ -55,6 +55,11 @@
       "name": "timeline heading visible",
       "action": "expect_text",
       "text": "Master Schedule"
+    },
+    {
+      "name": "facility summary visible",
+      "action": "expect_test_id",
+      "testId": "facility-summary"
     }
   ]
 }

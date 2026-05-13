@@ -81,6 +81,8 @@ Health check:
 http://localhost:8000/health
 ```
 
+That `8000` address is the current host-dev convention used by `just dev-be`, not a global requirement across demo smoke or isolated E2E workflows.
+
 ## API Surface
 
 The protobuf contract lives under `../proto/scheduling/v1/scheduling.proto`.

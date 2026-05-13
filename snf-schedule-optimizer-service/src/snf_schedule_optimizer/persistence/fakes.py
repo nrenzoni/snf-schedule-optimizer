@@ -400,6 +400,14 @@ class FakeScheduleRepo(IScheduleRepo):
             raise ValueError("schedule_id is required")
         self._schedules[ScheduleLookupKey(schedule.org_id, schedule.schedule_id)] = schedule
 
+    async def next_schedule_id(self, org_id: DomainPrimaryKeyType) -> DomainPrimaryKeyType:
+        existing_ids = [
+            schedule.schedule_id
+            for key, schedule in self._schedules.items()
+            if key.org_id == org_id and schedule.schedule_id is not None
+        ]
+        return (max(existing_ids) if existing_ids else 0) + 1
+
 
 class FakeFacilityRepo(IFacilityRepo):
     """InMemory implementation of IFacilityRepository for testing."""

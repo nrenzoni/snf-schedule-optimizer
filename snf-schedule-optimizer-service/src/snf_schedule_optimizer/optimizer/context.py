@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pulp
@@ -10,6 +10,7 @@ from snf_schedule_optimizer.models import (
     FacilityConfig,
     HprdEnforcedRole,
     MinMandates,
+    OptimizationSettings,
     Shift,
 )
 from snf_schedule_optimizer.optimizer.lp_helpers import build_lp_variable_name
@@ -23,6 +24,9 @@ class FacilityScenarioContext:
     shifts: list[Shift]
     config: FacilityConfig
     min_mandates: MinMandates | None = None
+    optimization_settings: OptimizationSettings = field(
+        default_factory=OptimizationSettings
+    )
 
     default_hprd_rn: float = 0.5
     default_hprd_cna: float = 2.4

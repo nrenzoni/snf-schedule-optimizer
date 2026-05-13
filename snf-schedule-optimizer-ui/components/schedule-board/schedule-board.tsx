@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useId, useMemo, useState } from "react";
+import React, { useEffect, useId, useMemo, useState } from "react";
 import {
   closestCenter,
   DragOverEvent,
@@ -37,7 +37,6 @@ import {
   SHIFT_TYPES,
   SimulatedUnit,
   Staff,
-  UNITS,
   ViewMode,
 } from "@/types/scheduler";
 import ShiftCard from "@/components/schedule-board/shift-card";
@@ -72,7 +71,6 @@ interface ScheduleBoardProps {
   initialShifts: Shift[];
   staffList: Staff[];
   units: SimulatedUnit[];
-  dates: Date[];
 }
 
 // --- MAIN BOARD ---
@@ -109,23 +107,32 @@ export default function ScheduleBoard({
     useState<SimulateActionResponse | null>(null);
 
   // Expanded State for 2 Levels
-  const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>({
-    U1: true,
-    U2: true,
-    U3: true,
-    U4: true,
-  });
+  const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>({});
   const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({
     "U1-RN": true,
   });
 
+  useEffect(() => {
+    setShifts(initialShifts);
+  }, [initialShifts]);
+
+  useEffect(() => {
+    setExpandedUnits((current) => {
+      const next: Record<string, boolean> = {};
+      for (const unit of units) {
+        next[unit.id] = current[unit.id] ?? true;
+      }
+      return next;
+    });
+  }, [units]);
+
   // Group by Unit First
   const unitGroups = useMemo(() => {
-    return Object.values(UNITS).map((unit) => ({
+    return units.map((unit) => ({
       unit,
       staff: staffList.filter((s) => s.unitId === unit.id),
     }));
-  }, [staffList]);
+  }, [staffList, units]);
 
   const anchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
   const visibleStartDate = useMemo(() => subDays(anchorDate, 2), [anchorDate]);
@@ -147,8 +154,7 @@ export default function ScheduleBoard({
     setExpandedRoles({});
   };
   const handleExpandAll = () => {
-    const allUnits = { U1: true, U2: true, U3: true, U4: true };
-    // Very simple expand all for demo
+    const allUnits = Object.fromEntries(units.map((unit) => [unit.id, true]));
     setExpandedUnits(allUnits);
   };
 

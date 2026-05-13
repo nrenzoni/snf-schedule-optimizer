@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 import {
   UICalendarDay,
-  UIDaySchedule as UIDaySchedule,
+  UIDaySchedule,
   UINurse,
+  UISchedulerSettings,
   UIShift,
 } from "@/types/scheduling";
 import {
@@ -15,9 +17,25 @@ import {
   TODAY_STRING,
 } from "@/utils/scheduling-logic";
 import { schedulingClient } from "@/api/scheduling-client";
-import { useSchedulingStore } from "@/store/schedulingStore";
+import {
+  defaultSchedulerSettings,
+  useSchedulingStore,
+} from "@/store/schedulingStore";
 import { useShallow } from "zustand/react/shallow";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
+import {
+  DaySchedule as ProtoDaySchedule,
+  FinancialReport,
+  OptimizationSettings,
+  OptimizationStats,
+  OptimizationSummary,
+} from "@/gen/scheduling/v1/scheduling_pb";
+import {
+  protoDayToUI,
+  protoFinancialsToUI,
+  protoStatsToUI,
+  protoSummaryToUI,
+} from "@/hooks/use-schedule-query";
 
 interface UseSchedulingReturn {
   currentDate: Date;
@@ -36,58 +54,138 @@ interface UseSchedulingReturn {
   closeModal: () => void;
   removeNurseFromShift: (nurse: UINurse) => Promise<void>;
   addNurseToShift: () => void;
-  triggerOptimization: () => void;
+  triggerOptimization: () => Promise<void>;
+  updateSchedulerSettings: (settings: UISchedulerSettings) => void;
   SHIFT_NAMES: typeof SHIFT_NAMES;
 }
 
+const optimizationSettingsToProto = (settings: UISchedulerSettings): OptimizationSettings => ({
+  $typeName: "scheduling.v1.OptimizationSettings",
+  useMlForecast: settings.useMLForecast,
+  useCalloutBuffer: settings.useCalloutBuffer,
+  bufferThreshold: settings.bufferThreshold,
+  minRestPeriod: settings.minRestPeriod,
+  maxShiftLength: settings.maxShiftLength,
+  premiumWeekend: settings.premiumWeekend,
+  premiumHoliday: settings.premiumHoliday,
+  overtimeAvoidancePenalty: settings.overtimeAvoidancePenalty,
+  teamConsistencyPenalty: settings.teamConsistencyPenalty,
+  highRiskShiftPenalty: settings.highRiskShiftPenalty,
+  customPreferencePenalty: settings.customPreferencePenalty,
+});
+
 export function useScheduling(): UseSchedulingReturn {
-  const { scheduleMap, isLoading, setIsOptimized, setIsOptimizing } =
-    useSchedulingStore(
-      useShallow((state) => ({
-        scheduleMap: state.scheduleMap, // This is populated by useScheduleQuery elsewhere
-        isLoading: state.isDataLoading,
-        setIsOptimized: state.setIsOptimized,
-        setIsOptimizing: state.setIsOptimizing,
-      })),
-    );
+  const {
+    scheduleMap,
+    isLoading,
+    setIsOptimizing,
+    schedulerSettings,
+    setSchedulerSettings,
+    selectedFacility,
+    setOptimizeResult,
+  } = useSchedulingStore(
+    useShallow((state) => ({
+      scheduleMap: state.scheduleMap,
+      isLoading: state.isDataLoading,
+      setIsOptimizing: state.setIsOptimizing,
+      schedulerSettings: state.schedulerSettings,
+      setSchedulerSettings: state.setSchedulerSettings,
+      selectedFacility: state.selectedFacility,
+      setOptimizeResult: state.setOptimizeResult,
+    })),
+  );
 
-  // Tracks which day is open: ?date=2023-10-05
   const [selectedDateStr, setSelectedDateStr] = useQueryState("date");
-
   const [isTwoWeekView, setIsTwoWeekView] = useQueryState(
     "isTwoWeek",
     parseAsBoolean.withDefault(true),
   );
-
   const [anchorDateStr, setAnchorDateStr] = useQueryState(
     "anchor",
     parseAsString.withDefault(TODAY_STRING),
   );
-
-  // Tracks specific shift/nurse selection
   const [selectedShiftName, setSelectedShiftName] = useQueryState("shift");
   const [selectedNurseId, setSelectedNurseId] = useQueryState("nurseId");
 
-  const triggerOptimization = useCallback(() => {
-    setIsOptimizing(true);
-    setIsOptimized(false);
-    setTimeout(() => setIsOptimized(true), 0);
-  }, [setIsOptimized, setIsOptimizing]);
+  const currentViewAnchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
 
-  const currentViewAnchorDate = useMemo(
-    () => new Date(anchorDateStr),
-    [anchorDateStr],
-  );
+  const triggerOptimization = useCallback(async () => {
+    if (!selectedFacility) {
+      toast.error("Optimization unavailable", {
+        description: "No facility context is loaded yet.",
+      });
+      return;
+    }
+
+    const startDate = new Date(currentViewAnchorDate);
+    startDate.setDate(startDate.getDate() - 2);
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 5);
+
+    try {
+      setIsOptimizing(true);
+      const response = await schedulingClient.optimizeSchedule({
+        orgId: selectedFacility.orgId,
+        facilityId: selectedFacility.facilityId,
+        startDate: formatDateYYYMMDD(startDate),
+        endDate: formatDateYYYMMDD(endDate),
+        settings: optimizationSettingsToProto(schedulerSettings),
+        persistResult: true,
+      });
+
+      if (!response.isSuccess) {
+        toast.error("Optimization failed", {
+          description: response.errorDetails || "The optimizer did not return a schedule.",
+        });
+        setIsOptimizing(false);
+        return;
+      }
+
+      const optimizedMap = new Map<string, UIDaySchedule>();
+      Object.entries(response.schedules).forEach(([date, day]) => {
+        optimizedMap.set(date, protoDayToUI(day as ProtoDaySchedule));
+      });
+
+      const summary = protoSummaryToUI(response.summary as OptimizationSummary | undefined);
+      const stats = protoStatsToUI(response.stats as OptimizationStats | undefined);
+      const financials = protoFinancialsToUI(response.financials as FinancialReport | undefined);
+
+      setOptimizeResult(
+        optimizedMap,
+        selectedFacility,
+        response.scheduleId,
+        response.scheduleVersion,
+        summary,
+        stats,
+        financials,
+      );
+
+      toast.success("Optimization completed", {
+        description: stats
+          ? `${Math.round(stats.executionTimeMs)} ms, $${Math.round(financials?.totalEnterpriseCost ?? 0).toLocaleString()} projected labor cost`
+          : "Schedule updated successfully.",
+      });
+    } catch (error) {
+      toast.error("Optimization failed", {
+        description: error instanceof Error ? error.message : "Unexpected optimizer error",
+      });
+      setIsOptimizing(false);
+    }
+  }, [
+    currentViewAnchorDate,
+    schedulerSettings,
+    selectedFacility,
+    setIsOptimizing,
+    setOptimizeResult,
+  ]);
 
   const selectedDay = useMemo(() => {
     if (!selectedDateStr) return null;
     const schedule = scheduleMap.get(selectedDateStr) || null;
-    // Reconstruct minimal Day object needed for modal
     return {
       dateString: selectedDateStr,
       date: new Date(selectedDateStr),
       schedule,
-      // ... add other necessary dummy props if needed for types
       isToday: false,
       coverage: 0,
       isPadding: false,
@@ -100,44 +198,26 @@ export function useScheduling(): UseSchedulingReturn {
 
   const selectedShift = useMemo(() => {
     if (!selectedDay?.schedule || !selectedShiftName) return null;
-    return (
-      selectedDay.schedule.shifts.find(
-        (s) => s.shiftName === selectedShiftName,
-      ) || null
-    );
+    return selectedDay.schedule.shifts.find((shift) => shift.shiftName === selectedShiftName) || null;
   }, [selectedDay, selectedShiftName]);
 
   const selectedNurse = useMemo(() => {
     if (!selectedShift || !selectedNurseId) return null;
-    return selectedShift.nurses.find((n) => n.id === selectedNurseId) || null;
+    return selectedShift.nurses.find((nurse) => nurse.id === selectedNurseId) || null;
   }, [selectedShift, selectedNurseId]);
-
-  // --- Data Fetching Logic (moved to useSchedules) ---
-  // const { schedules, isLoading, fetchSchedule } = useSchedules(currentDate);
-  // const { schedules, isLoading, fetchSchedule, triggerOptimization } =
-  //   useMockScheduling(currentViewAnchorDate, optimizationCount);
 
   const currentDate = useMemo(() => {
     return isTwoWeekView ? TODAY : currentViewAnchorDate;
   }, [isTwoWeekView, currentViewAnchorDate]);
 
-  // 2. Computed calendar days array for the grid
-  // Determine the *actual* starting date for the calendar grid display.
-  // If it's a 2-week view, start from the `currentDate` (which is the start of the week).
-  // If it's a full month view, calculate the first Sunday of the month's grid.
   const calendarDays = useMemo<UICalendarDay[]>(() => {
-    // Guard Clause: Do not render calendar days until loading is explicitly complete.
     if (isLoading) {
       return [];
     }
 
-    // Determine the *actual* starting date for the calendar grid display.
-    // If it's a 2-week view, start from the `currentDate` (which is the start of the week).
-    // If it's a full month view, calculate the first Sunday of the month's grid.
     const startDate = isTwoWeekView
       ? getStartOfWeek(TODAY)
-      : // 💡 If month view, calculate the start of the grid based on the ANCHOR DATE (Dec 1st).
-        (() => {
+      : (() => {
           const year = currentViewAnchorDate.getFullYear();
           const month = currentViewAnchorDate.getMonth();
           const firstDayOfMonth = new Date(year, month, 1);
@@ -145,7 +225,6 @@ export function useScheduling(): UseSchedulingReturn {
           return new Date(year, month, 1 - startOffset);
         })();
 
-    // Make a mutable copy of the START DATE for iteration
     const iterationDay = new Date(startDate);
     const days: UICalendarDay[] = [];
     const todayStart = new Date(TODAY);
@@ -153,50 +232,27 @@ export function useScheduling(): UseSchedulingReturn {
     const todayStartMs = todayStart.getTime();
     const windowEndMs = FOURTEEN_DAYS_AHEAD.getTime();
     const totalDaysToRender = isTwoWeekView ? 14 : 42;
-
-    // We no longer need the 'year' and 'month' variables from the currentDate for determining
-    // `isCurrentMonth` since we want the 2-week view to not be constrained by the month.
-    // However, we need to pass a context month for `isSelectable` logic if we want to keep it.
     const contextMonth = currentViewAnchorDate.getMonth();
 
     for (let i = 0; i < totalDaysToRender; i++) {
       const dayDate = new Date(iterationDay);
-      // dayDate.setDate(startDate.getDate() + i);
-
       const dayDateString = formatDateYYYMMDD(dayDate);
-
-      // READ DIRECTLY FROM STORE MAP
-      const schedule: UIDaySchedule | null =
-        scheduleMap.get(dayDateString) || null;
+      const schedule = scheduleMap.get(dayDateString) || null;
       const dayDateMs = dayDate.getTime();
 
       let dayHPRDPercentage = 0;
-
       if (schedule) {
-        const totalRequiredHours = schedule.shifts.reduce(
-          (sum, s) => sum + s.requiredHours,
-          0,
-        );
-        const totalActualHours = schedule.shifts.reduce(
-          (sum, s) => sum + s.actualHours,
-          0,
-        );
+        const totalRequiredHours = schedule.shifts.reduce((sum, shift) => sum + shift.requiredHours, 0);
+        const totalActualHours = schedule.shifts.reduce((sum, shift) => sum + shift.actualHours, 0);
         if (totalRequiredHours > 0) {
-          dayHPRDPercentage = Math.min(
-            100,
-            (totalActualHours / totalRequiredHours) * 100,
-          );
+          dayHPRDPercentage = Math.min(100, (totalActualHours / totalRequiredHours) * 100);
         }
       }
 
-      const isWithinWindow =
-        dayDateMs >= todayStartMs && dayDateMs <= windowEndMs;
-
-      // In 2-week view, all days in the 14-day window are selectable.
-      // In month view, only days in the month *and* within the window are selectable.
+      const isWithinWindow = dayDateMs >= todayStartMs && dayDateMs <= windowEndMs;
       const isSelectable = isTwoWeekView
         ? isWithinWindow
-        : dayDate.getMonth() === contextMonth && isWithinWindow; // Use contextMonth for month view
+        : dayDate.getMonth() === contextMonth && isWithinWindow;
 
       days.push({
         coverage: 0,
@@ -205,11 +261,10 @@ export function useScheduling(): UseSchedulingReturn {
         dateString: dayDateString,
         dayOfMonth: dayDate.getDate(),
         isToday: dayDateString === TODAY_STRING,
-        // Only set `isCurrentMonth` for the month view display
         isCurrentMonth: !isTwoWeekView && dayDate.getMonth() === contextMonth,
-        isSelectable: isSelectable,
+        isSelectable,
         schedule,
-        dayHPRDPercentage: dayHPRDPercentage,
+        dayHPRDPercentage,
       });
 
       iterationDay.setDate(iterationDay.getDate() + 1);
@@ -217,42 +272,21 @@ export function useScheduling(): UseSchedulingReturn {
     return days;
   }, [currentViewAnchorDate, scheduleMap, isTwoWeekView, isLoading]);
 
-  // --- Utility Functions ---
-
-  // const closeModalImmediately = useCallback(() => {
-  //   setSelectedDay(null);
-  //   setSelectedShift(null);
-  //   setSelectedNurse(null);
-  // }, []);
-
-  // const closeModal = useCallback(() => {
-  //   setIsModalVisible(false);
-  //   setTimeout(() => {
-  //     closeModalImmediately();
-  //   }, 300); // Wait for modal fade transition
-  // }, [closeModalImmediately]);
-
   const closeModal = useCallback(() => {
-    // Clear URL params to close modal
     setSelectedDateStr(null);
     setSelectedShiftName(null);
     setSelectedNurseId(null);
   }, [setSelectedDateStr, setSelectedShiftName, setSelectedNurseId]);
 
-  // --- Event Handlers ---
-
   const toggleCalendarView = useCallback(async () => {
     const nextState = !isTwoWeekView;
-
-    // Await the first URL push
     await setIsTwoWeekView(nextState);
-
     if (nextState) {
       setAnchorDateStr(formatDateYYYMMDD(TODAY));
     } else {
       setAnchorDateStr(formatDateYYYMMDD(getStartOfMonth(TODAY)));
     }
-  }, [isTwoWeekView, setIsTwoWeekView, setAnchorDateStr]);
+  }, [isTwoWeekView, setAnchorDateStr, setIsTwoWeekView]);
 
   const changeMonth = useCallback(
     (offset: number) => {
@@ -268,7 +302,6 @@ export function useScheduling(): UseSchedulingReturn {
 
   const openShiftDetails = useCallback(
     (day: UICalendarDay) => {
-      // URL Update: ?date=2023-10-05&shift=Morning
       setSelectedDateStr(day.dateString);
       if (day.schedule?.shifts[0]) {
         setSelectedShiftName(day.schedule.shifts[0].shiftName);
@@ -292,14 +325,6 @@ export function useScheduling(): UseSchedulingReturn {
     [setSelectedNurseId],
   );
 
-  // --- Connect-ES Mutation Action ---
-
-  // const removeNurseFromShift = useCallback((nurse: Nurse): void => {
-  //     console.log(`ACTION: Removing ${nurse.name} from ${selectedShift!.shiftName} shift on ${selectedDay!.dateString}`);
-  //     // In a real app, this would trigger a Connect-ES mutation call.
-  //     setSelectedNurse(null);
-  // }, [selectedDay, selectedShift]);
-
   const removeNurseFromShift = useCallback(
     async (nurse: UINurse): Promise<void> => {
       if (!selectedDay || !selectedShift) return;
@@ -319,30 +344,26 @@ export function useScheduling(): UseSchedulingReturn {
       } catch (error) {
         console.error("RPC Error during nurse removal:", error);
       }
-
     },
     [selectedDay, selectedShift],
   );
 
-  // const addNurseToShift = useCallback((): void => {
-  //     console.log(`ACTION: Adding a new nurse to ${selectedShift!.shiftName} shift on ${selectedDay!.dateString} (Mock)`);
-  //     // Connect-ES mutation call here
-  //     setSelectedNurse(null);
-  // }, [selectedDay, selectedShift]);
-
   const addNurseToShift = useCallback((): void => {}, []);
 
   const closeNurseDetails = useCallback(() => {
-    // Setting this to null removes ?nurseId=... from the URL
     setSelectedNurseId(null);
   }, [setSelectedNurseId]);
 
-  // --- Side Effects & Lifecycle ---
+  const updateSchedulerSettings = useCallback(
+    (settings: UISchedulerSettings) => {
+      setSchedulerSettings(settings);
+    },
+    [setSchedulerSettings],
+  );
 
   useEffect(() => {
     const isDaySelected = !!selectedDay;
     document.body.style.overflow = isDaySelected ? "hidden" : "";
-
     return () => {
       if (document.body.style.overflow === "hidden") {
         document.body.style.overflow = "";
@@ -350,13 +371,10 @@ export function useScheduling(): UseSchedulingReturn {
     };
   }, [selectedDay]);
 
-  // Escape Key Handler
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (selectedNurse) {
-          // closeNurseDetails();
-        } else if (selectedDay) {
+        if (selectedDay) {
           closeModal();
         }
       }
@@ -366,26 +384,19 @@ export function useScheduling(): UseSchedulingReturn {
     return () => {
       window.removeEventListener("keydown", handleEscapeKey);
     };
-  }, [selectedDay, selectedNurse, closeModal]);
+  }, [closeModal, selectedDay]);
 
   return {
-    // State (Derived from URL)
-    // currentDate,
-    // calendarDays,
     selectedDay,
     selectedShift,
     selectedNurse,
     isModalVisible: !!selectedDay,
-
-    // Actions (Updates URL)
     openShiftDetails,
     closeModal,
     selectShift,
     openNurseDetails,
     closeNurseDetails,
-
     changeMonth,
-
     currentDate,
     calendarDays,
     isTwoWeekView,
@@ -393,6 +404,9 @@ export function useScheduling(): UseSchedulingReturn {
     addNurseToShift,
     toggleCalendarView,
     triggerOptimization,
+    updateSchedulerSettings,
     SHIFT_NAMES,
   };
 }
+
+export { defaultSchedulerSettings };

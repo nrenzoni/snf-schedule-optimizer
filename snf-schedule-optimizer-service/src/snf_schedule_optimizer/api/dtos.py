@@ -1,6 +1,12 @@
 from dataclasses import dataclass
 
-from snf_schedule_optimizer.models import DomainPrimaryKeyType, EmployeeIdType, Schedule
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    EmployeeIdType,
+    OptimizationSettings,
+    OptimizationSummary,
+    Schedule,
+)
 from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
     ScheduleFinancialReport,
 )
@@ -37,4 +43,15 @@ class OptimizationOutput:
     analysis: ScheduleAnalysisReport | None
     financials: ScheduleFinancialReport | None
     stats: ScheduleOptimizationStats | None
+    summary: OptimizationSummary | None = None
     error_details: str | None = None
+
+
+@dataclass(frozen=True)
+class OptimizeScheduleRequest:
+    org_id: DomainPrimaryKeyType
+    facility_id: DomainPrimaryKeyType
+    start_date: str
+    end_date: str | None
+    settings: OptimizationSettings
+    persist_result: bool = True

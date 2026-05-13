@@ -12,6 +12,9 @@ service SchedulingService {
   // Retrieves the schedule and HRPD metrics for a given date range (usually a month).
   rpc GetMonthlySchedule(GetMonthlyScheduleRequest) returns (GetMonthlyScheduleResponse);
 
+  // Runs a full optimization pass and optionally persists the resulting schedule.
+  rpc OptimizeSchedule(OptimizeScheduleRequest) returns (OptimizeScheduleResponse);
+
   // Validates if a specific move (drag & drop) is feasible against all business rules.
   // This is used for real-time validation in the UI.
   rpc ValidateShiftMove(ValidateShiftMoveRequest) returns (ValidateShiftMoveResponse);
@@ -42,6 +45,30 @@ message GetMonthlyScheduleResponse {
   // A map where the key is the date (YYYY-MM-DD) and the value is the schedule for that day.
   map<string, DaySchedule> schedules = 1;
   string facility_id = 2;
+  string schedule_id = 3;
+  int32 schedule_version = 4;
+  OptimizationSummary latest_optimization = 5;
+}
+
+message OptimizeScheduleRequest {
+  string org_id = 1;
+  string facility_id = 2;
+  string start_date = 3;
+  optional string end_date = 4;
+  OptimizationSettings settings = 5;
+  bool persist_result = 6;
+}
+
+message OptimizeScheduleResponse {
+  bool is_success = 1;
+  string error_details = 2;
+  map<string, DaySchedule> schedules = 3;
+  string facility_id = 4;
+  string schedule_id = 5;
+  int32 schedule_version = 6;
+  FinancialReport financials = 7;
+  OptimizationStats stats = 8;
+  OptimizationSummary summary = 9;
 }
 
 message ValidateShiftMoveRequest {
@@ -107,11 +134,36 @@ message OptimizationStats {
   int32 total_constraints = 4;
 }
 
+message OptimizationSettings {
+  bool use_ml_forecast = 1;
+  bool use_callout_buffer = 2;
+  int32 buffer_threshold = 3;
+  int32 min_rest_period = 4;
+  double max_shift_length = 5;
+  bool premium_weekend = 6;
+  bool premium_holiday = 7;
+  double overtime_avoidance_penalty = 8;
+  double team_consistency_penalty = 9;
+  double high_risk_shift_penalty = 10;
+  double custom_preference_penalty = 11;
+}
+
+message OptimizationSummary {
+  int32 assignments_changed = 1;
+  int32 total_assignments = 2;
+  int32 covered_shifts = 3;
+  int32 uncovered_shifts = 4;
+  string completed_at = 5;
+  OptimizationSettings applied_settings = 6;
+}
+
 message Nurse {
   string id = 1;
   string name = 2;
   double shift_hours = 3;
   string scheduling_rationale = 4;
+  string role = 5;
+  bool is_agency = 6;
 }
 
 message Shift {
@@ -122,6 +174,8 @@ message Shift {
   double actual_hrpd = 5;
   bool is_hrpd_met = 6;
   repeated Nurse nurses = 7;
+  string unit_id = 8;
+  string unit_name = 9;
 }
 
 message DaySchedule {

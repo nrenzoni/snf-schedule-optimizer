@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+if (!process.env.PLAYWRIGHT_BASE_URL) {
+  throw new Error("Missing PLAYWRIGHT_BASE_URL for Playwright E2E runs.");
+}
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
@@ -9,22 +13,16 @@ export default defineConfig({
     timeout: 10000,
   },
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL,
     testIdAttribute: "data-testid",
     trace: "retain-on-failure",
     video: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  webServer: {
-    command: "pnpm dev",
-    url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-  },
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+        use: { ...devices["Desktop Chrome"] },
     },
   ],
 });

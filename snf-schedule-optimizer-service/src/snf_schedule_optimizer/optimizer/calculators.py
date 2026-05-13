@@ -68,6 +68,20 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
                 await self.resident_acuity_retriever.get_resident_acuity_list(shift)
             )
             shift_census = len(residents_acuity)
+            settings = context.optimization_settings
+
+            if settings.use_ml_forecast:
+                stressed_count = sum(
+                    1
+                    for resident in residents_acuity
+                    if resident.pt_score_gg >= 14 or resident.nta_score >= 8
+                )
+                shift_census += stressed_count
+
+            if settings.use_callout_buffer and shift_census > 0:
+                buffer_factor = 1.0 + (settings.buffer_threshold / 100.0)
+            else:
+                buffer_factor = 1.0
 
             hours_in_shift = shift.duration_hours
             if hours_in_shift <= 0:
@@ -76,9 +90,9 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
             # Step C: Calculate Required Headcount
             # Demand = (Target HPRD * Census) / Shift Duration
             # Example: (0.5 RN_HPRD * 100 Residents) / 8 Hours = 6.25 RNs required
-            required_rn_hours = targets.target_hprd_rn * shift_census
-            required_cna_hours = targets.target_hprd_cna * shift_census
-            required_total_hours = targets.target_total_hprd * shift_census
+            required_rn_hours = targets.target_hprd_rn * shift_census * buffer_factor
+            required_cna_hours = targets.target_hprd_cna * shift_census * buffer_factor
+            required_total_hours = targets.target_total_hprd * shift_census * buffer_factor
 
             # Step D: Apply "Bodies on the Floor" Minimums (Min Mandates)
             # We never schedule fewer than the mandated minimum, even if HPRD math allows it.

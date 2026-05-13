@@ -3,38 +3,23 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import signal
-import socket
 import subprocess
 import sys
-import time
 import uuid
 from pathlib import Path
-from typing import IO
+
+from tools.demo_ports import DEFAULT_STATE_PATH, resolve_ports, write_env_file
+from tools.e2e.dev_stack import (
+    DevStack,
+    build_dev_stack_config,
+    ensure_playwright_browser,
+    wait_for_url,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
 UI_DIR = ROOT / "snf-schedule-optimizer-ui"
-SERVICE_DIR = ROOT / "snf-schedule-optimizer-service"
 ARTIFACTS_DIR = ROOT / "tools" / "e2e" / "artifacts"
-LOCAL_HOST = "127.0.0.1"
-
-
-class ManagedProcess:
-    def __init__(self, name: str, process: subprocess.Popen[str], log_file: IO[str]):
-        self.name = name
-        self.process = process
-        self.log_file = log_file
-
-    def stop(self) -> None:
-        if self.process.poll() is None:
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
-                self.process.wait(timeout=5)
-        self.log_file.close()
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,88 +27,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=["dev", "demo"], required=True)
     parser.add_argument("--scenario", required=True)
     parser.add_argument("--artifacts-root", default=str(ARTIFACTS_DIR))
-    parser.add_argument("--reuse-stack", action="store_true")
     return parser.parse_args()
 
 
 def run_command(command: list[str], *, env: dict[str, str] | None = None, cwd: Path = ROOT) -> None:
     subprocess.run(command, cwd=cwd, env=env, check=True)
-
-
-def ensure_playwright_browser() -> None:
-    marker = Path.home() / ".cache" / "ms-playwright"
-    if marker.exists() and any(marker.iterdir()):
-        return
-    run_command(["pnpm", "exec", "playwright", "install", "chromium"], cwd=UI_DIR)
-
-
-def start_process(
-    name: str,
-    command: list[str],
-    *,
-    env: dict[str, str],
-    cwd: Path,
-    log_path: Path,
-) -> ManagedProcess:
-    log_file = log_path.open("w", encoding="utf-8")
-    process = subprocess.Popen(
-        command,
-        cwd=cwd,
-        env=env,
-        stdout=log_file,
-        stderr=subprocess.STDOUT,
-        text=True,
-        start_new_session=True,
-    )
-    return ManagedProcess(name, process, log_file)
-
-
-def port_is_open(port: int, host: str = LOCAL_HOST) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(0.5)
-        return sock.connect_ex((host, port)) == 0
-
-
-def choose_port(preferred: int, fallback: int) -> int:
-    if not port_is_open(preferred):
-        return preferred
-    if not port_is_open(fallback):
-        return fallback
-    raise RuntimeError(
-        f"Neither preferred port {preferred} nor fallback port {fallback} is available."
-    )
-
-
-def wait_for_url(url: str, timeout_seconds: int = 120) -> None:
-    import urllib.error
-    import urllib.request
-
-    deadline = time.time() + timeout_seconds
-    while time.time() < deadline:
-        try:
-            with urllib.request.urlopen(url, timeout=5) as response:
-                if 200 <= response.status < 500:
-                    return
-        except (urllib.error.URLError, TimeoutError, ConnectionError):
-            time.sleep(1)
-    raise TimeoutError(f"Timed out waiting for {url}")
-
-
-def terminate_process_group(process: subprocess.Popen[str]) -> None:
-    if process.poll() is not None:
-        return
-    try:
-        os.killpg(process.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        return
-    try:
-        process.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            return
-        process.wait(timeout=5)
 
 
 def run_dev_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
@@ -133,64 +41,17 @@ def run_dev_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
     browser_dir.mkdir(parents=True, exist_ok=True)
 
     env_base = os.environ.copy()
-    api_port = choose_port(8000, 8100)
-    ui_port = choose_port(3000, 3100)
-    api_url = f"http://localhost:{api_port}"
-    ui_url = f"http://localhost:{ui_port}"
-
-    ensure_playwright_browser()
-
-    run_command(["just", "infra-up"])
-    run_command(["just", "infra-seed"])
-
-    backend_env = env_base | {
-        "PYTHONPATH": "src",
-        "DATABASE_URL": "postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo",
-        "PORT": str(api_port),
-        "CORS_ALLOW_ORIGINS": f"http://localhost:{ui_port},http://127.0.0.1:{ui_port}",
-    }
-    ui_env = env_base | {
-        "NEXT_PUBLIC_API_BASE_URL": api_url,
-        "NEXT_PUBLIC_E2E_RUN_ID": run_id,
-    }
+    stack = DevStack(build_dev_stack_config(run_id, logs_dir))
     driver_env = env_base | {
         "E2E_RUN_ID": run_id,
-        "E2E_API_BASE_URL": api_url,
-        "E2E_BASE_URL": ui_url,
+        "E2E_API_BASE_URL": stack.config.api_url,
+        "E2E_BASE_URL": stack.config.ui_url,
         "E2E_ARTIFACTS_DIR": str(browser_dir),
         "E2E_SCENARIO_PATH": str(scenario_path),
     }
 
-    managed: list[ManagedProcess] = []
     try:
-        managed.append(
-            start_process(
-                "backend",
-                [
-                    "uv",
-                    "run",
-                    "python",
-                    "-m",
-                    "snf_schedule_optimizer.api.main",
-                ],
-                env=backend_env,
-                cwd=SERVICE_DIR,
-                log_path=logs_dir / "backend.log",
-            )
-        )
-        managed.append(
-            start_process(
-                "ui",
-                ["pnpm", "dev", "--port", str(ui_port)],
-                env=ui_env,
-                cwd=UI_DIR,
-                log_path=logs_dir / "ui.log",
-            )
-        )
-
-        wait_for_url(f"{api_url}/health")
-        wait_for_url(ui_url)
-
+        stack.start()
         return subprocess.run(
             ["pnpm", "exec", "tsx", "tests/e2e/scenario-driver.ts"],
             cwd=UI_DIR,
@@ -198,9 +59,7 @@ def run_dev_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
             check=False,
         ).returncode
     finally:
-        for proc in reversed(managed):
-            terminate_process_group(proc.process)
-            proc.log_file.close()
+        stack.stop()
 
 
 def run_demo_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
@@ -210,8 +69,11 @@ def run_demo_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
     browser_dir.mkdir(parents=True, exist_ok=True)
 
     env_base = os.environ.copy()
-    api_port = choose_port(8080, 8180)
-    ui_port = choose_port(3000, 3100)
+    state_path = run_dir / DEFAULT_STATE_PATH.name
+    ports = resolve_ports(state_path)
+    write_env_file(state_path, ports)
+    api_port = ports["DEMO_API_PORT"]
+    ui_port = ports["DEMO_UI_PORT"]
     api_url = f"http://localhost:{api_port}"
     ui_url = f"http://localhost:{ui_port}"
     ensure_playwright_browser()
@@ -228,8 +90,36 @@ def run_demo_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
     }
 
     compose_log = (logs_dir / "compose.log").open("w", encoding="utf-8")
+    subprocess.run(
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            str(state_path),
+            "-f",
+            "compose.demo.yml",
+            "down",
+            "-v",
+        ],
+        cwd=ROOT,
+        env=compose_env,
+        stdout=compose_log,
+        stderr=subprocess.STDOUT,
+        check=False,
+        text=True,
+    )
     up = subprocess.Popen(
-        ["docker", "compose", "-f", "compose.demo.yml", "up", "--build", "-d"],
+        [
+            "docker",
+            "compose",
+            "--env-file",
+            str(state_path),
+            "-f",
+            "compose.demo.yml",
+            "up",
+            "--build",
+            "-d",
+        ],
         cwd=ROOT,
         env=compose_env,
         stdout=compose_log,
@@ -254,7 +144,36 @@ def run_demo_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
         ).returncode
     finally:
         subprocess.run(
-            ["docker", "compose", "-f", "compose.demo.yml", "logs", "app", "ui", "db"],
+            [
+                "docker",
+                "compose",
+                "--env-file",
+                str(state_path),
+                "-f",
+                "compose.demo.yml",
+                "logs",
+                "app",
+                "ui",
+                "db",
+            ],
+            cwd=ROOT,
+            env=compose_env,
+            stdout=compose_log,
+            stderr=subprocess.STDOUT,
+            check=False,
+            text=True,
+        )
+        subprocess.run(
+            [
+                "docker",
+                "compose",
+                "--env-file",
+                str(state_path),
+                "-f",
+                "compose.demo.yml",
+                "down",
+                "-v",
+            ],
             cwd=ROOT,
             env=compose_env,
             stdout=compose_log,
@@ -263,13 +182,7 @@ def run_demo_mode(run_id: str, run_dir: Path, scenario_path: Path) -> int:
             text=True,
         )
         compose_log.close()
-        subprocess.run(
-            ["docker", "compose", "-f", "compose.demo.yml", "down", "-v"],
-            cwd=ROOT,
-            env=compose_env,
-            check=False,
-            text=True,
-        )
+        state_path.unlink(missing_ok=True)
 
 
 def classify_findings(summary: dict) -> list[dict[str, str]]:

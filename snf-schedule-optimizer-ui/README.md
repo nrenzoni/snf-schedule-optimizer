@@ -53,7 +53,9 @@ Example:
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 ```
 
-If not provided, the client currently falls back to `http://localhost:8000`.
+If not provided, the UI now fails fast during startup so backend targeting is always explicit.
+
+For the default host-dev loop, `just dev-ui` currently points at `http://localhost:8000` unless you override `NEXT_PUBLIC_API_BASE_URL` yourself.
 
 ### LAN / Remote Browser Development
 
@@ -70,6 +72,8 @@ EXTRA_DEV_ORIGINS=http://192.168.5.101:3000 just dev-be
 ```
 
 Use comma-separated values for multiple LAN IPs or hostnames. Restart the UI dev server after changing `NEXT_PUBLIC_API_BASE_URL` because it is compiled into the browser bundle.
+
+Managed Playwright and scenario E2E runs do not rely on implicit localhost defaults. They inject both `PLAYWRIGHT_BASE_URL` and `NEXT_PUBLIC_API_BASE_URL` explicitly and run against an isolated local stack.
 
 ## Full Product Demo
 

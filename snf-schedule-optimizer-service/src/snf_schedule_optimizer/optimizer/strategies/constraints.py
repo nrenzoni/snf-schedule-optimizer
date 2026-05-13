@@ -1,7 +1,7 @@
 import pulp
 from pulp import LpProblem
 
-from snf_schedule_optimizer.models import DomainPrimaryKeyType, HprdEnforcedRole, Shift
+from snf_schedule_optimizer.models import DomainPrimaryKeyType, HprdEnforcedRole
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IFacilityScopedConstraintStrategy,
@@ -109,18 +109,21 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
         data_provider: IScenarioDataProvider,
         facility_id: DomainPrimaryKeyType,
     ) -> InfeasibilityReasonResult | None:
-        shifts = data_provider.get_all_shifts()
+        shifts = sorted(
+            data_provider.get_shifts_for_facility(facility_id),
+            key=lambda shift: shift.shift_start_dt,
+        )
+        min_rest_hours = data_provider.get_optimization_settings().min_rest_period
 
-        # todo: Make this more generic/configurable, add infeasibility checks
-
-        # Simple example: Cannot work Shift 1 AND Shift 2 if they overlap or are back-to-back
-        # (You can inject a specific logic class here if it gets complex)
         for i in range(len(shifts) - 1):
-            s1, s2 = shifts[i], shifts[i + 1]
-            # Simple check: if < 8 hours gap
-            gap = (s2.shift_start_dt - s1.shift_end_dt).in_hours()
-            if gap < 8.0:
-                # Find common nurses
+            for j in range(i + 1, len(shifts)):
+                s1, s2 = shifts[i], shifts[j]
+                if s2.shift_start_dt <= s1.shift_start_dt:
+                    continue
+                gap = (s2.shift_start_dt - s1.shift_end_dt).in_hours()
+                if gap >= min_rest_hours:
+                    break
+
                 nurses_s1 = {
                     n.employee_id for n in await data_provider.get_nurses_for_shift(s1)
                 }
@@ -134,19 +137,38 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
                     v2 = lp_holder.get_variable(s2, emp_id)
                     if v1 is None or v2 is None:
                         continue
-                    problem += v1 + v2 <= 1, f"Fatigue_{emp_id}_{s1.shift_id}"
+                    problem += (
+                        v1 + v2 <= 1,
+                        f"Fatigue_{facility_id}_{emp_id}_{s1.shift_id}_{s2.shift_id}",
+                    )
 
         return None
 
-    # example
-    def _check_gap(self, s1: Shift, s2: Shift) -> bool:
-        gap = (s2.shift_start_dt - s1.shift_end_dt).in_hours()
 
-        if s1.facility_id == s2.facility_id:
-            # Same building: Check standard rest (e.g., 8 hours)
-            return gap < 8.0
-        else:
-            # Different buildings: Check travel time
-            # travel_time = self.distance_matrix.get(s1.facility_id, s2.facility_id)
-            travel_time = 1.0  # Placeholder assumption
-            return gap < travel_time
+class MaxShiftLengthConstraintStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        max_shift_length = data_provider.get_optimization_settings().max_shift_length
+        for shift in data_provider.get_shifts_for_facility(facility_id):
+            if shift.duration_hours <= max_shift_length:
+                continue
+
+            for nurse in await data_provider.get_nurses_for_shift(shift):
+                lp_var = lp_holder.get_variable(shift, nurse.employee_id)
+                if lp_var is None:
+                    continue
+                problem += (
+                    lp_var == 0,
+                    build_lp_variable_name(
+                        "MaxShiftLength",
+                        facility_id,
+                        shift.shift_id,
+                        nurse.employee_id,
+                    ),
+                )
+        return None

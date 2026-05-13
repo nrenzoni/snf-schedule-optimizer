@@ -158,7 +158,8 @@ def run_scenario(mode: str, scenario: str) -> int:
             "--project",
             "snf-schedule-optimizer-service",
             "python",
-            "tools/e2e/scenario_runner.py",
+            "-m",
+            "tools.e2e.scenario_runner",
             "--mode",
             mode,
             "--scenario",
@@ -178,7 +179,8 @@ def run_scenario_capture(mode: str, scenario: str) -> dict:
             "--project",
             "snf-schedule-optimizer-service",
             "python",
-            "tools/e2e/scenario_runner.py",
+            "-m",
+            "tools.e2e.scenario_runner",
             "--mode",
             mode,
             "--scenario",
@@ -223,7 +225,9 @@ def run_scenario_capture(mode: str, scenario: str) -> dict:
 
 
 def run_all(mode: str) -> dict:
-    runs = [run_scenario_capture(mode, scenario) for scenario in scenario_names()]
+    runs = []
+    for scenario in scenario_names():
+        runs.append(run_scenario_capture(mode, scenario))
     return {
         "mode": mode,
         "status": "passed"

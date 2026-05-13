@@ -71,9 +71,9 @@ docker compose -f compose.demo.yml logs -f app ui db
 
 ## Demo URLs
 
-- UI: `http://localhost:3000`
-- API health: `http://localhost:8080/health`
-- API browser-facing base URL: `http://localhost:8080`
+- UI: resolved at runtime by `just smoke-demo`, then printed to the terminal
+- API health: resolved at runtime by `just smoke-demo`, then printed to the terminal
+- API browser-facing base URL: uses the same resolved demo API port
 
 The Postgres database stays on the internal Docker network for this demo.
 
@@ -96,8 +96,8 @@ The Postgres database stays on the internal Docker network for this demo.
 
 ```text
 Browser
-  -> Next.js UI (localhost:3000)
-  -> Python API (localhost:8080)
+  -> Next.js UI (resolved demo host port)
+  -> Python API (resolved demo host port)
   -> Postgres (internal Docker network only)
 ```
 
@@ -151,9 +151,9 @@ The demo build path generates protobuf and Connect code inside Docker to reduce 
 
 Postgres is not published to the host because the product demo only needs the UI and API exposed.
 
-### API Published On Port 8080
+### Runtime-Resolved Demo Ports
 
-The backend listens on port `8000` inside the container and is published as `localhost:8080` outside Docker to avoid common local conflicts.
+The backend still listens on port `8000` inside the container and the UI on `3000` inside the container, but host ports for demo smoke runs are resolved at runtime to avoid common local conflicts.
 
 ## Solver Note
 
@@ -188,6 +188,8 @@ just dev-ui
 
 That keeps Postgres in Docker while running the backend and Next.js dev server on the host for faster iteration.
 
+Today, the host dev loop still conventionally uses backend `8000` and UI `3000` unless you explicitly override those commands yourself.
+
 The infra-first dev database is published on host port `35435` to avoid common local Postgres conflicts.
 
 ### LAN / Remote Browser Development
@@ -206,7 +208,7 @@ Next.js dev origins expect hostnames or host:port values without protocol:
 NEXT_PUBLIC_API_BASE_URL=http://192.168.5.101:8000 NEXT_ALLOWED_DEV_ORIGINS=192.168.5.101 just dev-ui
 ```
 
-For multiple origins, use comma-separated values. Restart the UI dev server after changing `NEXT_PUBLIC_API_BASE_URL` because it is compiled into the browser bundle.
+For multiple origins, use comma-separated values. `NEXT_PUBLIC_API_BASE_URL` is required for the UI. Restart the UI dev server after changing it because it is compiled into the browser bundle.
 
 Common local commands:
 
@@ -227,8 +229,8 @@ For project-level development details, see:
 If you want a clean restart of demo data:
 
 ```bash
-docker compose -f compose.demo.yml down -v
-docker compose -f compose.demo.yml up --build -d
+just demo-down
+just smoke-demo
 ```
 
 If the UI loads before fresh schedule data appears, give the stack a few seconds after startup for seeding and health checks to complete.

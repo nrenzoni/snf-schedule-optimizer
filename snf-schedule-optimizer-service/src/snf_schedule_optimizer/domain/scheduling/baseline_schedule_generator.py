@@ -51,4 +51,6 @@ class BaselineScheduleGenerator:
             facility_id=shifts[0].facility_id,
             schedule_id=1,
             shift_assignments=shift_assignments,
+            start_date=shifts[0].shift_start_dt.date().format_common_iso(),
+            end_date=shifts[-1].shift_start_dt.date().format_common_iso(),
         )

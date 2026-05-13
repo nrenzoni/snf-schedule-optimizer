@@ -1,4 +1,5 @@
 import pulp
+import whenever
 from pulp import LpProblem
 
 from snf_schedule_optimizer.datetime_utils import is_weekend
@@ -59,7 +60,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
                 if not comp_record:
                     continue  # No compensation record found
 
-                base_rate = comp_record.base_rate_effective
+                base_rate = float(comp_record.base_rate_effective)
                 if base_rate is None:
                     continue
 
@@ -185,6 +186,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
 
         # --- Part A: Shift-Specific Costs (Straight Time + Diffs + Incentives) ---
         shifts = data_provider.get_all_shifts()
+        settings = data_provider.get_optimization_settings()
         for shift in shifts:
             config = data_provider.get_facility_config(shift.facility_id)
             nurses = await data_provider.get_nurses_for_shift(shift)
@@ -225,6 +227,17 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                     + straight_time_breakdown.benefits_burden
                 )
 
+                if settings.premium_weekend and shift.day_of_week in {
+                    whenever.Weekday.SATURDAY,
+                    whenever.Weekday.SUNDAY,
+                }:
+                    shift_cost += straight_time_breakdown.base_wage * max(
+                        0.0, config.weekend_multiplier - 1.0
+                    )
+
+                if settings.premium_holiday and shift.shift_start_dt.date().month == 1 and shift.shift_start_dt.date().day == 1:
+                    shift_cost += straight_time_breakdown.base_wage * 0.5
+
                 terms.append(variable * shift_cost)
 
         # --- Part B: OT Premium Costs (The 0.5x kicker) ---
@@ -252,8 +265,8 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
 
             # Handle case where no record exists (e.g. inactive employee)
 
-            base_rate = comp_record.base_rate_effective
-            ot_multiplier = comp_record.ot_multiplier
+            base_rate = float(comp_record.base_rate_effective)
+            ot_multiplier = float(comp_record.ot_multiplier)
 
             # The Premium is (Multiplier - 1.0) * Rate
             # Example: (1.5 - 1.0) * $30 = $15/hr premium

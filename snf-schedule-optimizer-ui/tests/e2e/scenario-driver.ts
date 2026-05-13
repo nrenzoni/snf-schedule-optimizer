@@ -12,6 +12,7 @@ type ScenarioAction =
   | "expect_test_id"
   | "expect_text"
   | "wait_for_url"
+  | "press_key"
   | "sleep";
 
 interface ScenarioStep {
@@ -23,6 +24,7 @@ interface ScenarioStep {
   testId?: string;
   text?: string;
   pattern?: string;
+  key?: string;
   timeoutMs?: number;
   durationMs?: number;
 }
@@ -123,6 +125,9 @@ async function executeStep(page: Page, step: ScenarioStep) {
       break;
     case "wait_for_url":
       await page.waitForURL(new RegExp(step.pattern ?? ".*"), { timeout: step.timeoutMs ?? 10000 });
+      break;
+    case "press_key":
+      await page.keyboard.press(step.key ?? "Escape");
       break;
     case "sleep":
       await page.waitForTimeout(step.durationMs ?? 1000);

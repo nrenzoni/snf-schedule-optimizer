@@ -15,6 +15,7 @@ from snf_schedule_optimizer.models import (
     FacilityIdType,
     MlModelOutputs,
     NurseProfile,
+    OptimizationSettings,
     Shift,
 )
 from snf_schedule_optimizer.optimizer.context import (
@@ -48,6 +49,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         work_history_service: IEmployeeWorkHistoryService,
         pay_period_start: whenever.Instant,
         optimization_start_time: whenever.Instant,
+        optimization_settings: OptimizationSettings,
         # min_mandates: "MinMandates",
     ):
         self.target_org_id = target_org_id
@@ -88,6 +90,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self._staff_comp_service = staff_comp_service
         self._ml_model_retriever = ml_model_retriever
         self._work_history_service = work_history_service
+        self._optimization_settings = optimization_settings
 
         self.pay_period_start = pay_period_start
         self.opt_start = optimization_start_time
@@ -195,6 +198,9 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
     def get_facility_config(self, facility_id: DomainPrimaryKeyType) -> FacilityConfig:
         return self._facility_contexts[facility_id].config
 
+    def get_optimization_settings(self) -> OptimizationSettings:
+        return self._optimization_settings
+
 
 class ScenarioDataProviderFactory:
     """
@@ -224,6 +230,7 @@ class ScenarioDataProviderFactory:
         facility_contexts: dict[DomainPrimaryKeyType, FacilityScenarioContext],
         pay_period_start: whenever.Instant,
         optimization_start_time: whenever.Instant,
+        optimization_settings: OptimizationSettings,
     ) -> IScenarioDataProvider:
         return ScenarioDataProviderImpl(
             target_org_id=org_id,
@@ -236,4 +243,5 @@ class ScenarioDataProviderFactory:
             work_history_service=self.work_history_service,
             pay_period_start=pay_period_start,
             optimization_start_time=optimization_start_time,
+            optimization_settings=optimization_settings,
         )

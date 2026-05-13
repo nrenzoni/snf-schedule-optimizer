@@ -82,15 +82,19 @@ class NurseShiftScheduleOptimizer:
         for facility_id in facility_ids:
             # 1. Apply Rules (e.g. Fatigue, Patterns)
             for rule_strategy in self.facility_rule_strategies:
-                await rule_strategy.apply_constraints(
+                infeasibility = await rule_strategy.apply_constraints(
                     problem, lp_vars, data_provider, facility_id
                 )
+                if infeasibility is not None:
+                    return self._early_infeasibility(infeasibility, problem)
 
             # 2. Apply Constraints (e.g. HPRD, Min Staffing)
             for constraint_strategy in self.facility_constraint_strategies:
-                await constraint_strategy.apply_constraints(
+                infeasibility = await constraint_strategy.apply_constraints(
                     problem, lp_vars, data_provider, facility_id
                 )
+                if infeasibility is not None:
+                    return self._early_infeasibility(infeasibility, problem)
 
         # Apply Global Constraints (Pay/OT linkage across facilities)
         for pay_strategy in self.global_pay_strategies:
@@ -124,6 +128,24 @@ class NurseShiftScheduleOptimizer:
             org_id,
             problem,
             lp_vars,
+        )
+
+    def _early_infeasibility(
+        self,
+        infeasibility: InfeasibilityReasonResult,
+        problem: pulp.LpProblem,
+    ) -> ScheduleOptimizationResults:
+        return ScheduleOptimizationResults(
+            success=False,
+            optimal_schedule=None,
+            constraint_slacks=None,
+            infeasibility_reason=infeasibility,
+            statistics=ScheduleOptimizationStats(
+                execution_time_ms=0.0,
+                total_variables=problem.numVariables(),
+                total_constraints=problem.numConstraints(),
+                objective_value=None,
+            ),
         )
 
     def _solve_finalize(

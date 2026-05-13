@@ -139,19 +139,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
       - name: Build and start demo stack
-        run: docker compose -f compose.demo.yml up --build -d
+        run: just smoke-demo
 
       - name: Check API health
-        run: curl --fail --retry 20 --retry-delay 3 http://localhost:8080/health
-
-      - name: Check UI health
-        run: curl --fail --retry 20 --retry-delay 3 http://localhost:3000
+        run: just smoke-demo-check
 
       - name: Dump compose logs on failure
         if: failure()
-        run: docker compose -f compose.demo.yml logs
+        run: just demo-logs
 
       - name: Tear down demo stack
         if: always()
-        run: docker compose -f compose.demo.yml down -v
+        run: just demo-down

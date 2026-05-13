@@ -1,46 +1,86 @@
-// Define domain types used across the UI. We intentionally declare our own
-// lightweight interfaces here (instead of directly re-using the generated
-// protobuf types) so the UI code can rely on consistent property casing and
-// optional fields.
+export interface UISchedulerSettings {
+  useMLForecast: boolean;
+  useCalloutBuffer: boolean;
+  bufferThreshold: number;
+  minRestPeriod: number;
+  maxShiftLength: number;
+  premiumWeekend: boolean;
+  premiumHoliday: boolean;
+  overtimeAvoidancePenalty: number;
+  teamConsistencyPenalty: number;
+  highRiskShiftPenalty: number;
+  customPreferencePenalty: number;
+}
+
+export interface UIOptimizationSummary {
+  assignmentsChanged: number;
+  totalAssignments: number;
+  coveredShifts: number;
+  uncoveredShifts: number;
+  completedAt: string;
+  appliedSettings: UISchedulerSettings;
+}
+
+export interface UIOptimizationStats {
+  executionTimeMs: number;
+  objectiveValue: number;
+  totalVariables: number;
+  totalConstraints: number;
+}
+
+export interface UIFinancials {
+  totalEnterpriseCost: number;
+  totalIncentiveCost: number;
+  totalOvertimeCost: number;
+  regularPayCost: number;
+}
 
 export interface UINurse {
-    id: string;
-    name: string;
-    shiftHours: number;
-    schedulingRationale: string;
+  id: string;
+  name: string;
+  role: string;
+  shiftHours: number;
+  schedulingRationale: string;
+  isAgency: boolean;
 }
 
 export interface UIShift {
-    // "Morning" | "Afternoon" | "Night"
-    shiftName: 'Morning' | 'Afternoon' | 'Night';
-    patientCount: number;
-    // Note: UI logic uses `requiredHRPD` casing (not `requiredHrpd` from proto)
-    requiredHPRD: number;
-    requiredHours: number;
-    actualHours: number;
-    // UI uses `isHPRDMet` boolean flag
-    isHPRDMet: boolean;
-    nurses: UINurse[];
+  shiftId: string;
+  shiftName: "Morning" | "Afternoon" | "Night";
+  unitId: string;
+  unitName: string;
+  patientCount: number;
+  requiredHPRD: number;
+  requiredHours: number;
+  actualHours: number;
+  isHPRDMet: boolean;
+  nurses: UINurse[];
 }
 
 export interface UIDaySchedule {
-    // YYYY-MM-DD
-    date: string;
-    shifts: UIShift[];
+  date: string;
+  shifts: UIShift[];
 }
 
-// Structure for the received schedules (Map from YYYY-MM-DD string to DaySchedule)
+export interface UISchedulePayload {
+  scheduleId: string;
+  scheduleVersion: number;
+  facilityId: string;
+  schedules: Map<string, UIDaySchedule>;
+  latestOptimization: UIOptimizationSummary | null;
+}
+
 export type ScheduleMap = Map<string, UIDaySchedule>;
 
 export interface UICalendarDay {
-    date: Date | null;
-    dateString: string; // YYYY-MM-DD
-    dayOfMonth: number;
-    isToday: boolean;
-    isCurrentMonth: boolean;
-    isSelectable: boolean;
-    schedule: UIDaySchedule | null;
-    dayHPRDPercentage: number;
-    isPadding: boolean;
-    coverage: number;
+  date: Date | null;
+  dateString: string;
+  dayOfMonth: number;
+  isToday: boolean;
+  isCurrentMonth: boolean;
+  isSelectable: boolean;
+  schedule: UIDaySchedule | null;
+  dayHPRDPercentage: number;
+  isPadding: boolean;
+  coverage: number;
 }

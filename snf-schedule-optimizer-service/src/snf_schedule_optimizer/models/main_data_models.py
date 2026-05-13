@@ -229,11 +229,15 @@ class Schedule:
     # facility_id is Optional because an "Enterprise Optimization" might return a Schedule containing assignments for multiple facilities.
     facility_id: DomainPrimaryKeyType | None = None
     schedule_id: DomainPrimaryKeyType | None = None  # Persistence ID
+    schedule_version: int = 1
 
     # composite key prevents collisions in multi-facility reports. org_id not needed as this exists within an org context, i.e., class contains org_id
     shift_assignments: ShiftAssignmentsType = dataclasses.field(
         default_factory=dict
     )  # {(facility_id, shift_id): [employee_ids]}
+    start_date: str | None = None
+    end_date: str | None = None
+    latest_optimization: OptimizationSummary | None = None
 
     def get_assigned_employees(self, facility_id: int, shift_id: int) -> list[int]:
         key = ShiftKey(facility_id, shift_id)
@@ -295,6 +299,39 @@ class PreferenceWeights:
     team_consistency_penalty: float = 300.0
     high_risk_shift_penalty: float = 2000.0
     custom_preference_penalty: float = 1500.0
+
+
+@dataclass(frozen=True)
+class OptimizationSettings:
+    use_ml_forecast: bool = False
+    use_callout_buffer: bool = True
+    buffer_threshold: int = 10
+    min_rest_period: int = 10
+    max_shift_length: float = 12.0
+    premium_weekend: bool = True
+    premium_holiday: bool = False
+    overtime_avoidance_penalty: float = 1000.0
+    team_consistency_penalty: float = 300.0
+    high_risk_shift_penalty: float = 2000.0
+    custom_preference_penalty: float = 1500.0
+
+    def to_preference_weights(self) -> PreferenceWeights:
+        return PreferenceWeights(
+            ot_avoidance_penalty=self.overtime_avoidance_penalty,
+            team_consistency_penalty=self.team_consistency_penalty,
+            high_risk_shift_penalty=self.high_risk_shift_penalty,
+            custom_preference_penalty=self.custom_preference_penalty,
+        )
+
+
+@dataclass(frozen=True)
+class OptimizationSummary:
+    assignments_changed: int
+    total_assignments: int
+    covered_shifts: int
+    uncovered_shifts: int
+    completed_at: str
+    applied_settings: OptimizationSettings
 
 
 @dataclass(frozen=True)

@@ -1,10 +1,11 @@
 import asyncio
+import datetime
 import logging
 import os
 from collections.abc import Awaitable, Callable
 from typing import Any, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from that_depends import container_context
@@ -16,12 +17,40 @@ from snf_schedule_optimizer.infrastructure.composition import (
 from snf_schedule_optimizer.infrastructure.demo_seeder import DemoSeeder
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 from snf_schedule_optimizer.sqlalchemy_models.employee import EmployeeModel
+from snf_schedule_optimizer.sqlalchemy_models.resident_acuity import ResidentAcuityModel
+from snf_schedule_optimizer.sqlalchemy_models.schedule_assignment import (
+    ScheduleAssignmentModel,
+)
+from snf_schedule_optimizer.sqlalchemy_models.schedule_record import ScheduleRecordModel
+from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("demo-bootstrap")
 
 MAX_BOOTSTRAP_ATTEMPTS = 5
 BOOTSTRAP_RETRY_DELAY_SECONDS = 1.0
+
+
+def _expected_demo_month_start() -> str:
+    today = datetime.date.today()
+    return today.replace(day=1).isoformat()
+
+
+async def _current_demo_window_missing(session: AsyncSession) -> bool:
+    current_month_start = _expected_demo_month_start()
+    stmt = select(func.count()).select_from(ScheduleRecordModel).where(
+        ScheduleRecordModel.start_date <= current_month_start,
+        ScheduleRecordModel.end_date >= current_month_start,
+    )
+    result = await session.execute(stmt)
+    return (result.scalar() or 0) == 0
+
+
+async def _reset_demo_runtime_data(session: AsyncSession) -> None:
+    await session.execute(delete(TimePunchModel))
+    await session.execute(delete(ResidentAcuityModel))
+    await session.execute(delete(ScheduleAssignmentModel))
+    await session.execute(delete(ScheduleRecordModel))
 
 
 async def bootstrap() -> None:
@@ -54,13 +83,26 @@ async def bootstrap() -> None:
                 # Check for existing employees as a marker for seeded data
                 stmt = select(func.count()).select_from(EmployeeModel)
                 result = await session.execute(stmt)
-                count = result.scalar()
+                count = result.scalar() or 0
 
                 if count == 0:
                     logger.info("No data found. Running DemoSeeder...")
+                else:
+                    logger.info(
+                        f"Database already contains {count} employees. Skipping seeding."
+                    )
 
-                    # Use the DIContainer to resolve repositories automatically
-                    # We construct the seeder manually here to ensure it uses the current session
+                needs_demo_refresh = count == 0 or await _current_demo_window_missing(session)
+
+                if count > 0 and needs_demo_refresh:
+                    logger.info(
+                        "Existing data does not cover the current demo window. Refreshing seeded schedule data..."
+                    )
+                    await _reset_demo_runtime_data(session)
+
+                if needs_demo_refresh:
+                    # Use the DIContainer to resolve repositories automatically.
+                    # We construct the seeder manually here to ensure it uses the current session.
                     seeder = DemoSeeder(
                         employee_repo=await repos_container.employee_retriever.resolve(),
                         nurse_repo=await repos_container.nurse_retriever.resolve(),
@@ -73,10 +115,6 @@ async def bootstrap() -> None:
 
                     await seeder.seed_from_scenario(seed=42)
                     logger.info("Seeding complete.")
-                else:
-                    logger.info(
-                        f"Database already contains {count} employees. Skipping seeding."
-                    )
     finally:
         await engine.dispose()
 

@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scheduling/v1/scheduling.proto.
  */
 export const file_scheduling_v1_scheduling: GenFile = /*@__PURE__*/
-  fileDesc("Ch5zY2hlZHVsaW5nL3YxL3NjaGVkdWxpbmcucHJvdG8SDXNjaGVkdWxpbmcudjEiHAoaR2V0QWxsT3JnRmFjaWxpdGllc1JlcXVlc3QiVQobR2V0QWxsT3JnRmFjaWxpdGllc1Jlc3BvbnNlEjYKEmFsbF9vcmdfZmFjaWxpdGllcxgBIAMoCzIaLnNjaGVkdWxpbmcudjEuT3JnRmFjaWxpdHkijQEKGUdldE1vbnRobHlTY2hlZHVsZVJlcXVlc3QSDgoGb3JnX2lkGAEgASgJEhgKC2ZhY2lsaXR5X2lkGAIgASgJSACIAQESEgoKc3RhcnRfZGF0ZRgDIAEoCRIVCghlbmRfZGF0ZRgEIAEoCUgBiAEBQg4KDF9mYWNpbGl0eV9pZEILCglfZW5kX2RhdGUizAEKGkdldE1vbnRobHlTY2hlZHVsZVJlc3BvbnNlEksKCXNjaGVkdWxlcxgBIAMoCzI4LnNjaGVkdWxpbmcudjEuR2V0TW9udGhseVNjaGVkdWxlUmVzcG9uc2UuU2NoZWR1bGVzRW50cnkSEwoLZmFjaWxpdHlfaWQYAiABKAkaTAoOU2NoZWR1bGVzRW50cnkSCwoDa2V5GAEgASgJEikKBXZhbHVlGAIgASgLMhouc2NoZWR1bGluZy52MS5EYXlTY2hlZHVsZToCOAEizAEKGFZhbGlkYXRlU2hpZnRNb3ZlUmVxdWVzdBIOCgZvcmdfaWQYASABKAkSEwoLZmFjaWxpdHlfaWQYAiABKAkSEwoLc2NoZWR1bGVfaWQYAyABKAkSEwoLZW1wbG95ZWVfaWQYBCABKAkSFQoNZnJvbV9zaGlmdF9pZBgFIAEoCRITCgt0b19zaGlmdF9pZBgGIAEoCRIbChNwYXlfcGVyaW9kX3N0YXJ0X3RzGAcgASgDEhgKEHNjaGVkdWxlX3ZlcnNpb24YCCABKAUi9QEKGVZhbGlkYXRlU2hpZnRNb3ZlUmVzcG9uc2USEgoKaXNfc3VjY2VzcxgBIAEoCBIVCg1lcnJvcl9kZXRhaWxzGAIgASgJEjQKEHVwZGF0ZWRfc2NoZWR1bGUYAyABKAsyGi5zY2hlZHVsaW5nLnYxLkRheVNjaGVkdWxlEjIKCmZpbmFuY2lhbHMYBCABKAsyHi5zY2hlZHVsaW5nLnYxLkZpbmFuY2lhbFJlcG9ydBIvCgVzdGF0cxgFIAEoCzIgLnNjaGVkdWxpbmcudjEuT3B0aW1pemF0aW9uU3RhdHMSEgoKdG90YWxfY29zdBgGIAEoASJXChtSZW1vdmVOdXJzZUZyb21TaGlmdFJlcXVlc3QSEgoKc2hpZnRfZGF0ZRgBIAEoCRISCgpzaGlmdF9uYW1lGAIgASgJEhAKCG51cnNlX2lkGAMgASgJInYKHFJlbW92ZU51cnNlRnJvbVNoaWZ0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIPCgdtZXNzYWdlGAIgASgJEjQKEHVwZGF0ZWRfc2NoZWR1bGUYAyABKAsyGi5zY2hlZHVsaW5nLnYxLkRheVNjaGVkdWxlIjIKC09yZ0ZhY2lsaXR5Eg4KBm9yZ19pZBgBIAEoCRITCgtmYWNpbGl0eV9pZBgCIAEoCSKFAQoPRmluYW5jaWFsUmVwb3J0Eh0KFXRvdGFsX2VudGVycHJpc2VfY29zdBgBIAEoARIcChR0b3RhbF9pbmNlbnRpdmVfY29zdBgCIAEoARIbChN0b3RhbF9vdmVydGltZV9jb3N0GAMgASgBEhgKEHJlZ3VsYXJfcGF5X2Nvc3QYBCABKAEiewoRT3B0aW1pemF0aW9uU3RhdHMSGQoRZXhlY3V0aW9uX3RpbWVfbXMYASABKAESFwoPb2JqZWN0aXZlX3ZhbHVlGAIgASgBEhcKD3RvdGFsX3ZhcmlhYmxlcxgDIAEoBRIZChF0b3RhbF9jb25zdHJhaW50cxgEIAEoBSJUCgVOdXJzZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC3NoaWZ0X2hvdXJzGAMgASgBEhwKFHNjaGVkdWxpbmdfcmF0aW9uYWxlGAQgASgJIqoBCgVTaGlmdBIQCghzaGlmdF9pZBgBIAEoCRISCgpzaGlmdF9uYW1lGAIgASgJEhYKDnBhdGllbnRfY2Vuc3VzGAMgASgFEhMKC3RhcmdldF9ocnBkGAQgASgBEhMKC2FjdHVhbF9ocnBkGAUgASgBEhMKC2lzX2hycGRfbWV0GAYgASgIEiQKBm51cnNlcxgHIAMoCzIULnNjaGVkdWxpbmcudjEuTnVyc2UiQQoLRGF5U2NoZWR1bGUSDAoEZGF0ZRgBIAEoCRIkCgZzaGlmdHMYAiADKAsyFC5zY2hlZHVsaW5nLnYxLlNoaWZ0MsUDChFTY2hlZHVsaW5nU2VydmljZRJsChNHZXRBbGxPcmdGYWNpbGl0aWVzEikuc2NoZWR1bGluZy52MS5HZXRBbGxPcmdGYWNpbGl0aWVzUmVxdWVzdBoqLnNjaGVkdWxpbmcudjEuR2V0QWxsT3JnRmFjaWxpdGllc1Jlc3BvbnNlEmkKEkdldE1vbnRobHlTY2hlZHVsZRIoLnNjaGVkdWxpbmcudjEuR2V0TW9udGhseVNjaGVkdWxlUmVxdWVzdBopLnNjaGVkdWxpbmcudjEuR2V0TW9udGhseVNjaGVkdWxlUmVzcG9uc2USZgoRVmFsaWRhdGVTaGlmdE1vdmUSJy5zY2hlZHVsaW5nLnYxLlZhbGlkYXRlU2hpZnRNb3ZlUmVxdWVzdBooLnNjaGVkdWxpbmcudjEuVmFsaWRhdGVTaGlmdE1vdmVSZXNwb25zZRJvChRSZW1vdmVOdXJzZUZyb21TaGlmdBIqLnNjaGVkdWxpbmcudjEuUmVtb3ZlTnVyc2VGcm9tU2hpZnRSZXF1ZXN0Gisuc2NoZWR1bGluZy52MS5SZW1vdmVOdXJzZUZyb21TaGlmdFJlc3BvbnNlYgZwcm90bzM");
+  fileDesc("Ch5zY2hlZHVsaW5nL3YxL3NjaGVkdWxpbmcucHJvdG8SDXNjaGVkdWxpbmcudjEiHAoaR2V0QWxsT3JnRmFjaWxpdGllc1JlcXVlc3QiVQobR2V0QWxsT3JnRmFjaWxpdGllc1Jlc3BvbnNlEjYKEmFsbF9vcmdfZmFjaWxpdGllcxgBIAMoCzIaLnNjaGVkdWxpbmcudjEuT3JnRmFjaWxpdHkijQEKGUdldE1vbnRobHlTY2hlZHVsZVJlcXVlc3QSDgoGb3JnX2lkGAEgASgJEhgKC2ZhY2lsaXR5X2lkGAIgASgJSACIAQESEgoKc3RhcnRfZGF0ZRgDIAEoCRIVCghlbmRfZGF0ZRgEIAEoCUgBiAEBQg4KDF9mYWNpbGl0eV9pZEILCglfZW5kX2RhdGUivAIKGkdldE1vbnRobHlTY2hlZHVsZVJlc3BvbnNlEksKCXNjaGVkdWxlcxgBIAMoCzI4LnNjaGVkdWxpbmcudjEuR2V0TW9udGhseVNjaGVkdWxlUmVzcG9uc2UuU2NoZWR1bGVzRW50cnkSEwoLZmFjaWxpdHlfaWQYAiABKAkSEwoLc2NoZWR1bGVfaWQYAyABKAkSGAoQc2NoZWR1bGVfdmVyc2lvbhgEIAEoBRI/ChNsYXRlc3Rfb3B0aW1pemF0aW9uGAUgASgLMiIuc2NoZWR1bGluZy52MS5PcHRpbWl6YXRpb25TdW1tYXJ5GkwKDlNjaGVkdWxlc0VudHJ5EgsKA2tleRgBIAEoCRIpCgV2YWx1ZRgCIAEoCzIaLnNjaGVkdWxpbmcudjEuRGF5U2NoZWR1bGU6AjgBIsUBChdPcHRpbWl6ZVNjaGVkdWxlUmVxdWVzdBIOCgZvcmdfaWQYASABKAkSEwoLZmFjaWxpdHlfaWQYAiABKAkSEgoKc3RhcnRfZGF0ZRgDIAEoCRIVCghlbmRfZGF0ZRgEIAEoCUgAiAEBEjUKCHNldHRpbmdzGAUgASgLMiMuc2NoZWR1bGluZy52MS5PcHRpbWl6YXRpb25TZXR0aW5ncxIWCg5wZXJzaXN0X3Jlc3VsdBgGIAEoCEILCglfZW5kX2RhdGUivAMKGE9wdGltaXplU2NoZWR1bGVSZXNwb25zZRISCgppc19zdWNjZXNzGAEgASgIEhUKDWVycm9yX2RldGFpbHMYAiABKAkSSQoJc2NoZWR1bGVzGAMgAygLMjYuc2NoZWR1bGluZy52MS5PcHRpbWl6ZVNjaGVkdWxlUmVzcG9uc2UuU2NoZWR1bGVzRW50cnkSEwoLZmFjaWxpdHlfaWQYBCABKAkSEwoLc2NoZWR1bGVfaWQYBSABKAkSGAoQc2NoZWR1bGVfdmVyc2lvbhgGIAEoBRIyCgpmaW5hbmNpYWxzGAcgASgLMh4uc2NoZWR1bGluZy52MS5GaW5hbmNpYWxSZXBvcnQSLwoFc3RhdHMYCCABKAsyIC5zY2hlZHVsaW5nLnYxLk9wdGltaXphdGlvblN0YXRzEjMKB3N1bW1hcnkYCSABKAsyIi5zY2hlZHVsaW5nLnYxLk9wdGltaXphdGlvblN1bW1hcnkaTAoOU2NoZWR1bGVzRW50cnkSCwoDa2V5GAEgASgJEikKBXZhbHVlGAIgASgLMhouc2NoZWR1bGluZy52MS5EYXlTY2hlZHVsZToCOAEizAEKGFZhbGlkYXRlU2hpZnRNb3ZlUmVxdWVzdBIOCgZvcmdfaWQYASABKAkSEwoLZmFjaWxpdHlfaWQYAiABKAkSEwoLc2NoZWR1bGVfaWQYAyABKAkSEwoLZW1wbG95ZWVfaWQYBCABKAkSFQoNZnJvbV9zaGlmdF9pZBgFIAEoCRITCgt0b19zaGlmdF9pZBgGIAEoCRIbChNwYXlfcGVyaW9kX3N0YXJ0X3RzGAcgASgDEhgKEHNjaGVkdWxlX3ZlcnNpb24YCCABKAUi9QEKGVZhbGlkYXRlU2hpZnRNb3ZlUmVzcG9uc2USEgoKaXNfc3VjY2VzcxgBIAEoCBIVCg1lcnJvcl9kZXRhaWxzGAIgASgJEjQKEHVwZGF0ZWRfc2NoZWR1bGUYAyABKAsyGi5zY2hlZHVsaW5nLnYxLkRheVNjaGVkdWxlEjIKCmZpbmFuY2lhbHMYBCABKAsyHi5zY2hlZHVsaW5nLnYxLkZpbmFuY2lhbFJlcG9ydBIvCgVzdGF0cxgFIAEoCzIgLnNjaGVkdWxpbmcudjEuT3B0aW1pemF0aW9uU3RhdHMSEgoKdG90YWxfY29zdBgGIAEoASJXChtSZW1vdmVOdXJzZUZyb21TaGlmdFJlcXVlc3QSEgoKc2hpZnRfZGF0ZRgBIAEoCRISCgpzaGlmdF9uYW1lGAIgASgJEhAKCG51cnNlX2lkGAMgASgJInYKHFJlbW92ZU51cnNlRnJvbVNoaWZ0UmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCBIPCgdtZXNzYWdlGAIgASgJEjQKEHVwZGF0ZWRfc2NoZWR1bGUYAyABKAsyGi5zY2hlZHVsaW5nLnYxLkRheVNjaGVkdWxlIjIKC09yZ0ZhY2lsaXR5Eg4KBm9yZ19pZBgBIAEoCRITCgtmYWNpbGl0eV9pZBgCIAEoCSKFAQoPRmluYW5jaWFsUmVwb3J0Eh0KFXRvdGFsX2VudGVycHJpc2VfY29zdBgBIAEoARIcChR0b3RhbF9pbmNlbnRpdmVfY29zdBgCIAEoARIbChN0b3RhbF9vdmVydGltZV9jb3N0GAMgASgBEhgKEHJlZ3VsYXJfcGF5X2Nvc3QYBCABKAEiewoRT3B0aW1pemF0aW9uU3RhdHMSGQoRZXhlY3V0aW9uX3RpbWVfbXMYASABKAESFwoPb2JqZWN0aXZlX3ZhbHVlGAIgASgBEhcKD3RvdGFsX3ZhcmlhYmxlcxgDIAEoBRIZChF0b3RhbF9jb25zdHJhaW50cxgEIAEoBSLUAgoUT3B0aW1pemF0aW9uU2V0dGluZ3MSFwoPdXNlX21sX2ZvcmVjYXN0GAEgASgIEhoKEnVzZV9jYWxsb3V0X2J1ZmZlchgCIAEoCBIYChBidWZmZXJfdGhyZXNob2xkGAMgASgFEhcKD21pbl9yZXN0X3BlcmlvZBgEIAEoBRIYChBtYXhfc2hpZnRfbGVuZ3RoGAUgASgBEhcKD3ByZW1pdW1fd2Vla2VuZBgGIAEoCBIXCg9wcmVtaXVtX2hvbGlkYXkYByABKAgSIgoab3ZlcnRpbWVfYXZvaWRhbmNlX3BlbmFsdHkYCCABKAESIAoYdGVhbV9jb25zaXN0ZW5jeV9wZW5hbHR5GAkgASgBEh8KF2hpZ2hfcmlza19zaGlmdF9wZW5hbHR5GAogASgBEiEKGWN1c3RvbV9wcmVmZXJlbmNlX3BlbmFsdHkYCyABKAEi1AEKE09wdGltaXphdGlvblN1bW1hcnkSGwoTYXNzaWdubWVudHNfY2hhbmdlZBgBIAEoBRIZChF0b3RhbF9hc3NpZ25tZW50cxgCIAEoBRIWCg5jb3ZlcmVkX3NoaWZ0cxgDIAEoBRIYChB1bmNvdmVyZWRfc2hpZnRzGAQgASgFEhQKDGNvbXBsZXRlZF9hdBgFIAEoCRI9ChBhcHBsaWVkX3NldHRpbmdzGAYgASgLMiMuc2NoZWR1bGluZy52MS5PcHRpbWl6YXRpb25TZXR0aW5ncyJ1CgVOdXJzZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC3NoaWZ0X2hvdXJzGAMgASgBEhwKFHNjaGVkdWxpbmdfcmF0aW9uYWxlGAQgASgJEgwKBHJvbGUYBSABKAkSEQoJaXNfYWdlbmN5GAYgASgIIs4BCgVTaGlmdBIQCghzaGlmdF9pZBgBIAEoCRISCgpzaGlmdF9uYW1lGAIgASgJEhYKDnBhdGllbnRfY2Vuc3VzGAMgASgFEhMKC3RhcmdldF9ocnBkGAQgASgBEhMKC2FjdHVhbF9ocnBkGAUgASgBEhMKC2lzX2hycGRfbWV0GAYgASgIEiQKBm51cnNlcxgHIAMoCzIULnNjaGVkdWxpbmcudjEuTnVyc2USDwoHdW5pdF9pZBgIIAEoCRIRCgl1bml0X25hbWUYCSABKAkiQQoLRGF5U2NoZWR1bGUSDAoEZGF0ZRgBIAEoCRIkCgZzaGlmdHMYAiADKAsyFC5zY2hlZHVsaW5nLnYxLlNoaWZ0MqoEChFTY2hlZHVsaW5nU2VydmljZRJsChNHZXRBbGxPcmdGYWNpbGl0aWVzEikuc2NoZWR1bGluZy52MS5HZXRBbGxPcmdGYWNpbGl0aWVzUmVxdWVzdBoqLnNjaGVkdWxpbmcudjEuR2V0QWxsT3JnRmFjaWxpdGllc1Jlc3BvbnNlEmkKEkdldE1vbnRobHlTY2hlZHVsZRIoLnNjaGVkdWxpbmcudjEuR2V0TW9udGhseVNjaGVkdWxlUmVxdWVzdBopLnNjaGVkdWxpbmcudjEuR2V0TW9udGhseVNjaGVkdWxlUmVzcG9uc2USYwoQT3B0aW1pemVTY2hlZHVsZRImLnNjaGVkdWxpbmcudjEuT3B0aW1pemVTY2hlZHVsZVJlcXVlc3QaJy5zY2hlZHVsaW5nLnYxLk9wdGltaXplU2NoZWR1bGVSZXNwb25zZRJmChFWYWxpZGF0ZVNoaWZ0TW92ZRInLnNjaGVkdWxpbmcudjEuVmFsaWRhdGVTaGlmdE1vdmVSZXF1ZXN0Giguc2NoZWR1bGluZy52MS5WYWxpZGF0ZVNoaWZ0TW92ZVJlc3BvbnNlEm8KFFJlbW92ZU51cnNlRnJvbVNoaWZ0Eiouc2NoZWR1bGluZy52MS5SZW1vdmVOdXJzZUZyb21TaGlmdFJlcXVlc3QaKy5zY2hlZHVsaW5nLnYxLlJlbW92ZU51cnNlRnJvbVNoaWZ0UmVzcG9uc2ViBnByb3RvMw");
 
 /**
  * @generated from message scheduling.v1.GetAllOrgFacilitiesRequest
@@ -91,6 +91,21 @@ export type GetMonthlyScheduleResponse = Message<"scheduling.v1.GetMonthlySchedu
    * @generated from field: string facility_id = 2;
    */
   facilityId: string;
+
+  /**
+   * @generated from field: string schedule_id = 3;
+   */
+  scheduleId: string;
+
+  /**
+   * @generated from field: int32 schedule_version = 4;
+   */
+  scheduleVersion: number;
+
+  /**
+   * @generated from field: scheduling.v1.OptimizationSummary latest_optimization = 5;
+   */
+  latestOptimization?: OptimizationSummary;
 };
 
 /**
@@ -99,6 +114,105 @@ export type GetMonthlyScheduleResponse = Message<"scheduling.v1.GetMonthlySchedu
  */
 export const GetMonthlyScheduleResponseSchema: GenMessage<GetMonthlyScheduleResponse> = /*@__PURE__*/
   messageDesc(file_scheduling_v1_scheduling, 3);
+
+/**
+ * @generated from message scheduling.v1.OptimizeScheduleRequest
+ */
+export type OptimizeScheduleRequest = Message<"scheduling.v1.OptimizeScheduleRequest"> & {
+  /**
+   * @generated from field: string org_id = 1;
+   */
+  orgId: string;
+
+  /**
+   * @generated from field: string facility_id = 2;
+   */
+  facilityId: string;
+
+  /**
+   * @generated from field: string start_date = 3;
+   */
+  startDate: string;
+
+  /**
+   * @generated from field: optional string end_date = 4;
+   */
+  endDate?: string;
+
+  /**
+   * @generated from field: scheduling.v1.OptimizationSettings settings = 5;
+   */
+  settings?: OptimizationSettings;
+
+  /**
+   * @generated from field: bool persist_result = 6;
+   */
+  persistResult: boolean;
+};
+
+/**
+ * Describes the message scheduling.v1.OptimizeScheduleRequest.
+ * Use `create(OptimizeScheduleRequestSchema)` to create a new message.
+ */
+export const OptimizeScheduleRequestSchema: GenMessage<OptimizeScheduleRequest> = /*@__PURE__*/
+  messageDesc(file_scheduling_v1_scheduling, 4);
+
+/**
+ * @generated from message scheduling.v1.OptimizeScheduleResponse
+ */
+export type OptimizeScheduleResponse = Message<"scheduling.v1.OptimizeScheduleResponse"> & {
+  /**
+   * @generated from field: bool is_success = 1;
+   */
+  isSuccess: boolean;
+
+  /**
+   * @generated from field: string error_details = 2;
+   */
+  errorDetails: string;
+
+  /**
+   * @generated from field: map<string, scheduling.v1.DaySchedule> schedules = 3;
+   */
+  schedules: { [key: string]: DaySchedule };
+
+  /**
+   * @generated from field: string facility_id = 4;
+   */
+  facilityId: string;
+
+  /**
+   * @generated from field: string schedule_id = 5;
+   */
+  scheduleId: string;
+
+  /**
+   * @generated from field: int32 schedule_version = 6;
+   */
+  scheduleVersion: number;
+
+  /**
+   * @generated from field: scheduling.v1.FinancialReport financials = 7;
+   */
+  financials?: FinancialReport;
+
+  /**
+   * @generated from field: scheduling.v1.OptimizationStats stats = 8;
+   */
+  stats?: OptimizationStats;
+
+  /**
+   * @generated from field: scheduling.v1.OptimizationSummary summary = 9;
+   */
+  summary?: OptimizationSummary;
+};
+
+/**
+ * Describes the message scheduling.v1.OptimizeScheduleResponse.
+ * Use `create(OptimizeScheduleResponseSchema)` to create a new message.
+ */
+export const OptimizeScheduleResponseSchema: GenMessage<OptimizeScheduleResponse> = /*@__PURE__*/
+  messageDesc(file_scheduling_v1_scheduling, 5);
 
 /**
  * @generated from message scheduling.v1.ValidateShiftMoveRequest
@@ -158,7 +272,7 @@ export type ValidateShiftMoveRequest = Message<"scheduling.v1.ValidateShiftMoveR
  * Use `create(ValidateShiftMoveRequestSchema)` to create a new message.
  */
 export const ValidateShiftMoveRequestSchema: GenMessage<ValidateShiftMoveRequest> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 4);
+  messageDesc(file_scheduling_v1_scheduling, 6);
 
 /**
  * @generated from message scheduling.v1.ValidateShiftMoveResponse
@@ -210,7 +324,7 @@ export type ValidateShiftMoveResponse = Message<"scheduling.v1.ValidateShiftMove
  * Use `create(ValidateShiftMoveResponseSchema)` to create a new message.
  */
 export const ValidateShiftMoveResponseSchema: GenMessage<ValidateShiftMoveResponse> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 5);
+  messageDesc(file_scheduling_v1_scheduling, 7);
 
 /**
  * @generated from message scheduling.v1.RemoveNurseFromShiftRequest
@@ -243,7 +357,7 @@ export type RemoveNurseFromShiftRequest = Message<"scheduling.v1.RemoveNurseFrom
  * Use `create(RemoveNurseFromShiftRequestSchema)` to create a new message.
  */
 export const RemoveNurseFromShiftRequestSchema: GenMessage<RemoveNurseFromShiftRequest> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 6);
+  messageDesc(file_scheduling_v1_scheduling, 8);
 
 /**
  * @generated from message scheduling.v1.RemoveNurseFromShiftResponse
@@ -272,7 +386,7 @@ export type RemoveNurseFromShiftResponse = Message<"scheduling.v1.RemoveNurseFro
  * Use `create(RemoveNurseFromShiftResponseSchema)` to create a new message.
  */
 export const RemoveNurseFromShiftResponseSchema: GenMessage<RemoveNurseFromShiftResponse> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 7);
+  messageDesc(file_scheduling_v1_scheduling, 9);
 
 /**
  * @generated from message scheduling.v1.OrgFacility
@@ -294,7 +408,7 @@ export type OrgFacility = Message<"scheduling.v1.OrgFacility"> & {
  * Use `create(OrgFacilitySchema)` to create a new message.
  */
 export const OrgFacilitySchema: GenMessage<OrgFacility> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 8);
+  messageDesc(file_scheduling_v1_scheduling, 10);
 
 /**
  * @generated from message scheduling.v1.FinancialReport
@@ -326,7 +440,7 @@ export type FinancialReport = Message<"scheduling.v1.FinancialReport"> & {
  * Use `create(FinancialReportSchema)` to create a new message.
  */
 export const FinancialReportSchema: GenMessage<FinancialReport> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 9);
+  messageDesc(file_scheduling_v1_scheduling, 11);
 
 /**
  * @generated from message scheduling.v1.OptimizationStats
@@ -358,7 +472,116 @@ export type OptimizationStats = Message<"scheduling.v1.OptimizationStats"> & {
  * Use `create(OptimizationStatsSchema)` to create a new message.
  */
 export const OptimizationStatsSchema: GenMessage<OptimizationStats> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 10);
+  messageDesc(file_scheduling_v1_scheduling, 12);
+
+/**
+ * @generated from message scheduling.v1.OptimizationSettings
+ */
+export type OptimizationSettings = Message<"scheduling.v1.OptimizationSettings"> & {
+  /**
+   * @generated from field: bool use_ml_forecast = 1;
+   */
+  useMlForecast: boolean;
+
+  /**
+   * @generated from field: bool use_callout_buffer = 2;
+   */
+  useCalloutBuffer: boolean;
+
+  /**
+   * @generated from field: int32 buffer_threshold = 3;
+   */
+  bufferThreshold: number;
+
+  /**
+   * @generated from field: int32 min_rest_period = 4;
+   */
+  minRestPeriod: number;
+
+  /**
+   * @generated from field: double max_shift_length = 5;
+   */
+  maxShiftLength: number;
+
+  /**
+   * @generated from field: bool premium_weekend = 6;
+   */
+  premiumWeekend: boolean;
+
+  /**
+   * @generated from field: bool premium_holiday = 7;
+   */
+  premiumHoliday: boolean;
+
+  /**
+   * @generated from field: double overtime_avoidance_penalty = 8;
+   */
+  overtimeAvoidancePenalty: number;
+
+  /**
+   * @generated from field: double team_consistency_penalty = 9;
+   */
+  teamConsistencyPenalty: number;
+
+  /**
+   * @generated from field: double high_risk_shift_penalty = 10;
+   */
+  highRiskShiftPenalty: number;
+
+  /**
+   * @generated from field: double custom_preference_penalty = 11;
+   */
+  customPreferencePenalty: number;
+};
+
+/**
+ * Describes the message scheduling.v1.OptimizationSettings.
+ * Use `create(OptimizationSettingsSchema)` to create a new message.
+ */
+export const OptimizationSettingsSchema: GenMessage<OptimizationSettings> = /*@__PURE__*/
+  messageDesc(file_scheduling_v1_scheduling, 13);
+
+/**
+ * @generated from message scheduling.v1.OptimizationSummary
+ */
+export type OptimizationSummary = Message<"scheduling.v1.OptimizationSummary"> & {
+  /**
+   * @generated from field: int32 assignments_changed = 1;
+   */
+  assignmentsChanged: number;
+
+  /**
+   * @generated from field: int32 total_assignments = 2;
+   */
+  totalAssignments: number;
+
+  /**
+   * @generated from field: int32 covered_shifts = 3;
+   */
+  coveredShifts: number;
+
+  /**
+   * @generated from field: int32 uncovered_shifts = 4;
+   */
+  uncoveredShifts: number;
+
+  /**
+   * @generated from field: string completed_at = 5;
+   */
+  completedAt: string;
+
+  /**
+   * @generated from field: scheduling.v1.OptimizationSettings applied_settings = 6;
+   */
+  appliedSettings?: OptimizationSettings;
+};
+
+/**
+ * Describes the message scheduling.v1.OptimizationSummary.
+ * Use `create(OptimizationSummarySchema)` to create a new message.
+ */
+export const OptimizationSummarySchema: GenMessage<OptimizationSummary> = /*@__PURE__*/
+  messageDesc(file_scheduling_v1_scheduling, 14);
 
 /**
  * @generated from message scheduling.v1.Nurse
@@ -383,6 +606,16 @@ export type Nurse = Message<"scheduling.v1.Nurse"> & {
    * @generated from field: string scheduling_rationale = 4;
    */
   schedulingRationale: string;
+
+  /**
+   * @generated from field: string role = 5;
+   */
+  role: string;
+
+  /**
+   * @generated from field: bool is_agency = 6;
+   */
+  isAgency: boolean;
 };
 
 /**
@@ -390,7 +623,7 @@ export type Nurse = Message<"scheduling.v1.Nurse"> & {
  * Use `create(NurseSchema)` to create a new message.
  */
 export const NurseSchema: GenMessage<Nurse> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 11);
+  messageDesc(file_scheduling_v1_scheduling, 15);
 
 /**
  * @generated from message scheduling.v1.Shift
@@ -432,6 +665,16 @@ export type Shift = Message<"scheduling.v1.Shift"> & {
    * @generated from field: repeated scheduling.v1.Nurse nurses = 7;
    */
   nurses: Nurse[];
+
+  /**
+   * @generated from field: string unit_id = 8;
+   */
+  unitId: string;
+
+  /**
+   * @generated from field: string unit_name = 9;
+   */
+  unitName: string;
 };
 
 /**
@@ -439,7 +682,7 @@ export type Shift = Message<"scheduling.v1.Shift"> & {
  * Use `create(ShiftSchema)` to create a new message.
  */
 export const ShiftSchema: GenMessage<Shift> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 12);
+  messageDesc(file_scheduling_v1_scheduling, 16);
 
 /**
  * @generated from message scheduling.v1.DaySchedule
@@ -463,7 +706,7 @@ export type DaySchedule = Message<"scheduling.v1.DaySchedule"> & {
  * Use `create(DayScheduleSchema)` to create a new message.
  */
 export const DayScheduleSchema: GenMessage<DaySchedule> = /*@__PURE__*/
-  messageDesc(file_scheduling_v1_scheduling, 13);
+  messageDesc(file_scheduling_v1_scheduling, 17);
 
 /**
  * The main service used to interact with shift and staffing data.
@@ -492,6 +735,16 @@ export const SchedulingService: GenService<{
     methodKind: "unary";
     input: typeof GetMonthlyScheduleRequestSchema;
     output: typeof GetMonthlyScheduleResponseSchema;
+  },
+  /**
+   * Runs a full optimization pass and optionally persists the resulting schedule.
+   *
+   * @generated from rpc scheduling.v1.SchedulingService.OptimizeSchedule
+   */
+  optimizeSchedule: {
+    methodKind: "unary";
+    input: typeof OptimizeScheduleRequestSchema;
+    output: typeof OptimizeScheduleResponseSchema;
   },
   /**
    * Validates if a specific move (drag & drop) is feasible against all business rules.

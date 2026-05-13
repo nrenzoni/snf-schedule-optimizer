@@ -50,10 +50,15 @@ class SQLNurseRepo(INurseRepo):
         Retrieves all active nurse profiles.
         In production, this would typically filter by facility_id or org_id from the shift.
         """
-        stmt = select(NurseProfileModel)
+        stmt = select(NurseProfileModel).where(NurseProfileModel.org_id == shift.org_id)
         result = await self.session.execute(stmt)
         models = result.scalars().all()
-        return [m.to_domain() for m in models]
+        shift_duration = shift.duration_hours
+        return [
+            model.to_domain()
+            for model in models
+            if model.available_hours_weekly >= shift_duration
+        ]
 
     async def get_nurse(self, employee_id: DomainPrimaryKeyType) -> NurseProfile | None:
         """

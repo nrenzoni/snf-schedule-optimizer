@@ -62,8 +62,10 @@ const createMockNurses = (
     nurses.push({
       id,
       name,
+      role: "CNA",
       shiftHours: hours,
       schedulingRationale: rationale,
+      isAgency: false,
     });
   }
   return nurses;
@@ -98,7 +100,10 @@ const createShift = (
     actualHours >= requiredHours && (isWeekend ? Math.random() > 0.3 : true);
 
   return {
+    shiftId: `${formatDateYYYMMDD(date)}-${shiftName.toLowerCase()}`,
     shiftName,
+    unitId: "unit-mock",
+    unitName: "Mock Unit",
     patientCount,
     requiredHPRD: requiredHPRD,
     requiredHours,
@@ -154,7 +159,10 @@ const createEmptyShift = (
 
   // Key difference: actualHours is 0, nurses is empty.
   return {
+    shiftId: `empty-${shiftName.toLowerCase()}`,
     shiftName,
+    unitId: "unit-mock",
+    unitName: "Mock Unit",
     patientCount,
     requiredHPRD: requiredHPRD,
     requiredHours: requiredHours,

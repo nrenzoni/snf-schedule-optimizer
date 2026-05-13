@@ -1,20 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatDateYYYMMDD } from "@/utils/scheduling-logic";
 import { useSchedulingStore } from "@/store/schedulingStore";
-import { ScheduleMap, UIDaySchedule, UINurse, UIShift } from "@/types/scheduling";
+import {
+  ScheduleMap,
+  UIDaySchedule,
+  UIFinancials,
+  UIOptimizationStats,
+  UIOptimizationSummary,
+  UINurse,
+  UIShift,
+} from "@/types/scheduling";
 import { useShallow } from "zustand/react/shallow";
 import {
   DaySchedule as ProtoDaySchedule,
+  FinancialReport,
   Nurse as ProtoNurse,
+  OptimizationStats,
+  OptimizationSummary,
   OrgFacility,
   Shift as ProtoShift,
 } from "@/gen/scheduling/v1/scheduling_pb";
-import { schedulingClient } from "@/api/scheduling-client";
+import { configuredBaseUrl, schedulingClient } from "@/api/scheduling-client";
 import { useEffect } from "react";
 
 type ScheduleQueryErrorCode =
   | "NO_FACILITIES"
   | "API_UNAVAILABLE"
+  | "MISSING_API_BASE_URL"
   | "UNKNOWN";
 
 export class ScheduleQueryError extends Error {
@@ -30,12 +42,17 @@ export class ScheduleQueryError extends Error {
 const protoNurseToUI = (nurse: ProtoNurse): UINurse => ({
   id: nurse.id,
   name: nurse.name,
+  role: nurse.role,
   shiftHours: nurse.shiftHours,
   schedulingRationale: nurse.schedulingRationale,
+  isAgency: nurse.isAgency,
 });
 
 const protoShiftToUI = (p: ProtoShift): UIShift => ({
+  shiftId: p.shiftId,
   shiftName: p.shiftName as UIShift["shiftName"],
+  unitId: p.unitId || "unit-unknown",
+  unitName: p.unitName || "Unassigned Unit",
   patientCount: p.patientCensus,
   requiredHPRD: p.targetHrpd ?? 0,
   requiredHours: (p.patientCensus ?? 0) * (p.targetHrpd ?? 0),
@@ -44,16 +61,67 @@ const protoShiftToUI = (p: ProtoShift): UIShift => ({
   nurses: (p.nurses || []).map(protoNurseToUI),
 });
 
-const protoDayToUI = (d: ProtoDaySchedule): UIDaySchedule => ({
+export const protoDayToUI = (d: ProtoDaySchedule): UIDaySchedule => ({
   date: d.date,
   shifts: (d.shifts || []).map(protoShiftToUI),
 });
 
-// Define the shape of the query key for type safety
+const protoSummaryToUI = (summary?: OptimizationSummary): UIOptimizationSummary | null => {
+  if (!summary) {
+    return null;
+  }
+  return {
+    assignmentsChanged: summary.assignmentsChanged,
+    totalAssignments: summary.totalAssignments,
+    coveredShifts: summary.coveredShifts,
+    uncoveredShifts: summary.uncoveredShifts,
+    completedAt: summary.completedAt,
+    appliedSettings: {
+      useMLForecast: summary.appliedSettings?.useMlForecast ?? false,
+      useCalloutBuffer: summary.appliedSettings?.useCalloutBuffer ?? false,
+      bufferThreshold: summary.appliedSettings?.bufferThreshold ?? 0,
+      minRestPeriod: summary.appliedSettings?.minRestPeriod ?? 0,
+      maxShiftLength: summary.appliedSettings?.maxShiftLength ?? 0,
+      premiumWeekend: summary.appliedSettings?.premiumWeekend ?? false,
+      premiumHoliday: summary.appliedSettings?.premiumHoliday ?? false,
+      overtimeAvoidancePenalty:
+        summary.appliedSettings?.overtimeAvoidancePenalty ?? 0,
+      teamConsistencyPenalty:
+        summary.appliedSettings?.teamConsistencyPenalty ?? 0,
+      highRiskShiftPenalty: summary.appliedSettings?.highRiskShiftPenalty ?? 0,
+      customPreferencePenalty:
+        summary.appliedSettings?.customPreferencePenalty ?? 0,
+    },
+  };
+};
+
+export const protoFinancialsToUI = (financials?: FinancialReport): UIFinancials | null => {
+  if (!financials) {
+    return null;
+  }
+  return {
+    totalEnterpriseCost: financials.totalEnterpriseCost,
+    totalIncentiveCost: financials.totalIncentiveCost,
+    totalOvertimeCost: financials.totalOvertimeCost,
+    regularPayCost: financials.regularPayCost,
+  };
+};
+
+export const protoStatsToUI = (stats?: OptimizationStats): UIOptimizationStats | null => {
+  if (!stats) {
+    return null;
+  }
+  return {
+    executionTimeMs: stats.executionTimeMs,
+    objectiveValue: stats.objectiveValue,
+    totalVariables: stats.totalVariables,
+    totalConstraints: stats.totalConstraints,
+  };
+};
+
 interface ScheduleQueryKey {
-  startDate: string; // YYYY-MM-DD
-  endDate: string; // YYYY-MM-DD
-  isOptimized: boolean; // Optimization state for mock data generation
+  startDate: string;
+  endDate: string;
 }
 
 async function fetchScheduleData({
@@ -62,17 +130,23 @@ async function fetchScheduleData({
 }: ScheduleQueryKey): Promise<{
   scheduleMap: ScheduleMap;
   selectedFacility: OrgFacility;
+  scheduleId: string;
+  scheduleVersion: number;
+  latestOptimization: UIOptimizationSummary | null;
 }> {
-  const facilities = await schedulingClient.getAllOrgFacilities({}).catch(
-    (error) => {
-      throw new ScheduleQueryError(
-        error instanceof Error
-          ? error.message
-          : "The scheduling API is unavailable.",
-        "API_UNAVAILABLE",
-      );
-    },
-  );
+  if (!configuredBaseUrl) {
+    throw new ScheduleQueryError(
+      "The UI is missing NEXT_PUBLIC_API_BASE_URL. Configure an explicit backend base URL and reload the app.",
+      "MISSING_API_BASE_URL",
+    );
+  }
+
+  const facilities = await schedulingClient.getAllOrgFacilities({}).catch((error) => {
+    throw new ScheduleQueryError(
+      error instanceof Error ? error.message : "The scheduling API is unavailable.",
+      "API_UNAVAILABLE",
+    );
+  });
   const selectedFacility = facilities.allOrgFacilities.at(0);
 
   if (!selectedFacility) {
@@ -93,16 +167,20 @@ async function fetchScheduleData({
   Object.entries(response.schedules).forEach(([dateStr, schedule]) => {
     newSchedules.set(dateStr, protoDayToUI(schedule as ProtoDaySchedule));
   });
-  return { scheduleMap: newSchedules, selectedFacility };
+  return {
+    scheduleMap: newSchedules,
+    selectedFacility,
+    scheduleId: response.scheduleId,
+    scheduleVersion: response.scheduleVersion,
+    latestOptimization: protoSummaryToUI(response.latestOptimization),
+  };
 }
 
 export default function useScheduleQuery(anchorDate: Date) {
-  // 1. Get current data anchor and optimization state from the store
-  const { isOptimized, mergeScheduleData, setIsOptimizing } = useSchedulingStore(
+  const { replaceScheduleData, setScheduleData, setIsOptimizing } = useSchedulingStore(
     useShallow((state) => ({
-      isOptimized: state.isOptimized,
-      mergeScheduleData: state.mergeScheduleData,
-      // 1. Get the spinner setter
+      replaceScheduleData: state.replaceScheduleData,
+      setScheduleData: state.setScheduleData,
       setIsOptimizing: state.setIsOptimizing,
     })),
   );
@@ -112,52 +190,45 @@ export default function useScheduleQuery(anchorDate: Date) {
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + 5);
 
-  // 2. Derive a stable query key based on the visible schedule range.
   const queryKey: ScheduleQueryKey = {
     startDate: formatDateYYYMMDD(startDate),
     endDate: formatDateYYYMMDD(endDate),
-    isOptimized: isOptimized,
   };
 
-  // 3. Use TanStack Query to manage fetching, caching, and state
   const query = useQuery({
     queryKey: ["schedule", queryKey],
     queryFn: () => fetchScheduleData(queryKey),
-    // Keep stale time low for demonstration
     staleTime: 5 * 1000,
-    // Refetch whenever the key changes (i.e., month changes OR optimization state changes)
-    // enabled: true,
   });
 
-  // 4. Sync to Zustand (The "Effect" Pattern)
-  // This replaces onSuccess/onError which are deprecated/removed in v5
   useEffect(() => {
     if (!query.isFetching) {
       setIsOptimizing(false);
     }
 
     if (query.status === "success") {
-      mergeScheduleData(
+      replaceScheduleData(
         query.data.scheduleMap,
-        false,
-        null,
         query.data.selectedFacility,
+        query.data.scheduleId,
+        query.data.scheduleVersion,
+        query.data.latestOptimization,
       );
     } else if (query.status === "error") {
-      mergeScheduleData(new Map(), false, query.error as Error, null);
+      setScheduleData(new Map(), false, query.error as Error, null);
     } else if (query.status === "pending") {
-      mergeScheduleData(new Map(), true, null, null);
+      setScheduleData(new Map(), true, null, null);
     }
   }, [
     query.status,
     query.isFetching,
     query.data,
     query.error,
-    mergeScheduleData,
+    replaceScheduleData,
     setIsOptimizing,
+    setScheduleData,
   ]);
 
-  // We expose the query status but the data flows directly into Zustand
   return {
     data: query.data,
     isFetching: query.isFetching,
@@ -166,3 +237,5 @@ export default function useScheduleQuery(anchorDate: Date) {
     refetch: query.refetch,
   };
 }
+
+export { protoSummaryToUI };

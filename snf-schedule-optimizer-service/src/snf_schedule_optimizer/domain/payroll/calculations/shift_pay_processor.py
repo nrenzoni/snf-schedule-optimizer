@@ -135,7 +135,7 @@ class ShiftPayProcessor:
             # If not, use your existing calculate_effective_rate and infer:
 
             # Simplified Logic:
-            hourly_rate = comp_record.base_rate_effective
+            hourly_rate = float(comp_record.base_rate_effective)
 
             # Base Cost (The straight time portion)
             segment_base = segment.duration_hours * hourly_rate
@@ -164,7 +164,7 @@ class ShiftPayProcessor:
                     )
                 elif differential.type == DifferentialType.FLAT:
                     assert differential.flat is not None
-                    seg_diff += differential.flat * segment.duration_hours
+                    seg_diff += float(differential.flat) * segment.duration_hours
 
             base_wage += segment_base
             ot_premium += seg_ot_prem

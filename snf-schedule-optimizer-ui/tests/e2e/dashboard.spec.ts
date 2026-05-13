@@ -84,3 +84,46 @@ test("scheduling toolbar stays shared across list and timeline", async ({ page }
 
   expect(staffMixTop).toBeGreaterThan(scheduleBottom);
 });
+
+test("optimize flow updates the persisted schedule summary", async ({ page }) => {
+  test.setTimeout(120_000);
+
+  await page.goto("/schedule?tab=scheduling&view=timeline");
+
+  const optimizeButton = page.getByTestId("optimize-schedule");
+  const summaryButton = page.getByTestId("open-schedule-summary");
+  const facilitySummary = page.getByTestId("facility-summary");
+  const scheduleLoadError = page.getByRole("heading", {
+    name: /schedule data could not be loaded/i,
+  });
+  const optimizeResponse = page.waitForResponse((response) => {
+    return response.url().includes("/scheduling.v1.SchedulingService/OptimizeSchedule");
+  });
+
+  await expect(optimizeButton).toBeVisible();
+  await expect(summaryButton).toBeVisible();
+  await expect(scheduleLoadError).toBeHidden();
+  await expect(facilitySummary).not.toContainText(/facility:\s*none/i);
+  await expect(facilitySummary).not.toContainText(/loaded days:\s*0/i);
+
+  await optimizeButton.click();
+  const response = await optimizeResponse;
+  expect(response.ok()).toBeTruthy();
+  await expect(optimizeButton).toBeEnabled({ timeout: 60000 });
+  await expect(optimizeButton).toContainText(/^optimize$/i);
+
+  await summaryButton.click();
+
+  await expect(page.getByRole("heading", { name: /monthly schedule summary/i })).toBeVisible();
+  await expect(page.getByText(/latest run:/i)).not.toContainText(/no optimization completed yet/i);
+  await expect(page.getByText(/runtime/i)).toBeVisible();
+  await expect(page.getByText(/objective/i)).toBeVisible();
+  await expect(page.getByText(/variables/i)).toBeVisible();
+  await expect(page.getByText(/constraints/i)).toBeVisible();
+
+  const latestRunText = await page.getByText(/latest run:/i).textContent();
+  expect(latestRunText).toBeTruthy();
+  expect(latestRunText).not.toMatch(/no optimization completed yet/i);
+
+  await expect(page.getByRole("button", { name: /close summary/i })).toBeVisible();
+});

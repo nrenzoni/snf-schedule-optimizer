@@ -5,12 +5,7 @@
     {
       "name": "open dashboard",
       "action": "goto",
-      "url": "/"
-    },
-    {
-      "name": "open module menu for analyzer",
-      "action": "hover_test_id",
-      "testId": "module-menu"
+      "url": "/schedule?tab=scheduling&view=timeline"
     },
     {
       "name": "open scenario analyzer",
@@ -33,11 +28,6 @@
       "text": "Wage Increase Impact"
     },
     {
-      "name": "open module menu for forecasts",
-      "action": "hover_test_id",
-      "testId": "module-menu"
-    },
-    {
       "name": "open ml forecasts",
       "action": "click_test_id",
       "testId": "tab-ml-forecasts"
@@ -54,14 +44,8 @@
     },
     {
       "name": "close forecast detail",
-      "action": "click_role",
-      "role": "button",
-      "namePattern": "Close forecast details"
-    },
-    {
-      "name": "open module menu for scheduling",
-      "action": "hover_test_id",
-      "testId": "module-menu"
+      "action": "press_key",
+      "key": "Escape"
     },
     {
       "name": "return to scheduling",

@@ -17,9 +17,11 @@ class MLModelOutputsRepo(IMLModelOutputsRepo):
         self,
         shift: Shift,
     ) -> MlModelOutputs:
+        stressed_unit = shift.unit_id or 0
+        shift_risk = 0.2 if not shift.day_shift else 0.05
         return MlModelOutputs(
             turnover_risk_scores={},
-            shift_call_out_forecast=0.0,
-            unit_acuity_stress={},
+            shift_call_out_forecast=shift_risk,
+            unit_acuity_stress={stressed_unit: 0.15 if shift.day_shift else 0.25},
             team_compatibility_scores={},
         )

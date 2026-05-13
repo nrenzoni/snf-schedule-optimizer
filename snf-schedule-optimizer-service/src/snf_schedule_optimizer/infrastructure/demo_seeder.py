@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from collections import defaultdict
 
 import whenever
@@ -20,6 +21,8 @@ from snf_schedule_optimizer.models import (
 )
 from snf_schedule_optimizer.models.scenario_models import TimeConfig, WorkforceConfig
 from snf_schedule_optimizer.persistence import INurseRepo
+from snf_schedule_optimizer.sqlalchemy_models.resident_acuity import ResidentAcuityModel
+from snf_schedule_optimizer.sqlalchemy_models.time_punch_model import TimePunchModel
 
 
 class DemoSeeder:
@@ -101,13 +104,27 @@ class DemoSeeder:
                 record,
             )
 
-        await self.schedule_repo.save_schedule(
-            self._build_demo_schedule(
-                org_id=scenario_builder.org_id,
-                facility_id=scenario_builder.facility_id,
-                shifts=scenario.shifts,
-                nurses=scenario.nurses,
-            )
+        self._seed_acuity_records(
+            org_id=scenario_builder.org_id,
+            facility_id=scenario_builder.facility_id,
+            scenario=scenario,
+        )
+
+        demo_schedule = self._build_demo_schedule(
+            org_id=scenario_builder.org_id,
+            facility_id=scenario_builder.facility_id,
+            shifts=scenario.shifts,
+            nurses=scenario.nurses,
+        )
+
+        await self.schedule_repo.save_schedule(demo_schedule)
+
+        self._seed_time_punch_history(
+            org_id=scenario_builder.org_id,
+            facility_id=scenario_builder.facility_id,
+            shifts=scenario.shifts,
+            schedule=demo_schedule,
+            history_map=scenario.history_map,
         )
 
         await self.db_session.commit()
@@ -145,7 +162,11 @@ class DemoSeeder:
         lpn_ids = [nurse.employee_id for nurse in nurses if "LPN" in (nurse.skills or [])]
         cna_ids = [nurse.employee_id for nurse in nurses if "CNA" in (nurse.skills or [])]
         if not rn_ids and not lpn_ids and not cna_ids:
-            return Schedule(org_id=org_id, facility_id=facility_id, schedule_id=1)
+            return Schedule(
+                org_id=org_id,
+                facility_id=facility_id,
+                schedule_id=1,
+            )
 
         unit_staffing = {
             101: {1: (1, 2, 6), 2: (1, 2, 5), 3: (1, 1, 3)},  # Rehab
@@ -181,4 +202,86 @@ class DemoSeeder:
             facility_id=facility_id,
             schedule_id=1,
             shift_assignments=dict(assignments),
+            start_date=shifts[0].shift_start_dt.date().format_common_iso() if shifts else None,
+            end_date=shifts[-1].shift_start_dt.date().format_common_iso() if shifts else None,
         )
+
+    def _seed_acuity_records(self, org_id: int, facility_id: int, scenario: object) -> None:
+        for resident in getattr(scenario, "acuity_data", []):
+            self.db_session.add(
+                ResidentAcuityModel(
+                    org_id=org_id,
+                    facility_id=facility_id,
+                    resident_id=resident.resident_id,
+                    census_day=resident.census_day.to_instant(),
+                    unit_id=resident.unit_id,
+                    pt_score_gg=resident.pt_score_gg,
+                    nta_score=resident.nta_score,
+                    clinical_category=resident.clinical_category,
+                )
+            )
+
+    def _seed_time_punch_history(
+        self,
+        org_id: int,
+        facility_id: int,
+        shifts: list[Shift],
+        schedule: Schedule,
+        history_map: dict[int, float],
+    ) -> None:
+        shifts_by_employee: dict[int, list[Shift]] = defaultdict(list)
+        for shift in shifts:
+            for employee_id in schedule.shift_assignments.get(shift.shift_key, []):
+                shifts_by_employee[employee_id].append(shift)
+
+        for employee_id, worked_hours in history_map.items():
+            employee_shifts = sorted(
+                shifts_by_employee.get(employee_id, []),
+                key=lambda shift: shift.shift_start_dt,
+            )
+            shifts_needed = int(worked_hours // 8)
+            for shift in employee_shifts[:shifts_needed]:
+                self.db_session.add(
+                    TimePunchModel(
+                        org_id=org_id,
+                        facility_id=facility_id,
+                        raw_punch_id=str(uuid.uuid4()),
+                        employee_id=employee_id,
+                        punch_time=shift.shift_start_dt.to_instant(),
+                        punch_type="CheckIn",
+                        is_void=False,
+                        is_ignored=False,
+                        is_dragged_time=False,
+                        shift_id=shift.shift_id,
+                        shift_code=f"SHIFT-{shift.shift_id}",
+                        job_code=None,
+                        cost_center_1=str(shift.unit_id) if shift.unit_id is not None else None,
+                        cost_center_2=None,
+                        cost_center_3=None,
+                        rate=None,
+                        meal_not_taken=False,
+                        punch_recorded_at=datetime.datetime.now(datetime.UTC),
+                    )
+                )
+                self.db_session.add(
+                    TimePunchModel(
+                        org_id=org_id,
+                        facility_id=facility_id,
+                        raw_punch_id=str(uuid.uuid4()),
+                        employee_id=employee_id,
+                        punch_time=shift.shift_end_dt.to_instant(),
+                        punch_type="CheckOut",
+                        is_void=False,
+                        is_ignored=False,
+                        is_dragged_time=False,
+                        shift_id=shift.shift_id,
+                        shift_code=f"SHIFT-{shift.shift_id}",
+                        job_code=None,
+                        cost_center_1=str(shift.unit_id) if shift.unit_id is not None else None,
+                        cost_center_2=None,
+                        cost_center_3=None,
+                        rate=None,
+                        meal_not_taken=False,
+                        punch_recorded_at=datetime.datetime.now(datetime.UTC),
+                    )
+                )

@@ -70,3 +70,8 @@ class IScheduleRepo(abc.ABC):
     async def save_schedule(self, schedule: Schedule) -> None:
         """Persists a schedule and its assignments."""
         pass
+
+    @abc.abstractmethod
+    async def next_schedule_id(self, org_id: DomainPrimaryKeyType) -> DomainPrimaryKeyType:
+        """Allocates the next schedule identifier for the org."""
+        pass

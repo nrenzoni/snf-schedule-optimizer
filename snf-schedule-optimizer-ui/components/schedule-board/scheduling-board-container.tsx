@@ -1,78 +1,94 @@
-// 1. Define Server-Side Fetching Logic
-import { Shift, Staff } from "@/types/scheduler";
+"use client";
+
+import React, { useMemo } from "react";
 import ScheduleBoard from "@/components/schedule-board/schedule-board";
+import {
+  RoleKey,
+  Shift,
+  ShiftTypeKey,
+  SimulatedUnit,
+  Staff,
+} from "@/types/scheduler";
+import { UIShift } from "@/types/scheduling";
+import { useSchedulingStore } from "@/store/schedulingStore";
+import { useShallow } from "zustand/react/shallow";
 
-async function getScheduleData() {
-  const staffList: Staff[] = [
-    { id: "st1", name: "Alicia Bennett, RN", role: "RN", unitId: "U1", fte: 1.0 },
-    { id: "st2", name: "Marcus Rivera, RN", role: "RN", unitId: "U2", fte: 1.0 },
-    { id: "st3", name: "Priya Patel, RN Agency", role: "RN", unitId: "U4", fte: 0.8 },
-    { id: "st4", name: "Danielle Brooks, LPN", role: "LPN", unitId: "U1", fte: 1.0 },
-    { id: "st5", name: "Jorge Santos, LPN", role: "LPN", unitId: "U2", fte: 1.0 },
-    { id: "st6", name: "Nina Nguyen, LPN", role: "LPN", unitId: "U3", fte: 0.9 },
-    { id: "st7", name: "Keisha Carter, CNA", role: "CNA", unitId: "U1", fte: 1.0 },
-    { id: "st8", name: "Andre Jackson, CNA", role: "CNA", unitId: "U2", fte: 1.0 },
-    { id: "st9", name: "Mei Kim, CNA Agency", role: "CNA", unitId: "U3", fte: 0.8 },
-    { id: "st10", name: "Hannah Miller, CNA", role: "CNA", unitId: "U4", fte: 1.0 },
-    { id: "st11", name: "Tessa Garcia, PT", role: "THERAPIST", unitId: "U1", fte: 0.6 },
-  ];
+const roleToBoardRole = (role: string): RoleKey => {
+  const normalizedRole = role.toUpperCase();
 
-  const firstVisibleDay = new Date();
-  firstVisibleDay.setDate(firstVisibleDay.getDate() - 2);
+  if (normalizedRole.includes("THERAP") || normalizedRole.includes(" PT")) {
+    return "THERAPIST";
+  }
+  if (normalizedRole.includes("RN")) {
+    return "RN";
+  }
+  if (normalizedRole.includes("LPN") || normalizedRole.includes("LVN")) {
+    return "LPN";
+  }
+  return "CNA";
+};
 
-  const formatDate = (date: Date) => date.toISOString().split("T")[0];
+const shiftNameToType = (shiftName: UIShift["shiftName"]): ShiftTypeKey => {
+  switch (shiftName) {
+    case "Morning":
+      return "DAY";
+    case "Afternoon":
+      return "EVE";
+    case "Night":
+      return "NIGHT";
+  }
+};
 
-  const initialShifts: Shift[] = [
-    {
-      id: "s1",
-      staffId: "st1",
-      dateStr: formatDate(firstVisibleDay),
-      shiftType: "DAY",
-      role: "RN",
-    },
-    {
-      id: "s2",
-      staffId: "st5",
-      dateStr: formatDate(firstVisibleDay),
-      shiftType: "EVE",
-      role: "LPN",
-    },
-    {
-      id: "s3",
-      staffId: "st9",
-      dateStr: formatDate(firstVisibleDay),
-      shiftType: "NIGHT",
-      role: "CNA",
-      isAgency: true,
-    },
-  ];
-
-  const units = [
-    { id: "U1", label: "Short-Term Rehab" },
-    { id: "U2", label: "Long-Term Care" },
-    { id: "U3", label: "Memory Care" },
-    { id: "U4", label: "Skilled/Subacute" },
-  ];
-
-  const dates = Array.from({ length: 91 }).map((_, i) => {
-    const date = new Date(firstVisibleDay);
-    date.setDate(date.getDate() + i);
-    return date;
-  });
-
-  return { staffList, initialShifts, units, dates };
-}
-
-// 2. Export the Async Server Component
-export default async function ScheduleBoardContainer() {
-  const data = await getScheduleData();
-
-  return (
-    <ScheduleBoard
-      staffList={data.staffList}
-      initialShifts={data.initialShifts}
-      units={data.units}
-      dates={data.dates}
-    />
+export default function ScheduleBoardContainer() {
+  const { scheduleMap } = useSchedulingStore(
+    useShallow((state) => ({
+      scheduleMap: state.scheduleMap,
+    })),
   );
+
+  const { shifts, staffList, units } = useMemo(() => {
+    const boardShifts: Shift[] = [];
+    const staffById = new Map<string, Staff>();
+    const unitsById = new Map<string, SimulatedUnit>();
+
+    for (const [dateStr, daySchedule] of scheduleMap.entries()) {
+      for (const shift of daySchedule.shifts) {
+        unitsById.set(shift.unitId, {
+          id: shift.unitId,
+          label: shift.unitName,
+        });
+
+        for (const nurse of shift.nurses) {
+          const role = roleToBoardRole(nurse.role);
+          if (!staffById.has(nurse.id)) {
+            staffById.set(nurse.id, {
+              id: nurse.id,
+              name: nurse.name,
+              role,
+              unitId: shift.unitId,
+              fte: 1,
+            });
+          }
+
+          boardShifts.push({
+            id: `${shift.shiftId}:${nurse.id}`,
+            staffId: nurse.id,
+            dateStr,
+            role,
+            shiftType: shiftNameToType(shift.shiftName),
+            isAgency: nurse.isAgency,
+            isOvertime: nurse.shiftHours > 8,
+          });
+        }
+      }
+    }
+
+    return {
+      shifts: boardShifts,
+      staffList: Array.from(staffById.values()),
+      units: Array.from(unitsById.values()),
+    };
+  }, [scheduleMap]);
+
+  return <ScheduleBoard initialShifts={shifts} staffList={staffList} units={units} />;
 }

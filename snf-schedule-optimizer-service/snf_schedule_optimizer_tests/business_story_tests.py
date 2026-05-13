@@ -8,6 +8,7 @@ from snf_schedule_optimizer.models import (
     HprdEnforcedRole,
     MinMandates,
     NurseProfile,
+    OptimizationSettings,
     PreferenceType,
     PreferenceWeights,
     Shift,
@@ -137,6 +138,7 @@ async def test_financial_hero_ot_vs_agency() -> None:
         facility_contexts={1: context},
         pay_period_start=TimeRoundingUtility.start_of_week_zoned(ref_date).to_instant(),
         optimization_start_time=ref_date.to_instant(),
+        optimization_settings=OptimizationSettings(),
     )
 
     # 6. Solve
@@ -292,6 +294,7 @@ async def test_compliance_safety_net() -> None:
         facility_contexts={1: context},
         pay_period_start=TimeRoundingUtility.start_of_week_zoned(ref_date).to_instant(),
         optimization_start_time=ref_date.to_instant(),
+        optimization_settings=OptimizationSettings(),
     )
 
     result = await optimizer.solve(

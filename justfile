@@ -8,6 +8,8 @@ api_url := "http://localhost:8000"
 demo_api_url := "http://localhost:8080"
 ui_url := "http://localhost:3000"
 e2e_runs := "uv run --project snf-schedule-optimizer-service python tools/e2e/runs.py"
+demo_state_env := "tools/.demo-smoke.env"
+demo_ports := "uv run --project snf-schedule-optimizer-service python -m tools.demo_ports"
 
 install: install-ui install-be
 
@@ -88,13 +90,13 @@ check-proto:
   just proto && git diff --exit-code -- proto snf-schedule-optimizer-ui/gen snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated
 
 test-e2e:
-  cd snf-schedule-optimizer-ui && NEXT_PUBLIC_API_BASE_URL={{api_url}} node node_modules/@playwright/test/cli.js test
+  uv run --project snf-schedule-optimizer-service python -m tools.e2e.run_playwright
 
 e2e-scenarios scenario="dashboard_smoke" mode="dev":
-  {{e2e_runs}} run --mode {{mode}} --scenario {{scenario}}
+  selected_mode="{{mode}}"; if [[ "$selected_mode" == mode=* ]]; then selected_mode="${selected_mode#mode=}"; fi; {{e2e_runs}} run --mode "$selected_mode" --scenario {{scenario}}
 
 e2e-scenarios-all mode="dev":
-  {{e2e_runs}} run-all --mode {{mode}}
+  selected_mode="{{mode}}"; if [[ "$selected_mode" == mode=* ]]; then selected_mode="${selected_mode#mode=}"; fi; {{e2e_runs}} run-all --mode "$selected_mode"
 
 e2e-scenarios-list:
   {{e2e_runs}} list-scenarios
@@ -106,27 +108,30 @@ e2e-scenarios-unresolved:
   {{e2e_runs}} unresolved-failed
 
 e2e-scenarios-resolve target mode="dev":
-  {{e2e_runs}} resolve {{target}} --mode {{mode}}
+  selected_mode="{{mode}}"; if [[ "$selected_mode" == mode=* ]]; then selected_mode="${selected_mode#mode=}"; fi; {{e2e_runs}} resolve {{target}} --mode "$selected_mode"
 
 e2e-scenarios-mark-resolved failed resolved:
   {{e2e_runs}} mark-resolved --failed-run {{failed}} --resolved-by {{resolved}}
 
 smoke-demo:
-  docker compose -f compose.demo.yml up --build -d
+  {{demo_ports}} write-env --path {{demo_state_env}}
+  docker compose --env-file {{demo_state_env}} -f compose.demo.yml up --build -d
+  source {{demo_state_env}} && printf 'Demo API: http://localhost:%s\nDemo UI: http://localhost:%s\n' "$DEMO_API_PORT" "$DEMO_UI_PORT"
 
 demo-down:
-  docker compose -f compose.demo.yml down -v
+  if [[ -f {{demo_state_env}} ]]; then docker compose --env-file {{demo_state_env}} -f compose.demo.yml down -v; else docker compose -f compose.demo.yml down -v; fi
+  rm -f {{demo_state_env}}
 
 demo-ps:
-  docker compose -f compose.demo.yml ps -a
+  if [[ -f {{demo_state_env}} ]]; then docker compose --env-file {{demo_state_env}} -f compose.demo.yml ps -a; else docker compose -f compose.demo.yml ps -a; fi
 
 demo-logs:
-  docker compose -f compose.demo.yml logs app ui db
+  if [[ -f {{demo_state_env}} ]]; then docker compose --env-file {{demo_state_env}} -f compose.demo.yml logs app ui db; else docker compose -f compose.demo.yml logs app ui db; fi
 
 smoke-demo-check:
-  curl --fail --retry 20 --retry-delay 2 {{demo_api_url}}/health
-  sleep 5
-  for i in $(seq 1 20); do curl --fail {{ui_url}} && exit 0; sleep 2; done; exit 1
+  if [[ ! -f {{demo_state_env}} ]]; then printf 'Missing %s. Run just smoke-demo first.\n' {{demo_state_env}}; exit 1; fi
+  source {{demo_state_env}} && curl --fail --retry 20 --retry-delay 2 "http://localhost:$DEMO_API_PORT/health"
+  source {{demo_state_env}} && sleep 5 && for i in $(seq 1 20); do curl --fail "http://localhost:$DEMO_UI_PORT" && exit 0; sleep 2; done; exit 1
 
 ci:
   just check-ui

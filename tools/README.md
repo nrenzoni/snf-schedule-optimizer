@@ -92,3 +92,5 @@ The OpenCode slash-command keeps retrying until the scenario passes or it hits t
 ## LAN-Origin Scope
 
 Agent E2E runs use localhost origins and intentionally do not validate arbitrary LAN browser origins. For manual LAN-origin development, configure `EXTRA_DEV_ORIGINS` for backend CORS and `NEXT_ALLOWED_DEV_ORIGINS` for Next.js dev origins as documented in the root README.
+
+Managed Playwright and scenario runs start their own isolated local stack, inject explicit UI/API base URLs, and should not depend on a separately running `just dev-be` or `just dev-ui` session.

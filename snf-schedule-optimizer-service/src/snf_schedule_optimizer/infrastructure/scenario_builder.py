@@ -8,6 +8,7 @@ from snf_schedule_optimizer.models import (
     FacilityConfig,
     NurseProfile,
     PreferenceType,
+    ResidentAcuity,
     Shift,
     ShiftKey,
     StaffCompensationRecord,
@@ -83,6 +84,7 @@ class ScenarioBuilder:
         # 2. Generate operational data
         shifts = self._generate_shifts()
         employees, nurses, financials, history = self._generate_workforce()
+        acuity_data = self._generate_acuity_data(shifts)
 
         return ScenarioResult(
             shifts=shifts,
@@ -92,7 +94,7 @@ class ScenarioBuilder:
             history_map=history,
             facility_configs=facility_configs,
             preference_penalties={},
-            acuity_data=[],
+            acuity_data=acuity_data,
         )
 
     def _generate_facility_config(self) -> FacilityConfig:
@@ -198,6 +200,51 @@ class ScenarioBuilder:
         )
 
         return employees, nurses, financials, history_map
+
+    def _generate_acuity_data(self, shifts: list[Shift]) -> list[ResidentAcuity]:
+        day_unit_counts: dict[tuple[whenever.Date, int], int] = {}
+        for shift in shifts:
+            if shift.unit_id is None:
+                continue
+            key = (shift.shift_start_dt.date(), shift.unit_id)
+            if key in day_unit_counts:
+                continue
+            base_by_unit = {
+                101: 34,
+                102: 48,
+                103: 32,
+                104: 24,
+            }
+            variance = self.rng.randint(-2, 3)
+            day_unit_counts[key] = max(18, base_by_unit.get(shift.unit_id, 30) + variance)
+
+        acuity_data: list[ResidentAcuity] = []
+        resident_id = 1
+        for (census_day, unit_id), census in day_unit_counts.items():
+            for _ in range(census):
+                high_acuity = self.rng.random() < 0.22
+                acuity_data.append(
+                    ResidentAcuity(
+                        resident_id=(self.facility_id * 100000) + resident_id,
+                        unit_id=unit_id,
+                        census_day=whenever.ZonedDateTime(
+                            census_day.year,
+                            census_day.month,
+                            census_day.day,
+                            12,
+                            0,
+                            0,
+                            tz=self.time_cfg.start_date.tz,
+                        ),
+                        pt_score_gg=15 if high_acuity else self.rng.randint(5, 11),
+                        nta_score=8 if high_acuity else self.rng.randint(1, 5),
+                        clinical_category=(
+                            "High Acuity Rehab" if high_acuity else "Standard Skilled Nursing"
+                        ),
+                    )
+                )
+                resident_id += 1
+        return acuity_data
 
     def _batch_create_staff(
         self,

@@ -14,27 +14,13 @@ import {
   toggleTrackVariants,
 } from "@/components/ui/styles";
 import { cn } from "@/lib/utils";
-
-interface SchedulingSettings {
-  useMLForecast: boolean;
-  useCalloutBuffer: boolean;
-  bufferThreshold: number; // Percentage, 0-100
-  minRestPeriod: number; // Hours
-  maxShiftLength: number; // Hours
-  premiumWeekend: boolean;
-  premiumHoliday: boolean;
-  // Add any other setting properties here
-}
+import { UISchedulerSettings } from "@/types/scheduling";
 
 interface SchedulingConfigModalProps {
-  settings: SchedulingSettings;
+  settings: UISchedulerSettings;
   isOpen: boolean;
   onClose: () => void;
-  // onUpdate takes a key (string) and a value (could be boolean, number, or string) and returns nothing.
-  onUpdate: (
-    key: keyof SchedulingSettings,
-    value: SchedulingSettings[keyof SchedulingSettings],
-  ) => void;
+  onUpdate: (settings: UISchedulerSettings) => void;
 }
 
 export function SchedulingConfigModal({
@@ -44,25 +30,17 @@ export function SchedulingConfigModal({
   onUpdate,
 }: SchedulingConfigModalProps) {
   // Internal state for unsaved changes (kept for form management)
-  const [draftSettings, setDraftSettings] =
-    useState<SchedulingSettings>(settings);
+  const [draftSettings, setDraftSettings] = useState<UISchedulerSettings>(settings);
 
   const handleUpdate = (
-    key: keyof SchedulingSettings,
-    value: SchedulingSettings[keyof SchedulingSettings],
+    key: keyof UISchedulerSettings,
+    value: UISchedulerSettings[keyof UISchedulerSettings],
   ) => {
     setDraftSettings((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = () => {
-    // Apply changes to the parent state
-    // Object.keys(draftSettings) is automatically typed as (keyof SchedulingSettings)[]
-    // because draftSettings is typed as SchedulingSettings.
-    (Object.keys(draftSettings) as (keyof SchedulingSettings)[]).forEach(
-      (key) => {
-        onUpdate(key, draftSettings[key]);
-      },
-    );
+    onUpdate(draftSettings);
     onClose();
   };
 
@@ -265,6 +243,74 @@ export function SchedulingConfigModal({
                 Shifts matching selected criteria will be flagged for premium
                 pay/priority scheduling.
               </p>
+            </div>
+
+            <div className="space-y-3 rounded-lg border border-border bg-card p-3 md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <DollarSign size={16} /> Optimization Penalties
+              </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">
+                    Overtime Avoidance
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={draftSettings.overtimeAvoidancePenalty}
+                    onChange={(e) =>
+                      handleUpdate("overtimeAvoidancePenalty", parseFloat(e.target.value))
+                    }
+                    className="app-input mt-1 w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">
+                    Team Consistency
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="25"
+                    value={draftSettings.teamConsistencyPenalty}
+                    onChange={(e) =>
+                      handleUpdate("teamConsistencyPenalty", parseFloat(e.target.value))
+                    }
+                    className="app-input mt-1 w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">
+                    High-Risk Shift
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={draftSettings.highRiskShiftPenalty}
+                    onChange={(e) =>
+                      handleUpdate("highRiskShiftPenalty", parseFloat(e.target.value))
+                    }
+                    className="app-input mt-1 w-full"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">
+                    Custom Preference
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={draftSettings.customPreferencePenalty}
+                    onChange={(e) =>
+                      handleUpdate("customPreferencePenalty", parseFloat(e.target.value))
+                    }
+                    className="app-input mt-1 w-full"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>

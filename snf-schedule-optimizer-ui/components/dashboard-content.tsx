@@ -25,10 +25,7 @@ import { Toaster } from "@/components/ui/sonner";
 import ScenarioAnalyzerDashboard from "@/components/scenario-analyzer-dashboard";
 import ShiftModal from "@/components/modals/shift-modal";
 import { SchedulingConfigModal } from "@/components/modals/scheduling-config-modal";
-import {
-  SchedulerSettings,
-  ScheduleSummaryModal,
-} from "@/components/modals/schedule-summary-modal";
+import { ScheduleSummaryModal } from "@/components/modals/schedule-summary-modal";
 import MlForecastsDashboard from "@/components/ml-forecasts-dashboard";
 import useScheduleQuery from "@/hooks/use-schedule-query";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
@@ -38,7 +35,6 @@ import NurseDetailsPanel from "@/components/nurse-details-panel";
 import DashboardEmptyState from "@/components/dashboard-empty-state";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { ScheduleQueryError } from "@/hooks/use-schedule-query";
-import { isUsingFallbackApiBaseUrl } from "@/api/scheduling-client";
 import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 import {
   metricToneVariants,
@@ -101,11 +97,23 @@ export default function DashboardContent({
     })),
   );
 
-  const { selectedFacility, scheduleCount, isOptimizing } = useSchedulingStore(
+  const {
+    selectedFacility,
+    scheduleCount,
+    isOptimizing,
+    schedulerSettings,
+    latestOptimization,
+    optimizationStats,
+    optimizationFinancials,
+  } = useSchedulingStore(
     useShallow((state) => ({
       selectedFacility: state.selectedFacility,
       scheduleCount: state.scheduleMap.size,
       isOptimizing: state.isOptimizing,
+      schedulerSettings: state.schedulerSettings,
+      latestOptimization: state.latestOptimization,
+      optimizationStats: state.optimizationStats,
+      optimizationFinancials: state.optimizationFinancials,
     })),
   );
 
@@ -127,31 +135,13 @@ export default function DashboardContent({
 
     // Calendar/Data State
     triggerOptimization,
+    updateSchedulerSettings,
   } = useScheduling();
 
   // THIS HOOK NOW WORKS because it is inside QueryClientProvider
   const { error, isLoading, refetch } = useScheduleQuery(currentViewAnchorDate);
 
   const [showPulse, setShowPulse] = useState(true);
-
-  const [schedulerSettings, setSchedulerSettings] = useState<SchedulerSettings>(
-    {
-      useMLForecast: false,
-      useCalloutBuffer: true,
-      bufferThreshold: 10,
-      minRestPeriod: 10,
-      maxShiftLength: 12,
-      premiumWeekend: true,
-      premiumHoliday: false,
-    },
-  );
-
-  function updateSchedulerSettings(
-    key: keyof SchedulerSettings,
-    value: SchedulerSettings[keyof SchedulerSettings],
-  ) {
-    setSchedulerSettings((prev) => ({ ...prev, [key]: value }));
-  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -283,17 +273,9 @@ export default function DashboardContent({
   return (
     <div className="app-bg min-h-screen p-2 font-sans md:p-3 xl:h-screen xl:overflow-hidden">
       <ThreeDAssemblyLoader
-        isLoading={isOptimizing || (!error && isLoading && scheduleCount === 0)}
+        isLoading={isOptimizing}
       />
       <div className="mx-auto max-w-[1800px] xl:flex xl:h-full xl:flex-col">
-        {isUsingFallbackApiBaseUrl ? (
-          <div className="app-callout-warning mb-6 px-4 py-3 text-sm">
-            <span className="font-semibold">API base URL fallback in use.</span>{" "}
-            Set <code>NEXT_PUBLIC_API_BASE_URL</code> to point the demo at the
-            intended backend instead of the default local address.
-          </div>
-        ) : null}
-
         <Tabs
           value={activeModule}
           onValueChange={(value) => void setActiveModule(value as typeof moduleOptions[number])}
@@ -362,6 +344,9 @@ export default function DashboardContent({
                   error instanceof ScheduleQueryError &&
                   error.code === "NO_FACILITIES"
                     ? "No facilities available"
+                    : error instanceof ScheduleQueryError &&
+                        error.code === "MISSING_API_BASE_URL"
+                      ? "Backend base URL is not configured"
                     : "Schedule data could not be loaded"
                 }
                 description={error.message}
@@ -373,7 +358,7 @@ export default function DashboardContent({
             )}
 
             {!error ? (
-              <div className="grid items-start gap-3 xl:h-full xl:min-h-0 xl:items-stretch xl:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="grid items-start gap-3 xl:h-full xl:min-h-0 xl:items-stretch 2xl:grid-cols-[minmax(0,1fr)_320px]">
                 <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col">
                   <TabsContent
                     value="scheduling"
@@ -474,10 +459,10 @@ export default function DashboardContent({
                   </TabsContent>
                 </div>
 
-                <aside className="xl:flex xl:min-h-0 xl:self-stretch xl:items-center">
+                <aside className="2xl:flex 2xl:min-h-0 2xl:self-stretch 2xl:items-center">
                   <div
                     key={activeModule}
-                    className="grid gap-2 md:grid-cols-2 xl:w-full xl:max-w-xs xl:grid-cols-1 xl:overflow-auto animate-in fade-in slide-in-from-bottom-4 duration-500"
+                    className="grid gap-2 md:grid-cols-2 2xl:w-full 2xl:max-w-xs 2xl:grid-cols-1 2xl:overflow-auto animate-in fade-in slide-in-from-bottom-4 duration-500"
                   >
                     {activeExecutiveMetrics.map((metric) => (
                       <div
@@ -542,6 +527,9 @@ export default function DashboardContent({
 
         <ScheduleSummaryModal
           settings={schedulerSettings}
+          optimizationSummary={latestOptimization}
+          optimizationStats={optimizationStats}
+          optimizationFinancials={optimizationFinancials}
           isOpen={uiStore.isSummaryModalOpen}
           onClose={uiStore.closeSummaryModal}
         />

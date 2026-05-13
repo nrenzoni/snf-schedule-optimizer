@@ -1,3 +1,5 @@
+name: snf-schedule-optimizer-demo
+
 services:
   db:
     image: postgres:18-alpine

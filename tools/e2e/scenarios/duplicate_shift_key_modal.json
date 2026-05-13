@@ -5,13 +5,13 @@
     {
       "name": "open list view shift modal",
       "action": "goto",
-      "url": "/?view=list&date=2026-05-12&shift=Morning"
+      "url": "/schedule?tab=scheduling&view=list&date=2026-05-12&shift=Morning"
     },
     {
       "name": "shift modal visible",
       "action": "expect_role",
-      "role": "dialog",
-      "namePattern": "Schedule"
+      "role": "heading",
+      "namePattern": "Schedule:"
     },
     {
       "name": "allow console warnings to flush",

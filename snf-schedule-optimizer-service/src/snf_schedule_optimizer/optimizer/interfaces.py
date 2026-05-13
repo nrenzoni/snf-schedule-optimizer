@@ -14,6 +14,7 @@ from snf_schedule_optimizer.models import (
     FacilityIdType,
     MlModelOutputs,
     NurseProfile,
+    OptimizationSettings,
     PreferenceWeights,
     Shift,
 )
@@ -245,4 +246,9 @@ class IScenarioDataProvider(abc.ABC):
     @abc.abstractmethod
     def get_facility_config(self, facility_id: DomainPrimaryKeyType) -> FacilityConfig:
         """Returns the configuration for the given facility."""
+        pass
+
+    @abc.abstractmethod
+    def get_optimization_settings(self) -> OptimizationSettings:
+        """Returns run-scoped settings for the current optimization."""
         pass

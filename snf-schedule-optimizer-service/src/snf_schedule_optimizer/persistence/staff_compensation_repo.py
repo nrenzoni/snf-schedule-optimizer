@@ -30,6 +30,7 @@ class SQLStaffCompensationRepo(IStaffCompensationRepo):
         """
         Retrieves the StaffCompensationRecord whose validity period covers the check_date.
         """
+        check_date_py = check_date.py_date()
 
         # 1. Construct the Query: Find the record where the check date falls within the range.
         stmt = (
@@ -38,12 +39,12 @@ class SQLStaffCompensationRepo(IStaffCompensationRepo):
                 # Filter by the employee
                 StaffCompensationModel.employee_id == employee_id,
                 # Filter 1: Check date must be >= start date
-                StaffCompensationModel.effective_start_date <= check_date,
+                StaffCompensationModel.effective_start_date <= check_date_py,
                 # Filter 2: Check date must be < end date (or end date must be NULL/future)
                 # We use an OR clause to handle the open-ended record (NULL end_date)
                 or_(
                     StaffCompensationModel.effective_end_date.is_(None),
-                    StaffCompensationModel.effective_end_date > check_date,
+                    StaffCompensationModel.effective_end_date > check_date_py,
                 ),
             )
             .order_by(

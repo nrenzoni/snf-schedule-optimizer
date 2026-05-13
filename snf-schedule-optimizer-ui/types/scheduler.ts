@@ -73,7 +73,7 @@ export const SHIFT_TYPES = {
   NIGHT: { id: "NIGHT", label: "N", hours: 8 },
 } as const;
 
-export type UnitKey = keyof typeof UNITS;
+export type UnitKey = string;
 export type RoleKey = keyof typeof ROLES;
 export type ShiftTypeKey = keyof typeof SHIFT_TYPES;
 export type ViewMode = "ROLE" | "BUDGET";

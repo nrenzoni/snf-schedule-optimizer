@@ -4,7 +4,7 @@ from snf_schedule_optimizer.domain.hr.interfaces import IEmployeeRepo
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
     IPreferencePenaltyProcessor,
 )
-from snf_schedule_optimizer.models import PreferenceWeights
+from snf_schedule_optimizer.models import PreferenceWeights, Shift
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IObjectivePenaltyStrategy,
@@ -33,6 +33,8 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
         weights: PreferenceWeights,
     ) -> list[pulp.LpAffineExpression]:
         penalty_terms = []
+        settings = data_provider.get_optimization_settings()
+        assignments_by_employee: dict[int, list[tuple[Shift, pulp.LpVariable]]] = {}
 
         for shift in data_provider.get_all_shifts():
             # Get Context
@@ -51,6 +53,8 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
                 if lp_var is None:
                     continue
 
+                assignments_by_employee.setdefault(nurse.employee_id, []).append((shift, lp_var))
+
                 # 1. Calculate Preference Penalty (The "Soft" Constraints)
                 # (Delegates to your service from Turn 2)
                 pref_penalty = await self.preference_processor.calculate_penalty_cost(
@@ -65,9 +69,25 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
                     # Simple logic: High risk * Configured Weight
                     risk_penalty = risk_score * weights.high_risk_shift_penalty
 
+                if settings.use_ml_forecast:
+                    risk_penalty += (
+                        ml_outputs.shift_call_out_forecast
+                        * weights.high_risk_shift_penalty
+                    )
+
                 # 3. Add to list
                 total_penalty = pref_penalty + risk_penalty
                 if total_penalty > 0:
                     penalty_terms.append(lp_var * total_penalty)
+
+        for employee_assignments in assignments_by_employee.values():
+            if len(employee_assignments) < 2:
+                continue
+            employee_assignments.sort(key=lambda item: item[0].shift_start_dt)
+            previous_shift = employee_assignments[0][0]
+            for shift, lp_var in employee_assignments[1:]:
+                if shift.unit_id != previous_shift.unit_id:
+                    penalty_terms.append(lp_var * weights.team_consistency_penalty)
+                previous_shift = shift
 
         return penalty_terms

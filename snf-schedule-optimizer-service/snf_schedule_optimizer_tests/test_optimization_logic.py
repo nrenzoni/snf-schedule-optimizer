@@ -5,6 +5,7 @@ from snf_schedule_optimizer.models import (
     FacilityConfig,
     HprdEnforcedRole,
     NurseProfile,
+    OptimizationSettings,
     PreferenceWeights,
     Shift,
     ShiftKey,
@@ -185,6 +186,7 @@ async def test_cheapest_nurse_selection_with_fatigue() -> None:
             ref_date.to_tz(tz_ny)
         ).to_instant(),
         optimization_start_time=ref_date.to_instant(),
+        optimization_settings=OptimizationSettings(),
     )
 
     result = await optimizer.solve(

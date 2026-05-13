@@ -4,7 +4,11 @@ from typing import Protocol
 
 import whenever
 
-from snf_schedule_optimizer.api import MoveEmployeeRequest, OptimizationOutput
+from snf_schedule_optimizer.api import (
+    MoveEmployeeRequest,
+    OptimizationOutput,
+    OptimizeScheduleRequest,
+)
 from snf_schedule_optimizer.domain.payroll.calculations.schedule_cost_evaluator import (
     ScheduleCostEvaluator,
 )
@@ -20,6 +24,9 @@ from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
     FacilityConfig,
+    MinMandates,
+    OptimizationSettings,
+    OptimizationSummary,
     PreferenceWeights,
     Schedule,
     Shift,
@@ -48,7 +55,13 @@ class WorkforceSchedulerFacadePort(Protocol):
         facility_contexts: dict[DomainPrimaryKeyType, FacilityScenarioContext],
         preference_weights: PreferenceWeights,
         pay_period_start: whenever.Instant,
+        optimization_settings: OptimizationSettings | None = None,
         optimization_start_time: whenever.Instant | None = None,
+    ) -> OptimizationOutput: ...
+
+    async def optimize_schedule_for_facility(
+        self,
+        request: OptimizeScheduleRequest,
     ) -> OptimizationOutput: ...
 
     async def validate_shift_move(
@@ -95,6 +108,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         facility_contexts: dict[DomainPrimaryKeyType, FacilityScenarioContext],
         preference_weights: PreferenceWeights,
         pay_period_start: whenever.Instant,
+        optimization_settings: OptimizationSettings | None = None,
         optimization_start_time: whenever.Instant | None = None,
     ) -> OptimizationOutput:
         # should never be after data in the provider.
@@ -104,6 +118,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             if optimization_start_time
             else whenever.Instant.now()
         )
+        optimization_settings = optimization_settings or OptimizationSettings()
 
         # 1. Create the Data Provider Scope (Outside the Engine)
         # This ensures the exact same data cache is used for Optimization AND Reporting.
@@ -112,6 +127,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             facility_contexts=facility_contexts,
             pay_period_start=pay_period_start,
             optimization_start_time=optimization_start_time,
+            optimization_settings=optimization_settings,
         )
 
         # 2. Run Optimization (Injecting the Provider)
@@ -121,6 +137,53 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         )
 
         return await self._process_results(result, data_provider)
+
+    async def optimize_schedule_for_facility(
+        self,
+        request: OptimizeScheduleRequest,
+    ) -> OptimizationOutput:
+        facility_context = await self._build_optimization_context(
+            org_id=request.org_id,
+            facility_id=request.facility_id,
+            start_date=request.start_date,
+            end_date=request.end_date or request.start_date,
+            optimization_settings=request.settings,
+        )
+        result = await self.optimize_schedule(
+            org_id=request.org_id,
+            facility_contexts={request.facility_id: facility_context},
+            preference_weights=request.settings.to_preference_weights(),
+            pay_period_start=facility_context.shifts[0].shift_start_dt.start_of_day().to_instant(),
+            optimization_settings=request.settings,
+        )
+        if (
+            request.persist_result
+            and result.is_success
+            and result.schedule is not None
+            and facility_context.shifts
+        ):
+            schedule_id = await self.schedule_retriever.next_schedule_id(request.org_id)
+            persisted_schedule = Schedule(
+                org_id=request.org_id,
+                facility_id=request.facility_id,
+                schedule_id=schedule_id,
+                schedule_version=1,
+                shift_assignments=result.schedule.shift_assignments,
+                start_date=request.start_date,
+                end_date=request.end_date or request.start_date,
+                latest_optimization=result.summary,
+            )
+            await self.schedule_retriever.save_schedule(persisted_schedule)
+            result = OptimizationOutput(
+                is_success=True,
+                schedule=persisted_schedule,
+                analysis=result.analysis,
+                financials=result.financials,
+                stats=result.stats,
+                summary=result.summary,
+                error_details=result.error_details,
+            )
+        return result
 
     async def validate_shift_move(
         self,
@@ -187,6 +250,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             facility_contexts=facility_contexts,
             pay_period_start=pay_period_start,
             optimization_start_time=whenever.Instant.now(),
+            optimization_settings=OptimizationSettings(),
         )
 
         # 4. Solve (Validation)
@@ -266,12 +330,13 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
 
             return OptimizationOutput(
                 is_success=False,
-                schedule=None,
-                analysis=None,
-                financials=None,
-                stats=result.statistics,
-                error_details=full_error_details,
-            )
+            schedule=None,
+            analysis=None,
+            financials=None,
+            stats=result.statistics,
+            summary=None,
+            error_details=full_error_details,
+        )
 
         # 3. Run Analysis (Constraints, Preferences, Compliance)
         analyzer = ScheduleResultAnalyzer(data_provider)
@@ -282,6 +347,11 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             result.optimal_schedule, data_provider
         )
 
+        schedule_summary = self._build_summary(
+            result.optimal_schedule,
+            data_provider,
+        )
+
         # 5. Return Composite Result
         return OptimizationOutput(
             is_success=True,
@@ -289,6 +359,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             analysis=analysis_report,
             financials=financial_report,
             stats=result.statistics,
+            summary=schedule_summary,
         )
 
     def _apply_move_to_schedule(
@@ -395,8 +466,67 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 facility_id=fac_id,
                 shifts=shifts,
                 config=config_map[fac_id],
-                # Mandates would be fetched here if available in repo
-                min_mandates=None,
+                min_mandates=self._derive_min_mandates(config_map[fac_id]),
             )
 
         return contexts
+
+    async def _build_optimization_context(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
+        start_date: str,
+        end_date: str,
+        optimization_settings: OptimizationSettings,
+    ) -> FacilityScenarioContext:
+        configs = await self.facility_repository.get_configs(org_id, [facility_id])
+        if not configs:
+            raise ValueError(f"Facility config not found for facility_id: {facility_id}")
+        facility_config = configs[0]
+        tz_map = {facility_id: facility_config.tz}
+        all_shifts = await self.shift_retriever.get_shifts_for_org(org_id, tz_map)
+        relevant_shifts = [
+            shift
+            for shift in all_shifts
+            if shift.facility_id == facility_id
+            and start_date <= shift.shift_start_dt.to_tz(facility_config.tz).date().format_common_iso() <= end_date
+        ]
+        if not relevant_shifts:
+            raise ValueError("No shifts found in the requested optimization window.")
+        return FacilityScenarioContext(
+            facility_id=facility_id,
+            shifts=relevant_shifts,
+            config=facility_config,
+            min_mandates=self._derive_min_mandates(facility_config),
+            optimization_settings=optimization_settings,
+        )
+
+    def _derive_min_mandates(self, config: FacilityConfig) -> MinMandates:
+        return MinMandates(
+            min_rn_hprd=config.default_hprd_rn,
+            min_lpn_hprd=0.0,
+            min_cna_hprd=config.default_hprd_cna,
+            min_total_hprd=config.default_hprd_total,
+            min_staff_per_shift_rn=1,
+            min_staff_per_shift_lpn=0,
+            min_staff_per_shift_cna=2,
+        )
+
+    def _build_summary(
+        self,
+        schedule: Schedule,
+        data_provider: IScenarioDataProvider,
+    ) -> OptimizationSummary:
+        all_shifts = data_provider.get_all_shifts()
+        covered_shifts = sum(
+            1 for shift in all_shifts if schedule.shift_assignments.get(shift.shift_key)
+        )
+        total_assignments = sum(len(assignments) for assignments in schedule.shift_assignments.values())
+        return OptimizationSummary(
+            assignments_changed=total_assignments,
+            total_assignments=total_assignments,
+            covered_shifts=covered_shifts,
+            uncovered_shifts=max(0, len(all_shifts) - covered_shifts),
+            completed_at=whenever.Instant.now().format_iso(),
+            applied_settings=data_provider.get_optimization_settings(),
+        )

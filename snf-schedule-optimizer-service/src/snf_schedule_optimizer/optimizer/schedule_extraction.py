@@ -33,8 +33,8 @@ class ScheduleExtractor:
                 )
 
         return Schedule(
-            org_id,
-            facility_id,
-            None,
-            shift_assignments,
+            org_id=org_id,
+            facility_id=facility_id,
+            schedule_id=None,
+            shift_assignments=shift_assignments,
         )
