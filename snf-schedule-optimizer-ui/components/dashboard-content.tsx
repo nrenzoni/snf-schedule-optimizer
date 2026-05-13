@@ -38,6 +38,10 @@ import DashboardEmptyState from "@/components/dashboard-empty-state";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { ScheduleQueryError } from "@/hooks/use-schedule-query";
 import { isUsingFallbackApiBaseUrl } from "@/api/scheduling-client";
+import {
+  metricToneVariants,
+  segmentedButtonVariants,
+} from "@/components/ui/styles";
 
 interface DashboardShellProps {
   timelineView: React.ReactNode;
@@ -148,28 +152,28 @@ export default function DashboardContent({
       value: scheduleCount > 0 ? "96%" : "--",
       detail: "Target-ready census coverage",
       icon: CheckCircle2,
-      tone: "text-[#28A745] bg-[#DFFFEA] ring-[#28A745]/30",
+      tone: "success" as const,
     },
     {
       label: "Open Shifts",
       value: scheduleCount > 0 ? "7" : "--",
       detail: "Needs planner review",
       icon: AlertTriangle,
-      tone: "text-[#FBC02D] bg-[#FFF8E1] ring-[#FBC02D]/40",
+      tone: "warning" as const,
     },
     {
       label: "Agency Hours",
       value: scheduleCount > 0 ? "-18%" : "--",
       detail: "Projected vs baseline",
       icon: TrendingDown,
-      tone: "text-[#168039] bg-[#DFFFEA] ring-[#28A745]/30",
+      tone: "success" as const,
     },
     {
       label: "Staff Mix",
       value: scheduleCount > 0 ? "82%" : "--",
       detail: "Internal team utilization",
       icon: Users,
-      tone: "text-[#168039] bg-[#DFFFEA] ring-[#28A745]/30",
+      tone: "success" as const,
     },
   ];
 
@@ -182,22 +186,17 @@ export default function DashboardContent({
     label: string,
     isPulse = false,
   ) => {
-    const isActive = activeModule === value;
-
       return (
         <TabsTrigger
           data-testid={`tab-${value}`}
           value={value}
           className={cn(
-          "flex min-w-fit items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium h-auto transition-all sm:text-sm",
-          "text-[#6C757D] hover:text-[#212529] hover:bg-white",
-          "data-[state=active]:bg-[#168039] data-[state=active]:text-white data-[state=active]:shadow-none",
-          value === "ml-forecasts" && isActive
-            ? "data-[state=active]:bg-[#168039] data-[state=active]:text-white"
-            : "data-[state=active]:text-white",
+          "h-auto min-w-fit justify-center gap-1.5 sm:text-sm",
+          segmentedButtonVariants({ size: "md" }),
+          "data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:shadow-none",
           isPulse &&
             showPulse &&
-            "animate-pulse bg-[#DFFFEA] ring-2 ring-[#28A745]/30 hover:bg-[#DFFFEA]",
+            "animate-pulse bg-accent ring-2 ring-primary/20 hover:bg-accent",
         )}
       >
         {icon}
@@ -217,7 +216,7 @@ export default function DashboardContent({
         <DemoModeBanner />
 
         {isUsingFallbackApiBaseUrl ? (
-          <div className="mb-6 rounded-lg border border-[#FBC02D]/40 bg-[#FFF8E1] px-4 py-3 text-sm text-[#212529] shadow-none">
+          <div className="app-callout-warning mb-6 px-4 py-3 text-sm">
             <span className="font-semibold">API base URL fallback in use.</span>{" "}
             Set <code>NEXT_PUBLIC_API_BASE_URL</code> to point the demo at the
             intended backend instead of the default local address.
@@ -236,7 +235,7 @@ export default function DashboardContent({
                   <Calendar size={15} />
                   Staffing Command Center
                 </div>
-                <div className="hidden h-5 w-px bg-[#E0E0E0] sm:block" />
+                <div className="hidden h-5 w-px bg-border sm:block" />
                 <h1 className="app-title truncate text-sm sm:text-base">
                   Explore scheduling, scenarios, and forecasts
                 </h1>
@@ -249,9 +248,9 @@ export default function DashboardContent({
                   {renderTabTrigger("ml-forecasts", <Brain size={16} />, "ML Forecasts", true)}
                 </TabsList>
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-[#E0E0E0] bg-[#F4F6F8] px-3 py-1.5 text-xs text-[#6C757D] shadow-none">
+                <div className="app-soft-panel flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 text-xs text-muted-foreground">
                   <div>
-                    <span className="font-medium text-[#212529]">Facility:</span>{" "}
+                    <span className="font-medium text-foreground">Facility:</span>{" "}
                     {selectedFacility
                       ? `${selectedFacility.facilityId} (${selectedFacility.orgId})`
                       : isLoading
@@ -259,7 +258,7 @@ export default function DashboardContent({
                         : "None"}
                   </div>
                   <div>
-                    <span className="font-medium text-[#212529]">Loaded days:</span>{" "}
+                    <span className="font-medium text-foreground">Loaded days:</span>{" "}
                     {scheduleCount}
                   </div>
                 </div>
@@ -306,13 +305,13 @@ export default function DashboardContent({
                     <div
                       key={metric.label}
                       className={cn(
-                        "rounded-lg border border-[#E0E0E0] bg-white shadow-sm transition hover:border-[#CED4DA]",
+                        "app-card-interactive",
                         isTimelineScheduling ? "p-2.5" : "p-4",
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-[#6C757D]">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                             {metric.label}
                           </p>
                           <p className={cn(
@@ -322,12 +321,12 @@ export default function DashboardContent({
                             {metric.value}
                           </p>
                         </div>
-                        <div className={cn("rounded-lg p-1.5 ring-1", metric.tone)}>
+                        <div className={metricToneVariants({ tone: metric.tone })}>
                           <metric.icon size={isTimelineScheduling ? 16 : 19} />
                         </div>
                       </div>
                       <p className={cn(
-                         "font-normal text-[#6C757D]",
+                         "font-normal text-muted-foreground",
                         isTimelineScheduling ? "mt-1 text-xs" : "mt-2 text-sm",
                       )}>
                         {metric.detail}
@@ -362,24 +361,20 @@ export default function DashboardContent({
                     <button
                       data-testid="view-list"
                       onClick={() => setViewMode("list")}
-                      className={cn(
-                        "px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors",
-                        viewMode === "list"
-                          ? "bg-white text-[#168039] shadow-none"
-                          : "text-[#6C757D] hover:bg-white",
-                      )}
+                      className={segmentedButtonVariants({
+                        size: "md",
+                        active: viewMode === "list",
+                      })}
                     >
                       <LayoutList size={14} /> <span>List</span>
                     </button>
                     <button
                       data-testid="view-timeline"
                       onClick={() => setViewMode("timeline")}
-                      className={cn(
-                        "px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-2 transition-colors",
-                        viewMode === "timeline"
-                          ? "bg-white text-[#168039] shadow-none"
-                          : "text-[#6C757D] hover:bg-white",
-                      )}
+                      className={segmentedButtonVariants({
+                        size: "md",
+                        active: viewMode === "timeline",
+                      })}
                     >
                       <GanttChartSquare size={14} /> <span>Timeline</span>
                     </button>

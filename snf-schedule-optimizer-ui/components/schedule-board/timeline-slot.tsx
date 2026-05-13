@@ -39,16 +39,16 @@ export default function TimelineSlot({
 
   // --- DYNAMIC BACKGROUND LOGIC ---
   let bgClass = isToday
-    ? "bg-[#DFFFEA]"
+    ? "bg-accent"
     : isEvenDay
-      ? "bg-[#F4F6F8]"
-      : "bg-white";
+      ? "bg-background"
+      : "bg-card";
   let ringClass = "";
 
   if (isOver) {
     // Default Hover State
-    bgClass = "bg-[#DFFFEA]";
-    ringClass = "ring-2 ring-[#168039] z-10";
+    bgClass = "bg-accent";
+    ringClass = "ring-2 ring-ring z-10";
 
     // SIMULATION OVERRIDES (The "Yellow/Red" Feedback)
     if (isSimulatingTarget && simulationResult) {
@@ -80,8 +80,8 @@ export default function TimelineSlot({
       ref={setNodeRef}
       className={cn(
         CELL_WIDTH,
-        "relative flex flex-col justify-center border-r border-[#E0E0E0] transition-colors duration-200",
-        isLastShift && "border-r-[#CED4DA]",
+        "relative flex flex-col justify-center border-r border-border transition-colors duration-200",
+        isLastShift && "border-r-input",
         bgClass, // Applied dynamic background
         ringClass, // Applied dynamic ring
       )}
@@ -92,7 +92,7 @@ export default function TimelineSlot({
       {/* Only show if empty and not currently dragging over */}
       {isEmpty && !isOver && (
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/slot:opacity-100 transition-opacity pointer-events-none">
-          <div className="rounded-lg bg-[#E9EEF1] p-1 text-[#6C757D]">
+          <div className="rounded-lg bg-muted p-1 text-muted-foreground">
             <Plus size={12} />
           </div>
         </div>

@@ -7,20 +7,20 @@ export default function DemoModeBanner() {
   return (
     <section
       data-testid="demo-mode-banner"
-      className="mb-4 overflow-hidden rounded-lg border border-[#E0E0E0] bg-white px-4 py-3 text-[#212529] shadow-sm"
+      className="app-card mb-4 overflow-hidden px-4 py-3 text-foreground"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-[#168039]">
-          <FlaskConical size={14} className="text-[#168039]" />
+        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-primary">
+          <FlaskConical size={14} className="text-primary" />
           Demo Mode
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <div className="inline-flex items-center gap-2 rounded-lg bg-[#F4F6F8] px-3 py-1.5 text-xs font-medium text-[#6C757D] ring-1 ring-[#E0E0E0]">
-            <DatabaseZap size={14} className="text-[#168039]" />
+          <div className="app-chip-muted">
+            <DatabaseZap size={14} className="text-primary" />
             Live API reads
           </div>
-          <div className="inline-flex items-center gap-2 rounded-lg bg-[#F4F6F8] px-3 py-1.5 text-xs font-medium text-[#6C757D] ring-1 ring-[#E0E0E0]">
-            <Sparkles size={14} className="text-[#168039]" />
+          <div className="app-chip-muted">
+            <Sparkles size={14} className="text-primary" />
             Guided actions
           </div>
         </div>

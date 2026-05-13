@@ -127,7 +127,7 @@ const BlocksScene = ({isLoading}: { isLoading: boolean }) => {
 
     // Colors
     const colors = useMemo(() =>
-            new Array(count).fill(0).map((_, i) => i % 2 === 0 ? "#818cf8" : "#c7d2fe"),
+            new Array(count).fill(0).map((_, i) => i % 2 === 0 ? "#168039" : "#dfffea"),
         [count]);
 
     return (
@@ -175,7 +175,7 @@ export default function ThreeDAssemblyLoader({isLoading}: { isLoading: boolean }
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5, ease: "easeInOut" }}
           // Added z-[100] to ensure it's on top of everything
-          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#F4F6F8]/95"
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95"
         >
 
           {/* 3D Container */}
@@ -187,7 +187,7 @@ export default function ThreeDAssemblyLoader({isLoading}: { isLoading: boolean }
                   <PerspectiveCamera makeDefault position={[0, 0, 10]} fov={45} />
                   <ambientLight intensity={0.5} />
                   <spotLight position={[10, 10, 10]} angle={0.3} penumbra={1} intensity={1.5} castShadow />
-                  <pointLight position={[-10, -5, -5]} intensity={1} color="#4f46e5"/>
+                  <pointLight position={[-10, -5, -5]} intensity={1} color="#168039"/>
 
                   {/* Pass isLoading down so the scene knows to stop animating */}
                   <BlocksScene isLoading={isLoading} />
@@ -211,16 +211,16 @@ export default function ThreeDAssemblyLoader({isLoading}: { isLoading: boolean }
                     initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -20, opacity: 0 }}
-                    className="text-lg font-semibold tracking-wide text-[#212529]"
+                    className="text-lg font-semibold tracking-wide text-foreground"
                 >
                     {LOADING_PHASES[msgIndex]}
                 </motion.p>
                 </AnimatePresence>
             </div>
 
-            <div className="w-48 h-1 mt-4 bg-[#E9EEF1] rounded-full overflow-hidden">
+            <div className="mt-4 h-1 w-48 overflow-hidden rounded-full bg-muted">
                  <motion.div
-                    className="h-full bg-[#168039]"
+                    className="h-full bg-primary"
                     initial={{ width: "0%" }}
                     animate={{ width: "100%" }}
                     transition={{ duration: 8, ease: "linear", repeat: Infinity }}

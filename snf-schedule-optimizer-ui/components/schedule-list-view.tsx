@@ -16,6 +16,8 @@ import { useSchedulingInitializer } from "@/hooks/use-scheduling-initializer";
 import LoadingOverlay from "@/components/ui/loading-overlay";
 import { ScheduleQueryError } from "@/hooks/use-schedule-query";
 import DashboardEmptyState from "@/components/dashboard-empty-state";
+import { cn } from "@/lib/utils";
+import { iconButtonVariants } from "@/components/ui/styles";
 
 // --- HELPERS (MUST BE COPIED OR MOVED) ---
 // You should move the Spinner, DAYS_OF_WEEK, and monthYearFormatter helpers
@@ -108,7 +110,10 @@ export default function ScheduleListView() {
               data-testid="previous-month"
               onClick={() => changeMonth(-1)}
               disabled={isTwoWeekView}
-              className={`rounded-lg p-2 text-[#6C757D] transition duration-150 hover:bg-[#E9EEF1] hover:text-[#212529] ${isTwoWeekView ? "cursor-not-allowed opacity-30" : ""}`}
+              className={iconButtonVariants({
+                tone: "soft",
+                disabled: isTwoWeekView,
+              })}
               aria-label="Previous month"
             >
               <ChevronLeft size={24} />
@@ -154,12 +159,12 @@ export default function ScheduleListView() {
             <button
               data-testid="toggle-calendar-view"
               onClick={toggleCalendarView}
-              className={`rounded-full border px-3 py-2 text-sm font-bold shadow-sm transition duration-200
-                            ${
-                              isTwoWeekView
-                                ? "border-transparent bg-[#168039] text-white hover:bg-[#126E31]"
-                                : "border-[#CED4DA] bg-white text-[#212529] hover:bg-[#DFFFEA] hover:text-[#168039]"
-                            }`}
+              className={cn(
+                "rounded-full border px-3 py-2 text-sm font-bold shadow-sm transition duration-200",
+                isTwoWeekView
+                  ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "border-input bg-card text-foreground hover:bg-accent hover:text-primary",
+              )}
             >
               {isTwoWeekView ? "View: 2 Week" : "View: Month"}
             </button>
@@ -169,7 +174,10 @@ export default function ScheduleListView() {
               data-testid="next-month"
               onClick={() => changeMonth(1)}
               disabled={isTwoWeekView}
-              className={`rounded-lg p-2 text-[#6C757D] transition duration-150 hover:bg-[#E9EEF1] hover:text-[#212529] ${isTwoWeekView ? "cursor-not-allowed opacity-30" : ""}`}
+              className={iconButtonVariants({
+                tone: "soft",
+                disabled: isTwoWeekView,
+              })}
               aria-label="Next month"
             >
               <ChevronRight size={24} />
@@ -222,22 +230,22 @@ export default function ScheduleListView() {
         />
 
         {/* Legend */}
-        <div className="mt-8 flex flex-wrap justify-center gap-6 border-t border-slate-200/70 pt-4 text-sm text-slate-600">
+          <div className="mt-8 flex flex-wrap justify-center gap-6 border-t border-slate-200/70 pt-4 text-sm text-slate-600">
           {/* 🟢 Ideal: 100% and above */}
           <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded-full bg-green-500 shadow-sm"></span>
+            <span className="h-3 w-3 rounded-full bg-green-500 shadow-sm" />
             <span>100%+ HPRD Covered (Ideal)</span>
           </div>
 
           {/* 🟡 Warning: 70% to 99% */}
           <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded-full bg-yellow-400 shadow-sm"></span>
+            <span className="h-3 w-3 rounded-full bg-amber-400 shadow-sm" />
             <span>70% - 99% HPRD Covered (Warning)</span>
           </div>
 
           {/* 🔴 Critical: Below 70% */}
           <div className="flex items-center space-x-2">
-            <span className="w-3 h-3 rounded-full bg-red-500 shadow-sm"></span>
+            <span className="h-3 w-3 rounded-full bg-red-500 shadow-sm" />
             <span>&lt;70% HPRD Covered (Critical)</span>
           </div>
         </div>

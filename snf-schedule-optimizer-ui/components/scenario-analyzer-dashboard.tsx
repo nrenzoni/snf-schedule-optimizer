@@ -130,7 +130,7 @@ export default function ScenarioAnalyzerDashboard() {
       value: "$142,500",
       trend: "+4.2%",
       icon: DollarSign,
-      color: "text-[#168039]",
+      color: "text-primary",
       trendColor: "text-red-500",
     },
     {
@@ -138,24 +138,24 @@ export default function ScenarioAnalyzerDashboard() {
       value: "18.5%",
       trend: "-2.1%",
       icon: Users,
-      color: "text-[#168039]",
-      trendColor: "text-[#28A745]",
+      color: "text-primary",
+      trendColor: "text-green-600",
     },
     {
       label: "Avg HPPD",
       value: "3.82",
       trend: "Target: 3.6",
       icon: Activity,
-      color: "text-[#168039]",
-      trendColor: "text-[#6C757D]",
+      color: "text-primary",
+      trendColor: "text-muted-foreground",
     },
     {
       label: "Overtime %",
       value: "8.4%",
       trend: "Target: <5%",
       icon: PieChart,
-      color: "text-[#FBC02D]",
-      trendColor: "text-[#FBC02D]",
+      color: "text-amber-600",
+      trendColor: "text-amber-600",
     },
   ];
 
@@ -172,7 +172,7 @@ export default function ScenarioAnalyzerDashboard() {
         {typedMetrics.map((kpi, idx) => (
           <div
             key={idx}
-            className="app-card flex flex-col justify-between p-3 transition hover:border-[#28A745]"
+            className="app-card flex flex-col justify-between p-3 transition hover:border-primary/40"
           >
             <div className="mb-1.5 flex items-start justify-between">
               <span className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">
@@ -195,23 +195,23 @@ export default function ScenarioAnalyzerDashboard() {
       <div className="grid gap-3 lg:grid-cols-3">
         {/* Simulation Launcher */}
         <div className="app-card p-4 lg:col-span-1">
-          <h3 className="mb-3 flex items-center gap-2 font-semibold text-[#212529]">
-            <Play size={18} className="text-[#168039]" />
+          <h3 className="mb-3 flex items-center gap-2 font-semibold text-foreground">
+            <Play size={18} className="text-primary" />
             Run New Simulation
           </h3>
           <div className="space-y-2">
             <button
               data-testid="simulation-wage-impact"
               onClick={() => openSimulation("WAGE_IMPACT")}
-              className="group w-full rounded-lg border border-[#E0E0E0] bg-white p-3 text-left transition hover:border-[#28A745] hover:bg-[#DFFFEA]"
+              className="group w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40 hover:bg-accent"
             >
               <div className="flex justify-between items-center">
-                <span className="font-medium text-[#212529] group-hover:text-[#168039]">
+                <span className="font-medium text-foreground group-hover:text-primary">
                   Wage Impact Analysis
                 </span>
                 <ArrowRight
                   size={16}
-                  className="text-[#6C757D] group-hover:text-[#168039]"
+                  className="text-muted-foreground group-hover:text-primary"
                 />
               </div>
               <p className="mt-1 text-xs text-slate-500">
@@ -222,15 +222,15 @@ export default function ScenarioAnalyzerDashboard() {
             <button
               data-testid="simulation-census-impact"
               onClick={() => openSimulation("CENSUS_IMPACT")}
-              className="group w-full rounded-lg border border-[#E0E0E0] bg-white p-3 text-left transition hover:border-[#28A745] hover:bg-[#DFFFEA]"
+              className="group w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40 hover:bg-accent"
             >
               <div className="flex justify-between items-center">
-                <span className="font-medium text-[#212529] group-hover:text-[#168039]">
+                <span className="font-medium text-foreground group-hover:text-primary">
                   Census Volatility
                 </span>
                 <ArrowRight
                   size={16}
-                  className="text-[#6C757D] group-hover:text-[#168039]"
+                  className="text-muted-foreground group-hover:text-primary"
                 />
               </div>
               <p className="mt-1 text-xs text-slate-500">
@@ -241,15 +241,15 @@ export default function ScenarioAnalyzerDashboard() {
             <button
               data-testid="simulation-agency-reduction"
               onClick={() => openSimulation("AGENCY_REDUCTION")}
-              className="group w-full rounded-lg border border-[#E0E0E0] bg-white p-3 text-left transition hover:border-[#28A745] hover:bg-[#DFFFEA]"
+              className="group w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40 hover:bg-accent"
             >
               <div className="flex justify-between items-center">
-                <span className="font-medium text-[#212529] group-hover:text-[#168039]">
+                <span className="font-medium text-foreground group-hover:text-primary">
                   Agency Reduction Strategy
                 </span>
                 <ArrowRight
                   size={16}
-                  className="text-[#6C757D] group-hover:text-[#168039]"
+                  className="text-muted-foreground group-hover:text-primary"
                 />
               </div>
               <p className="mt-1 text-xs text-slate-500">
@@ -268,8 +268,8 @@ export default function ScenarioAnalyzerDashboard() {
             />
           ) : (
             <div className="app-card flex h-full min-h-[300px] flex-col items-center justify-center border-dashed border-indigo-200/80 p-8 text-center">
-              <div className="mb-4 rounded-lg bg-white p-4 shadow-sm">
-                <TrendingUp size={32} className="text-[#168039]" />
+              <div className="mb-4 rounded-lg bg-card p-4 shadow-sm">
+                <TrendingUp size={32} className="text-primary" />
               </div>
               <h3 className="font-bold text-slate-700">
                 No Active Simulation

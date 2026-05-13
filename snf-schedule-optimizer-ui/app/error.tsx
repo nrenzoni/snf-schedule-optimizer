@@ -23,7 +23,7 @@ export default function GlobalError({
           Refresh the page or retry the last render. If the issue keeps
           happening, check the API connection and browser console.
         </p>
-        <pre className="mt-6 overflow-x-auto rounded-lg bg-[#212529] p-4 text-xs text-white">
+        <pre className="mt-6 overflow-x-auto rounded-lg bg-foreground p-4 text-xs text-background">
           {error.message}
         </pre>
         <div className="mt-6 flex flex-wrap gap-3">

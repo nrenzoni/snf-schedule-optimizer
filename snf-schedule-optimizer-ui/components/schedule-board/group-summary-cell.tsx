@@ -18,31 +18,31 @@ export default function GroupSummaryCell({
   const barColor =
     status === "critical"
       ? "bg-red-500"
-      : status === "warning"
-        ? "bg-[#FBC02D]"
-        : "bg-[#28A745]";
+    : status === "warning"
+        ? "bg-amber-400"
+        : "bg-green-600";
   // Lighter background for totals to distinguish from rows
   const bgColor = isTotal
     ? "bg-transparent"
     : status === "critical"
       ? "bg-red-50"
-      : status === "warning"
-        ? "bg-[#FFF8E1]"
-        : "bg-[#F4F6F8]";
+    : status === "warning"
+        ? "bg-amber-50"
+        : "bg-background";
   const textColor =
     status === "critical"
       ? "text-red-700"
-      : status === "warning"
-        ? "text-[#FBC02D]"
-        : "text-[#6C757D]";
+    : status === "warning"
+        ? "text-amber-700"
+        : "text-muted-foreground";
   const widthPct = Math.min(filledPct * 100, 100);
 
   return (
     <div
       className={cn(
         CELL_WIDTH,
-        "group/cell relative flex h-full flex-col justify-end border-r border-[#E0E0E0]",
-        isToday ? "bg-[#DFFFEA]" : bgColor,
+        "group/cell relative flex h-full flex-col justify-end border-r border-border",
+        isToday ? "bg-accent" : bgColor,
       )}
     >
       {/* Percentage Text */}
@@ -55,7 +55,7 @@ export default function GroupSummaryCell({
         {label}
       </div>
       {/* Progress Bar Background */}
-      <div className="absolute bottom-0 h-1.5 w-full bg-[#E9EEF1]">
+      <div className="absolute bottom-0 h-1.5 w-full bg-muted">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${widthPct}%` }}

@@ -8,6 +8,8 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { iconButtonVariants, statPanelVariants } from "@/components/ui/styles";
 
 interface StatItem {
   label: string;
@@ -46,9 +48,9 @@ export default function MlForecastsDashboard() {
       subtitle: "Next 30 Days",
       icon: Activity,
       riskLevel: "Medium",
-      color: "text-[#168039]",
-      bg: "bg-[#DFFFEA]",
-      border: "border-[#28A745]",
+      color: "text-primary",
+      bg: "bg-accent",
+      border: "border-primary/40",
       summary: "Predicted drop in HPPD on weekends starting Nov 20th.",
       details: {
         chartLabel: "Hours Per Patient Day (Trend)",
@@ -67,9 +69,9 @@ export default function MlForecastsDashboard() {
       subtitle: "Staff Retention AI",
       icon: Users,
       riskLevel: "High",
-      color: "text-[#FBC02D]",
-      bg: "bg-[#FFF8E1]",
-      border: "border-[#FBC02D]",
+      color: "text-amber-700",
+      bg: "bg-amber-50",
+      border: "border-amber-300/50",
       summary: "3 High-Performance RNs flagged for burnout risk.",
       details: {
         chartLabel: "Burnout Risk Index",
@@ -88,9 +90,9 @@ export default function MlForecastsDashboard() {
       subtitle: "Incident Prediction",
       icon: ShieldAlert,
       riskLevel: "Low",
-      color: "text-[#28A745]",
-      bg: "bg-[#DFFFEA]",
-      border: "border-[#28A745]",
+      color: "text-green-600",
+      bg: "bg-accent",
+      border: "border-primary/40",
       summary: "Labor law compliance is stable. Low injury risk.",
       details: {
         chartLabel: "Safety Incident Probability",
@@ -117,14 +119,12 @@ export default function MlForecastsDashboard() {
               onClick={() => setActiveInsight(item)}
               type="button"
               style={{ animationDelay: `${idx * 100}ms` }}
-              className={`
-                                  group relative cursor-pointer overflow-hidden rounded-lg border p-3 text-left transition-all duration-200 animate-in slide-in-from-left-4
-                                ${
-                                  activeInsight?.id === item.id
-                                    ? `bg-white ${item.border} ring-1 ring-[#168039]/20 shadow-sm`
-                                    : "border-[#E0E0E0] bg-white shadow-sm hover:border-[#28A745] hover:bg-[#DFFFEA]"
-                                  }
-                             `}
+              className={cn(
+                "group relative cursor-pointer overflow-hidden rounded-lg border p-3 text-left transition-all duration-200 animate-in slide-in-from-left-4",
+                activeInsight?.id === item.id
+                  ? cn("bg-card ring-1 ring-primary/20 shadow-sm", item.border)
+                  : "border-border bg-card shadow-sm hover:border-primary/40 hover:bg-accent",
+              )}
               aria-pressed={activeInsight?.id === item.id}
             >
               <div
@@ -148,7 +148,7 @@ export default function MlForecastsDashboard() {
               </div>
               {activeInsight?.id === item.id && (
                 <div className="mt-3 flex justify-end">
-                <ArrowRight size={16} className="text-[#168039]" />
+                <ArrowRight size={16} className="text-primary" />
                 </div>
               )}
             </button>
@@ -163,7 +163,7 @@ export default function MlForecastsDashboard() {
               className="app-card h-full overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300"
             >
               <div
-                className={`flex items-start justify-between border-b border-[#E0E0E0] p-4 ${activeInsight.bg}`}
+                className={cn("flex items-start justify-between border-b border-border p-4", activeInsight.bg)}
               >
                 <div>
                   <div className="flex items-center space-x-2 mb-1">
@@ -183,7 +183,7 @@ export default function MlForecastsDashboard() {
                 </div>
                 <button
                   onClick={() => setActiveInsight(null)}
-                  className="rounded-full p-1 text-slate-500 hover:bg-black/5"
+                  className={iconButtonVariants({ shape: "full", tone: "default" })}
                   aria-label="Close forecast details"
                 >
                   <X size={20} />
@@ -196,13 +196,16 @@ export default function MlForecastsDashboard() {
                   {activeInsight.details.stats.map((stat, idx) => (
                     <div
                       key={idx}
-                      className="app-soft-panel p-3 text-center"
+                      className={cn("p-3 text-center", statPanelVariants({ tone: "neutral" }))}
                     >
-                      <p className="text-xs font-medium uppercase tracking-wide text-[#6C757D]">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         {stat.label}
                       </p>
                       <p
-                        className={`mt-1 text-xl font-semibold md:text-2xl ${stat.alert ? "text-red-600" : "text-[#212529]"}`}
+                        className={cn(
+                          "mt-1 text-xl font-semibold md:text-2xl",
+                          stat.alert ? "text-red-600" : "text-foreground",
+                        )}
                       >
                         {stat.value}
                       </p>
@@ -216,31 +219,31 @@ export default function MlForecastsDashboard() {
                     <TrendingUp size={16} />
                     {activeInsight.details.chartLabel}
                   </h4>
-                  <div className="flex h-48 items-end justify-between rounded-lg border border-dashed border-[#E0E0E0] bg-[#F4F6F8] p-4 px-8">
+                  <div className="flex h-48 items-end justify-between rounded-lg border border-dashed border-border bg-background p-4 px-8">
                     {[40, 65, 45, 80, 55, 90, 70].map((h, i) => (
                       <div
                         key={i}
-                        className="group relative w-8 rounded-t-lg bg-[#DFFFEA] transition-colors hover:bg-[#28A745]"
+                        className="group relative w-8 rounded-t-lg bg-accent transition-colors hover:bg-primary/75"
                         style={{ height: `${h}%` }}
                       >
-                         <div className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-lg bg-[#212529] px-2 py-1 text-[10px] text-white opacity-0 transition group-hover:opacity-100">
-                          Data Point
-                        </div>
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-lg bg-foreground px-2 py-1 text-[10px] text-background opacity-0 transition group-hover:opacity-100">
+                           Data Point
+                          </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* AI Insight Box */}
-                <div className="flex items-start space-x-3 rounded-lg border border-[#28A745]/30 bg-[#DFFFEA] p-4">
-                  <div className="mt-1 rounded-lg bg-white p-2 text-[#168039] shadow-none">
+                <div className="app-callout-success flex items-start space-x-3 p-4">
+                  <div className="mt-1 rounded-lg bg-card p-2 text-primary shadow-none">
                     <activeInsight.icon size={16} />
                   </div>
                   <div>
-                    <h4 className="text-sm font-medium text-[#168039]">
+                    <h4 className="text-sm font-medium text-primary">
                       AI Recommendation
                     </h4>
-                    <p className="mt-1 text-sm leading-relaxed text-[#212529]">
+                    <p className="mt-1 text-sm leading-relaxed text-foreground">
                       {activeInsight.details.insight}
                     </p>
                   </div>
@@ -249,7 +252,7 @@ export default function MlForecastsDashboard() {
             </div>
           ) : (
             <div className="app-card flex h-full min-h-[360px] flex-col items-center justify-center border-dashed border-indigo-200/80 p-6 text-center animate-in fade-in duration-500">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-white text-[#168039] shadow-sm">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-lg bg-card text-primary shadow-sm">
                 <Activity size={32} />
               </div>
               <h3 className="text-lg font-black text-slate-700">

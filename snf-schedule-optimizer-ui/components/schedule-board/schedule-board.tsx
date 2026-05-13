@@ -46,6 +46,7 @@ import { useIsFetching } from "@tanstack/react-query";
 import LoadingOverlay from "../ui/loading-overlay";
 import { parseAsString, useQueryState } from "nuqs";
 import { formatDateYYYMMDD, TODAY_STRING } from "@/utils/scheduling-logic";
+import { iconButtonVariants, segmentedButtonVariants } from "@/components/ui/styles";
 
 // --- CONFIGURATION ---
 
@@ -253,7 +254,7 @@ export default function ScheduleBoard({
       toast.custom(
         (t) => (
           // CHANGED: bg-slate-900 -> bg-white, text-white -> text-slate-900, border-slate-800 -> border-slate-200
-          <div className="flex w-full max-w-md items-center justify-between gap-4 rounded-lg border border-[#E0E0E0] bg-white p-4 text-[#212529] shadow-sm">
+          <div className="app-card flex w-full max-w-md items-center justify-between gap-4 p-4 text-foreground">
             <div className="flex flex-col gap-1">
               {/* Header */}
               <div className="flex items-center gap-2">
@@ -318,7 +319,7 @@ export default function ScheduleBoard({
                 toast.info("Shift move undone");
               }}
               // CHANGED: Dark button -> Light gray button
-              className="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded transition-colors flex items-center gap-1"
+              className="flex items-center gap-1 rounded border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200"
             >
               <Undo2 size={12} /> Undo
             </button>
@@ -343,33 +344,33 @@ export default function ScheduleBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="relative flex h-full flex-col overflow-hidden rounded-lg border border-[#E0E0E0] bg-white shadow-sm">
+      <div className="app-card relative flex h-full flex-col overflow-hidden">
         {/* It will sit on top of everything inside this div */}
         <LoadingOverlay isVisible={isFetching > 0} />
 
         {/* HEADER TOOLBAR */}
-        <div className="z-50 flex items-center justify-between border-b border-[#E0E0E0] bg-white px-4 py-3">
+        <div className="z-50 flex items-center justify-between border-b border-border bg-card px-4 py-3">
           <div className="flex items-center gap-3">
-            <h2 className="flex items-center gap-2 font-semibold text-[#212529]">
-              <LayoutList size={18} className="text-[#168039]" /> Master Schedule
+            <h2 className="flex items-center gap-2 font-semibold text-foreground">
+              <LayoutList size={18} className="text-primary" /> Master Schedule
             </h2>
             <div className="app-segmented flex items-center gap-1 p-1">
               <button
                 type="button"
                 onClick={() => pageSchedule(-VISIBLE_DAY_COUNT)}
-                className="rounded-lg p-1 text-[#6C757D] transition-colors hover:bg-white hover:text-[#212529]"
+                className={iconButtonVariants({ tone: "default" })}
                 aria-label="Show previous 6 days"
               >
                 <ChevronLeft size={16} />
               </button>
-              <span className="px-2 text-xs font-medium text-[#6C757D]">
+              <span className="px-2 text-xs font-medium text-muted-foreground">
                 {format(visibleDates[0], "MMM d")} -{" "}
                 {format(visibleDates[VISIBLE_DAY_COUNT - 1], "MMM d")}
               </span>
               <button
                 type="button"
                 onClick={() => pageSchedule(VISIBLE_DAY_COUNT)}
-                className="rounded-lg p-1 text-[#6C757D] transition-colors hover:bg-white hover:text-[#212529]"
+                className={iconButtonVariants({ tone: "default" })}
                 aria-label="Show next 6 days"
               >
                 <ChevronRight size={16} />
@@ -381,23 +382,13 @@ export default function ScheduleBoard({
               <span className="px-2 text-slate-500">Sub-Group:</span>
               <button
                 onClick={() => setGroupingMode("ROLE")}
-                className={cn(
-                  "px-3 py-1 rounded-lg transition-colors",
-                  groupingMode === "ROLE"
-                    ? "bg-white text-[#168039]"
-                    : "text-[#6C757D]",
-                )}
+                className={segmentedButtonVariants({ size: "sm", active: groupingMode === "ROLE" })}
               >
                 Role
               </button>
               <button
                 onClick={() => setGroupingMode("BUDGET")}
-                className={cn(
-                  "px-3 py-1 rounded-lg transition-colors",
-                  groupingMode === "BUDGET"
-                    ? "bg-white text-[#168039]"
-                    : "text-[#6C757D]",
-                )}
+                className={segmentedButtonVariants({ size: "sm", active: groupingMode === "BUDGET" })}
               >
                 Budget
               </button>
@@ -406,23 +397,13 @@ export default function ScheduleBoard({
               <span className="px-2 text-slate-500">Metric:</span>
               <button
                 onClick={() => setViewMode("ROLE")}
-                className={cn(
-                  "px-3 py-1 rounded-lg flex items-center gap-1 transition-colors",
-                  viewMode === "ROLE"
-                    ? "bg-white text-[#168039]"
-                    : "text-[#6C757D]",
-                )}
+                className={segmentedButtonVariants({ size: "sm", active: viewMode === "ROLE" })}
               >
                 <Activity size={12} /> HPRD
               </button>
               <button
                 onClick={() => setViewMode("BUDGET")}
-                className={cn(
-                  "px-3 py-1 rounded-lg flex items-center gap-1 transition-colors",
-                  viewMode === "BUDGET"
-                    ? "bg-white text-[#168039]"
-                    : "text-[#6C757D]",
-                )}
+                className={segmentedButtonVariants({ size: "sm", active: viewMode === "BUDGET" })}
               >
                 <DollarSign size={12} /> Cost
               </button>
@@ -431,28 +412,28 @@ export default function ScheduleBoard({
         </div>
 
         {/* SCROLL AREA */}
-        <div className="relative flex-1 overflow-auto bg-[#F4F6F8]">
+        <div className="relative flex-1 overflow-auto bg-background">
           <div className="min-w-max p-4 pb-20">
             {/* GLOBAL DATE HEADER (Stays sticky, does NOT fade) */}
-            <div className="sticky top-0 z-40 mb-2 flex rounded-lg border border-[#E0E0E0] bg-white shadow-none">
+            <div className="sticky top-0 z-40 mb-2 flex rounded-lg border border-border bg-card shadow-none">
               <div
                 className={cn(
                   STAFF_COL_WIDTH,
-                  "sticky left-0 z-50 flex items-center justify-between rounded-l-lg border-r border-[#E0E0E0] bg-white px-3 text-xs font-medium text-[#6C757D]",
+                  "sticky left-0 z-50 flex items-center justify-between rounded-l-lg border-r border-border bg-card px-3 text-xs font-medium text-muted-foreground",
                 )}
               >
                 <span className="uppercase tracking-widest">Unit / Staff</span>
                 <div className="hidden xl:flex items-center gap-1">
                   <button
                     onClick={handleCollapseAll}
-                    className="rounded-lg p-1 hover:bg-[#E9EEF1]"
+                    className={iconButtonVariants({ tone: "soft" })}
                     aria-label="Collapse all groups"
                   >
                     <ChevronUp size={14} />
                   </button>
                   <button
                     onClick={handleExpandAll}
-                    className="rounded-lg p-1 hover:bg-[#E9EEF1]"
+                    className={iconButtonVariants({ tone: "soft" })}
                     aria-label="Expand all groups"
                   >
                     <ChevronDown size={14} />
@@ -467,15 +448,15 @@ export default function ScheduleBoard({
                 return (
                   <div
                     key={i}
-                    className="flex border-r border-[#E0E0E0] last:border-0"
+                    className="flex border-r border-border last:border-0"
                   >
                     <div className="flex flex-col">
                       <div
                         className={cn(
-                           "w-full border-b border-[#E0E0E0] py-1.5 text-center text-xs font-medium",
+                           "w-full border-b border-border py-1.5 text-center text-xs font-medium",
                            isToday
-                            ? "bg-[#168039] text-white"
-                            : "bg-[#F4F6F8] text-[#212529]",
+                             ? "bg-primary text-primary-foreground"
+                             : "bg-background text-foreground",
                         )}
                       >
                         {format(date, "EEE, MMM d")}
@@ -486,8 +467,8 @@ export default function ScheduleBoard({
                             key={shift.id}
                             className={cn(
                               CELL_WIDTH,
-                              "border-r border-[#E0E0E0] py-1 text-center text-[10px] font-medium text-[#6C757D] last:border-r-0",
-                              isToday ? "bg-[#DFFFEA]" : "bg-white",
+                              "border-r border-border py-1 text-center text-[10px] font-medium text-muted-foreground last:border-r-0",
+                              isToday ? "bg-accent" : "bg-card",
                             )}
                           >
                             {shift.label}

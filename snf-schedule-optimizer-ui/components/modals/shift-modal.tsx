@@ -1,6 +1,11 @@
 import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { UICalendarDay, UINurse, UIShift } from "@/types/scheduling";
 import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  iconButtonVariants,
+  selectableCardVariants,
+} from "@/components/ui/styles";
 
 interface ShiftModalProps {
   selectedDay: UICalendarDay | null;
@@ -90,8 +95,8 @@ export default function ShiftModal({
   // --- Dynamic Class Control ---
   // Backdrop fade-in/out
   const backdropClasses = isVisible
-    ? "bg-[#212529]/35 opacity-100 pointer-events-auto"
-    : "bg-[#212529]/0 opacity-0 pointer-events-none";
+    ? "bg-foreground/35 opacity-100 pointer-events-auto"
+    : "bg-foreground/0 opacity-0 pointer-events-none";
 
   // Modal Content zoom/scale (to give depth illusion)
   const contentClasses = isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0";
@@ -100,7 +105,10 @@ export default function ShiftModal({
     // 1. BACKDROP CONTAINER: Handles the blur and opacity fade of the whole screen
     <div
       // Use the dynamic classes for fade control
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out ${backdropClasses}`}
+      className={cn(
+        "fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out",
+        backdropClasses,
+      )}
       onClick={closeModal}
       role="dialog"
       aria-modal="true"
@@ -109,7 +117,10 @@ export default function ShiftModal({
       {/* 2. MODAL CONTENT: Apply the zoom/scale transition */}
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-[#E0E0E0] bg-white shadow-md transition-all duration-300 ease-out md:flex-row ${contentClasses}`}
+        className={cn(
+          "app-modal-surface flex h-[90vh] max-w-4xl flex-col transition-all duration-300 ease-out md:flex-row",
+          contentClasses,
+        )}
       >
         {/* Left Panel (Shift Summary & Nurse List - Level 1) */}
         <div className="flex min-w-0 flex-grow flex-col p-4 md:min-w-[20rem] md:p-6">
@@ -122,7 +133,7 @@ export default function ShiftModal({
             </h3>
             <button
               onClick={closeModal}
-              className="rounded-lg p-1 text-[#6C757D] hover:bg-[#E9EEF1] hover:text-[#212529]"
+              className={iconButtonVariants({ tone: "soft" })}
               aria-label="Close shift details"
             >
               <X size={24} />
@@ -135,15 +146,23 @@ export default function ShiftModal({
                 key={shift.shiftName}
                 onClick={() => selectShift(shift)}
                 type="button"
-                  className={`cursor-pointer rounded-lg border p-3 text-left transition duration-150 
-                              ${selectedShift?.shiftName === shift.shiftName ? "border-[#168039] bg-[#DFFFEA] ring-1 ring-[#168039]" : "hover:border-[#28A745]"}
-                              ${shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? "border-[#28A745] bg-[#DFFFEA]" : ""}
-                              ${!shift.isHPRDMet && selectedShift?.shiftName !== shift.shiftName ? "border-red-200 bg-red-50" : ""}`}
+                  className={selectableCardVariants({
+                    tone:
+                      selectedShift?.shiftName === shift.shiftName
+                        ? "success"
+                        : shift.isHPRDMet
+                          ? "success"
+                          : "danger",
+                    selected: selectedShift?.shiftName === shift.shiftName,
+                  })}
                 aria-pressed={selectedShift?.shiftName === shift.shiftName}
               >
                 <div className="flex justify-between items-center mb-1">
                   <p
-                    className={`text-lg font-semibold ${shift.isHPRDMet ? "text-[#28A745]" : "text-red-700"}`}
+                    className={cn(
+                      "text-lg font-semibold",
+                      shift.isHPRDMet ? "text-green-600" : "text-red-700",
+                    )}
                   >
                     {shift.shiftName} Shift:{" "}
                     {shift.isHPRDMet ? "MET" : "NOT MET"}
@@ -172,14 +191,16 @@ export default function ShiftModal({
                     key={nurse.id}
                     onClick={() => openNurseDetails(nurse)}
                     type="button"
-                    className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition duration-150 hover:bg-[#DFFFEA] 
-                                  ${selectedNurse?.id === nurse.id ? "border-[#168039] bg-[#DFFFEA]" : "border-[#E0E0E0] bg-white"}`}
+                    className={selectableCardVariants({
+                      tone: selectedNurse?.id === nurse.id ? "success" : "neutral",
+                      selected: selectedNurse?.id === nurse.id,
+                    })}
                     aria-pressed={selectedNurse?.id === nurse.id}
                   >
                     <span className="font-bold text-slate-800">
                       {nurse.name}
                     </span>
-                    <span className="text-sm font-medium text-[#168039]">
+                    <span className="text-sm font-medium text-primary">
                       {nurse.shiftHours} hrs
                     </span>
                   </button>

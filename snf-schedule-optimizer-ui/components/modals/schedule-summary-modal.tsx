@@ -11,6 +11,13 @@ import {
   X,
 } from "lucide-react";
 import ModalContainer from "../modal-container";
+import {
+  iconButtonVariants,
+  statPanelVariants,
+  statValueVariants,
+  statusBadgeVariants,
+} from "@/components/ui/styles";
+import { cn } from "@/lib/utils";
 
 export interface SchedulerSettings {
   useMLForecast: boolean;
@@ -75,7 +82,7 @@ export function ScheduleSummaryModal({
                which no longer needs transition classes. */}
       <div className="w-full overflow-hidden bg-white/82">
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-[#E0E0E0] bg-white p-4 text-[#212529]">
+        <div className="app-modal-header">
           <div className="flex items-center space-x-2">
             <ListChecks size={24} />
             <h3 className="text-xl font-black">Monthly Schedule Summary</h3>
@@ -83,7 +90,7 @@ export function ScheduleSummaryModal({
           {/* Close Button relies on onClose prop */}
           <button
             onClick={onClose}
-            className="rounded-lg p-1 text-[#6C757D] hover:bg-[#E9EEF1] hover:text-[#212529]"
+            className={iconButtonVariants({ tone: "soft" })}
           >
             <X size={20} />
           </button>
@@ -93,59 +100,80 @@ export function ScheduleSummaryModal({
         <div className="p-6 grid lg:grid-cols-3 gap-8 max-h-[80vh] overflow-y-auto">
           {/* COLUMN 1: Operational Metrics */}
           <div>
-            <h4 className="mb-4 flex items-center gap-2 border-b border-[#E0E0E0] pb-2 text-lg font-semibold text-[#168039]">
+            <h4 className="mb-4 flex items-center gap-2 border-b border-border pb-2 text-lg font-semibold text-primary">
               <CheckCircle size={18} /> Operational Compliance
             </h4>
             <div className="space-y-3">
-              <div className="flex justify-between rounded-lg border border-[#28A745]/30 bg-[#DFFFEA] p-3">
-                <span className="text-gray-700 font-medium">
+              <div className={statPanelVariants({ tone: "success" })}>
+                <span className="font-medium text-slate-700">
                   Avg. Daily Coverage
                 </span>
-                <span className="text-xl font-semibold text-[#168039]">
+                <span className="text-xl font-semibold text-primary">
                   {metrics.avgCoverage}
                 </span>
               </div>
 
               <div
-                className={`flex justify-between rounded-lg border p-3 ${metrics.shiftsBelowThreshold > 5 ? "border-red-200 bg-red-50" : "border-[#28A745]/30 bg-[#DFFFEA]"}`}
+                className={cn(
+                  "flex justify-between",
+                  statPanelVariants({
+                    tone: metrics.shiftsBelowThreshold > 5 ? "danger" : "success",
+                  }),
+                )}
               >
                 <div>
-                  <span className="text-gray-700 font-medium">
+                  <span className="font-medium text-slate-700">
                     Risk Shifts (Low Buffer)
                   </span>
                 </div>
                 <span
-                  className={`text-xl font-black ${metrics.shiftsBelowThreshold > 5 ? "text-rose-600" : "text-emerald-600"}`}
+                  className={statValueVariants({
+                    tone: metrics.shiftsBelowThreshold > 5 ? "danger" : "success",
+                  })}
                 >
                   {metrics.shiftsBelowThreshold}
                 </span>
               </div>
 
               <div
-                className={`flex justify-between rounded-lg border p-3 ${metrics.restPeriodViolations > 0 ? "border-[#FBC02D]/40 bg-[#FFF8E1]" : "border-[#E0E0E0] bg-white"}`}
+                className={cn(
+                  "flex justify-between",
+                  statPanelVariants({
+                    tone: metrics.restPeriodViolations > 0 ? "warning" : "neutral",
+                  }),
+                )}
               >
                 <div>
-                  <span className="text-gray-700 font-medium">
+                  <span className="font-medium text-slate-700">
                     Rest Period Violations
                   </span>
                 </div>
                 <span
-                  className={`text-xl font-black ${metrics.restPeriodViolations > 0 ? "text-amber-600" : "text-slate-700"}`}
+                  className={statValueVariants({
+                    tone: metrics.restPeriodViolations > 0 ? "warning" : "neutral",
+                  })}
                 >
                   {metrics.restPeriodViolations}
                 </span>
               </div>
 
               <div
-                className={`flex justify-between rounded-lg border p-3 ${metrics.maxShiftViolations > 0 ? "border-[#FBC02D]/40 bg-[#FFF8E1]" : "border-[#E0E0E0] bg-white"}`}
+                className={cn(
+                  "flex justify-between",
+                  statPanelVariants({
+                    tone: metrics.maxShiftViolations > 0 ? "warning" : "neutral",
+                  }),
+                )}
               >
                 <div>
-                  <span className="text-gray-700 font-medium">
+                  <span className="font-medium text-slate-700">
                     Max Shift Violations
                   </span>
                 </div>
                 <span
-                  className={`text-xl font-black ${metrics.maxShiftViolations > 0 ? "text-amber-600" : "text-slate-700"}`}
+                  className={statValueVariants({
+                    tone: metrics.maxShiftViolations > 0 ? "warning" : "neutral",
+                  })}
                 >
                   {metrics.maxShiftViolations}
                 </span>
@@ -155,42 +183,44 @@ export function ScheduleSummaryModal({
 
           {/* COLUMN 2: Financial Metrics */}
           <div>
-            <h4 className="mb-4 flex items-center gap-2 border-b border-[#E0E0E0] pb-2 text-lg font-semibold text-[#168039]">
+            <h4 className="mb-4 flex items-center gap-2 border-b border-border pb-2 text-lg font-semibold text-primary">
               <DollarSign size={18} /> Financial Impact
             </h4>
             <div className="space-y-3">
-              <div className="flex justify-between rounded-lg border border-[#28A745]/30 bg-[#DFFFEA] p-3">
-                <span className="text-gray-700 font-medium">
+              <div className={cn("flex justify-between", statPanelVariants({ tone: "success" }))}>
+                <span className="font-medium text-slate-700">
                   Est. Labor Cost
                 </span>
-                <span className="text-xl font-semibold text-[#168039]">
+                <span className="text-xl font-semibold text-primary">
                   {metrics.totalLaborCost}
                 </span>
               </div>
 
-              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
-                <span className="text-gray-700 font-medium">
+              <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
+                <span className="font-medium text-slate-700">
                   Cost Per Patient Day
                 </span>
-                <span className="font-bold text-xl text-gray-800">
+                <span className="text-xl font-bold text-slate-800">
                   {metrics.costPerPatientDay}
                 </span>
               </div>
 
-              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
-                <span className="text-gray-700 font-medium">Overtime %</span>
+              <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
+                <span className="font-medium text-slate-700">Overtime %</span>
                 <span
-                  className={`text-xl font-black ${metrics.overtimeNumerical > 5.0 ? "text-rose-600" : "text-emerald-600"}`}
+                  className={statValueVariants({
+                    tone: metrics.overtimeNumerical > 5.0 ? "danger" : "success",
+                  })}
                 >
                   {metrics.overtimePercentage}
                 </span>
               </div>
 
-              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
+              <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <div>
-                  <span className="text-gray-700 font-medium">Premium Pay</span>
+                  <span className="font-medium text-slate-700">Premium Pay</span>
                 </div>
-                <span className="font-bold text-xl text-gray-800">
+                <span className="text-xl font-bold text-slate-800">
                   {metrics.totalPremiumPay}
                 </span>
               </div>
@@ -199,27 +229,27 @@ export function ScheduleSummaryModal({
 
           {/* COLUMN 3: Wellbeing Metrics */}
           <div>
-            <h4 className="mb-4 flex items-center gap-2 border-b border-[#E0E0E0] pb-2 text-lg font-semibold text-[#168039]">
+            <h4 className="mb-4 flex items-center gap-2 border-b border-border pb-2 text-lg font-semibold text-primary">
               <Heart size={18} className="text-pink-600" />
               Staff Wellbeing
             </h4>
             <div className="space-y-3">
               {/* Preference Match */}
-              <div className="rounded-lg border border-[#28A745]/30 bg-[#DFFFEA] p-3">
+              <div className={statPanelVariants({ tone: "success" })}>
                 <div className="flex justify-between mb-1">
-                  <span className="text-gray-700 font-medium flex items-center gap-2">
-                    <Smile size={16} className="text-[#168039]" /> Preferences
+                  <span className="flex items-center gap-2 font-medium text-slate-700">
+                    <Smile size={16} className="text-primary" /> Preferences
                     Met
                   </span>
-                  <span className="text-xl font-semibold text-[#168039]">
+                  <span className="text-xl font-semibold text-primary">
                     {metrics.preferenceMatch}
                   </span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-[#E9EEF1]">
+                <div className="h-2 w-full rounded-full bg-muted">
                   <div
-                    className="h-2 rounded-full bg-[#28A745]"
+                    className="h-2 rounded-full bg-primary"
                     style={{ width: `${metrics.preferenceMatchNumerical}%` }}
-                  ></div>
+                  />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
                   Ratio of shift/off requests granted.
@@ -227,44 +257,44 @@ export function ScheduleSummaryModal({
               </div>
 
               {/* Team Synergy */}
-              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
+              <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <div>
-                  <span className="text-gray-700 font-medium flex items-center gap-2">
+                  <span className="flex items-center gap-2 font-medium text-slate-700">
                     <Users size={16} /> Team Synergy
                   </span>
                   <p className="text-xs text-gray-400">
                     Preferred pairings met
                   </p>
                 </div>
-                <span className="font-bold text-xl text-gray-800">
+                <span className="text-xl font-bold text-slate-800">
                   {metrics.teamSynergy}
                 </span>
               </div>
 
               {/* Fairness Score */}
-              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
+              <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <div>
-                  <span className="text-gray-700 font-medium flex items-center gap-2">
+                  <span className="flex items-center gap-2 font-medium text-slate-700">
                     <Scale size={16} /> Fairness Index
                   </span>
                   <p className="text-xs text-gray-400">
                     Weekend/Holiday equity
                   </p>
                 </div>
-                <span className="rounded-lg bg-[#DFFFEA] px-2 py-0.5 text-lg font-semibold text-[#28A745]">
+                <span className={statusBadgeVariants({ tone: "success" })}>
                   {metrics.weekendFairness}
                 </span>
               </div>
 
               {/* Fatigue Watch */}
-              <div className="flex justify-between rounded-lg border border-[#E0E0E0] bg-white p-3">
+              <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <div>
-                  <span className="text-gray-700 font-medium flex items-center gap-2">
+                  <span className="flex items-center gap-2 font-medium text-slate-700">
                     <Clock size={16} /> Fatigue Watch
                   </span>
                   <p className="text-xs text-gray-400">Avg consecutive days</p>
                 </div>
-                <span className="font-bold text-xl text-gray-800">
+                <span className="text-xl font-bold text-slate-800">
                   {metrics.avgConsecutiveDays}
                 </span>
               </div>
@@ -272,7 +302,7 @@ export function ScheduleSummaryModal({
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-t border-slate-200/70 bg-slate-50/85 p-4">
+        <div className="flex items-center justify-between border-t border-border bg-muted/80 p-4">
           <p className="text-sm text-gray-500 italic pl-2">
             * Recommendation: High synergy score suggests strong team morale for
             this period.

@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "Interactive staffing demo for skilled nursing schedule planning.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f8fafc",
-    theme_color: "#4f46e5",
+    background_color: "rgb(244 246 248)",
+    theme_color: "rgb(22 128 57)",
     icons: [
       {
         src: "/icon.svg",

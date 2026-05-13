@@ -14,7 +14,7 @@ export default function DashboardEmptyState({
 }) {
   return (
     <div className="app-card border-dashed border-indigo-200/80 p-8 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-[#DFFFEA] text-[#168039]">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-accent text-primary">
         <AlertCircle size={24} />
       </div>
       <h3 className="mt-4 text-xl font-semibold text-slate-900">{title}</h3>

@@ -53,8 +53,8 @@ export default function OptimizerLoader(
     if (!isLoading) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#F4F6F8]/90">
-            <div className="relative w-full max-w-md rounded-lg border border-[#E0E0E0] bg-white p-8 text-center shadow-sm">
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/90">
+            <div className="app-card relative w-full max-w-md p-8 text-center">
 
                 {/* ANIMATED ORBITING ICONS (Visual Chaos -> Order) */}
                 <div className="relative flex items-center justify-center h-24 mb-6">

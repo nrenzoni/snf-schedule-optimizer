@@ -1,5 +1,7 @@
 import React from "react";
 import { UINurse } from "@/types/scheduling";
+import { cn } from "@/lib/utils";
+import { iconButtonVariants } from "@/components/ui/styles";
 
 interface NurseDetailsPanelProps {
   selectedNurse: UINurse | null;
@@ -18,19 +20,22 @@ export default function NurseDetailsPanel({
 
   return (
     <div
-      className={`
-        ${selectedNurse ? "w-full border-l border-[#E0E0E0] bg-[#F4F6F8] p-6 md:w-80" : "w-0 overflow-hidden"}
-        flex flex-col transition-all duration-300 ease-in-out`}
+      className={cn(
+        "flex flex-col transition-all duration-300 ease-in-out",
+        selectedNurse
+          ? "w-full border-l border-border bg-background p-6 md:w-80"
+          : "w-0 overflow-hidden",
+      )}
     >
       {selectedNurse ? (
         <>
           <div className="mb-4 flex items-start justify-between">
-            <h4 className="text-2xl font-semibold text-[#168039]">
+            <h4 className="text-2xl font-semibold text-primary">
               {selectedNurse.name}
             </h4>
             <button
               onClick={closeNurseDetails}
-              className="rounded-lg p-1 text-[#6C757D] transition hover:bg-white hover:text-[#212529]"
+              className={iconButtonVariants({ tone: "default" })}
             >
               <svg
                 className="w-5 h-5"

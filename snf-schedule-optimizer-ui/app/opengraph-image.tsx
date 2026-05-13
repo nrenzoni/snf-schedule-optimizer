@@ -13,8 +13,8 @@ export default function OpenGraphImage() {
       <div
         style={{
           alignItems: "stretch",
-          background: "linear-gradient(135deg, #eef2ff 0%, #ffffff 45%, #e0f2fe 100%)",
-          color: "#0f172a",
+          background: "linear-gradient(135deg, rgb(232 250 239) 0%, rgb(255 255 255) 45%, rgb(244 246 248) 100%)",
+          color: "rgb(33 37 41)",
           display: "flex",
           flexDirection: "column",
           height: "100%",
@@ -30,7 +30,7 @@ export default function OpenGraphImage() {
           <div style={{ display: "flex", fontSize: 64, fontWeight: 800, lineHeight: 1.05 }}>
             Staffing planning, scenario modeling, and forecast review in one demo.
           </div>
-          <div style={{ display: "flex", fontSize: 28, color: "#475569" }}>
+          <div style={{ display: "flex", fontSize: 28, color: "rgb(108 117 125)" }}>
             Built for skilled nursing scheduling workflows.
           </div>
         </div>
@@ -43,9 +43,9 @@ export default function OpenGraphImage() {
             <div
               key={label}
               style={{
-                border: "1px solid rgba(79, 70, 229, 0.18)",
+                border: "1px solid rgba(22, 128, 57, 0.18)",
                 borderRadius: 999,
-                color: "#4338ca",
+                color: "rgb(22 128 57)",
                 display: "flex",
                 fontSize: 22,
                 fontWeight: 700,

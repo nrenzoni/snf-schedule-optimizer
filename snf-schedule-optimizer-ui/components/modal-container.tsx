@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { cn } from "@/lib/utils";
 
 interface ModalContainerProps {
   isOpen: boolean;
@@ -88,8 +89,8 @@ export default function ModalContainer({
   if (!isMounted) return null;
 
   const backdropClasses = isVisible
-    ? "bg-[#212529]/35 opacity-100"
-    : "pointer-events-none bg-[#212529]/0 opacity-0";
+    ? "bg-foreground/35 opacity-100"
+    : "pointer-events-none bg-foreground/0 opacity-0";
   const contentClasses = isVisible
     ? "scale-100 opacity-100"
     : "scale-95 opacity-0";
@@ -98,7 +99,10 @@ export default function ModalContainer({
     // 1. BACKDROP CONTAINER: Handles the blur and opacity fade of the whole screen
     <div
       // Fixes: Blur, Fade, Full Screen, High Z-Index
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out ${backdropClasses}`}
+      className={cn(
+        "fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out",
+        backdropClasses,
+      )}
       onClick={onClose} // Close on outside click
       role="dialog"
       aria-modal="true"
@@ -106,7 +110,11 @@ export default function ModalContainer({
       {/* 2. MODAL CONTENT: Handles the content's scale and zoom effect */}
       <div
         // Base styling for the content box
-        className={`w-full overflow-hidden rounded-lg border border-[#E0E0E0] bg-white shadow-md transition-all duration-300 ease-out ${contentClassName} ${contentClasses}`}
+        className={cn(
+          "app-modal-surface transition-all duration-300 ease-out",
+          contentClassName,
+          contentClasses,
+        )}
         onClick={(e) => e.stopPropagation()} // Prevent click from closing the modal
       >
         {children}

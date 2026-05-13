@@ -44,17 +44,17 @@ export default function ShiftCard({
     if (mode === "BUDGET") {
       if (shift.isAgency) return "bg-red-50 border-l-red-500 text-red-700";
       if (shift.isOvertime)
-        return "bg-[#FFF8E1] border-l-[#FBC02D] text-[#FBC02D]";
-      return "bg-white border-l-[#CED4DA] text-[#212529]";
+        return "bg-amber-50 border-l-amber-400 text-amber-700";
+      return "bg-card border-l-input text-foreground";
     }
     // Role Colors - Using white backgrounds with strong borders is cleaner
     if (shift.role === "RN")
-      return "bg-[#DFFFEA] border-l-[#28A745] text-[#28A745]";
+      return "bg-accent border-l-green-600 text-green-600";
     if (shift.role === "LPN")
-      return "bg-[#DFFFEA] border-l-[#28A745] text-[#28A745]";
+      return "bg-accent border-l-green-600 text-green-600";
     if (shift.role === "THERAPIST")
-      return "bg-[#FFF8E1] border-l-[#FBC02D] text-[#FBC02D]";
-    return "bg-[#DFFFEA] border-l-[#28A745] text-[#28A745]";
+      return "bg-amber-50 border-l-amber-400 text-amber-700";
+    return "bg-accent border-l-green-600 text-green-600";
   };
 
   const renderContent = () => (
@@ -75,7 +75,7 @@ export default function ShiftCard({
         agencyStripe,
         // Remove 'scale' transforms from here, rely on dnd-kit or framer
         isOverlay &&
-          "scale-105 bg-white opacity-90 shadow-md ring-2 ring-[#168039]",
+          "scale-105 bg-card opacity-90 shadow-md ring-2 ring-ring",
       )}
     >
       <div className="flex justify-between">
@@ -115,16 +115,16 @@ export default function ShiftCard({
         <HoverCard openDelay={200} closeDelay={0}>
           <HoverCardTrigger asChild>{renderContent()}</HoverCardTrigger>
           <HoverCardContent
-            className="z-[9999] w-64 rounded-lg border-[#E0E0E0] bg-white p-3 text-[#212529] shadow-md"
+            className="z-[9999] w-64 rounded-lg border-border bg-card p-3 text-foreground shadow-md"
             align="start"
           >
             <div className="space-y-2">
-              <div className="flex justify-between border-b border-[#E0E0E0] pb-2">
+              <div className="flex justify-between border-b border-border pb-2">
                 <span className="font-bold">{ROLES[shift.role].label}</span>
                 <span
                   className={cn(
                     "px-1 rounded text-[10px]",
-                     shift.isAgency ? "bg-red-600 text-white" : "bg-[#E9EEF1] text-[#6C757D]",
+                     shift.isAgency ? "bg-red-600 text-white" : "bg-muted text-muted-foreground",
                   )}
                 >
                   {shift.isAgency ? "AGENCY" : "STAFF"}
@@ -132,16 +132,16 @@ export default function ShiftCard({
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <div className="text-[#6C757D]">Rate</div>
+                  <div className="text-muted-foreground">Rate</div>
                   <div className="font-mono">
                     ${ROLES[shift.role].baseRate}/hr
                   </div>
                 </div>
                 <div>
-                  <div className="text-[#6C757D]">Status</div>
+                  <div className="text-muted-foreground">Status</div>
                   <div
                     className={
-                      shift.isOvertime ? "text-[#FBC02D]" : "text-[#28A745]"
+                      shift.isOvertime ? "text-amber-600" : "text-green-600"
                     }
                   >
                     {shift.isOvertime ? "Overtime" : "Standard"}

@@ -20,10 +20,10 @@ export default function LoadingOverlay({ isVisible }: { isVisible: boolean }) {
         "cursor-wait",
       )}
     >
-      <div className="animate-in zoom-in-95 rounded-lg border border-[#E0E0E0] bg-white p-4 shadow-sm duration-200">
+      <div className="app-card animate-in zoom-in-95 p-4 duration-200">
         <div className="flex items-center gap-3">
-          <Loader2 className="h-6 w-6 animate-spin text-[#168039]" />
-          <span className="text-sm font-medium text-[#212529]">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="text-sm font-medium text-foreground">
             Refreshing...
           </span>
         </div>

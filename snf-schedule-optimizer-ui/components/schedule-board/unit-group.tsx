@@ -82,9 +82,9 @@ export default function UnitGroup({
   }, [staffMembers, groupingMode]);
 
   return (
-    <div className="mb-4 overflow-hidden rounded-lg border border-[#E0E0E0] bg-white shadow-none">
+    <div className="mb-4 overflow-hidden rounded-lg border border-border bg-card shadow-none">
       {/* UNIT HEADER */}
-      <div className="flex border-b border-[#E0E0E0] bg-[#F4F6F8]">
+      <div className="flex border-b border-border bg-background">
         <div
           onClick={onToggle}
           onKeyDown={(event) => {
@@ -98,7 +98,7 @@ export default function UnitGroup({
           aria-expanded={isExpanded}
           className={cn(
             STAFF_COL_WIDTH,
-            "sticky left-0 z-30 flex cursor-pointer items-center gap-2 border-r border-[#E0E0E0] bg-[#F4F6F8] px-3 py-2 hover:bg-[#DFFFEA]",
+            "sticky left-0 z-30 flex cursor-pointer items-center gap-2 border-r border-border bg-background px-3 py-2 hover:bg-accent",
           )}
         >
           {isExpanded ? (
@@ -107,10 +107,10 @@ export default function UnitGroup({
             <ChevronDown size={16} className="text-slate-700" />
           )}
           <div className="flex flex-col">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#212529]">
+            <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Building2 size={14} /> {unit.label}
             </div>
-            <div className="text-[10px] font-normal text-[#6C757D]">
+            <div className="text-[10px] font-normal text-muted-foreground">
               {staffMembers.length} Staff
             </div>
           </div>
@@ -151,7 +151,7 @@ export default function UnitGroup({
             initial={{ height: 0 }}
             animate={{ height: "auto" }}
             exit={{ height: 0 }}
-            className="overflow-hidden bg-[#F4F6F8]"
+            className="overflow-hidden bg-background"
           >
             {nestedGroups.map((group: NestedGroup) => (
               <RoleGroup

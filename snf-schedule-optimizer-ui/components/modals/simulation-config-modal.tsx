@@ -2,6 +2,7 @@ import { Activity, Play, X } from "lucide-react";
 import React, { useState } from "react";
 import { ModalType } from "@/types/modal-type";
 import ModalContainer from "../modal-container";
+import { iconButtonVariants } from "@/components/ui/styles";
 
 interface SimulationConfigModalProps {
   type: ModalType | null;
@@ -66,7 +67,7 @@ export default function SimulationConfigModal({
           />
           <div className="mt-1 flex justify-between text-xs text-slate-500">
             <span>0%</span>
-            <span className="text-lg font-semibold text-[#168039]">
+            <span className="text-lg font-semibold text-primary">
               {params.wageIncrease}%
             </span>
             <span>20%</span>
@@ -138,15 +139,15 @@ export default function SimulationConfigModal({
       {/* 2. Content starts directly with the modal's main content div */}
       <div className="w-full bg-white/80">
         {/* HEADER */}
-        <div className="flex items-center justify-between border-b border-[#E0E0E0] bg-white p-4">
-          <div className="flex items-center space-x-2 text-[#168039]">
+        <div className="app-modal-header">
+          <div className="flex items-center space-x-2 text-primary">
             {/* Assuming Activity, title, and X are available via props/imports */}
             <Activity size={20} />
             <h3 className="text-lg font-semibold">{title}</h3>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-1 text-slate-400 hover:bg-white/80 hover:text-slate-700"
+            className={iconButtonVariants({ shape: "full", tone: "default" })}
           >
             <X size={20} />
           </button>
@@ -158,7 +159,7 @@ export default function SimulationConfigModal({
         </div>
 
         {/* FOOTER / ACTIONS */}
-        <div className="flex justify-end space-x-3 border-t border-slate-200/70 bg-slate-50/80 p-4">
+        <div className="app-modal-footer">
           <button
             onClick={onClose}
             className="app-button-ghost"
