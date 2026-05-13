@@ -17,6 +17,7 @@ import {
   Settings,
   TrendingDown,
   Users,
+  Zap,
 } from "lucide-react";
 import ScheduleListView from "@/components/schedule-list-view";
 import { Toaster } from "@/components/ui/sonner";
@@ -89,10 +90,11 @@ export default function DashboardContent({
     })),
   );
 
-  const { selectedFacility, scheduleCount } = useSchedulingStore(
+  const { selectedFacility, scheduleCount, isOptimizing } = useSchedulingStore(
     useShallow((state) => ({
       selectedFacility: state.selectedFacility,
       scheduleCount: state.scheduleMap.size,
+      isOptimizing: state.isOptimizing,
     })),
   );
 
@@ -113,6 +115,7 @@ export default function DashboardContent({
     addNurseToShift,
 
     // Calendar/Data State
+    triggerOptimization,
   } = useScheduling();
 
   // THIS HOOK NOW WORKS because it is inside QueryClientProvider
@@ -177,9 +180,6 @@ export default function DashboardContent({
     },
   ];
 
-  const isTimelineScheduling =
-    activeModule === "scheduling" && viewMode === "timeline";
-
   const renderTabTrigger = (
     value: (typeof moduleOptions)[number],
     icon: React.ReactNode,
@@ -210,7 +210,7 @@ export default function DashboardContent({
       <div
         className={cn(
           "mx-auto transition-all duration-300 ease-in-out",
-          viewMode === "timeline" ? "max-w-[1800px]" : "max-w-4xl",
+          activeModule === "scheduling" ? "max-w-[1800px]" : "max-w-4xl",
         )}
       >
         <DemoModeBanner />
@@ -297,70 +297,37 @@ export default function DashboardContent({
                     />
                 ) : null}
 
-                <div className={cn(
-                  "grid gap-2 md:grid-cols-2 xl:grid-cols-4",
-                  isTimelineScheduling && "app-card p-2",
-                )}>
-                  {executiveMetrics.map((metric) => (
-                    <div
-                      key={metric.label}
-                      className={cn(
-                        "app-card-interactive",
-                        isTimelineScheduling ? "p-2.5" : "p-4",
-                      )}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            {metric.label}
-                          </p>
-                          <p className={cn(
-                            "app-title",
-                            isTimelineScheduling ? "mt-1 text-xl" : "mt-2 text-3xl",
-                          )}>
-                            {metric.value}
-                          </p>
-                        </div>
-                        <div className={metricToneVariants({ tone: metric.tone })}>
-                          <metric.icon size={isTimelineScheduling ? 16 : 19} />
-                        </div>
-                      </div>
-                      <p className={cn(
-                         "font-normal text-muted-foreground",
-                        isTimelineScheduling ? "mt-1 text-xs" : "mt-2 text-sm",
-                      )}>
-                        {metric.detail}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-
                 <div className="flex justify-end">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    {viewMode === "timeline" ? (
-                      <>
-                        <button
-                          data-testid="open-schedule-summary"
-                          onClick={uiStore.openSummaryModal}
-                          className="app-button-secondary"
-                        >
-                          <ListChecks size={16} />
-                          Summary
-                        </button>
-                        <button
-                          data-testid="open-scheduling-config"
-                          onClick={uiStore.openConfigModal}
-                          className="app-button-secondary"
-                        >
-                          <Settings size={16} />
-                          Configure
-                        </button>
-                      </>
-                    ) : null}
-                  <div className="app-segmented flex space-x-1">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
                     <button
-                      data-testid="view-list"
-                      onClick={() => setViewMode("list")}
+                      data-testid="optimize-schedule"
+                      onClick={triggerOptimization}
+                      disabled={isOptimizing}
+                      className="app-button-primary min-h-9 whitespace-nowrap px-4 py-2"
+                    >
+                      <Zap size={16} />
+                      <span>{isOptimizing ? "Optimizing..." : "Optimize"}</span>
+                    </button>
+                    <button
+                      data-testid="open-schedule-summary"
+                      onClick={uiStore.openSummaryModal}
+                      className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
+                    >
+                      <ListChecks size={16} />
+                      Summary
+                    </button>
+                    <button
+                      data-testid="open-scheduling-config"
+                      onClick={uiStore.openConfigModal}
+                      className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
+                    >
+                      <Settings size={16} />
+                      Configure
+                    </button>
+                    <div className="app-segmented flex space-x-1">
+                      <button
+                        data-testid="view-list"
+                        onClick={() => setViewMode("list")}
                       className={segmentedButtonVariants({
                         size: "md",
                         active: viewMode === "list",
@@ -376,9 +343,9 @@ export default function DashboardContent({
                         active: viewMode === "timeline",
                       })}
                     >
-                      <GanttChartSquare size={14} /> <span>Timeline</span>
-                    </button>
-                  </div>
+                        <GanttChartSquare size={14} /> <span>Timeline</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -389,6 +356,30 @@ export default function DashboardContent({
                       {timelineView}
                     </div>
                 )}
+
+                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                  {executiveMetrics.map((metric) => (
+                    <div
+                      key={metric.label}
+                      className="app-card-interactive p-4"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            {metric.label}
+                          </p>
+                          <p className="app-title mt-2 text-3xl">{metric.value}</p>
+                        </div>
+                        <div className={metricToneVariants({ tone: metric.tone })}>
+                          <metric.icon size={19} />
+                        </div>
+                      </div>
+                      <p className="mt-2 text-sm font-normal text-muted-foreground">
+                        {metric.detail}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </TabsContent>
 

@@ -422,7 +422,12 @@ export default function ScheduleBoard({
                   "sticky left-0 z-50 flex items-center justify-between rounded-l-lg border-r border-border bg-card px-3 text-xs font-medium text-muted-foreground",
                 )}
               >
-                <span className="uppercase tracking-widest">Unit / Staff</span>
+                <div className="flex min-w-0 flex-col gap-1 py-2">
+                  <span className="uppercase tracking-widest">Unit / Staff</span>
+                  <span className="hidden text-[10px] font-medium tracking-normal text-slate-500 md:inline">
+                    {units.length} units
+                  </span>
+                </div>
                 <div className="hidden xl:flex items-center gap-1">
                   <button
                     onClick={handleCollapseAll}
@@ -439,9 +444,6 @@ export default function ScheduleBoard({
                     <ChevronDown size={14} />
                   </button>
                 </div>
-              </div>
-              <div className="hidden md:flex items-center px-3 text-xs font-medium text-slate-500">
-                {units.length} units
               </div>
               {visibleDates.map((date, i) => {
                 const isToday = isSameDay(date, new Date());

@@ -2,12 +2,8 @@ import React from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  ListChecks,
-  Settings,
-  Zap,
 } from "lucide-react";
 import { CalendarGrid } from "@/components/scheduling/calendar-grid";
-import { useUIStore } from "@/store/uiStore";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { useShallow } from "zustand/react/shallow";
 import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
@@ -19,42 +15,11 @@ import DashboardEmptyState from "@/components/dashboard-empty-state";
 import { cn } from "@/lib/utils";
 import { iconButtonVariants } from "@/components/ui/styles";
 
-// --- HELPERS (MUST BE COPIED OR MOVED) ---
-// You should move the Spinner, DAYS_OF_WEEK, and monthYearFormatter helpers
-// to a shared utility file or define them here for now.
-
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthYearFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
   month: "long",
 });
-
-function Spinner() {
-  return (
-    <svg
-      className="animate-spin h-4 w-4 text-white"
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      ></circle>
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      ></path>
-    </svg>
-  );
-}
-
-// --- END HELPERS ---
 
 export default function ScheduleListView() {
   const {
@@ -65,28 +30,18 @@ export default function ScheduleListView() {
     toggleCalendarView,
     changeMonth,
     openShiftDetails,
-    triggerOptimization, // Replaces handleOptimize
   } = useScheduling();
 
-  const isOptimizing = useSchedulingStore((state) => state.isOptimizing);
-
-  const { dataError, scheduleCount, selectedFacility } = useSchedulingStore(
+  const { dataError, scheduleCount, selectedFacility, isOptimizing } = useSchedulingStore(
     useShallow((state) => ({
       dataError: state.dataError,
       scheduleCount: state.scheduleMap.size,
       selectedFacility: state.selectedFacility,
+      isOptimizing: state.isOptimizing,
     })),
   );
 
   const { isAppLoading } = useSchedulingInitializer();
-
-  // 3. Consume Global UI Actions (Sidebars/Modals not related to scheduling specifics)
-  const { openConfigModal, openSummaryModal } = useUIStore(
-    useShallow((state) => ({
-      openConfigModal: state.openConfigModal,
-      openSummaryModal: state.openSummaryModal,
-    })),
-  );
 
   return (
     // WRAPPER FOR TRANSITION
@@ -99,11 +54,10 @@ export default function ScheduleListView() {
       <LoadingOverlay isVisible={isAppLoading} />
 
       {/* loader handled via React Portal or Fixed positioning, so it overlays automatically */}
-      {/*<OptimizerLoader isLoading={isOptimizing}/>*/}
       <ThreeDAssemblyLoader isLoading={isOptimizing} />
 
       {/* --- EXISTING SCHEDULING MODULE --- */}
-      <div className="app-card mx-auto mb-6 max-w-5xl p-4 sm:p-6">
+      <div className="app-card mb-6 p-4 sm:p-6">
         <header className="mb-6 border-b border-slate-200/70 pb-4">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <button
@@ -124,64 +78,31 @@ export default function ScheduleListView() {
             </h2>
 
             <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {/* Optimize Button */}
-            <button
-              data-testid="optimize-schedule"
-              onClick={triggerOptimization}
-              disabled={isOptimizing}
-              className="app-button-primary whitespace-nowrap"
-            >
-              {isOptimizing ? <Spinner /> : <Zap size={16} />}
-              <span>{isOptimizing ? "Optimizing..." : "Optimize"}</span>
-            </button>
+              <button
+                data-testid="toggle-calendar-view"
+                onClick={toggleCalendarView}
+                className={cn(
+                  "rounded-full border px-3 py-2 text-sm font-bold shadow-sm transition duration-200",
+                  isTwoWeekView
+                    ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "border-input bg-card text-foreground hover:bg-accent hover:text-primary",
+                )}
+              >
+                {isTwoWeekView ? "View: 2 Week" : "View: Month"}
+              </button>
 
-            {/* Summary Button */}
-            <button
-              data-testid="open-schedule-summary"
-              onClick={openSummaryModal}
-              className="app-button-secondary"
-            >
-              <ListChecks size={16} />
-              Summary
-            </button>
-
-            {/* Configure Button */}
-            <button
-              data-testid="open-scheduling-config"
-              onClick={openConfigModal}
-              className="app-button-secondary"
-            >
-              <Settings size={16} />
-              Configure
-            </button>
-
-            {/* View Toggle Button */}
-            <button
-              data-testid="toggle-calendar-view"
-              onClick={toggleCalendarView}
-              className={cn(
-                "rounded-full border px-3 py-2 text-sm font-bold shadow-sm transition duration-200",
-                isTwoWeekView
-                  ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "border-input bg-card text-foreground hover:bg-accent hover:text-primary",
-              )}
-            >
-              {isTwoWeekView ? "View: 2 Week" : "View: Month"}
-            </button>
-
-            {/* Chevron Right Button */}
-            <button
-              data-testid="next-month"
-              onClick={() => changeMonth(1)}
-              disabled={isTwoWeekView}
-              className={iconButtonVariants({
-                tone: "soft",
-                disabled: isTwoWeekView,
-              })}
-              aria-label="Next month"
-            >
-              <ChevronRight size={24} />
-            </button>
+              <button
+                data-testid="next-month"
+                onClick={() => changeMonth(1)}
+                disabled={isTwoWeekView}
+                className={iconButtonVariants({
+                  tone: "soft",
+                  disabled: isTwoWeekView,
+                })}
+                aria-label="Next month"
+              >
+                <ChevronRight size={24} />
+              </button>
             </div>
           </div>
         </header>
