@@ -238,6 +238,7 @@ class ISchedulerContainer(abc.ABC):
 
     # Core application facade
     scheduler_service: AbstractProvider[WorkforceSchedulerFacade]
+    schedule_retriever: AbstractProvider[IScheduleRepo]
 
     # (Optional but useful) Expose these if other entrypoints need them
     optimizer: AbstractProvider[NurseShiftScheduleOptimizer]

@@ -341,29 +341,6 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 )
             )
 
-        if result.is_success and result.run is not None:
-            asyncio.create_task(
-                self._run_optimization_job_in_background(
-                    request=StartOptimizationRunRequest(
-                        org_id=org_id,
-                        facility_id=facility_id,
-                        schedule_id=schedule_id,
-                        base_schedule_version=request.base_schedule_version,
-                        start_date=request.start_date,
-                        end_date=request.end_date or request.start_date,
-                        settings=self._map_settings(request.settings),
-                        staged_patches=tuple(
-                            self._decode_patch(patch) for patch in request.staged_patches
-                        ),
-                        persist_result=request.persist_result,
-                        client_request_id=request.client_request_id or None,
-                        allow_overwrite=request.allow_overwrite,
-                    ),
-                    base_schedule=result.schedule,
-                    run=result.run,
-                )
-            )
-
         response = scheduling_pb2.StartOptimizationRunResponse(
             accepted=result.is_success,
             error_details=result.error_details or "",
@@ -375,29 +352,6 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         for conflict in result.conflicts:
             response.conflicts.append(self._map_conflict(conflict))
         return response
-
-    async def _run_optimization_job_in_background(
-        self,
-        request: StartOptimizationRunRequest,
-        base_schedule: Schedule | None,
-        run: OptimizationRun,
-    ) -> None:
-        if base_schedule is None:
-            return
-
-        scheduler_container = self._build_scheduler_container()
-        async with container_context(
-            self._scheduler_context(scheduler_container),
-            scope=ContextScopes.REQUEST,
-        ):
-            scheduler_service: WorkforceSchedulerFacadePort = (
-                await scheduler_container.scheduler_service.resolve()
-            )
-            await scheduler_service.run_optimization_job(
-                request,
-                base_schedule,
-                run,
-            )
 
     async def get_optimization_run(
         self,
@@ -910,9 +864,13 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         return {
             "queued": "OPTIMIZATION_RUN_STAGE_QUEUED",
             "rebase": "OPTIMIZATION_RUN_STAGE_REBASING",
+            "snapshotting": "OPTIMIZATION_RUN_STAGE_REBASING",
+            "indexing": "OPTIMIZATION_RUN_STAGE_REBASING",
+            "building_model": "OPTIMIZATION_RUN_STAGE_REBASING",
             "solving": "OPTIMIZATION_RUN_STAGE_SOLVING",
             "analyzing": "OPTIMIZATION_RUN_STAGE_ANALYZING",
             "persisting": "OPTIMIZATION_RUN_STAGE_PERSISTING",
+            "publishing": "OPTIMIZATION_RUN_STAGE_PERSISTING",
             "completed": "OPTIMIZATION_RUN_STAGE_COMPLETED",
             "failed": "OPTIMIZATION_RUN_STAGE_FAILED",
         }.get(stage, "OPTIMIZATION_RUN_STAGE_UNSPECIFIED")

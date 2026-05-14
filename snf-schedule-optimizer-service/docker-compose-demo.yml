@@ -42,5 +42,17 @@ services:
       - "8000:8000"
     command: python -m snf_schedule_optimizer.api.main
 
+  worker:
+    build: .
+    container_name: snf-optimizer-worker
+    environment:
+      DATABASE_URL: postgresql+asyncpg://snf_user:snf_password@db:5432/snf_optimizer_demo
+      UV_SYSTEM_PYTHON: 1
+      OPTIMIZATION_WORKER_ID: demo-worker
+    depends_on:
+      seeder:
+        condition: service_completed_successfully
+    command: python -m snf_schedule_optimizer.api.worker_main
+
 volumes:
   pgdata:

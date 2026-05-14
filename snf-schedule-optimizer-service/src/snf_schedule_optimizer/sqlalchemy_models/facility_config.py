@@ -39,6 +39,15 @@ class FacilityConfigModel(SQLABase):
     weekend_multiplier: Mapped[float] = mapped_column(Float, default=1.0)
     night_shift_multiplier: Mapped[float] = mapped_column(Float, default=1.0)
 
+    # Workforce policy defaults used by the optimizer.
+    default_hprd_rn: Mapped[float] = mapped_column(Float, default=0.5)
+    default_hprd_lpn: Mapped[float] = mapped_column(Float, default=0.0)
+    default_hprd_cna: Mapped[float] = mapped_column(Float, default=2.4)
+    default_hprd_total: Mapped[float] = mapped_column(Float, default=3.5)
+    min_rest_hours_between_shifts: Mapped[float] = mapped_column(Float, default=10.0)
+    max_consecutive_work_days: Mapped[int] = mapped_column(Integer, default=5)
+    max_total_hours_per_pay_period: Mapped[float] = mapped_column(Float, default=80.0)
+
     def to_domain(self) -> FacilityConfig:
         """
         Maps the database record to the domain FacilityConfig object.
@@ -63,6 +72,13 @@ class FacilityConfigModel(SQLABase):
             night_shift_multiplier=float(self.night_shift_multiplier),
             # Note: timezone is used by retrievers to hydrate ZonedDateTime
             tz=self.timezone,
+            default_hprd_rn=float(self.default_hprd_rn),
+            default_hprd_lpn=float(self.default_hprd_lpn),
+            default_hprd_cna=float(self.default_hprd_cna),
+            default_hprd_total=float(self.default_hprd_total),
+            min_rest_hours_between_shifts=float(self.min_rest_hours_between_shifts),
+            max_consecutive_work_days=int(self.max_consecutive_work_days),
+            max_total_hours_per_pay_period=float(self.max_total_hours_per_pay_period),
         )
 
     @staticmethod
@@ -85,4 +101,11 @@ class FacilityConfigModel(SQLABase):
             weekend_multiplier=domain.weekend_multiplier,
             night_shift_multiplier=domain.night_shift_multiplier,
             timezone=domain.tz,
+            default_hprd_rn=domain.default_hprd_rn,
+            default_hprd_lpn=domain.default_hprd_lpn,
+            default_hprd_cna=domain.default_hprd_cna,
+            default_hprd_total=domain.default_hprd_total,
+            min_rest_hours_between_shifts=domain.min_rest_hours_between_shifts,
+            max_consecutive_work_days=domain.max_consecutive_work_days,
+            max_total_hours_per_pay_period=domain.max_total_hours_per_pay_period,
         )

@@ -45,6 +45,19 @@ services:
       retries: 10
     restart: unless-stopped
 
+  worker:
+    build:
+      context: .
+      dockerfile: snf-schedule-optimizer-service/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://snf_user:snf_password@db:5432/snf_optimizer_demo
+      OPTIMIZATION_WORKER_ID: demo-worker
+    depends_on:
+      seeder:
+        condition: service_completed_successfully
+    command: python -m snf_schedule_optimizer.api.worker_main
+    restart: unless-stopped
+
   ui:
     build:
       context: .

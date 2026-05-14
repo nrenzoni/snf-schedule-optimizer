@@ -47,7 +47,7 @@ If you want the backend demo database without running the full stack, use the se
 docker compose -f docker-compose-demo.yml up --build
 ```
 
-For the recommended local development workflow, use the repo-root `compose.dev.yml` via `just infra-up` and `just infra-seed`, then run the backend on the host with `just dev-be`.
+For the recommended local development workflow, use the repo-root `compose.dev.yml` via `just infra-up` and `just infra-seed`, then run the backend on the host with `just dev-be` and the optimization worker with `just dev-worker`.
 
 For the main product-demo flow, you can invoke the repo-root compose file from this directory as well:
 
@@ -69,10 +69,17 @@ Start the API:
 python -m snf_schedule_optimizer.api.main
 ```
 
+Start the optimization worker:
+
+```bash
+python -m snf_schedule_optimizer.api.worker_main
+```
+
 Recommended host dev server with reload:
 
 ```bash
 just dev-be
+just dev-worker
 ```
 
 Health check:

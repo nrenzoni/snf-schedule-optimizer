@@ -3,7 +3,8 @@ from collections import defaultdict
 from collections.abc import Sequence
 from typing import Any, cast
 
-from sqlalchemy import delete, func, select
+import whenever
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
@@ -12,7 +13,9 @@ from snf_schedule_optimizer.domain.scheduling.interfaces import (
 )
 from snf_schedule_optimizer.models import (
     OptimizationRun,
+    OptimizationRunEvent,
     OptimizationSettings,
+    OptimizationSnapshot,
     OptimizationSummary,
     PatchConflict,
     Schedule,
@@ -27,6 +30,12 @@ from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
 from snf_schedule_optimizer.optimizer.models import ScheduleOptimizationStats
 from snf_schedule_optimizer.sqlalchemy_models.optimization_run import (
     OptimizationRunModel,
+)
+from snf_schedule_optimizer.sqlalchemy_models.optimization_run_event import (
+    OptimizationRunEventModel,
+)
+from snf_schedule_optimizer.sqlalchemy_models.optimization_snapshot import (
+    OptimizationSnapshotModel,
 )
 from snf_schedule_optimizer.sqlalchemy_models.schedule_assignment import (
     ScheduleAssignmentModel,
@@ -169,7 +178,14 @@ class SQLScheduleRepo(IScheduleRepo):
                 start_date = shift_dates[0]
                 end_date = shift_dates[-1]
 
-        existing_record = await self.db_session.get(ScheduleRecordModel, schedule.schedule_id)
+        existing_record = (
+            await self.db_session.scalars(
+                select(ScheduleRecordModel).where(
+                    ScheduleRecordModel.org_id == schedule.org_id,
+                    ScheduleRecordModel.schedule_id == schedule.schedule_id,
+                )
+            )
+        ).first()
         if existing_record is None:
             self.db_session.add(
                 ScheduleRecordModel(
@@ -244,11 +260,21 @@ class SQLScheduleRepo(IScheduleRepo):
             if patch.from_shift_id == patch.to_shift_id:
                 continue
             current_from_key = next(
-                (key for key in shift_assignments if key.shift_id == patch.from_shift_id),
+                (
+                    key
+                    for key in shift_assignments
+                    if key.facility_id == schedule.facility_id
+                    and key.shift_id == patch.from_shift_id
+                ),
                 None,
             )
             current_to_key = next(
-                (key for key in shift_assignments if key.shift_id == patch.to_shift_id),
+                (
+                    key
+                    for key in shift_assignments
+                    if key.facility_id == schedule.facility_id
+                    and key.shift_id == patch.to_shift_id
+                ),
                 None,
             )
             if patch.from_shift_id is not None and current_from_key is None:
@@ -328,25 +354,74 @@ class SQLScheduleRepo(IScheduleRepo):
             "error_details": run.error_details,
             "client_request_id": run.client_request_id,
             "patches_json": json.dumps([self._patch_to_dict(patch) for patch in run.patches]),
-            "persist_result": True,
-            "start_date": run.started_at[:10] if run.started_at else "1970-01-01",
-            "end_date": run.completed_at[:10] if run.completed_at else run.started_at[:10] if run.started_at else "1970-01-01",
+            "persist_result": run.persist_result,
+            "start_date": run.decision_start_date or "1970-01-01",
+            "end_date": run.decision_end_date or run.decision_start_date or "1970-01-01",
+            "policy_start_date": run.policy_start_date,
+            "policy_end_date": run.policy_end_date,
+            "snapshot_id": run.snapshot_id,
+            "claimed_by": run.claimed_by,
+            "claim_token": run.claim_token,
+            "attempt_count": run.attempt_count,
+            "failure_code": run.failure_code,
+            "termination_reason": run.termination_reason,
+            "settings_json": self._dump_settings(run.settings) if run.settings else None,
             "summary_json": json.dumps(self._summary_to_dict(run.summary)) if run.summary else None,
             "stats_json": json.dumps(self._stats_to_dict(run.stats)) if run.stats else None,
             "financials_json": json.dumps(self._financials_to_dict(run.financials)) if run.financials else None,
         }
         if existing is None:
-            self.db_session.add(
-                OptimizationRunModel(
-                    run_id=run.run_id,
-                    **payload,
-                )
+            model = OptimizationRunModel(
+                run_id=run.run_id,
+                **payload,
             )
+            if run.started_at is not None:
+                model.started_at = whenever.Instant.parse_iso(run.started_at).py_datetime()
+            if run.completed_at is not None:
+                model.completed_at = whenever.Instant.parse_iso(run.completed_at).py_datetime()
+            model.heartbeat_at = (
+                whenever.Instant.parse_iso(run.heartbeat_at).py_datetime()
+                if run.heartbeat_at is not None
+                else None
+            )
+            model.lease_expires_at = (
+                whenever.Instant.parse_iso(run.lease_expires_at).py_datetime()
+                if run.lease_expires_at is not None
+                else None
+            )
+            self.db_session.add(model)
         else:
             for key, value in payload.items():
                 setattr(existing, key, value)
+            if run.started_at is not None:
+                existing.started_at = whenever.Instant.parse_iso(run.started_at).py_datetime()
             if run.completed_at is not None:
-                existing.completed_at = func.now()
+                existing.completed_at = whenever.Instant.parse_iso(run.completed_at).py_datetime()
+            if run.heartbeat_at is not None:
+                existing.heartbeat_at = whenever.Instant.parse_iso(run.heartbeat_at).py_datetime()
+            if run.lease_expires_at is not None:
+                existing.lease_expires_at = whenever.Instant.parse_iso(run.lease_expires_at).py_datetime()
+            existing.cancel_requested_at = existing.cancel_requested_at
+
+    async def get_optimization_run_by_client_request(
+        self,
+        org_id: int,
+        facility_id: int,
+        schedule_id: int,
+        client_request_id: str,
+    ) -> OptimizationRun | None:
+        stmt = (
+            select(OptimizationRunModel)
+            .where(
+                OptimizationRunModel.org_id == org_id,
+                OptimizationRunModel.facility_id == facility_id,
+                OptimizationRunModel.schedule_id == schedule_id,
+                OptimizationRunModel.client_request_id == client_request_id,
+            )
+            .order_by(OptimizationRunModel.updated_at.desc())
+        )
+        model = (await self.db_session.scalars(stmt)).first()
+        return self._map_run(model) if model is not None else None
 
     async def get_optimization_run(self, run_id: str) -> OptimizationRun | None:
         model = await self.db_session.get(OptimizationRunModel, run_id)
@@ -372,6 +447,163 @@ class SQLScheduleRepo(IScheduleRepo):
         )
         model = (await self.db_session.scalars(stmt)).first()
         return self._map_run(model) if model is not None else None
+
+    async def append_optimization_run_event(self, event: OptimizationRunEvent) -> None:
+        self.db_session.add(
+            OptimizationRunEventModel(
+                run_id=event.run_id,
+                sequence=event.sequence,
+                status=event.status,
+                stage=event.stage,
+                progress_percent=event.progress_percent,
+                status_message=event.status_message,
+                error_details=event.error_details,
+                metrics_json=json.dumps(event.metrics) if event.metrics is not None else None,
+            )
+        )
+
+    async def list_optimization_run_events(
+        self,
+        run_id: str,
+    ) -> list[OptimizationRunEvent]:
+        stmt = (
+            select(OptimizationRunEventModel)
+            .where(OptimizationRunEventModel.run_id == run_id)
+            .order_by(OptimizationRunEventModel.sequence.asc())
+        )
+        models = (await self.db_session.scalars(stmt)).all()
+        return [self._map_run_event(model) for model in models]
+
+    async def claim_next_queued_optimization_run(
+        self,
+        worker_id: str,
+        claim_token: str,
+        lease_expires_at: str,
+    ) -> OptimizationRun | None:
+        lease_cutoff = whenever.Instant.now().py_datetime()
+        stmt = (
+            select(OptimizationRunModel)
+            .where(
+                or_(
+                    OptimizationRunModel.status == "queued",
+                    (
+                        OptimizationRunModel.status == "running"
+                    )
+                    & (
+                        OptimizationRunModel.lease_expires_at.is_not(None)
+                    )
+                    & (OptimizationRunModel.lease_expires_at < lease_cutoff),
+                )
+            )
+            .order_by(OptimizationRunModel.updated_at.asc())
+        )
+        model = (await self.db_session.scalars(stmt)).first()
+        if model is None:
+            return None
+
+        now = whenever.Instant.now().py_datetime()
+        model.status = "running"
+        model.stage = "queued"
+        model.status_message = "Claimed by worker"
+        model.claimed_by = worker_id
+        model.claim_token = claim_token
+        model.attempt_count += 1
+        model.heartbeat_at = now
+        model.lease_expires_at = whenever.Instant.parse_iso(lease_expires_at).py_datetime()
+        if model.started_at is None:
+            model.started_at = now
+        await self.db_session.flush()
+        return self._map_run(model)
+
+    async def renew_optimization_run_lease(
+        self,
+        run_id: str,
+        claim_token: str,
+        heartbeat_at: str,
+        lease_expires_at: str,
+    ) -> bool:
+        model = await self.db_session.get(OptimizationRunModel, run_id)
+        if model is None or model.claim_token != claim_token:
+            return False
+        model.heartbeat_at = whenever.Instant.parse_iso(heartbeat_at).py_datetime()
+        model.lease_expires_at = whenever.Instant.parse_iso(lease_expires_at).py_datetime()
+        return True
+
+    async def release_optimization_run_claim(
+        self,
+        run_id: str,
+        claim_token: str,
+        status: str,
+        stage: str,
+        status_message: str,
+        error_details: str | None = None,
+        failure_code: str | None = None,
+    ) -> bool:
+        model = await self.db_session.get(OptimizationRunModel, run_id)
+        if model is None or model.claim_token != claim_token:
+            return False
+        model.status = status
+        model.stage = stage
+        model.status_message = status_message
+        model.error_details = error_details
+        model.failure_code = failure_code
+        model.claimed_by = None
+        model.claim_token = None
+        model.lease_expires_at = None
+        model.heartbeat_at = whenever.Instant.now().py_datetime()
+        if status in {"completed", "failed"}:
+            model.completed_at = whenever.Instant.now().py_datetime()
+        return True
+
+    async def save_optimization_snapshot(self, snapshot: OptimizationSnapshot) -> None:
+        existing = await self.db_session.get(OptimizationSnapshotModel, snapshot.snapshot_id)
+        payload_json = json.dumps(snapshot.payload)
+        if existing is None:
+            self.db_session.add(
+                OptimizationSnapshotModel(
+                    snapshot_id=snapshot.snapshot_id,
+                    run_id=snapshot.run_id,
+                    org_id=snapshot.org_id,
+                    facility_id=snapshot.facility_id,
+                    schedule_id=snapshot.schedule_id,
+                    base_schedule_version=snapshot.base_schedule_version,
+                    decision_start_date=snapshot.decision_start_date,
+                    decision_end_date=snapshot.decision_end_date,
+                    policy_start_date=snapshot.policy_start_date,
+                    policy_end_date=snapshot.policy_end_date,
+                    payload_json=payload_json,
+                )
+            )
+            return
+        existing.run_id = snapshot.run_id
+        existing.org_id = snapshot.org_id
+        existing.facility_id = snapshot.facility_id
+        existing.schedule_id = snapshot.schedule_id
+        existing.base_schedule_version = snapshot.base_schedule_version
+        existing.decision_start_date = snapshot.decision_start_date
+        existing.decision_end_date = snapshot.decision_end_date
+        existing.policy_start_date = snapshot.policy_start_date
+        existing.policy_end_date = snapshot.policy_end_date
+        existing.payload_json = payload_json
+
+    async def get_optimization_snapshot(self, snapshot_id: str) -> OptimizationSnapshot | None:
+        model = await self.db_session.get(OptimizationSnapshotModel, snapshot_id)
+        if model is None:
+            return None
+        return OptimizationSnapshot(
+            snapshot_id=model.snapshot_id,
+            run_id=model.run_id,
+            org_id=model.org_id,
+            facility_id=model.facility_id,
+            schedule_id=model.schedule_id,
+            base_schedule_version=model.base_schedule_version,
+            decision_start_date=model.decision_start_date,
+            decision_end_date=model.decision_end_date,
+            policy_start_date=model.policy_start_date,
+            policy_end_date=model.policy_end_date,
+            payload=cast(dict[str, object], json.loads(model.payload_json)),
+            created_at=model.created_at.isoformat(),
+        )
 
     async def get_latest_completed_optimization_run(
         self,
@@ -520,6 +752,9 @@ class SQLScheduleRepo(IScheduleRepo):
         summary_payload = (
             cast(dict[str, Any], json.loads(model.summary_json)) if model.summary_json else None
         )
+        settings_payload = (
+            cast(dict[str, Any], json.loads(model.settings_json)) if model.settings_json else None
+        )
         financials_payload = (
             cast(dict[str, Any], json.loads(model.financials_json))
             if model.financials_json
@@ -579,4 +814,34 @@ class SQLScheduleRepo(IScheduleRepo):
                 for payload in json.loads(model.patches_json or "[]")
             ),
             client_request_id=model.client_request_id,
+            settings=OptimizationSettings(**settings_payload) if settings_payload else None,
+            persist_result=model.persist_result,
+            decision_start_date=model.start_date,
+            decision_end_date=model.end_date,
+            policy_start_date=model.policy_start_date,
+            policy_end_date=model.policy_end_date,
+            snapshot_id=model.snapshot_id,
+            claimed_by=model.claimed_by,
+            claim_token=model.claim_token,
+            lease_expires_at=model.lease_expires_at.isoformat() if model.lease_expires_at else None,
+            heartbeat_at=model.heartbeat_at.isoformat() if model.heartbeat_at else None,
+            attempt_count=model.attempt_count,
+            failure_code=model.failure_code,
+            termination_reason=model.termination_reason,
+        )
+
+    @staticmethod
+    def _map_run_event(model: OptimizationRunEventModel) -> OptimizationRunEvent:
+        return OptimizationRunEvent(
+            run_id=model.run_id,
+            sequence=model.sequence,
+            status=model.status,
+            stage=model.stage,
+            progress_percent=model.progress_percent,
+            status_message=model.status_message,
+            error_details=model.error_details,
+            metrics=cast(dict[str, object], json.loads(model.metrics_json))
+            if model.metrics_json
+            else None,
+            created_at=model.created_at.isoformat(),
         )

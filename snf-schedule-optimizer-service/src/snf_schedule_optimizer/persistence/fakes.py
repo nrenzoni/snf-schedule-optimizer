@@ -36,6 +36,8 @@ from snf_schedule_optimizer.models import (
     MlModelOutputs,
     NurseProfile,
     OptimizationRun,
+    OptimizationRunEvent,
+    OptimizationSnapshot,
     PatchConflict,
     PreferenceWeights,
     PunchType,
@@ -378,6 +380,8 @@ class FakeScheduleRepo(IScheduleRepo):
         # Key: (schedule_id, org_id) -> Schedule
         self._schedules = schedules or {}
         self._runs: dict[str, OptimizationRun] = {}
+        self._run_events: dict[str, list[OptimizationRunEvent]] = {}
+        self._snapshots: dict[str, OptimizationSnapshot] = {}
 
     async def get_schedule(
         self,
@@ -491,6 +495,23 @@ class FakeScheduleRepo(IScheduleRepo):
     async def get_optimization_run(self, run_id: str) -> OptimizationRun | None:
         return self._runs.get(run_id)
 
+    async def get_optimization_run_by_client_request(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
+        schedule_id: DomainPrimaryKeyType,
+        client_request_id: str,
+    ) -> OptimizationRun | None:
+        for run in reversed(list(self._runs.values())):
+            if (
+                run.org_id == org_id
+                and run.facility_id == facility_id
+                and run.schedule_id == schedule_id
+                and run.client_request_id == client_request_id
+            ):
+                return run
+        return None
+
     async def get_active_optimization_run(
         self,
         org_id: DomainPrimaryKeyType,
@@ -506,6 +527,99 @@ class FakeScheduleRepo(IScheduleRepo):
             ):
                 return run
         return None
+
+    async def append_optimization_run_event(self, event: OptimizationRunEvent) -> None:
+        self._run_events.setdefault(event.run_id, []).append(event)
+
+    async def list_optimization_run_events(
+        self,
+        run_id: str,
+    ) -> list[OptimizationRunEvent]:
+        return list(self._run_events.get(run_id, []))
+
+    async def claim_next_queued_optimization_run(
+        self,
+        worker_id: str,
+        claim_token: str,
+        lease_expires_at: str,
+    ) -> OptimizationRun | None:
+        for run in self._runs.values():
+            if run.status not in {"queued", "running"}:
+                continue
+            if run.status == "running" and run.lease_expires_at is not None:
+                current_lease = whenever.Instant.parse_iso(run.lease_expires_at)
+                if current_lease > whenever.Instant.now():
+                    continue
+            claimed = OptimizationRun(
+                **{
+                    **run.__dict__,
+                    "status": "running",
+                    "claimed_by": worker_id,
+                    "claim_token": claim_token,
+                    "lease_expires_at": lease_expires_at,
+                    "heartbeat_at": whenever.Instant.now().format_iso(),
+                    "attempt_count": run.attempt_count + 1,
+                }
+            )
+            self._runs[run.run_id] = claimed
+            return claimed
+        return None
+
+    async def renew_optimization_run_lease(
+        self,
+        run_id: str,
+        claim_token: str,
+        heartbeat_at: str,
+        lease_expires_at: str,
+    ) -> bool:
+        run = self._runs.get(run_id)
+        if run is None or run.claim_token != claim_token:
+            return False
+        self._runs[run_id] = OptimizationRun(
+            **{
+                **run.__dict__,
+                "heartbeat_at": heartbeat_at,
+                "lease_expires_at": lease_expires_at,
+            }
+        )
+        return True
+
+    async def release_optimization_run_claim(
+        self,
+        run_id: str,
+        claim_token: str,
+        status: str,
+        stage: str,
+        status_message: str,
+        error_details: str | None = None,
+        failure_code: str | None = None,
+    ) -> bool:
+        run = self._runs.get(run_id)
+        if run is None or run.claim_token != claim_token:
+            return False
+        completed_at = whenever.Instant.now().format_iso() if status in {"completed", "failed"} else run.completed_at
+        self._runs[run_id] = OptimizationRun(
+            **{
+                **run.__dict__,
+                "status": status,
+                "stage": stage,
+                "status_message": status_message,
+                "error_details": error_details,
+                "failure_code": failure_code,
+                "claimed_by": None,
+                "claim_token": None,
+                "lease_expires_at": None,
+                "heartbeat_at": whenever.Instant.now().format_iso(),
+                "completed_at": completed_at,
+            }
+        )
+        return True
+
+    async def save_optimization_snapshot(self, snapshot: OptimizationSnapshot) -> None:
+        self._snapshots[snapshot.snapshot_id] = snapshot
+
+    async def get_optimization_snapshot(self, snapshot_id: str) -> OptimizationSnapshot | None:
+        return self._snapshots.get(snapshot_id)
 
     async def commit(self) -> None:
         return None

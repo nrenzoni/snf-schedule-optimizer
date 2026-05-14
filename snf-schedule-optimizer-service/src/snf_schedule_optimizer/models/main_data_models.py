@@ -137,9 +137,9 @@ class ShiftSpecificRequirements:
     """Immutable shift-specific staffing requirements."""
 
     target_hprd_rn: float
-    # target_hprd_lpn: float
     target_hprd_cna: float
     target_total_hprd: float
+    target_hprd_lpn: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -168,8 +168,12 @@ class FacilityConfig:
     tz: str
 
     default_hprd_rn: float = 0.5
+    default_hprd_lpn: float = 0.0
     default_hprd_cna: float = 2.4
     default_hprd_total: float = 3.5
+    min_rest_hours_between_shifts: float = 10.0
+    max_consecutive_work_days: int = 5
+    max_total_hours_per_pay_period: float = 80.0
 
 
 type DomainPrimaryKeyType = int
@@ -390,6 +394,76 @@ class OptimizationRun:
     summary: OptimizationSummary | None = None
     patches: tuple[StagedSchedulePatch, ...] = ()
     client_request_id: str | None = None
+    settings: OptimizationSettings | None = None
+    persist_result: bool = True
+    decision_start_date: str | None = None
+    decision_end_date: str | None = None
+    policy_start_date: str | None = None
+    policy_end_date: str | None = None
+    snapshot_id: str | None = None
+    claimed_by: str | None = None
+    claim_token: str | None = None
+    lease_expires_at: str | None = None
+    heartbeat_at: str | None = None
+    attempt_count: int = 0
+    failure_code: str | None = None
+    termination_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class OptimizationRunEvent:
+    run_id: str
+    sequence: int
+    status: str
+    stage: str
+    progress_percent: int
+    status_message: str = ""
+    error_details: str | None = None
+    metrics: dict[str, object] | None = None
+    created_at: str | None = None
+
+
+@dataclass(frozen=True)
+class LockedAssignment:
+    employee_id: EmployeeIdType
+    shift_key: ShiftKey
+    created_at: str | None = None
+    source: str = "snapshot"
+
+
+@dataclass(frozen=True)
+class WorkedHistoryFact:
+    employee_id: EmployeeIdType
+    shift_key: ShiftKey
+    shift_start: str
+    shift_end: str
+    duration_hours: float
+
+
+@dataclass(frozen=True)
+class EmployeeStateSnapshot:
+    employee_id: EmployeeIdType
+    worked_hours_day: float = 0.0
+    worked_hours_week: float = 0.0
+    worked_hours_pay_period: float = 0.0
+    consecutive_days_worked: int = 0
+    last_shift_end: str | None = None
+
+
+@dataclass(frozen=True)
+class OptimizationSnapshot:
+    snapshot_id: str
+    run_id: str
+    org_id: DomainPrimaryKeyType
+    facility_id: DomainPrimaryKeyType
+    schedule_id: DomainPrimaryKeyType
+    base_schedule_version: int
+    decision_start_date: str
+    decision_end_date: str
+    policy_start_date: str
+    policy_end_date: str
+    payload: dict[str, object]
+    created_at: str | None = None
 
 
 @dataclass(frozen=True)

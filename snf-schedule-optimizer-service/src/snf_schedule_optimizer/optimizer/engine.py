@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import time
@@ -124,7 +125,8 @@ class NurseShiftScheduleOptimizer:
         problem += pulp.lpSum(obj_terms)
 
         org_id = data_provider.get_org_id()
-        return self._solve_finalize(
+        return await asyncio.to_thread(
+            self._solve_finalize,
             org_id,
             problem,
             lp_vars,

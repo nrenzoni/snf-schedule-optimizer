@@ -25,6 +25,7 @@ from snf_schedule_optimizer.models import (
     FacilityConfig,
     MinMandates,
     OptimizationRun,
+    OptimizationRunEvent,
     OptimizationSettings,
     OptimizationSummary,
     PatchConflict,
@@ -90,13 +91,6 @@ class WorkforceSchedulerFacadePort(Protocol):
         facility_id: DomainPrimaryKeyType | None,
         start_date: str,
     ) -> tuple[Schedule, dict[ShiftKey, Shift], dict[int, Employee], FacilityConfig]: ...
-
-    async def run_optimization_job(
-        self,
-        request: StartOptimizationRunRequest,
-        base_schedule: Schedule,
-        run: OptimizationRun,
-    ) -> None: ...
 
     async def close(self) -> None: ...
 
@@ -266,6 +260,25 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 latest_schedule_version=latest_version,
             )
 
+        if request.client_request_id:
+            existing_run = await self.schedule_retriever.get_optimization_run_by_client_request(
+                request.org_id,
+                request.facility_id,
+                request.schedule_id,
+                request.client_request_id,
+            )
+            if existing_run is not None and existing_run.status in {"queued", "running"}:
+                return OptimizationOutput(
+                    is_success=True,
+                    schedule=rebased_schedule,
+                    analysis=None,
+                    financials=None,
+                    stats=None,
+                    run=existing_run,
+                    latest_schedule_version=latest_version,
+                    conflicts=tuple(conflicts),
+                )
+
         run = OptimizationRun(
             run_id=uuid4().hex,
             org_id=request.org_id,
@@ -280,8 +293,23 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             started_at=whenever.Instant.now().format_iso(),
             patches=request.staged_patches,
             client_request_id=request.client_request_id,
+            settings=request.settings,
+            persist_result=request.persist_result,
+            decision_start_date=request.start_date,
+            decision_end_date=request.end_date,
         )
         await self.schedule_retriever.save_optimization_run(run)
+        await self.schedule_retriever.append_optimization_run_event(
+            OptimizationRunEvent(
+                run_id=run.run_id,
+                sequence=0,
+                status="queued",
+                stage="queued",
+                progress_percent=0,
+                status_message="Optimization queued",
+                created_at=whenever.Instant.now().format_iso(),
+            )
+        )
         await self.schedule_retriever.commit()
 
         return OptimizationOutput(
@@ -491,103 +519,6 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         employee_map = {employee.employee_id: employee for employee in employees}
 
         return schedule, shifts, employee_map, facility_config
-
-    async def run_optimization_job(
-        self,
-        request: StartOptimizationRunRequest,
-        base_schedule: Schedule,
-        run: OptimizationRun,
-    ) -> None:
-        await self._run_optimization_job(request, base_schedule, run)
-
-    async def _run_optimization_job(
-        self,
-        request: StartOptimizationRunRequest,
-        base_schedule: Schedule,
-        run: OptimizationRun,
-    ) -> None:
-        queued_run = OptimizationRun(
-            **{**run.__dict__, "status": "running", "stage": "rebase", "progress_percent": 10, "status_message": "Rebasing staged changes"}
-        )
-        await self.schedule_retriever.save_optimization_run(queued_run)
-        await self.schedule_retriever.commit()
-
-        facility_context = await self._build_optimization_context(
-            org_id=request.org_id,
-            facility_id=request.facility_id,
-            start_date=request.start_date,
-            end_date=request.end_date or request.start_date,
-            optimization_settings=request.settings,
-        )
-
-        running_run = OptimizationRun(
-            **{**queued_run.__dict__, "stage": "solving", "progress_percent": 45, "status_message": "Solving staffing plan"}
-        )
-        await self.schedule_retriever.save_optimization_run(running_run)
-        await self.schedule_retriever.commit()
-
-        result = await self.optimize_schedule(
-            org_id=request.org_id,
-            facility_contexts={request.facility_id: facility_context},
-            preference_weights=request.settings.to_preference_weights(),
-            pay_period_start=facility_context.shifts[0].shift_start_dt.start_of_day().to_instant(),
-            optimization_settings=request.settings,
-            pinned_schedule=base_schedule if request.staged_patches else None,
-        )
-
-        if not result.is_success or result.schedule is None:
-            failed_run = OptimizationRun(
-                **{
-                    **running_run.__dict__,
-                    "status": "failed",
-                    "stage": "failed",
-                    "progress_percent": 100,
-                    "status_message": "Optimization failed",
-                    "completed_at": whenever.Instant.now().format_iso(),
-                    "error_details": result.error_details,
-                }
-            )
-            await self.schedule_retriever.save_optimization_run(failed_run)
-            await self.schedule_retriever.commit()
-            return
-
-        latest_version = await self.schedule_retriever.get_latest_schedule_version(
-            request.org_id,
-            request.schedule_id,
-        )
-        next_version = (latest_version or 0) + 1
-        persisted_schedule = Schedule(
-            org_id=request.org_id,
-            facility_id=request.facility_id,
-            schedule_id=request.schedule_id,
-            schedule_lineage_id=request.schedule_id,
-            schedule_version=next_version,
-            shift_assignments=result.schedule.shift_assignments,
-            start_date=request.start_date,
-            end_date=request.end_date or request.start_date,
-            latest_optimization=result.summary,
-            latest_optimization_stats=result.stats,
-            latest_optimization_financials=result.financials,
-            updated_at=whenever.Instant.now().format_iso(),
-        )
-        await self.schedule_retriever.save_schedule(persisted_schedule)
-        completed_run = OptimizationRun(
-            **{
-                **running_run.__dict__,
-                "status": "completed",
-                "stage": "completed",
-                "progress_percent": 100,
-                "status_message": "Optimization completed",
-                "completed_at": whenever.Instant.now().format_iso(),
-                "result_schedule_id": persisted_schedule.schedule_id,
-                "result_schedule_version": persisted_schedule.schedule_version,
-                "financials": result.financials,
-                "stats": result.stats,
-                "summary": result.summary,
-            }
-        )
-        await self.schedule_retriever.save_optimization_run(completed_run)
-        await self.schedule_retriever.commit()
 
     async def _process_results(
         self,

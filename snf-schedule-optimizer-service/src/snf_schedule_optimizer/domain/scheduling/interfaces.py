@@ -6,6 +6,8 @@ from snf_schedule_optimizer.models import (
     Employee,
     NurseProfile,
     OptimizationRun,
+    OptimizationRunEvent,
+    OptimizationSnapshot,
     PatchConflict,
     PreferenceWeights,
     Schedule,
@@ -108,6 +110,17 @@ class IScheduleRepo(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def get_optimization_run_by_client_request(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
+        schedule_id: DomainPrimaryKeyType,
+        client_request_id: str,
+    ) -> OptimizationRun | None:
+        """Loads an existing submitted run for idempotent request handling."""
+        pass
+
+    @abc.abstractmethod
     async def get_active_optimization_run(
         self,
         org_id: DomainPrimaryKeyType,
@@ -115,6 +128,64 @@ class IScheduleRepo(abc.ABC):
         schedule_id: DomainPrimaryKeyType,
     ) -> OptimizationRun | None:
         """Returns the most recent queued/running optimization run for the workspace."""
+        pass
+
+    @abc.abstractmethod
+    async def append_optimization_run_event(self, event: OptimizationRunEvent) -> None:
+        """Appends a durable lifecycle event for an optimization run."""
+        pass
+
+    @abc.abstractmethod
+    async def list_optimization_run_events(
+        self,
+        run_id: str,
+    ) -> list[OptimizationRunEvent]:
+        """Returns persisted events ordered by sequence for the run."""
+        pass
+
+    @abc.abstractmethod
+    async def claim_next_queued_optimization_run(
+        self,
+        worker_id: str,
+        claim_token: str,
+        lease_expires_at: str,
+    ) -> OptimizationRun | None:
+        """Atomically claims the next queued or stale running run for a worker."""
+        pass
+
+    @abc.abstractmethod
+    async def renew_optimization_run_lease(
+        self,
+        run_id: str,
+        claim_token: str,
+        heartbeat_at: str,
+        lease_expires_at: str,
+    ) -> bool:
+        """Renews a claimed run lease if the claim token still matches."""
+        pass
+
+    @abc.abstractmethod
+    async def release_optimization_run_claim(
+        self,
+        run_id: str,
+        claim_token: str,
+        status: str,
+        stage: str,
+        status_message: str,
+        error_details: str | None = None,
+        failure_code: str | None = None,
+    ) -> bool:
+        """Releases a claimed run into a terminal or queued state if the claim token matches."""
+        pass
+
+    @abc.abstractmethod
+    async def save_optimization_snapshot(self, snapshot: OptimizationSnapshot) -> None:
+        """Persists an immutable optimization snapshot for a run."""
+        pass
+
+    @abc.abstractmethod
+    async def get_optimization_snapshot(self, snapshot_id: str) -> OptimizationSnapshot | None:
+        """Loads a persisted optimization snapshot by ID."""
         pass
 
     @abc.abstractmethod

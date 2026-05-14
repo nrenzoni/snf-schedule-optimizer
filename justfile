@@ -73,11 +73,15 @@ dev-ui:
 dev-be:
   extra_origins="${EXTRA_DEV_ORIGINS:-}"; cors_origins="http://localhost:3000,http://127.0.0.1:3000"; if [[ -n "$extra_origins" ]]; then cors_origins="$cors_origins,$extra_origins"; fi; cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL={{db_url}} CORS_ALLOW_ORIGINS="$cors_origins" uv run uvicorn snf_schedule_optimizer.api.main:app --host 0.0.0.0 --port 8000 --reload
 
+dev-worker:
+  cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL={{db_url}} uv run python -m snf_schedule_optimizer.api.worker_main
+
 dev:
   @printf 'Run in separate terminals:\n'
   @printf '  just infra-up\n'
   @printf '  just infra-seed\n'
   @printf '  just dev-be\n'
+  @printf '  just dev-worker\n'
   @printf '  just dev-ui\n'
 
 check-ui:
