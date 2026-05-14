@@ -48,7 +48,7 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
         # 1. Initialize result holder
         hprd_shift_nurse_requirements = HprdShiftNurseRequirementHolder(
             [s.shift_id for s in context.shifts],
-            [HprdEnforcedRole.RN, HprdEnforcedRole.CNA],
+            [HprdEnforcedRole.RN, HprdEnforcedRole.LPN, HprdEnforcedRole.CNA],
         )
 
         if context.min_mandates is None:
@@ -70,18 +70,17 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
             shift_census = len(residents_acuity)
             settings = context.optimization_settings
 
+            demand_factor = 1.0
             if settings.use_ml_forecast:
                 stressed_count = sum(
                     1
                     for resident in residents_acuity
                     if resident.pt_score_gg >= 14 or resident.nta_score >= 8
                 )
-                shift_census += stressed_count
+                demand_factor += stressed_count / shift_census if shift_census > 0 else 0.0
 
             if settings.use_callout_buffer and shift_census > 0:
-                buffer_factor = 1.0 + (settings.buffer_threshold / 100.0)
-            else:
-                buffer_factor = 1.0
+                demand_factor += settings.buffer_threshold / 100.0
 
             hours_in_shift = shift.duration_hours
             if hours_in_shift <= 0:
@@ -90,9 +89,10 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
             # Step C: Calculate Required Headcount
             # Demand = (Target HPRD * Census) / Shift Duration
             # Example: (0.5 RN_HPRD * 100 Residents) / 8 Hours = 6.25 RNs required
-            required_rn_hours = targets.target_hprd_rn * shift_census * buffer_factor
-            required_cna_hours = targets.target_hprd_cna * shift_census * buffer_factor
-            required_total_hours = targets.target_total_hprd * shift_census * buffer_factor
+            required_rn_hours = targets.target_hprd_rn * shift_census * demand_factor
+            required_lpn_hours = targets.target_hprd_lpn * shift_census * demand_factor
+            required_cna_hours = targets.target_hprd_cna * shift_census * demand_factor
+            required_total_hours = targets.target_total_hprd * shift_census * demand_factor
 
             # Step D: Apply "Bodies on the Floor" Minimums (Min Mandates)
             # We never schedule fewer than the mandated minimum, even if HPRD math allows it.
@@ -106,9 +106,17 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
                 float(context.min_mandates.min_staff_per_shift_cna),
             )
 
+            req_lpn_count = max(
+                (required_lpn_hours / hours_in_shift),
+                float(context.min_mandates.min_staff_per_shift_lpn),
+            )
+
             # Step E: Commit to Requirements Holder for the Solver
             hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.RN] = (
                 req_rn_count
+            )
+            hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.LPN] = (
+                req_lpn_count
             )
             hprd_shift_nurse_requirements[shift.shift_id, HprdEnforcedRole.CNA] = (
                 req_cna_count
@@ -137,6 +145,7 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
         # Level 2: Fallback to Facility Baseline (Budget)
         return ShiftSpecificRequirements(
             target_hprd_rn=facility_config.default_hprd_rn,
+            target_hprd_lpn=facility_config.default_hprd_lpn,
             target_hprd_cna=facility_config.default_hprd_cna,
             target_total_hprd=facility_config.default_hprd_total,
         )

@@ -29,4 +29,5 @@ class FakeResidentAcuityPerShiftRepo(IResidentAcuityPerShiftRepo):
             r
             for r in self.stressed_residents
             if r.census_day.date() == shift.shift_start_dt.date()
+            and r.unit_id == shift.unit_id
         ]

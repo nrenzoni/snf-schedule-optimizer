@@ -1,7 +1,7 @@
 import pulp
 from pulp import LpProblem
 
-from snf_schedule_optimizer.models import DomainPrimaryKeyType, HprdEnforcedRole
+from snf_schedule_optimizer.models import DomainPrimaryKeyType
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IFacilityScopedConstraintStrategy,
@@ -41,7 +41,7 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
             # Get requirements (e.g., {RN: 2.5, CNA: 10.0})
             # This assumes your HPRD holder logic is accessible or pre-calculated
             # For simplicity, let's assume we iterate roles:
-            for role in [HprdEnforcedRole.RN, HprdEnforcedRole.CNA]:
+            for role in requirements_holder.roles:
                 required_count = requirements_holder[shift.shift_id, role]
 
                 if required_count <= 0:
@@ -97,6 +97,32 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
                         "MinStaff", shift.facility_id, shift.shift_id, role.value
                     ),
                 )
+
+            total_required = requirements_holder.get_total_req(shift.shift_id)
+            if total_required <= 0:
+                continue
+
+            total_available_vars = []
+            for nurse in await data_provider.get_nurses_for_shift(shift):
+                lp_var = lp_holder.get_variable(shift, nurse.employee_id)
+                if lp_var is None or self.hard_block_checker.check(nurse, shift):
+                    continue
+                employee = await data_provider.get_employee_by_id(nurse.employee_id)
+                if employee is None:
+                    continue
+                if employee.job_title in {role.value for role in requirements_holder.roles}:
+                    total_available_vars.append(lp_var)
+
+            if len(total_available_vars) == 0:
+                return InfeasibilityReasonResult(
+                    reason=InfeasibilityReason.NO_AVAILABLE_NURSES,
+                    details=f"No available direct-care nurses in shift {shift.shift_id} at facility {facility_id}.",
+                )
+
+            problem += (
+                pulp.lpSum(total_available_vars) >= total_required,
+                build_lp_variable_name("MinStaffTotal", shift.facility_id, shift.shift_id),
+            )
 
         return None
 

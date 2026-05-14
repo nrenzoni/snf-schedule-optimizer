@@ -1,7 +1,4 @@
 import asyncio
-import os
-import shutil
-import time
 
 import pulp
 from pulp import LpMinimize, LpProblem
@@ -26,6 +23,7 @@ from snf_schedule_optimizer.optimizer.schedule_extraction import ScheduleExtract
 from snf_schedule_optimizer.optimizer.strategies.variables import (
     CoreVariableGenerationStrategy,
 )
+from snf_schedule_optimizer.solver import CbcSolverAdapter, SolverAdapter
 
 
 class NurseShiftScheduleOptimizer:
@@ -43,6 +41,7 @@ class NurseShiftScheduleOptimizer:
         facility_constraint_strategies: list[IFacilityScopedConstraintStrategy],
         facility_rule_strategies: list[IFacilityScopedConstraintStrategy],
         penalty_strategies: list[IObjectivePenaltyStrategy],
+        solver_adapter: SolverAdapter | None = None,
     ) -> None:
         self.core_variable_strategy = core_variable_strategy
 
@@ -50,6 +49,7 @@ class NurseShiftScheduleOptimizer:
         self.facility_constraint_strategies = facility_constraint_strategies
         self.facility_rule_strategies = facility_rule_strategies
         self.penalty_strategies = penalty_strategies
+        self.solver_adapter = solver_adapter or CbcSolverAdapter()
 
         # Internal helper
         self._extractor = ScheduleExtractor()
@@ -156,30 +156,21 @@ class NurseShiftScheduleOptimizer:
         problem: pulp.LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
     ) -> ScheduleOptimizationResults:
-        # Measure Execution Time
-        start_time = time.perf_counter()
-
-        solver = self._build_solver()
-        problem.solve(solver)
-
-        end_time = time.perf_counter()
-        duration_ms = (end_time - start_time) * 1000
+        solver_result = self.solver_adapter.solve(problem)
 
         # Gather Statistics
         stats = ScheduleOptimizationStats(
-            execution_time_ms=duration_ms,
+            execution_time_ms=solver_result.elapsed_ms,
             total_variables=problem.numVariables(),
             total_constraints=problem.numConstraints(),
-            objective_value=pulp.value(problem.objective)
-            if problem.status == pulp.LpStatusOptimal
-            else None,
+            objective_value=solver_result.objective_value,
         )
 
-        if problem.status != pulp.LpStatusOptimal:
+        if solver_result.status_code != pulp.LpStatusOptimal:
             # print(f"Solver Status: {pulp.LpStatus[problem.status]}")
             infeasibility_reason = InfeasibilityReasonResult(
                 InfeasibilityReason.OTHER,
-                f"Solver did not find optimal solution. Status: {pulp.LpStatus[problem.status]}",
+                f"Solver did not find optimal solution. Status: {solver_result.status_label}",
             )
             return ScheduleOptimizationResults(
                 False,
@@ -216,14 +207,3 @@ class NurseShiftScheduleOptimizer:
             infeasibility_reason=None,
             statistics=stats,
         )
-
-    def _build_solver(self) -> pulp.LpSolver:
-        cbc_path = os.getenv("CBC_PATH")
-        if cbc_path:
-            return pulp.COIN_CMD(timeLimit=60, path=cbc_path)
-
-        detected_cbc = shutil.which("cbc")
-        if detected_cbc:
-            return pulp.COIN_CMD(timeLimit=60, path=detected_cbc)
-
-        return pulp.PULP_CBC_CMD(timeLimit=60)

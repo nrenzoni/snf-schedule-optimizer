@@ -1,6 +1,11 @@
 import pulp
 
-from snf_schedule_optimizer.models import DomainPrimaryKeyType, Schedule, ShiftKey
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    LockedAssignment,
+    Schedule,
+    ShiftKey,
+)
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IFacilityScopedConstraintStrategy,
@@ -66,5 +71,48 @@ class PinnedScheduleConstraintStrategy(IFacilityScopedConstraintStrategy):
                         shift_key.shift.shift_id,
                     ),
                 )
+
+        return None
+
+
+class LockedAssignmentConstraintStrategy(IFacilityScopedConstraintStrategy):
+    """Forces selected future assignments without freezing the rest of the schedule."""
+
+    def __init__(self, locked_assignments: list[LockedAssignment]):
+        self.locked_assignments = tuple(locked_assignments)
+
+    async def apply_constraints(
+        self,
+        problem: pulp.LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        shifts_by_key = {
+            ShiftKey(shift.facility_id, shift.shift_id): shift
+            for shift in data_provider.get_shifts_for_facility(facility_id)
+        }
+
+        for locked in self.locked_assignments:
+            if locked.shift_key.facility_id != facility_id:
+                continue
+
+            shift = shifts_by_key.get(locked.shift_key)
+            if shift is None:
+                continue
+
+            lp_var = lp_holder.get_variable(shift, locked.employee_id)
+            if lp_var is None:
+                continue
+
+            problem += (
+                lp_var == 1,
+                build_lp_variable_name(
+                    "LockedAssignment",
+                    facility_id,
+                    locked.employee_id,
+                    shift.shift_id,
+                ),
+            )
 
         return None

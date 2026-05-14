@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass, replace
@@ -24,6 +23,7 @@ from snf_schedule_optimizer.models import (
     OptimizationSnapshot,
     PatchConflict,
     Schedule,
+    ShiftKey,
 )
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacade,
@@ -155,14 +155,14 @@ class OptimizationRunWorker:
                 claim_token=claim.claim_token,
             )
 
-            locked_schedule = self._locked_schedule_from_snapshot(snapshot, base_schedule)
+            locked_assignments = self._locked_assignments_from_snapshot(snapshot)
             result = await self.scheduler_facade.optimize_schedule(
                 org_id=request.org_id,
                 facility_contexts={request.facility_id: facility_context},
                 preference_weights=request.settings.to_preference_weights(),
                 pay_period_start=facility_context.shifts[0].shift_start_dt.start_of_day().to_instant(),
                 optimization_settings=request.settings,
-                pinned_schedule=locked_schedule,
+                locked_assignments=locked_assignments,
             )
 
             if not result.is_success or result.schedule is None:
@@ -489,15 +489,14 @@ class OptimizationRunWorker:
         )
 
     @staticmethod
-    def _locked_schedule_from_snapshot(
+    def _locked_assignments_from_snapshot(
         snapshot: OptimizationSnapshot,
-        base_schedule: Schedule,
-    ) -> Schedule | None:
+    ) -> list[LockedAssignment]:
         locked_payload = snapshot.payload.get("locked_assignments")
         if not isinstance(locked_payload, list) or not locked_payload:
-            return None
+            return []
 
-        locked_assignments = defaultdict(list)
+        locked_assignments = []
         for item in locked_payload:
             if not isinstance(item, dict):
                 continue
@@ -506,10 +505,15 @@ class OptimizationRunWorker:
             employee_id = item.get("employee_id")
             if not isinstance(facility_id, int) or not isinstance(shift_id, int) or not isinstance(employee_id, int):
                 continue
-            locked_assignments[(facility_id, shift_id)].append(employee_id)
+            created_at = item.get("created_at")
+            source = item.get("source")
+            locked_assignments.append(
+                LockedAssignment(
+                    employee_id=employee_id,
+                    shift_key=ShiftKey(facility_id, shift_id),
+                    created_at=created_at if isinstance(created_at, str) else None,
+                    source=source if isinstance(source, str) else "snapshot",
+                )
+            )
 
-        shift_assignments = {
-            key: list(dict.fromkeys(locked_assignments.get((key.facility_id, key.shift_id), employees)))
-            for key, employees in base_schedule.shift_assignments.items()
-        }
-        return replace(base_schedule, shift_assignments=shift_assignments)
+        return locked_assignments

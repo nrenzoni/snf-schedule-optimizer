@@ -23,6 +23,7 @@ from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
     FacilityConfig,
+    LockedAssignment,
     MinMandates,
     OptimizationRun,
     OptimizationRunEvent,
@@ -38,11 +39,15 @@ from snf_schedule_optimizer.models import (
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.diagnostics import SchedulerInfeasibilityDiagnoser
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
-from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
+from snf_schedule_optimizer.optimizer.interfaces import (
+    IFacilityScopedConstraintStrategy,
+    IScenarioDataProvider,
+)
 from snf_schedule_optimizer.optimizer.models import ScheduleOptimizationResults
 from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.reporting import ScheduleResultAnalyzer
 from snf_schedule_optimizer.optimizer.strategies.fixing import (
+    LockedAssignmentConstraintStrategy,
     PinnedScheduleConstraintStrategy,
 )
 
@@ -121,6 +126,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         optimization_settings: OptimizationSettings | None = None,
         optimization_start_time: whenever.Instant | None = None,
         pinned_schedule: Schedule | None = None,
+        locked_assignments: list[LockedAssignment] | None = None,
     ) -> OptimizationOutput:
         optimization_start_time = optimization_start_time or whenever.Instant.now()
         optimization_settings = optimization_settings or OptimizationSettings()
@@ -133,17 +139,28 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             optimization_settings=optimization_settings,
         )
 
-        optimizer = self.optimizer
+        additional_constraint_strategies: list[IFacilityScopedConstraintStrategy] = []
         if pinned_schedule is not None:
-            pinning_strategy = PinnedScheduleConstraintStrategy(pinned_schedule)
+            additional_constraint_strategies.append(
+                PinnedScheduleConstraintStrategy(pinned_schedule)
+            )
+        if locked_assignments:
+            additional_constraint_strategies.append(
+                LockedAssignmentConstraintStrategy(locked_assignments)
+            )
+
+        optimizer = self.optimizer
+        if additional_constraint_strategies:
             optimizer = NurseShiftScheduleOptimizer(
                 core_variable_strategy=self.optimizer.core_variable_strategy,
                 global_pay_strategies=self.optimizer.global_pay_strategies,
                 facility_constraint_strategies=(
-                    self.optimizer.facility_constraint_strategies + [pinning_strategy]
+                    self.optimizer.facility_constraint_strategies
+                    + additional_constraint_strategies
                 ),
                 facility_rule_strategies=self.optimizer.facility_rule_strategies,
                 penalty_strategies=self.optimizer.penalty_strategies,
+                solver_adapter=self.optimizer.solver_adapter,
             )
 
         result = await optimizer.solve(

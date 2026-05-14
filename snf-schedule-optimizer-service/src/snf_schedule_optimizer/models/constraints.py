@@ -30,7 +30,47 @@ class NurseRole(StrEnum):
 
 class HprdEnforcedRole(StrEnum):
     RN = "RN"
+    LPN = "LPN"
     CNA = "CNA"
+
+
+class OptimizationRunStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class OptimizationRunStage(StrEnum):
+    QUEUED = "queued"
+    SNAPSHOTTING = "snapshotting"
+    INDEXING = "indexing"
+    BUILDING_MODEL = "building_model"
+    SOLVING = "solving"
+    ANALYZING = "analyzing"
+    PUBLISHING = "publishing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class OptimizationFailureCode(StrEnum):
+    SNAPSHOT_BUILD_FAILED = "snapshot_build_failed"
+    BASELINE_INFEASIBLE = "baseline_infeasible"
+    SOLVER_INFEASIBLE = "solver_infeasible"
+    SOLVER_TIMEOUT = "solver_timeout"
+    SOLVER_ERROR = "solver_error"
+    PUBLISH_CONFLICT = "publish_conflict"
+    PUBLISH_FAILED = "publish_failed"
+    WORKER_ERROR = "worker_error"
+
+
+class SolverTerminationReason(StrEnum):
+    OPTIMAL = "optimal"
+    FEASIBLE_NON_OPTIMAL = "feasible_non_optimal"
+    INFEASIBLE = "infeasible"
+    TIMEOUT = "timeout"
+    INTERNAL_ERROR = "internal_error"
 
 
 NURSE_ROLES = [NurseRole.RN, NurseRole.LPN, NurseRole.CNA]
