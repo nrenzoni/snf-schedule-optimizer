@@ -85,6 +85,47 @@ test("scheduling toolbar stays shared across list and timeline", async ({ page }
   expect(staffMixTop).toBeGreaterThan(scheduleBottom);
 });
 
+test("list schedule day card opens shift assignments without client errors", async ({ page }) => {
+  const clientErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      clientErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    clientErrors.push(error.message);
+  });
+
+  await page.goto("/schedule?view=list");
+
+  const populatedDayCard = page
+    .getByTestId("schedule-day-card")
+    .filter({ hasText: /\d+%/ })
+    .first();
+
+  await expect(page.getByRole("heading", { name: /master schedule/i })).toBeHidden();
+  await expect(populatedDayCard).toBeVisible();
+
+  await populatedDayCard.click();
+
+  const shiftDialog = page.getByRole("dialog", { name: /schedule:/i });
+
+  await expect(shiftDialog).toBeVisible();
+  await expect(page.getByText(/nurses for .* shift/i)).toBeVisible();
+
+  const assignedNurse = shiftDialog
+    .locator("button")
+    .filter({ hasText: /hrs/i, hasNotText: /required:/i })
+    .first();
+
+  await expect(assignedNurse).toBeVisible();
+  await assignedNurse.click();
+
+  await expect(shiftDialog.getByText(/shift control/i)).toBeVisible();
+
+  expect(clientErrors).toEqual([]);
+});
+
 test("optimize flow updates the persisted schedule summary", async ({ page }) => {
   test.setTimeout(120_000);
 

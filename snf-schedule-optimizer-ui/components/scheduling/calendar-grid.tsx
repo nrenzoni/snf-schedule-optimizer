@@ -21,6 +21,7 @@ export function CalendarGrid({
       {calendarDays.map((day) => (
         <div
           key={day.dateString}
+          data-testid="schedule-day-card"
           onClick={() => day.isSelectable && openShiftDetails(day)}
           className={getContainerClasses(day, selectedDayDateString)}
         >

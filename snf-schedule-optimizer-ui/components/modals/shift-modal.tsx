@@ -118,12 +118,12 @@ export default function ShiftModal({
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "app-modal-surface flex h-[90vh] max-w-4xl flex-col transition-all duration-300 ease-out md:flex-row",
+          "app-modal-surface flex h-[90vh] max-w-4xl min-h-0 flex-col transition-all duration-300 ease-out md:flex-row",
           contentClasses,
         )}
       >
         {/* Left Panel (Shift Summary & Nurse List - Level 1) */}
-        <div className="flex min-w-0 flex-grow flex-col p-4 md:min-w-[20rem] md:p-6">
+        <div className="flex min-h-0 min-w-0 flex-grow flex-col p-4 md:min-w-[20rem] md:p-6">
           <div className="mb-4 flex items-start justify-between border-b border-slate-200/70 pb-3">
             <h3 id="shift-modal-title" className="app-title text-xl md:text-2xl">
               Schedule:{" "}
@@ -140,10 +140,10 @@ export default function ShiftModal({
             </button>
           </div>
 
-          <div className="space-y-4 mb-4">
+          <div className="mb-4 max-h-64 space-y-4 overflow-y-auto pr-1">
             {renderedDay.schedule.shifts.map((shift: UIShift) => (
               <button
-                key={shift.shiftName}
+                key={shift.shiftId}
                 onClick={() => selectShift(shift)}
                 type="button"
                   className={selectableCardVariants({
@@ -183,7 +183,7 @@ export default function ShiftModal({
           <h4 className="mb-3 border-t border-slate-200/70 pt-3 text-xl font-black text-slate-900">
             Nurses for {selectedShift?.shiftName || "Selected"} Shift
           </h4>
-          <div className="overflow-y-auto space-y-2 flex-grow pr-1">
+          <div className="min-h-0 flex-grow space-y-2 overflow-y-auto pr-1">
             {selectedShift ? (
               selectedShift.nurses.length > 0 ? (
                 selectedShift.nurses.map((nurse: UINurse) => (

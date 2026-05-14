@@ -143,7 +143,7 @@ export function useScheduling(): UseSchedulingReturn {
     "anchor",
     parseAsString.withDefault(TODAY_STRING),
   );
-  const [selectedShiftName, setSelectedShiftName] = useQueryState("shift");
+  const [selectedShiftId, setSelectedShiftId] = useQueryState("shift");
   const [selectedNurseId, setSelectedNurseId] = useQueryState("nurseId");
 
   const currentViewAnchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
@@ -270,9 +270,9 @@ export function useScheduling(): UseSchedulingReturn {
   }, [selectedDateStr, effectiveScheduleMap]);
 
   const selectedShift = useMemo(() => {
-    if (!selectedDay?.schedule || !selectedShiftName) return null;
-    return selectedDay.schedule.shifts.find((shift) => shift.shiftName === selectedShiftName) || null;
-  }, [selectedDay, selectedShiftName]);
+    if (!selectedDay?.schedule || !selectedShiftId) return null;
+    return selectedDay.schedule.shifts.find((shift) => shift.shiftId === selectedShiftId) || null;
+  }, [selectedDay, selectedShiftId]);
 
   const selectedNurse = useMemo(() => {
     if (!selectedShift || !selectedNurseId) return null;
@@ -347,9 +347,9 @@ export function useScheduling(): UseSchedulingReturn {
 
   const closeModal = useCallback(() => {
     setSelectedDateStr(null);
-    setSelectedShiftName(null);
+    setSelectedShiftId(null);
     setSelectedNurseId(null);
-  }, [setSelectedDateStr, setSelectedShiftName, setSelectedNurseId]);
+  }, [setSelectedDateStr, setSelectedShiftId, setSelectedNurseId]);
 
   const toggleCalendarView = useCallback(async () => {
     const nextState = !isTwoWeekView;
@@ -377,18 +377,18 @@ export function useScheduling(): UseSchedulingReturn {
     (day: UICalendarDay) => {
       setSelectedDateStr(day.dateString);
       if (day.schedule?.shifts[0]) {
-        setSelectedShiftName(day.schedule.shifts[0].shiftName);
+        setSelectedShiftId(day.schedule.shifts[0].shiftId);
       }
     },
-    [setSelectedDateStr, setSelectedShiftName],
+    [setSelectedDateStr, setSelectedShiftId],
   );
 
   const selectShift = useCallback(
     (shift: UIShift) => {
-      setSelectedShiftName(shift.shiftName);
+      setSelectedShiftId(shift.shiftId);
       setSelectedNurseId(null);
     },
-    [setSelectedShiftName, setSelectedNurseId],
+    [setSelectedShiftId, setSelectedNurseId],
   );
 
   const openNurseDetails = useCallback(

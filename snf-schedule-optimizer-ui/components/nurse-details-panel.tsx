@@ -16,8 +16,6 @@ export default function NurseDetailsPanel({
   removeNurseFromShift,
   addNurseToShift,
 }: NurseDetailsPanelProps) {
-  console.log("Rendering NurseDetailsPanel. Selected Nurse:", selectedNurse);
-
   return (
     <div
       className={cn(
