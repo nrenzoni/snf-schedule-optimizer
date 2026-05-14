@@ -17,6 +17,7 @@ from snf_schedule_optimizer.models import (
     NurseProfile,
     OptimizationSettings,
     Shift,
+    ShiftKey,
 )
 from snf_schedule_optimizer.optimizer.context import (
     FacilityScenarioContext,
@@ -27,6 +28,7 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     IScenarioDataProvider,
 )
 from snf_schedule_optimizer.persistence import INurseRepo
+from snf_schedule_optimizer.scenario import CandidateEligibilityService
 
 
 class ScenarioDataProviderImpl(IScenarioDataProvider):
@@ -97,10 +99,12 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         # self._min_mandates = min_mandates
 
         # Internal Caches for parameterized data
-        self._shift_nurses_cache: dict[DomainPrimaryKeyType, list[NurseProfile]] = {}
+        self._shift_nurses_cache: dict[ShiftKey, list[NurseProfile]] = {}
         self._cached_all_employees: list[Employee] | None = None
+        self._cached_employees_by_id: dict[DomainPrimaryKeyType, Employee] | None = None
         self._cached_hprd_reqs: dict[int, HprdShiftNurseRequirementHolder] = {}
         self._accumulated_hours_cache: dict[DomainPrimaryKeyType, float] = {}
+        self._candidate_eligibility_service = CandidateEligibilityService()
 
     def get_org_id(self) -> DomainPrimaryKeyType:
         """Returns the organization ID for this optimization run."""
@@ -120,11 +124,12 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
     async def get_employee_by_id(
         self, employee_id: DomainPrimaryKeyType
     ) -> Employee | None:
-        # Simple lookup from pre-fetched list
-        for emp in await self.get_all_employees():
-            if emp.employee_id == employee_id:
-                return emp
-        return None
+        if self._cached_employees_by_id is None:
+            self._cached_employees_by_id = {
+                employee.employee_id: employee
+                for employee in await self.get_all_employees()
+            }
+        return self._cached_employees_by_id.get(employee_id)
 
     # FIX 14: Removed @cached_property, used manual caching
     async def get_hprd_requirements_for_facility(
@@ -141,14 +146,25 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
 
     # --- Case 2: Parameterized data cached manually with dicts ---
     async def get_nurses_for_shift(self, shift: Shift) -> list[NurseProfile]:
-        # Use shift_id as the cache key
-        if shift.shift_id not in self._shift_nurses_cache:
-            # print(f"Fetching nurses for shift {shift.shift_id}...")
-            # Call the raw retriever
+        if shift.shift_key not in self._shift_nurses_cache:
             nurses = await self._nurse_retriever.get_nurses(shift)
-            self._shift_nurses_cache[shift.shift_id] = nurses
+            eligible_nurses = []
+            for nurse in nurses:
+                employee = await self.get_employee_by_id(nurse.employee_id)
+                worked_hours = await self.get_accumulated_hours_for_pay_period(
+                    nurse.employee_id
+                )
+                result = self._candidate_eligibility_service.evaluate(
+                    nurse=nurse,
+                    employee=employee,
+                    shift=shift,
+                    already_worked_hours=worked_hours,
+                )
+                if result.eligible:
+                    eligible_nurses.append(nurse)
+            self._shift_nurses_cache[shift.shift_key] = eligible_nurses
 
-        return self._shift_nurses_cache[shift.shift_id]
+        return self._shift_nurses_cache[shift.shift_key]
 
     def get_compensation_service(self) -> IStaffCompensationRepo:
         return self._staff_comp_service

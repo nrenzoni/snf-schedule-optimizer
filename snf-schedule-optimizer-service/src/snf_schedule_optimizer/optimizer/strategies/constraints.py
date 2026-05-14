@@ -198,3 +198,44 @@ class MaxShiftLengthConstraintStrategy(IFacilityScopedConstraintStrategy):
                     ),
                 )
         return None
+
+
+class MaxWeeklyHoursConstraintStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        nurses_by_id = {}
+        for shift in data_provider.get_shifts_for_facility(facility_id):
+            for nurse in await data_provider.get_nurses_for_shift(shift):
+                nurses_by_id[nurse.employee_id] = nurse
+
+        for emp_id, nurse in nurses_by_id.items():
+            worked_hours = await data_provider.get_accumulated_hours_for_pay_period(
+                emp_id
+            )
+            remaining_capacity = nurse.available_hours_weekly - worked_hours
+            if remaining_capacity < 0:
+                return InfeasibilityReasonResult(
+                    reason=InfeasibilityReason.OTHER,
+                    details=(
+                        f"Employee {emp_id} already exceeds weekly capacity before optimization."
+                    ),
+                )
+
+            assigned_hours = []
+            for shift in data_provider.get_shifts_for_facility(facility_id):
+                lp_var = lp_holder.get_variable(shift, emp_id)
+                if lp_var is not None:
+                    assigned_hours.append(lp_var * shift.duration_hours)
+
+            if assigned_hours:
+                problem += (
+                    pulp.lpSum(assigned_hours) <= remaining_capacity,
+                    build_lp_variable_name("MaxWeeklyHours", facility_id, emp_id),
+                )
+
+        return None

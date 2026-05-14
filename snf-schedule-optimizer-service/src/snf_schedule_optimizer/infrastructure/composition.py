@@ -74,7 +74,10 @@ from snf_schedule_optimizer.optimizer.interfaces import (
 )
 from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
+    ConsecutiveShiftFatigueStrategy,
     HprdStaffingConstraintStrategy,
+    MaxShiftLengthConstraintStrategy,
+    MaxWeeklyHoursConstraintStrategy,
 )
 from snf_schedule_optimizer.optimizer.strategies.pay import WeeklyVolumePayStrategy
 from snf_schedule_optimizer.optimizer.strategies.penalties import QualityOfLifeStrategy
@@ -363,9 +366,13 @@ def build_scheduler_container(
         facility_rule_strategies_list = Factory(
             lambda: cast(
                 list[IFacilityScopedConstraintStrategy],
-                [],
+                [
+                    ConsecutiveShiftFatigueStrategy(),
+                    MaxShiftLengthConstraintStrategy(),
+                    MaxWeeklyHoursConstraintStrategy(),
+                ],
             )
-        )  # placeholder empty list
+        )
 
         penalty_strategies_list = Factory(
             lambda pp, nr, er: cast(
