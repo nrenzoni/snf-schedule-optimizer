@@ -18,12 +18,12 @@ export const calculateCellMetric = (
   shiftType: ShiftTypeKey,
 ): GroupMetric => {
   // 1. Filter Shifts: Must match Date, Shift, AND match a staff member in this scope
-  const staffIds = new Set(staffListInScope.map((s) => s.id));
+  const rowIds = new Set(staffListInScope.map((s) => s.rowId));
   const cellShifts = shifts.filter(
     (s) =>
       s.dateStr === dateStr &&
       s.shiftType === shiftType &&
-      staffIds.has(s.staffId),
+      rowIds.has(s.rowId),
   );
 
   if (viewMode === "ROLE") {

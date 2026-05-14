@@ -9,6 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   UIFinancials,
+  UIOptimizationRun,
   UIOptimizationStats,
   UIOptimizationSummary,
   UISchedulerSettings,
@@ -19,6 +20,7 @@ interface ScheduleSummaryModalProps {
   optimizationSummary: UIOptimizationSummary | null;
   optimizationStats: UIOptimizationStats | null;
   optimizationFinancials: UIFinancials | null;
+  activeRun: UIOptimizationRun | null;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -28,10 +30,18 @@ export function ScheduleSummaryModal({
   optimizationSummary,
   optimizationStats,
   optimizationFinancials,
+  activeRun,
   isOpen,
   onClose,
 }: ScheduleSummaryModalProps) {
-  const appliedSettings = optimizationSummary?.appliedSettings ?? settings;
+  const displaySummary = optimizationSummary ?? activeRun?.summary ?? null;
+  const displayStats = optimizationStats ?? activeRun?.stats ?? null;
+  const displayFinancials = optimizationFinancials ?? activeRun?.financials ?? null;
+  const appliedSettings = displaySummary?.appliedSettings ?? settings;
+  const latestRunText = displaySummary?.completedAt
+    ?? (activeRun
+      ? `Optimization ${activeRun.stage} (${activeRun.progressPercent}%)`
+      : "No optimization completed yet.");
 
   return (
     <ModalContainer isOpen={isOpen} onClose={onClose} contentClassName="max-w-5xl">
@@ -55,19 +65,19 @@ export function ScheduleSummaryModal({
               <div className={statPanelVariants({ tone: "success" })}>
                 <span className="font-medium text-slate-700">Covered Shifts</span>
                 <span className="text-xl font-semibold text-primary">
-                  {optimizationSummary?.coveredShifts ?? 0}
+                  {displaySummary?.coveredShifts ?? 0}
                 </span>
               </div>
               <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <span className="font-medium text-slate-700">Uncovered Shifts</span>
-                <span className={statValueVariants({ tone: (optimizationSummary?.uncoveredShifts ?? 0) > 0 ? "warning" : "success" })}>
-                  {optimizationSummary?.uncoveredShifts ?? 0}
+                <span className={statValueVariants({ tone: (displaySummary?.uncoveredShifts ?? 0) > 0 ? "warning" : "success" })}>
+                  {displaySummary?.uncoveredShifts ?? 0}
                 </span>
               </div>
               <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <span className="font-medium text-slate-700">Assignments Changed</span>
                 <span className="text-xl font-bold text-slate-800">
-                  {optimizationSummary?.assignmentsChanged ?? 0}
+                  {displaySummary?.assignmentsChanged ?? 0}
                 </span>
               </div>
               <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
@@ -87,25 +97,25 @@ export function ScheduleSummaryModal({
               <div className={statPanelVariants({ tone: "success" })}>
                 <span className="font-medium text-slate-700">Projected Labor Cost</span>
                 <span className="text-xl font-semibold text-primary">
-                  ${Math.round(optimizationFinancials?.totalEnterpriseCost ?? 0).toLocaleString()}
+                  ${Math.round(displayFinancials?.totalEnterpriseCost ?? 0).toLocaleString()}
                 </span>
               </div>
               <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <span className="font-medium text-slate-700">Overtime Cost</span>
                 <span className="text-xl font-bold text-slate-800">
-                  ${Math.round(optimizationFinancials?.totalOvertimeCost ?? 0).toLocaleString()}
+                  ${Math.round(displayFinancials?.totalOvertimeCost ?? 0).toLocaleString()}
                 </span>
               </div>
               <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <span className="font-medium text-slate-700">Incentive Cost</span>
                 <span className="text-xl font-bold text-slate-800">
-                  ${Math.round(optimizationFinancials?.totalIncentiveCost ?? 0).toLocaleString()}
+                  ${Math.round(displayFinancials?.totalIncentiveCost ?? 0).toLocaleString()}
                 </span>
               </div>
               <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <span className="font-medium text-slate-700">Regular Pay</span>
                 <span className="text-xl font-bold text-slate-800">
-                  ${Math.round(optimizationFinancials?.regularPayCost ?? 0).toLocaleString()}
+                  ${Math.round(displayFinancials?.regularPayCost ?? 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -122,26 +132,26 @@ export function ScheduleSummaryModal({
                     <Clock size={16} className="text-primary" /> Runtime
                   </span>
                   <span className="text-xl font-semibold text-primary">
-                    {Math.round(optimizationStats?.executionTimeMs ?? 0)} ms
+                    {Math.round(displayStats?.executionTimeMs ?? 0)} ms
                   </span>
                 </div>
               </div>
               <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <span className="font-medium text-slate-700">Objective</span>
                 <span className="text-xl font-bold text-slate-800">
-                  {(optimizationStats?.objectiveValue ?? 0).toFixed(2)}
+                  {(displayStats?.objectiveValue ?? 0).toFixed(2)}
                 </span>
               </div>
               <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <span className="font-medium text-slate-700">Variables</span>
                 <span className="text-xl font-bold text-slate-800">
-                  {optimizationStats?.totalVariables ?? 0}
+                  {displayStats?.totalVariables ?? 0}
                 </span>
               </div>
               <div className={cn("flex justify-between", statPanelVariants({ tone: "neutral" }))}>
                 <span className="font-medium text-slate-700">Constraints</span>
                 <span className="text-xl font-bold text-slate-800">
-                  {optimizationStats?.totalConstraints ?? 0}
+                  {displayStats?.totalConstraints ?? 0}
                 </span>
               </div>
             </div>
@@ -150,7 +160,7 @@ export function ScheduleSummaryModal({
 
         <div className="flex items-center justify-between border-t border-border bg-muted/80 p-4">
           <p className="text-sm italic text-gray-500 pl-2">
-            Latest run: {optimizationSummary?.completedAt ?? "No optimization completed yet."}
+            Latest run: {latestRunText}
           </p>
           <button onClick={onClose} className="app-button-primary px-6">
             Close Summary

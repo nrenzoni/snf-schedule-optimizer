@@ -2,6 +2,7 @@ import type { UIValidationLevel } from "@/types/scheduling";
 
 export type Shift = {
   id: string;
+  rowId: string;
   shiftId: string;
   staffId: string;
   employeeName: string;
@@ -19,6 +20,7 @@ export type Shift = {
 };
 
 export type TimelineSlotData = {
+  rowId: string;
   staffId: string;
   dateStr: string;
   typeKey: string;
@@ -36,6 +38,7 @@ export type MoveValidationPreview = {
 
 export type Staff = {
   id: string;
+  rowId: string;
   name: string;
   role: RoleKey;
   unitId: UnitKey; // Staff "Home" Unit

@@ -49,9 +49,12 @@ import { create } from "@bufbuild/protobuf";
 import { StagedSchedulePatchSchema } from "@/gen/scheduling/v1/scheduling_pb";
 import { validateShiftMove } from "@/api/scheduling-client";
 import { protoPatchConflictToUI, protoStagedPatchToUI } from "@/hooks/use-schedule-query";
+import { useStagedScheduleActions } from "@/hooks/use-staged-schedule-actions";
+import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 
 export const STAFF_COL_WIDTH = "w-48 min-w-[12rem]";
 export const CELL_WIDTH = "w-[72px] min-w-[72px]";
+export const DATE_GROUP_WIDTH = "w-[216px] min-w-[216px]";
 
 const restrictToHorizontalAxis: Modifier = ({ transform }) => ({
   ...transform,
@@ -83,6 +86,7 @@ export default function ScheduleBoard({
     scheduleVersion,
     draftState,
     scheduleCount,
+    activeRun,
     appendDraftPatch,
     clearDraft,
     setDraftConflicts,
@@ -94,12 +98,14 @@ export default function ScheduleBoard({
       scheduleVersion: state.scheduleVersion,
       draftState: state.draftState,
       scheduleCount: state.effectiveScheduleMap.size,
+      activeRun: state.activeRun,
       appendDraftPatch: state.appendDraftPatch,
       clearDraft: state.clearDraft,
       setDraftConflicts: state.setDraftConflicts,
       setHasPendingValidation: state.setHasPendingValidation,
     })),
   );
+  const { stageValidatedPatch } = useStagedScheduleActions();
   const [anchorDateStr, setAnchorDateStr] = useQueryState(
     "anchor",
     parseAsString.withDefault(TODAY_STRING),
@@ -360,7 +366,14 @@ export default function ScheduleBoard({
         </div>
 
         <div className="relative flex-1 overflow-auto bg-background xl:min-h-0">
-          <div className="min-w-max p-4 pb-20">
+          <ThreeDAssemblyLoader
+            isLoading={dragDisabled}
+            mode="inline"
+            progressPercent={activeRun?.progressPercent}
+            message={activeRun?.statusMessage || undefined}
+          />
+
+          <div className="relative z-10 min-w-max p-4 pb-20">
             <div className="sticky top-0 z-40 mb-2 flex rounded-lg border border-border bg-card shadow-none">
               <div
                 className={cn(
@@ -394,7 +407,7 @@ export default function ScheduleBoard({
               {visibleDates.map((date, i) => {
                 const isToday = isSameDay(date, new Date());
                 return (
-                  <div key={i} className="flex border-r border-border last:border-0">
+                  <div key={i} className={cn(DATE_GROUP_WIDTH, "border-r border-border last:border-0")}>
                     <div className="flex flex-col">
                       <div
                         className={cn(
@@ -452,6 +465,18 @@ export default function ScheduleBoard({
                   validationPreview={validationPreview}
                   dragDisabled={dragDisabled}
                   resolveTargetShiftId={resolveTargetShiftId}
+                  onDeleteShift={async (shift) => {
+                    return stageValidatedPatch({
+                      employeeId: shift.staffId,
+                      employeeName: shift.employeeName,
+                      fromShiftId: shift.shiftId,
+                      toShiftId: null,
+                      payPeriodStart: startOfWeek(new Date(shift.dateStr), { weekStartsOn: 0 }),
+                      successTitle: "Shift removal staged",
+                      successDescription:
+                        "Assignment removal will be applied with the next optimization run.",
+                    });
+                  }}
                 />
               ))}
             </motion.div>

@@ -4,13 +4,14 @@ import { calculateCellMetric } from "@/components/schedule-board/utils";
 import { Shift, Staff } from "@/types/scheduler";
 
 const staffList: Staff[] = [
-  { id: "st1", name: "Alice", role: "RN", unitId: "U1", fte: 1 },
-  { id: "st2", name: "Bob", role: "LPN", unitId: "U1", fte: 1 },
+  { id: "st1", rowId: "U1:st1", name: "Alice", role: "RN", unitId: "U1", fte: 1 },
+  { id: "st2", rowId: "U1:st2", name: "Bob", role: "LPN", unitId: "U1", fte: 1 },
 ];
 
 const shifts: Shift[] = [
   {
     id: "shift-1",
+    rowId: "U1:st1",
     shiftId: "shift-1",
     staffId: "st1",
     employeeName: "Alice",
@@ -21,6 +22,7 @@ const shifts: Shift[] = [
   },
   {
     id: "shift-2",
+    rowId: "U1:st2",
     shiftId: "shift-2",
     staffId: "st2",
     employeeName: "Bob",
@@ -60,4 +62,30 @@ test("calculateCellMetric returns budget metrics for budget view", () => {
 
   assert.equal(metric.label, "$0.7k");
   assert.equal(metric.status, "critical");
+});
+
+test("calculateCellMetric ignores shifts outside the scoped staff rows", () => {
+  const extraShift: Shift = {
+    id: "shift-3",
+    rowId: "U2:st1",
+    shiftId: "shift-3",
+    staffId: "st1",
+    employeeName: "Alice",
+    dateStr: "2026-05-11",
+    unitId: "U2",
+    role: "RN",
+    shiftType: "DAY",
+  };
+
+  const metric = calculateCellMetric(
+    [...shifts, extraShift],
+    { unitId: "U1" },
+    "ROLE",
+    "ROLE",
+    staffList,
+    "2026-05-11",
+    "DAY",
+  );
+
+  assert.equal(metric.label, "0.40");
 });

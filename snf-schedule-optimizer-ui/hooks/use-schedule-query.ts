@@ -207,7 +207,7 @@ const protoRunStageToUI = (stage: OptimizationRunStage): UIOptimizationRun["stag
 export const protoOptimizationRunToUI = (
   run?: OptimizationRun,
 ): UIOptimizationRun | null => {
-  if (!run) {
+  if (!run?.runId) {
     return null;
   }
 

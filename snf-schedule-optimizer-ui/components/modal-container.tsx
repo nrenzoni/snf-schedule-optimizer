@@ -10,6 +10,7 @@ interface ModalContainerProps {
   children: React.ReactNode;
   // Optional: Pass through custom classes for modal size/styling
   contentClassName?: string;
+  disableClose?: boolean;
 }
 
 // Define the duration in ms for transition consistency
@@ -20,6 +21,7 @@ export default function ModalContainer({
   onClose,
   children,
   contentClassName = "max-w-xl", // Default size
+  disableClose = false,
 }: ModalContainerProps) {
   const [isMounted, setIsMounted] = useState(isOpen);
   const [isVisible, setIsVisible] = useState(false);
@@ -73,7 +75,7 @@ export default function ModalContainer({
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (!disableClose && event.key === "Escape") {
         onClose();
       }
     };
@@ -84,7 +86,7 @@ export default function ModalContainer({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isMounted, onClose]);
+  }, [disableClose, isMounted, onClose]);
 
   if (!isMounted) return null;
 
@@ -103,7 +105,7 @@ export default function ModalContainer({
         "fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out",
         backdropClasses,
       )}
-      onClick={onClose} // Close on outside click
+      onClick={disableClose ? undefined : onClose} // Close on outside click
       role="dialog"
       aria-modal="true"
     >

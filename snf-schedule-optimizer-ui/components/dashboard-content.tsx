@@ -31,11 +31,11 @@ import useScheduleQuery from "@/hooks/use-schedule-query";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { TODAY_STRING } from "@/utils/scheduling-logic";
 import { useScheduling } from "@/hooks/use-scheduling";
+import { useOptimizationRunSync } from "@/hooks/use-optimization-run-sync";
 import NurseDetailsPanel from "@/components/nurse-details-panel";
 import DashboardEmptyState from "@/components/dashboard-empty-state";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { ScheduleQueryError } from "@/hooks/use-schedule-query";
-import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 import {
   metricToneVariants,
   segmentedButtonVariants,
@@ -154,6 +154,10 @@ export default function DashboardContent({
   const { error, isLoading, refetch } = useScheduleQuery(currentViewAnchorDate);
 
   const [showPulse, setShowPulse] = useState(true);
+
+  const optimizeButtonFillWidth = activeRun ? `${Math.max(0, Math.min(100, activeRun.progressPercent))}%` : "0%";
+
+  useOptimizationRunSync();
 
   useEffect(() => {
     hydratePersistedDraftState();
@@ -288,9 +292,6 @@ export default function DashboardContent({
 
   return (
     <div className="app-bg min-h-screen p-2 font-sans md:p-3 xl:h-screen xl:overflow-hidden">
-      <ThreeDAssemblyLoader
-        isLoading={isRunActive}
-      />
       <div className="mx-auto max-w-[1800px] xl:flex xl:h-full xl:flex-col">
         <Tabs
           value={activeModule}
@@ -417,10 +418,20 @@ export default function DashboardContent({
                               void triggerOptimization();
                             }}
                             disabled={isRunActive}
-                            className="app-button-primary min-h-9 whitespace-nowrap px-4 py-2"
+                            className="app-button-primary relative min-h-9 overflow-hidden whitespace-nowrap px-4 py-2"
                           >
+                            {activeRun ? (
+                              <span
+                                aria-hidden="true"
+                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary/40 via-primary/70 to-emerald-400/80 transition-[width] duration-300"
+                                style={{ width: optimizeButtonFillWidth }}
+                              />
+                            ) : null}
+                            <span className="relative z-10 flex items-center gap-2">
                             <Zap size={16} />
                             <span>{isRunActive ? "Optimizing..." : "Optimize"}</span>
+                            {activeRun ? <span className="text-xs">{activeRun.progressPercent}%</span> : null}
+                            </span>
                           </button>
                           <button
                             data-testid="open-schedule-summary"
@@ -583,6 +594,7 @@ export default function DashboardContent({
           optimizationSummary={latestOptimization}
           optimizationStats={optimizationStats}
           optimizationFinancials={optimizationFinancials}
+          activeRun={activeRun}
           isOpen={uiStore.isSummaryModalOpen}
           onClose={uiStore.closeSummaryModal}
         />

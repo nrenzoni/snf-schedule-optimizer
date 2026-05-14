@@ -1,11 +1,11 @@
 import React, { Suspense } from "react";
 import DashboardShell from "@/components/dashboard-shell";
 import ScheduleBoardContainer from "@/components/schedule-board/scheduling-board-container";
-import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
+import AppShellSkeleton from "@/components/app-shell-skeleton";
 
 export default function SchedulePage() {
   return (
-    <Suspense fallback={<ThreeDAssemblyLoader isLoading />}>
+    <Suspense fallback={<AppShellSkeleton />}>
       <DashboardShell timelineView={<ScheduleBoardContainer />} />
     </Suspense>
   );

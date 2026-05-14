@@ -71,9 +71,11 @@ export default function ScheduleBoardContainer() {
 
         for (const nurse of shift.nurses) {
           const role = roleToBoardRole(nurse.role);
-          if (!staffById.has(nurse.id)) {
-            staffById.set(nurse.id, {
+          const rowId = `${shift.unitId}:${nurse.id}`;
+          if (!staffById.has(rowId)) {
+            staffById.set(rowId, {
               id: nurse.id,
+              rowId,
               name: nurse.name,
               role,
               unitId: shift.unitId,
@@ -84,6 +86,7 @@ export default function ScheduleBoardContainer() {
           const patch = patchByEmployeeAndShift.get(`${nurse.id}:${shift.shiftId}`);
           boardShifts.push({
             id: `${shift.shiftId}:${nurse.id}`,
+            rowId,
             shiftId: shift.shiftId,
             staffId: nurse.id,
             employeeName: nurse.name,

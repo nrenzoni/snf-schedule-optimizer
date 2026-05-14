@@ -70,7 +70,7 @@ export default function TimelineSlot({
       ref={setNodeRef}
       className={cn(
         CELL_WIDTH,
-        "relative flex flex-col justify-center border-r border-border transition-colors duration-200",
+        "relative flex h-full min-h-14 flex-col justify-center border-r border-border transition-colors duration-200",
         isLastShift && "border-r-input",
         bgClass, // Applied dynamic background
         ringClass, // Applied dynamic ring

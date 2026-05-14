@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
   UICalendarDay,
@@ -20,9 +20,7 @@ import {
 import {
   getScheduleStatus,
   hasBlockingConflicts,
-  pollOptimizationRun,
   startOptimizationRun,
-  streamOptimizationRun,
 } from "@/api/scheduling-client";
 import {
   defaultSchedulerSettings,
@@ -37,6 +35,7 @@ import {
   protoPatchConflictToUI,
 } from "@/hooks/use-schedule-query";
 import { createClientUuid } from "@/lib/utils";
+import { useStagedScheduleActions } from "@/hooks/use-staged-schedule-actions";
 
 interface UseSchedulingReturn {
   currentDate: Date;
@@ -55,6 +54,12 @@ interface UseSchedulingReturn {
   closeNurseDetails: () => void;
   closeModal: () => void;
   removeNurseFromShift: (nurse: UINurse) => Promise<void>;
+  stageShiftRemoval: (input: {
+    employeeId: string;
+    employeeName?: string | null;
+    fromShiftId: string;
+    shiftDate: string;
+  }) => Promise<void>;
   addNurseToShift: () => void;
   triggerOptimization: (allowOverwrite?: boolean) => Promise<void>;
   clearDraft: () => void;
@@ -107,7 +112,6 @@ export function useScheduling(): UseSchedulingReturn {
     setDraftConflicts,
     setHasPendingValidation,
     setActiveRun,
-    setRunProgress,
     setHasNewerVersion,
     clearDraft,
   } = useSchedulingStore(
@@ -124,13 +128,11 @@ export function useScheduling(): UseSchedulingReturn {
       setDraftConflicts: state.setDraftConflicts,
       setHasPendingValidation: state.setHasPendingValidation,
       setActiveRun: state.setActiveRun,
-      setRunProgress: state.setRunProgress,
       setHasNewerVersion: state.setHasNewerVersion,
       clearDraft: state.clearDraft,
     })),
   );
-
-  const runStreamAbortRef = useRef<AbortController | null>(null);
+  const { stageValidatedPatch } = useStagedScheduleActions();
 
   const [selectedDateStr, setSelectedDateStr] = useQueryState("date");
   const [isTwoWeekView, setIsTwoWeekView] = useQueryState(
@@ -146,41 +148,6 @@ export function useScheduling(): UseSchedulingReturn {
 
   const currentViewAnchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
   const runIsActive = isRunActive(activeRun?.status);
-
-  const syncRunProgress = useCallback(
-    async (runId: string) => {
-      runStreamAbortRef.current?.abort();
-      const abortController = new AbortController();
-      runStreamAbortRef.current = abortController;
-
-      try {
-        await streamOptimizationRun(runId, (event) => {
-          if (abortController.signal.aborted) {
-            return;
-          }
-          const uiRun = protoOptimizationRunToUI(event.run);
-          if (!uiRun) {
-            return;
-          }
-          setRunProgress(uiRun);
-          if (!isRunActive(uiRun.status)) {
-            abortController.abort();
-          }
-        });
-      } catch {
-        if (abortController.signal.aborted) {
-          return;
-        }
-
-        const latest = await pollOptimizationRun(runId).catch(() => null);
-        const uiRun = protoOptimizationRunToUI(latest?.run);
-        if (uiRun) {
-          setRunProgress(uiRun);
-        }
-      }
-    },
-    [setRunProgress],
-  );
 
   const triggerOptimization = useCallback(
     async (allowOverwrite = false) => {
@@ -265,7 +232,6 @@ export function useScheduling(): UseSchedulingReturn {
         toast.success("Optimization started", {
           description: "Run progress will continue across refreshes.",
         });
-        void syncRunProgress(uiRun.runId);
       } catch (error) {
         toast.error("Optimization failed", {
           description: error instanceof Error ? error.message : "Unexpected optimizer error",
@@ -283,7 +249,6 @@ export function useScheduling(): UseSchedulingReturn {
       setActiveRun,
       setDraftConflicts,
       setHasNewerVersion,
-      syncRunProgress,
     ],
   );
 
@@ -434,10 +399,45 @@ export function useScheduling(): UseSchedulingReturn {
   );
 
   const removeNurseFromShift = useCallback(async (): Promise<void> => {
-    toast.info("Shift edits now use drag and drop staging", {
-      description: "Use the schedule board to stage and validate pinned changes.",
+    if (!selectedShift || !selectedNurse) {
+      toast.error("Shift removal unavailable", {
+        description: "Select a nurse assignment before removing it.",
+      });
+      return;
+    }
+
+    await stageValidatedPatch({
+      employeeId: selectedNurse.id,
+      employeeName: selectedNurse.name,
+      fromShiftId: selectedShift.shiftId,
+      toShiftId: null,
+      payPeriodStart: getStartOfWeek(
+        selectedDay?.date ?? currentViewAnchorDate,
+      ),
+      successTitle: "Shift removal staged",
+      successDescription: "Assignment removal will be applied with the next optimization run.",
     });
-  }, []);
+  }, [currentViewAnchorDate, selectedDay?.date, selectedNurse, selectedShift, stageValidatedPatch]);
+
+  const stageShiftRemoval = useCallback(
+    async (input: {
+      employeeId: string;
+      employeeName?: string | null;
+      fromShiftId: string;
+      shiftDate: string;
+    }) => {
+      await stageValidatedPatch({
+        employeeId: input.employeeId,
+        employeeName: input.employeeName ?? null,
+        fromShiftId: input.fromShiftId,
+        toShiftId: null,
+        payPeriodStart: getStartOfWeek(new Date(input.shiftDate)),
+        successTitle: "Shift removal staged",
+        successDescription: "Assignment removal will be applied with the next optimization run.",
+      });
+    },
+    [stageValidatedPatch],
+  );
 
   const addNurseToShift = useCallback((): void => {}, []);
 
@@ -451,18 +451,6 @@ export function useScheduling(): UseSchedulingReturn {
     },
     [setSchedulerSettings],
   );
-
-  useEffect(() => {
-    const runId = activeRun?.runId;
-    if (!runId || !runIsActive) {
-      runStreamAbortRef.current?.abort();
-      return;
-    }
-    void syncRunProgress(runId);
-    return () => {
-      runStreamAbortRef.current?.abort();
-    };
-  }, [activeRun?.runId, runIsActive, syncRunProgress]);
 
   useEffect(() => {
     const isDaySelected = !!selectedDay;
@@ -512,6 +500,7 @@ export function useScheduling(): UseSchedulingReturn {
     isTwoWeekView,
     isRunActive: runIsActive,
     removeNurseFromShift,
+    stageShiftRemoval,
     addNurseToShift,
     toggleCalendarView,
     triggerOptimization,

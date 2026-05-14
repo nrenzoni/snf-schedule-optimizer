@@ -242,7 +242,7 @@ export const useSchedulingStore = create<SchedulingState>((set) => ({
       const effectiveScheduleMap = hasNewerVersion
         ? cloneMap(map)
         : applyPatchToMap(map, draftState.patches);
-      persistState(draftState, activeRun ?? state.activeRun);
+      persistState(draftState, activeRun);
       return {
         serverScheduleMap: map,
         effectiveScheduleMap,
@@ -255,7 +255,7 @@ export const useSchedulingStore = create<SchedulingState>((set) => ({
         latestOptimization,
         optimizationStats,
         optimizationFinancials,
-        activeRun: activeRun ?? state.activeRun,
+        activeRun,
         hasNewerVersion,
         draftState,
       };

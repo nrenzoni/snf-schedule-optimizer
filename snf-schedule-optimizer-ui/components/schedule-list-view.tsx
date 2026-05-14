@@ -13,6 +13,7 @@ import { ScheduleQueryError } from "@/hooks/use-schedule-query";
 import DashboardEmptyState from "@/components/dashboard-empty-state";
 import { cn } from "@/lib/utils";
 import { iconButtonVariants } from "@/components/ui/styles";
+import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthYearFormatter = new Intl.DateTimeFormat("en-US", {
@@ -32,8 +33,9 @@ export default function ScheduleListView() {
     isRunActive,
   } = useScheduling();
 
-  const { dataError, scheduleCount, selectedFacility } = useSchedulingStore(
+  const { activeRun, dataError, scheduleCount, selectedFacility } = useSchedulingStore(
     useShallow((state) => ({
+      activeRun: state.activeRun,
       dataError: state.dataError,
       scheduleCount: state.effectiveScheduleMap.size,
       selectedFacility: state.selectedFacility,
@@ -127,41 +129,47 @@ export default function ScheduleListView() {
           />
         ) : null}
 
-        {/* Weekday Names */}
-        <div className="mb-2 grid grid-cols-7 text-center text-xs font-black uppercase tracking-[0.16em] text-slate-400">
-          {DAYS_OF_WEEK.map((day) => (
-            <div key={day} className="py-2">
-              {day}
-            </div>
-          ))}
-        </div>
+        <div className="relative overflow-hidden rounded-lg">
+          <ThreeDAssemblyLoader
+            isLoading={isRunActive}
+            mode="inline"
+            progressPercent={activeRun?.progressPercent}
+            message={activeRun?.statusMessage || undefined}
+          />
 
-        {/* Calendar Grid Component */}
-        <CalendarGrid
-          calendarDays={calendarDays}
-          openShiftDetails={openShiftDetails}
-          isTwoWeekView={isTwoWeekView}
-          selectedDayDateString={selectedDay?.dateString || null}
-        />
+          {/* Weekday Names */}
+          <div className="mb-2 grid grid-cols-7 text-center text-xs font-black uppercase tracking-[0.16em] text-slate-400">
+            {DAYS_OF_WEEK.map((day) => (
+              <div key={day} className="py-2">
+                {day}
+              </div>
+            ))}
+          </div>
 
-        {/* Legend */}
+          {/* Calendar Grid Component */}
+          <CalendarGrid
+            calendarDays={calendarDays}
+            openShiftDetails={openShiftDetails}
+            isTwoWeekView={isTwoWeekView}
+            selectedDayDateString={selectedDay?.dateString || null}
+          />
+
+          {/* Legend */}
           <div className="mt-8 flex flex-wrap justify-center gap-6 border-t border-slate-200/70 pt-4 text-sm text-slate-600">
-          {/* 🟢 Ideal: 100% and above */}
-          <div className="flex items-center space-x-2">
-            <span className="h-3 w-3 rounded-full bg-green-500 shadow-sm" />
-            <span>100%+ HPRD Covered (Ideal)</span>
-          </div>
+            <div className="flex items-center space-x-2">
+              <span className="h-3 w-3 rounded-full bg-green-500 shadow-sm" />
+              <span>100%+ HPRD Covered (Ideal)</span>
+            </div>
 
-          {/* 🟡 Warning: 70% to 99% */}
-          <div className="flex items-center space-x-2">
-            <span className="h-3 w-3 rounded-full bg-amber-400 shadow-sm" />
-            <span>70% - 99% HPRD Covered (Warning)</span>
-          </div>
+            <div className="flex items-center space-x-2">
+              <span className="h-3 w-3 rounded-full bg-amber-400 shadow-sm" />
+              <span>70% - 99% HPRD Covered (Warning)</span>
+            </div>
 
-          {/* 🔴 Critical: Below 70% */}
-          <div className="flex items-center space-x-2">
-            <span className="h-3 w-3 rounded-full bg-red-500 shadow-sm" />
-            <span>&lt;70% HPRD Covered (Critical)</span>
+            <div className="flex items-center space-x-2">
+              <span className="h-3 w-3 rounded-full bg-red-500 shadow-sm" />
+              <span>&lt;70% HPRD Covered (Critical)</span>
+            </div>
           </div>
         </div>
       </div>

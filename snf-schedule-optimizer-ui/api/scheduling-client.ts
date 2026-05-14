@@ -43,8 +43,9 @@ export const schedulingClient = createClient(SchedulingService, transport);
 export const streamOptimizationRun = async (
   runId: string,
   onEvent: (event: OptimizationRunEvent) => void,
+  signal?: AbortSignal,
 ): Promise<void> => {
-  for await (const event of schedulingClient.streamOptimizationRun({ runId })) {
+  for await (const event of schedulingClient.streamOptimizationRun({ runId }, { signal })) {
     onEvent(event);
   }
 };

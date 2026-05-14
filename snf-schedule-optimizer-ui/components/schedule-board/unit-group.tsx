@@ -13,7 +13,7 @@ import {
   Staff,
 } from "@/types/scheduler";
 import { cn } from "@/lib/utils";
-import { STAFF_COL_WIDTH } from "@/components/schedule-board/schedule-board";
+import { DATE_GROUP_WIDTH, STAFF_COL_WIDTH } from "@/components/schedule-board/schedule-board";
 import { Building2, ChevronDown, ChevronUp } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import GroupSummaryCell from "@/components/schedule-board/group-summary-cell";
@@ -42,6 +42,7 @@ interface UnitGroupProps {
   validationPreview: MoveValidationPreview | null;
   dragDisabled: boolean;
   resolveTargetShiftId: (unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => string | null;
+  onDeleteShift: (shift: Shift) => Promise<boolean>;
 }
 
 export default function UnitGroup({
@@ -59,6 +60,7 @@ export default function UnitGroup({
   validationPreview,
   dragDisabled,
   resolveTargetShiftId,
+  onDeleteShift,
 }: UnitGroupProps) {
   // 1. Group Data inside this Unit
   const nestedGroups = useMemo(() => {
@@ -123,26 +125,30 @@ export default function UnitGroup({
           {dates.map((date: Date) => {
             const dateStr = format(date, "yyyy-MM-dd");
             const isToday = isSameDay(date, new Date());
-            return (Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map(
-              (shiftKey) => {
-                const metric = calculateCellMetric(
-                  shifts,
-                  { unitId: unit.id },
-                  viewMode,
-                  groupingMode,
-                  staffMembers,
-                  dateStr,
-                  shiftKey,
-                );
-                return (
-                  <GroupSummaryCell
-                    key={`${unit.id}-${dateStr}-${shiftKey}`}
-                    metric={metric}
-                    isTotal
-                    isToday={isToday}
-                  />
-                );
-              },
+            return (
+              <div key={`${unit.id}-${dateStr}`} className={DATE_GROUP_WIDTH}>
+                <div className="flex">
+                  {(Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map((shiftKey) => {
+                    const metric = calculateCellMetric(
+                      shifts,
+                      { unitId: unit.id },
+                      viewMode,
+                      groupingMode,
+                      staffMembers,
+                      dateStr,
+                      shiftKey,
+                    );
+                    return (
+                      <GroupSummaryCell
+                        key={`${unit.id}-${dateStr}-${shiftKey}`}
+                        metric={metric}
+                        isTotal
+                        isToday={isToday}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </div>
@@ -174,6 +180,7 @@ export default function UnitGroup({
                 dragDisabled={dragDisabled}
                 unitId={unit.id}
                 resolveTargetShiftId={resolveTargetShiftId}
+                onDeleteShift={onDeleteShift}
               />
             ))}
           </motion.div>

@@ -5,24 +5,27 @@ import { ROLES, Shift, ViewMode } from "@/types/scheduler";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
-import { AlertCircle, DollarSign, Pin, TriangleAlert } from "lucide-react";
+import { AlertCircle, DollarSign, Pin, Trash2, TriangleAlert } from "lucide-react";
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { motion } from "framer-motion";
+import { iconButtonVariants } from "@/components/ui/styles";
 
 export default function ShiftCard({
   shift,
   mode,
   isOverlay = false,
   dragDisabled = false,
+  onDelete,
 }: {
   shift: Shift;
   mode: ViewMode;
   isOverlay?: boolean;
   dragDisabled?: boolean;
+  onDelete?: (shift: Shift) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -73,7 +76,7 @@ export default function ShiftCard({
           damping: 30,
         }}
         className={cn(
-        "group relative mx-auto flex h-[90%] w-[96%] select-none flex-col justify-center rounded-lg border border-l-4 text-[10px] shadow-none transition-shadow hover:shadow-sm",
+        "group relative mx-auto flex h-full min-h-[3.25rem] w-[96%] select-none flex-col justify-center rounded-lg border border-l-4 text-[10px] shadow-none transition-shadow hover:shadow-sm",
         dragDisabled ? "cursor-not-allowed opacity-70" : "cursor-grab active:cursor-grabbing",
         getColor(),
         agencyStripe,
@@ -81,7 +84,24 @@ export default function ShiftCard({
         isOverlay &&
           "scale-105 bg-card opacity-90 shadow-md ring-2 ring-ring",
       )}
-    >
+      >
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onDelete(shift);
+          }}
+          className={cn(
+            iconButtonVariants({ tone: "soft" }),
+            "absolute right-1 top-1 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
+          )}
+          aria-label={`Delete ${shift.employeeName} from shift`}
+        >
+          <Trash2 size={12} className="text-red-600" />
+        </button>
+      ) : null}
       <div className="flex justify-between">
         <span>{shift.role}</span>
         <div className="flex items-center gap-1">
@@ -116,7 +136,7 @@ export default function ShiftCard({
       style={style}
       {...listeners}
       {...attributes}
-      className="h-full flex items-center justify-center"
+      className="flex h-full min-h-14 items-stretch justify-center py-1"
     >
       {/* Hover Card logic remains same... */}
       {isInteractive ? (

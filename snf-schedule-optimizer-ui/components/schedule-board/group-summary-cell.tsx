@@ -9,10 +9,12 @@ export default function GroupSummaryCell({
   metric,
   isTotal,
   isToday,
+  compact = false,
 }: {
   metric: GroupMetric;
   isTotal?: boolean;
   isToday?: boolean;
+  compact?: boolean;
 }) {
   const { filledPct, label, status } = metric;
   const barColor =
@@ -42,6 +44,7 @@ export default function GroupSummaryCell({
       className={cn(
         CELL_WIDTH,
         "group/cell relative flex h-full flex-col justify-end border-r border-border",
+        compact ? "min-h-10" : "min-h-14",
         isToday ? "bg-accent" : bgColor,
       )}
     >
@@ -49,6 +52,7 @@ export default function GroupSummaryCell({
       <div
         className={cn(
           "absolute inset-0 z-10 flex items-center justify-center text-[10px] font-medium",
+          compact && "pb-1",
           textColor,
         )}
       >
