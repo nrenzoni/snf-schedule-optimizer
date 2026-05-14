@@ -1,3 +1,6 @@
+import logging
+import time
+
 import whenever
 
 from snf_schedule_optimizer.domain.hr.interfaces import (
@@ -18,6 +21,7 @@ from snf_schedule_optimizer.models import (
     OptimizationSettings,
     Shift,
     ShiftKey,
+    StaffCompensationRecord,
 )
 from snf_schedule_optimizer.optimizer.context import (
     FacilityScenarioContext,
@@ -29,6 +33,8 @@ from snf_schedule_optimizer.optimizer.interfaces import (
 )
 from snf_schedule_optimizer.persistence import INurseRepo
 from snf_schedule_optimizer.scenario import CandidateEligibilityService
+
+logger = logging.getLogger(__name__)
 
 
 class ScenarioDataProviderImpl(IScenarioDataProvider):
@@ -104,6 +110,8 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self._cached_employees_by_id: dict[DomainPrimaryKeyType, Employee] | None = None
         self._cached_hprd_reqs: dict[int, HprdShiftNurseRequirementHolder] = {}
         self._accumulated_hours_cache: dict[DomainPrimaryKeyType, float] = {}
+        self._cached_comp_records: dict[DomainPrimaryKeyType, StaffCompensationRecord] | None = None
+        self._work_history_preloaded = False
         self._candidate_eligibility_service = CandidateEligibilityService()
 
     def get_org_id(self) -> DomainPrimaryKeyType:
@@ -113,11 +121,16 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
     # FIX 13: Removed @cached_property, used manual caching to match interface signature
     async def get_all_employees(self) -> list[Employee]:
         if self._cached_all_employees is None:
-            print("Fetching all employees from source...")
+            t0 = time.perf_counter()
             self._cached_all_employees = (
                 await self._employee_retriever.get_all_employees(
                     org_id=self.target_org_id
                 )
+            )
+            logger.info(
+                "Loaded %d employees in %.2fs",
+                len(self._cached_all_employees),
+                time.perf_counter() - t0,
             )
         return self._cached_all_employees
 
@@ -178,26 +191,60 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         if employee_id in self._accumulated_hours_cache:
             return self._accumulated_hours_cache[employee_id]
 
-        # 1. Fetch the raw history segments from your existing service
-        history = await self._work_history_service.get_processed_history_for_period(
+        if not self._work_history_preloaded:
+            await self._warmup_work_history()
+
+        return self._accumulated_hours_cache.get(employee_id, 0.0)
+
+    async def _warmup_work_history(self) -> None:
+        if self._work_history_preloaded:
+            return
+        t0 = time.perf_counter()
+        employees = await self.get_all_employees()
+        employee_ids = [e.employee_id for e in employees]
+        if not employee_ids:
+            self._work_history_preloaded = True
+            return
+        hours_map = await self._work_history_service.preload_all_accumulated_hours(
             org_id=self.target_org_id,
-            employee_id=employee_id,
+            employee_ids=employee_ids,
             check_date=self.opt_start,
+            pay_period_start=self.pay_period_start,
             facility_id=None,
         )
+        self._accumulated_hours_cache.update(hours_map)
+        self._work_history_preloaded = True
+        logger.info(
+            "Work history preloaded for %d employees in %.2fs",
+            len(hours_map),
+            time.perf_counter() - t0,
+        )
 
-        # 2. Calculate the total hours (You can use the service's calculator or sum it manually here)
-        # Assuming get_accumulated_hours needs specific contexts,
-        # or we can do a simple sum if your segments have a 'duration' property:
-        total_hours = 0.0
-        for segments in history.values():
-            for segment in segments:
-                # Ensure the segment is within the current pay week window
-                if segment.start_time >= self.pay_period_start:
-                    total_hours += segment.duration_hours
+    async def _warmup_compensation(self) -> None:
+        if self._cached_comp_records is not None:
+            return
+        t0 = time.perf_counter()
+        self._cached_comp_records = (
+            await self._staff_comp_service.get_all_records_for_org(
+                org_id=self.target_org_id,
+                check_date=self.opt_start.to_tz("UTC").date(),
+            )
+        )
+        logger.info(
+            "Compensation preloaded for %d employees in %.2fs",
+            len(self._cached_comp_records),
+            time.perf_counter() - t0,
+        )
 
-        self._accumulated_hours_cache[employee_id] = total_hours
-        return total_hours
+    async def get_compensation_for_date(
+        self,
+        employee_id: DomainPrimaryKeyType,
+        check_date: whenever.Date,
+    ) -> StaffCompensationRecord | None:
+        if self._cached_comp_records is None:
+            await self._warmup_compensation()
+        assert self._cached_comp_records is not None
+        return self._cached_comp_records.get(employee_id)
 
     def get_facility_ids(self) -> list[FacilityIdType]:
         return list(self._facility_contexts.keys())

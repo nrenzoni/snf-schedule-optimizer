@@ -59,6 +59,18 @@ class IStaffCompensationRepo(abc.ABC):
         pass
 
     @abc.abstractmethod
+    async def get_all_records_for_org(
+        self,
+        org_id: DomainPrimaryKeyType,
+        check_date: whenever.Date,
+    ) -> dict[DomainPrimaryKeyType, StaffCompensationRecord]:
+        """
+        Retrieves compensation records for all active employees in a single query.
+        Returns dict keyed by employee_id.
+        """
+        pass
+
+    @abc.abstractmethod
     async def save_compensation_record(
         self,
         org_id: DomainPrimaryKeyType,

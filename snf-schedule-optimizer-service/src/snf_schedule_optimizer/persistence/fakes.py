@@ -91,8 +91,6 @@ class FakeNurseRepo(INurseRepo):
         self._nurses = nurses
 
     async def get_nurses(self, shift: Shift) -> list[NurseProfile]:
-        # Simple Fake: Returns all configured nurses regardless of shift
-        # You could add filtering logic here if you wanted smarter tests
         return self._nurses
 
     async def get_nurse(self, employee_id: DomainPrimaryKeyType) -> NurseProfile | None:
@@ -162,6 +160,18 @@ class FakeStaffCompensationRepo(IStaffCompensationRepo):
     ) -> None:
         pass
 
+    async def get_all_records_for_org(
+        self,
+        org_id: DomainPrimaryKeyType,
+        check_date: whenever.Date,
+    ) -> dict[DomainPrimaryKeyType, StaffCompensationRecord]:
+        records: dict[DomainPrimaryKeyType, StaffCompensationRecord] = {}
+        for emp_id in self.employee_records:
+            record = await self.get_record_for_date(org_id, emp_id, check_date)
+            if record is not None:
+                records[emp_id] = record
+        return records
+
 
 class FakeWorkHistoryService(IEmployeeWorkHistoryService):
     def __init__(self, accumulated_hours_map: dict[DomainPrimaryKeyType, float]):
@@ -174,9 +184,20 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
         check_date: whenever.Instant,
         facility_id: DomainPrimaryKeyType | None = None,
     ) -> dict[ShiftKey, list[WorkedShiftSegment]]:
-        # We don't need to return complex segments if we override the provider logic,
-        # but to satisfy the type checker:
         return {}
+
+    async def preload_all_accumulated_hours(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee_ids: list[DomainPrimaryKeyType],
+        check_date: whenever.Instant,
+        pay_period_start: whenever.Instant,
+        facility_id: DomainPrimaryKeyType | None = None,
+    ) -> dict[DomainPrimaryKeyType, float]:
+        return {
+            emp_id: self._hours_map.get(emp_id, 0.0)
+            for emp_id in employee_ids
+        }
 
     async def get_remaining_non_ot_hours(
         self,

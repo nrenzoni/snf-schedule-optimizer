@@ -72,6 +72,23 @@ class FakeRawHistoryRepo(IRawHistoryRepo):
 
         return history_map
 
+    async def get_raw_inputs_for_period_bulk(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee_ids: list[DomainPrimaryKeyType],
+        check_date: whenever.Instant,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
+        facility_id: DomainPrimaryKeyType | None = None,
+    ) -> dict[DomainPrimaryKeyType, dict[ShiftKey, list[TimePunch]]]:
+        result: dict[DomainPrimaryKeyType, dict[ShiftKey, list[TimePunch]]] = {}
+        for emp_id in employee_ids:
+            emp_data = await self.get_raw_inputs_for_period(
+                org_id, emp_id, check_date, facility_timezones, facility_id
+            )
+            if emp_data:
+                result[emp_id] = emp_data
+        return result
+
 
 class SQLRawHistoryRepo(IRawHistoryRepo):
     """
@@ -166,6 +183,73 @@ class SQLRawHistoryRepo(IRawHistoryRepo):
             history_map[shift_domain_object] = punches_domain
 
         return history_map
+
+    async def get_raw_inputs_for_period_bulk(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee_ids: list[DomainPrimaryKeyType],
+        check_date: whenever.Instant,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
+        facility_id: DomainPrimaryKeyType | None = None,
+    ) -> dict[DomainPrimaryKeyType, dict[ShiftKey, list[TimePunch]]]:
+        if not employee_ids:
+            return {}
+
+        max_lookback_dt = check_date.subtract(hours=24 * 8)
+
+        conditions = [
+            TimePunchModel.org_id == org_id,
+            TimePunchModel.employee_id.in_(employee_ids),
+            TimePunchModel.shift_id.isnot(None),
+            TimePunchModel.punch_time >= max_lookback_dt,
+            TimePunchModel.punch_time <= check_date,
+        ]
+
+        if facility_id:
+            conditions.append(TimePunchModel.facility_id == facility_id)
+
+        punch_stmt = (
+            select(TimePunchModel)
+            .options(joinedload(TimePunchModel.shift_template))
+            .where(and_(*conditions))
+            .order_by(TimePunchModel.employee_id, TimePunchModel.shift_id, TimePunchModel.punch_time)
+        )
+
+        punch_models: Iterable[TimePunchModel] = (
+            await self.db_session.scalars(punch_stmt)
+        ).all()
+
+        if not punch_models:
+            return {}
+
+        result: dict[DomainPrimaryKeyType, dict[ShiftKey, list[TimePunch]]] = {}
+
+        for emp_id, emp_group in itertools.groupby(
+            punch_models, key=lambda p: p.employee_id
+        ):
+            emp_history: dict[ShiftKey, list[TimePunch]] = {}
+            for shift_id, punch_group in itertools.groupby(
+                emp_group, key=lambda p: p.shift_id
+            ):
+                punch_list = list(punch_group)
+                actual_facility_id = punch_list[0].facility_id
+                facility_tz = facility_timezones.get(actual_facility_id)
+                if not facility_tz:
+                    continue
+
+                shift_key = ShiftKey(
+                    facility_id=actual_facility_id,
+                    shift_id=shift_id,
+                )
+                punches_domain = [
+                    self._map_punch_model_to_domain(p, facility_tz)
+                    for p in punch_list
+                ]
+                emp_history[shift_key] = punches_domain
+
+            result[emp_id] = emp_history
+
+        return result
 
     # def _map_shift_to_domain(
     #     self,

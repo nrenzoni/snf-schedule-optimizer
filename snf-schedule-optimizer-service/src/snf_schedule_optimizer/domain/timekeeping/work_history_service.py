@@ -257,6 +257,55 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
 
         return processed_history
 
+    async def preload_all_accumulated_hours(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee_ids: list[EmployeeIdType],
+        check_date: whenever.Instant,
+        pay_period_start: whenever.Instant,
+        facility_id: DomainPrimaryKeyType | None = None,
+    ) -> dict[EmployeeIdType, float]:
+        if not employee_ids:
+            return {}
+
+        configs = await self.facility_config_retriever.get_configs(org_id, None)
+        tz_map: dict[DomainPrimaryKeyType, str] = {c.facility_id: c.tz for c in configs}
+
+        bulk_raw = await self.history_retriever.get_raw_inputs_for_period_bulk(
+            org_id=org_id,
+            employee_ids=employee_ids,
+            check_date=check_date,
+            facility_timezones=tz_map,
+            facility_id=facility_id,
+        )
+
+        all_shift_keys: set[ShiftKey] = set()
+        for emp_data in bulk_raw.values():
+            all_shift_keys.update(emp_data.keys())
+
+        shifts: dict[ShiftKey, Shift] = {}
+        if all_shift_keys:
+            shifts = await self.shift_retriever.get_shifts_by_keys(
+                list(all_shift_keys), tz_map, org_id
+            )
+
+        result: dict[EmployeeIdType, float] = {}
+        for emp_id in employee_ids:
+            emp_raw = bulk_raw.get(emp_id, {})
+            if not emp_raw:
+                result[emp_id] = 0.0
+                continue
+
+            processed = await self._convert_raw_history_to_segments(emp_raw, shifts)
+            total_hours = 0.0
+            for segments in processed.values():
+                for segment in segments:
+                    if segment.start_time >= pay_period_start:
+                        total_hours += segment.duration_hours
+            result[emp_id] = total_hours
+
+        return result
+
     def _get_work_period_start(
         self,
         shift_dt: whenever.ZonedDateTime,

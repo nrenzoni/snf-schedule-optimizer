@@ -51,8 +51,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
 
                 # --- 1. Base Calculations ---
                 comp_record = (
-                    await data_provider.get_compensation_service().get_record_for_date(
-                        shift.org_id,
+                    await data_provider.get_compensation_for_date(
                         nurse.employee_id,
                         shift.shift_start_dt.date(),
                     )
@@ -254,8 +253,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                 continue
 
             comp_record = (
-                await data_provider.get_compensation_service().get_record_for_date(
-                    shift.org_id,
+                await data_provider.get_compensation_for_date(
                     emp_id,
                     reference_date.date(),
                 )

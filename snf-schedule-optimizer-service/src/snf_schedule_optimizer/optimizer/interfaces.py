@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 
 import pulp
+import whenever
 from pulp import LpProblem
 
 from snf_schedule_optimizer.domain.hr.interfaces import IStaffCompensationRepo
@@ -17,6 +18,7 @@ from snf_schedule_optimizer.models import (
     OptimizationSettings,
     PreferenceWeights,
     Shift,
+    StaffCompensationRecord,
 )
 from snf_schedule_optimizer.optimizer.context import (
     FacilityScenarioContext,
@@ -198,6 +200,15 @@ class IScenarioDataProvider(abc.ABC):
     @abc.abstractmethod
     def get_compensation_service(self) -> IStaffCompensationRepo:
         """Provides access to financial data scoped for this run."""
+        pass
+
+    @abc.abstractmethod
+    async def get_compensation_for_date(
+        self,
+        employee_id: EmployeeIdType,
+        check_date: whenever.Date,
+    ) -> StaffCompensationRecord | None:
+        """Returns the compensation record for an employee valid on the given date."""
         pass
 
     @abc.abstractmethod

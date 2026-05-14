@@ -65,6 +65,38 @@ class SQLStaffCompensationRepo(IStaffCompensationRepo):
         # 3. Map and Return
         return result.to_domain()
 
+    async def get_all_records_for_org(
+        self,
+        org_id: DomainPrimaryKeyType,
+        check_date: whenever.Date,
+    ) -> dict[DomainPrimaryKeyType, StaffCompensationRecord]:
+        check_date_py = check_date.py_date()
+
+        stmt = (
+            select(StaffCompensationModel)
+            .where(
+                StaffCompensationModel.org_id == org_id,
+                StaffCompensationModel.effective_start_date <= check_date_py,
+                or_(
+                    StaffCompensationModel.effective_end_date.is_(None),
+                    StaffCompensationModel.effective_end_date > check_date_py,
+                ),
+            )
+            .order_by(
+                StaffCompensationModel.employee_id,
+                StaffCompensationModel.effective_start_date.desc(),
+            )
+        )
+
+        results = (await self.db_session.scalars(stmt)).all()
+
+        records: dict[DomainPrimaryKeyType, StaffCompensationRecord] = {}
+        for model in results:
+            if model.employee_id not in records:
+                records[model.employee_id] = model.to_domain()
+
+        return records
+
     async def save_compensation_record(
         self, org_id: DomainPrimaryKeyType, record: StaffCompensationRecord
     ) -> None:

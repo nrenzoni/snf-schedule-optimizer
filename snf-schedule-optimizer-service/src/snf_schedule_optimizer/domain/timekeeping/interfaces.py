@@ -88,6 +88,22 @@ class IEmployeeWorkHistoryService(abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def preload_all_accumulated_hours(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee_ids: list[EmployeeIdType],
+        check_date: whenever.Instant,
+        pay_period_start: whenever.Instant,
+        facility_id: DomainPrimaryKeyType | None = None,
+    ) -> dict[EmployeeIdType, float]:
+        """
+        Preloads accumulated work hours for all requested employees in bulk.
+        Uses a single bulk punch query followed by in-memory reconciliation
+        to avoid N+1 database queries.
+        """
+        pass
+
 
 class IRawHistoryRepo(abc.ABC):
     """Defines the contract for fetching raw, unprocessed historical inputs."""
@@ -105,5 +121,20 @@ class IRawHistoryRepo(abc.ABC):
         Retrieves all scheduled Shifts and their corresponding raw TimePunches
         for the period relevant to the check_date. (The structure ensures pairing
         occurs in the Reconciler.)
+        """
+        pass
+
+    @abc.abstractmethod
+    async def get_raw_inputs_for_period_bulk(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee_ids: list[EmployeeIdType],
+        check_date: whenever.Instant,
+        facility_timezones: dict[DomainPrimaryKeyType, str],
+        facility_id: int | None = None,
+    ) -> dict[EmployeeIdType, dict[ShiftKey, list[TimePunch]]]:
+        """
+        Retrieves raw TimePunches for all requested employees in a single query.
+        Returns data grouped by employee_id -> ShiftKey -> TimePunch list.
         """
         pass
