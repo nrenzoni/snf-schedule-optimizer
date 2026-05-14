@@ -192,3 +192,8 @@ class IScheduleRepo(abc.ABC):
     async def commit(self) -> None:
         """Flushes and commits request-scoped mutations."""
         pass
+
+    @abc.abstractmethod
+    async def rollback(self) -> None:
+        """Rolls back request-scoped mutations after a failed flush or commit."""
+        pass

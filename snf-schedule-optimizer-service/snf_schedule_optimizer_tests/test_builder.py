@@ -145,6 +145,17 @@ class OptimizerTestBuilder:
         self._stored_schedules[ScheduleLookupKey(org_id, schedule_id)] = schedule
         return self
 
+    def with_shifts(self, shifts: list[Shift]) -> "OptimizerTestBuilder":
+        self._shifts = shifts
+        return self
+
+    def with_facility_configs(
+        self,
+        facility_configs: list[FacilityConfig],
+    ) -> "OptimizerTestBuilder":
+        self._facility_configs = facility_configs
+        return self
+
     def with_hprd_calculator(
         self,
         calculator: IHprdRequirementCalculator,

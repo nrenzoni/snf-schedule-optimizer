@@ -406,9 +406,24 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             scheduling_pb2.OptimizationRunEvent,
         ],
     ) -> AsyncIterator[scheduling_pb2.OptimizationRunEvent]:
-        sequence = 1
+        yielded_sequences: set[int] = set()
         while True:
-            response = await self.get_optimization_run(
+            scheduler_container = self._build_scheduler_container()
+            async with container_context(
+                self._scheduler_context(scheduler_container),
+                scope=ContextScopes.REQUEST,
+            ):
+                scheduler_service: WorkforceSchedulerFacadePort = (
+                    await scheduler_container.scheduler_service.resolve()
+                )
+                run = await scheduler_service.get_optimization_run(request.run_id)
+                schedule_repo = await scheduler_container.schedule_retriever.resolve()
+                events = await schedule_repo.list_optimization_run_events(request.run_id)
+
+            if run is None:
+                break
+
+            latest_response = await self.get_optimization_run(
                 scheduling_pb2.GetOptimizationRunRequest(run_id=request.run_id),
                 cast(
                     RequestContext[
@@ -418,15 +433,28 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                     context,
                 ),
             )
-            if not response.found:
-                break
-            yield scheduling_pb2.OptimizationRunEvent(
-                sequence=sequence,
-                run=response.run,
-                schedules=response.schedules,
-            )
-            sequence += 1
-            if response.run.status in {
+
+            for event in events:
+                if event.sequence in yielded_sequences:
+                    continue
+                yielded_sequences.add(event.sequence)
+                event_run = run if event.sequence == events[-1].sequence else OptimizationRun(
+                    **{
+                        **run.__dict__,
+                        "status": event.status,
+                        "stage": event.stage,
+                        "progress_percent": event.progress_percent,
+                        "status_message": event.status_message,
+                        "error_details": event.error_details,
+                    }
+                )
+                yield scheduling_pb2.OptimizationRunEvent(
+                    sequence=event.sequence,
+                    run=self._map_run(event_run),
+                    schedules=latest_response.schedules if event.sequence == events[-1].sequence else {},
+                )
+
+            if latest_response.run.status in {
                 scheduling_pb2.OPTIMIZATION_RUN_STATUS_COMPLETED,
                 scheduling_pb2.OPTIMIZATION_RUN_STATUS_FAILED,
             }:
@@ -863,14 +891,14 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
     def _map_run_stage(stage: str) -> str:
         return {
             "queued": "OPTIMIZATION_RUN_STAGE_QUEUED",
-            "rebase": "OPTIMIZATION_RUN_STAGE_REBASING",
-            "snapshotting": "OPTIMIZATION_RUN_STAGE_REBASING",
-            "indexing": "OPTIMIZATION_RUN_STAGE_REBASING",
-            "building_model": "OPTIMIZATION_RUN_STAGE_REBASING",
+            "rebase": "OPTIMIZATION_RUN_STAGE_SNAPSHOTTING",
+            "snapshotting": "OPTIMIZATION_RUN_STAGE_SNAPSHOTTING",
+            "indexing": "OPTIMIZATION_RUN_STAGE_INDEXING",
+            "building_model": "OPTIMIZATION_RUN_STAGE_BUILDING_MODEL",
             "solving": "OPTIMIZATION_RUN_STAGE_SOLVING",
             "analyzing": "OPTIMIZATION_RUN_STAGE_ANALYZING",
-            "persisting": "OPTIMIZATION_RUN_STAGE_PERSISTING",
-            "publishing": "OPTIMIZATION_RUN_STAGE_PERSISTING",
+            "persisting": "OPTIMIZATION_RUN_STAGE_PUBLISHING",
+            "publishing": "OPTIMIZATION_RUN_STAGE_PUBLISHING",
             "completed": "OPTIMIZATION_RUN_STAGE_COMPLETED",
             "failed": "OPTIMIZATION_RUN_STAGE_FAILED",
         }.get(stage, "OPTIMIZATION_RUN_STAGE_UNSPECIFIED")

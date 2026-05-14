@@ -449,6 +449,16 @@ class SQLScheduleRepo(IScheduleRepo):
         return self._map_run(model) if model is not None else None
 
     async def append_optimization_run_event(self, event: OptimizationRunEvent) -> None:
+        with self.db_session.no_autoflush:
+            existing = await self.db_session.get(
+                OptimizationRunEventModel,
+                {
+                    "run_id": event.run_id,
+                    "sequence": event.sequence,
+                },
+            )
+        if existing is not None:
+            return
         self.db_session.add(
             OptimizationRunEventModel(
                 run_id=event.run_id,
@@ -626,6 +636,9 @@ class SQLScheduleRepo(IScheduleRepo):
 
     async def commit(self) -> None:
         await self.db_session.commit()
+
+    async def rollback(self) -> None:
+        await self.db_session.rollback()
 
     @staticmethod
     def _incentive_cost(financials: ScheduleFinancialReport | None) -> float | None:

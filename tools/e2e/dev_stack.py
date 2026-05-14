@@ -171,6 +171,11 @@ class DevStack:
                 f"http://127.0.0.1:{self.config.ui_port}"
             ),
         }
+        worker_env = env_base | {
+            "PYTHONPATH": "src",
+            "DATABASE_URL": DEV_DATABASE_URL,
+            "OPTIMIZATION_WORKER_ID": f"e2e-worker-{self.config.run_id}",
+        }
         ui_env = env_base | {
             "NEXT_PUBLIC_API_BASE_URL": self.config.api_url,
             "NEXT_PUBLIC_E2E_RUN_ID": self.config.run_id,
@@ -194,6 +199,15 @@ class DevStack:
                 env=ui_env,
                 cwd=UI_DIR,
                 log_path=self.config.logs_dir / "ui.log",
+            )
+        )
+        self._managed.append(
+            start_process(
+                "worker",
+                ["uv", "run", "python", "-m", "snf_schedule_optimizer.api.worker_main"],
+                env=worker_env,
+                cwd=SERVICE_DIR,
+                log_path=self.config.logs_dir / "worker.log",
             )
         )
 

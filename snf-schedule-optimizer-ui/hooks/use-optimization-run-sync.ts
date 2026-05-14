@@ -16,6 +16,12 @@ export function useOptimizationRunSync() {
     })),
   );
   const runStreamAbortRef = useRef<AbortController | null>(null);
+  const activeRunRef = useRef(activeRun);
+  const latestSequenceByRunRef = useRef(new Map<string, number>());
+
+  useEffect(() => {
+    activeRunRef.current = activeRun;
+  }, [activeRun]);
 
   const refetchSchedule = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["schedule"] });
@@ -38,6 +44,25 @@ export function useOptimizationRunSync() {
             const uiRun = protoOptimizationRunToUI(event.run);
             if (!uiRun) {
               return;
+            }
+
+            const sequence = Number(event.sequence);
+            const latestSequence = latestSequenceByRunRef.current.get(runId) ?? -1;
+            if (Number.isFinite(sequence) && sequence <= latestSequence) {
+              return;
+            }
+
+            const currentRun = activeRunRef.current;
+            if (currentRun?.runId === uiRun.runId) {
+              const regressedToQueued = currentRun.status === "running" && uiRun.status === "queued";
+              const regressedProgress = uiRun.progressPercent < currentRun.progressPercent;
+              if (regressedToQueued || regressedProgress) {
+                return;
+              }
+            }
+
+            if (Number.isFinite(sequence)) {
+              latestSequenceByRunRef.current.set(runId, sequence);
             }
 
             setRunProgress(uiRun);
@@ -75,15 +100,16 @@ export function useOptimizationRunSync() {
     [refetchSchedule, setRunProgress],
   );
 
+  const activeRunId = activeRun?.runId;
+
   useEffect(() => {
-    const runId = activeRun?.runId;
-    if (!runId || !isRunActive(activeRun?.status)) {
+    if (!activeRunId || !isRunActive(activeRunRef.current?.status)) {
       runStreamAbortRef.current?.abort();
       return;
     }
-    void syncRunProgress(runId);
+    void syncRunProgress(activeRunId);
     return () => {
       runStreamAbortRef.current?.abort();
     };
-  }, [activeRun?.runId, activeRun?.status, syncRunProgress]);
+  }, [activeRunId, syncRunProgress]);
 }

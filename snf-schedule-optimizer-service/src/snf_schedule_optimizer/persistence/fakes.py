@@ -529,7 +529,10 @@ class FakeScheduleRepo(IScheduleRepo):
         return None
 
     async def append_optimization_run_event(self, event: OptimizationRunEvent) -> None:
-        self._run_events.setdefault(event.run_id, []).append(event)
+        events = self._run_events.setdefault(event.run_id, [])
+        if any(existing.sequence == event.sequence for existing in events):
+            return
+        events.append(event)
 
     async def list_optimization_run_events(
         self,
@@ -622,6 +625,9 @@ class FakeScheduleRepo(IScheduleRepo):
         return self._snapshots.get(snapshot_id)
 
     async def commit(self) -> None:
+        return None
+
+    async def rollback(self) -> None:
         return None
 
 

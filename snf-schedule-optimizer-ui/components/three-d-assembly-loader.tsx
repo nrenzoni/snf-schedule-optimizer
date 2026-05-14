@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useEffect, useMemo, useState} from "react";
+import React, {Suspense, useEffect, useMemo, useState} from "react";
 import {Canvas} from "@react-three/fiber";
 import {Environment, PerspectiveCamera} from "@react-three/drei";
 import {a, useSpring, useSprings} from "@react-spring/three";
@@ -22,6 +22,20 @@ const LOADING_PHASES = [
     "Checking overtime constraints...",
     "Finalizing the golden schedule...",
 ];
+
+const LoaderSkeleton = () => (
+  <div className="flex flex-col items-center gap-4">
+    <div className="grid grid-cols-4 gap-2">
+      {Array.from({ length: 16 }, (_, index) => (
+        <div
+          key={index}
+          className="h-5 w-5 animate-pulse rounded-sm bg-primary/40"
+          style={{ animationDelay: `${index * 60}ms` }}
+        />
+      ))}
+    </div>
+  </div>
+);
 
 const seededValue = (seed: number) => {
     const next = Math.sin(seed * 12.9898) * 43758.5453;
@@ -153,6 +167,30 @@ const BlocksScene = ({isLoading}: { isLoading: boolean }) => {
     );
 };
 
+const LoaderScene = ({
+    isLoading,
+    setReady,
+}: {
+    isLoading: boolean;
+    setReady: React.Dispatch<React.SetStateAction<boolean>>;
+}) => {
+    useEffect(() => {
+        const timeout = window.setTimeout(() => setReady(true), 0);
+        return () => window.clearTimeout(timeout);
+    }, [setReady]);
+
+    return (
+        <>
+            <PerspectiveCamera makeDefault position={[0, 0, 10]} fov={45} />
+            <ambientLight intensity={0.5} />
+            <spotLight position={[10, 10, 10]} angle={0.3} penumbra={1} intensity={1.5} castShadow />
+            <pointLight position={[-10, -5, -5]} intensity={1} color="#168039"/>
+            <BlocksScene isLoading={isLoading} />
+            <Environment preset="city" />
+        </>
+    );
+};
+
 // --- MAIN EXPORT ---
 export default function ThreeDAssemblyLoader({
   isLoading,
@@ -167,6 +205,7 @@ export default function ThreeDAssemblyLoader({
 }) {
     const [msgIndex, setMsgIndex] = useState(0);
     const [renderCanvas, setRenderCanvas] = useState(mode === "fullscreen");
+    const [canvasReady, setCanvasReady] = useState(false);
 
     useEffect(() => {
         if (renderCanvas) {
@@ -232,29 +271,23 @@ export default function ThreeDAssemblyLoader({
             {/* We still conditionally render Canvas so WebGL unmounts instantly on exit,
                 saving resources while the background fades out smoothly */}
              {isLoading && renderCanvas ? (
-                <Canvas shadows dpr={[1, 2]} gl={{ antialias: true, alpha: true }}>
-                  <PerspectiveCamera makeDefault position={[0, 0, 10]} fov={45} />
-                  <ambientLight intensity={0.5} />
-                  <spotLight position={[10, 10, 10]} angle={0.3} penumbra={1} intensity={1.5} castShadow />
-                  <pointLight position={[-10, -5, -5]} intensity={1} color="#168039"/>
-
-                  {/* Pass isLoading down so the scene knows to stop animating */}
-                  <BlocksScene isLoading={isLoading} />
-
-                  <Environment preset="city" />
-                </Canvas>
-             ) : (
-                <div className="flex flex-col items-center gap-4">
-                  <div className="grid grid-cols-4 gap-2">
-                    {Array.from({ length: 16 }, (_, index) => (
-                      <div
-                        key={index}
-                        className="h-5 w-5 animate-pulse rounded-sm bg-primary/40"
-                        style={{ animationDelay: `${index * 60}ms` }}
+                <Suspense fallback={<LoaderSkeleton />}>
+                  <Canvas shadows dpr={[1, 2]} gl={{ antialias: true, alpha: true }}>
+                    <Suspense fallback={null}>
+                      <LoaderScene
+                        isLoading={isLoading}
+                        setReady={setCanvasReady}
                       />
-                    ))}
-                  </div>
-                </div>
+                    </Suspense>
+                  </Canvas>
+                  {!canvasReady ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <LoaderSkeleton />
+                    </div>
+                  ) : null}
+                </Suspense>
+             ) : (
+                <LoaderSkeleton />
              )}
            </div>
 

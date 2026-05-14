@@ -64,10 +64,12 @@ export interface UIStagedPatch {
 export type UIOptimizationRunStatus = "queued" | "running" | "completed" | "failed";
 export type UIOptimizationRunStage =
   | "queued"
-  | "rebase"
+  | "snapshotting"
+  | "indexing"
+  | "building_model"
   | "solving"
   | "analyzing"
-  | "persisting"
+  | "publishing"
   | "completed"
   | "failed";
 

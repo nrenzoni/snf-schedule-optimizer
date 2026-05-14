@@ -365,7 +365,14 @@ export default function ScheduleBoard({
           </div>
         </div>
 
-        <div className="relative flex-1 overflow-auto bg-background xl:min-h-0">
+        <div
+          className={cn(
+            "relative flex-1 bg-background xl:min-h-0",
+            dragDisabled
+              ? "overflow-hidden overscroll-contain touch-none"
+              : "overflow-auto",
+          )}
+        >
           <ThreeDAssemblyLoader
             isLoading={dragDisabled}
             mode="inline"

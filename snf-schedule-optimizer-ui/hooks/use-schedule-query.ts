@@ -187,14 +187,18 @@ const protoRunStageToUI = (stage: OptimizationRunStage): UIOptimizationRun["stag
   switch (stage) {
     case OptimizationRunStage.QUEUED:
       return "queued";
-    case OptimizationRunStage.REBASING:
-      return "rebase";
+    case OptimizationRunStage.SNAPSHOTTING:
+      return "snapshotting";
+    case OptimizationRunStage.INDEXING:
+      return "indexing";
+    case OptimizationRunStage.BUILDING_MODEL:
+      return "building_model";
     case OptimizationRunStage.SOLVING:
       return "solving";
     case OptimizationRunStage.ANALYZING:
       return "analyzing";
-    case OptimizationRunStage.PERSISTING:
-      return "persisting";
+    case OptimizationRunStage.PUBLISHING:
+      return "publishing";
     case OptimizationRunStage.COMPLETED:
       return "completed";
     case OptimizationRunStage.FAILED:

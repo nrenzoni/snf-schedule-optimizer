@@ -15,6 +15,7 @@ from snf_schedule_optimizer.infrastructure.composition import (
 )
 from snf_schedule_optimizer.persistence.schedule_repo import SQLScheduleRepo
 from snf_schedule_optimizer.service.scheduling.optimization_run_worker import (
+    POLL_SECONDS,
     OptimizationRunWorker,
 )
 
@@ -62,29 +63,37 @@ async def run_worker() -> None:
     stop_event = asyncio.Event()
 
     try:
-        async with container_context(
-            _scheduler_context(scheduler_container),
-            scope=ContextScopes.REQUEST,
-        ):
-            schedule_repo = cast(
-                SQLScheduleRepo,
-                await scheduler_container.schedule_retriever.resolve(),
-            )
-            scheduler_facade = await scheduler_container.scheduler_service.resolve()
-            worker = OptimizationRunWorker(
-                worker_id=worker_id,
-                schedule_repo=schedule_repo,
-                scheduler_facade=scheduler_facade,
-                renew_lease=lambda run_id, claim_token, heartbeat_at, lease_expires_at: _renew_lease(
-                    scheduler_container,
-                    run_id,
-                    claim_token,
-                    heartbeat_at,
-                    lease_expires_at,
-                ),
-            )
-            logger.info("optimization worker started worker_id=%s", worker_id)
-            await worker.run_forever(stop_event)
+        logger.info("optimization worker started worker_id=%s", worker_id)
+        while not stop_event.is_set():
+            async with container_context(
+                _scheduler_context(scheduler_container),
+                scope=ContextScopes.REQUEST,
+            ):
+                schedule_repo = cast(
+                    SQLScheduleRepo,
+                    await scheduler_container.schedule_retriever.resolve(),
+                )
+                scheduler_facade = await scheduler_container.scheduler_service.resolve()
+                worker = OptimizationRunWorker(
+                    worker_id=worker_id,
+                    schedule_repo=schedule_repo,
+                    scheduler_facade=scheduler_facade,
+                    renew_lease=lambda run_id, claim_token, heartbeat_at, lease_expires_at: _renew_lease(
+                        scheduler_container,
+                        run_id,
+                        claim_token,
+                        heartbeat_at,
+                        lease_expires_at,
+                    ),
+                )
+                try:
+                    claimed = await worker.run_once()
+                except Exception:
+                    logger.exception("optimization worker iteration failed worker_id=%s", worker_id)
+                    await schedule_repo.rollback()
+                    claimed = False
+            if not claimed:
+                await asyncio.sleep(POLL_SECONDS)
     except asyncio.CancelledError:
         logger.info("optimization worker cancelled worker_id=%s", worker_id)
         raise

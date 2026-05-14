@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
@@ -30,6 +31,8 @@ from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
 
 LEASE_SECONDS = 30
 POLL_SECONDS = 1.0
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -261,14 +264,22 @@ class OptimizationRunWorker:
             )
             await self.schedule_repo.commit()
         except Exception as exc:
-            await self._finish_failure(
-                claim,
-                stage="failed",
-                status_message="Optimization worker failed",
-                error_details=str(exc),
-                failure_code="worker_error",
-                final_sequence=99,
-            )
+            await self.schedule_repo.rollback()
+            try:
+                await self._finish_failure(
+                    claim,
+                    stage="failed",
+                    status_message="Optimization worker failed",
+                    error_details=str(exc),
+                    failure_code="worker_error",
+                    final_sequence=99,
+                )
+            except Exception:
+                await self.schedule_repo.rollback()
+                logger.exception(
+                    "failed to persist optimization run failure run_id=%s",
+                    claim.run.run_id,
+                )
         finally:
             heartbeat_task.cancel()
             with suppress(asyncio.CancelledError):
