@@ -29,14 +29,14 @@ export default function ScheduleListView() {
     toggleCalendarView,
     changeMonth,
     openShiftDetails,
+    isRunActive,
   } = useScheduling();
 
-  const { dataError, scheduleCount, selectedFacility, isOptimizing } = useSchedulingStore(
+  const { dataError, scheduleCount, selectedFacility } = useSchedulingStore(
     useShallow((state) => ({
       dataError: state.dataError,
-      scheduleCount: state.scheduleMap.size,
+      scheduleCount: state.effectiveScheduleMap.size,
       selectedFacility: state.selectedFacility,
-      isOptimizing: state.isOptimizing,
     })),
   );
 
@@ -48,7 +48,7 @@ export default function ScheduleListView() {
       key="scheduling"
       className="relative min-h-[600px] animate-in fade-in slide-in-from-bottom-4 duration-500"
     >
-      <LoadingOverlay isVisible={isAppLoading && !isOptimizing && scheduleCount > 0} />
+      <LoadingOverlay isVisible={isAppLoading && !isRunActive && scheduleCount > 0} />
 
       {/* --- EXISTING SCHEDULING MODULE --- */}
       <div className="app-card mb-6 p-4 sm:p-6">

@@ -23,6 +23,8 @@ services:
       dockerfile: snf-schedule-optimizer-service/Dockerfile
     environment:
       DATABASE_URL: postgresql+asyncpg://snf_user:snf_password@db:5432/snf_optimizer_demo
+    volumes:
+      - ./snf-schedule-optimizer-service/src:/app/src
     depends_on:
       db:
         condition: service_healthy

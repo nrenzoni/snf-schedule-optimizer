@@ -17,6 +17,9 @@ from snf_schedule_optimizer.infrastructure.composition import (
 from snf_schedule_optimizer.infrastructure.demo_seeder import DemoSeeder
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 from snf_schedule_optimizer.sqlalchemy_models.employee import EmployeeModel
+from snf_schedule_optimizer.sqlalchemy_models.optimization_run import (
+    OptimizationRunModel,
+)
 from snf_schedule_optimizer.sqlalchemy_models.resident_acuity import ResidentAcuityModel
 from snf_schedule_optimizer.sqlalchemy_models.schedule_assignment import (
     ScheduleAssignmentModel,
@@ -47,6 +50,7 @@ async def _current_demo_window_missing(session: AsyncSession) -> bool:
 
 
 async def _reset_demo_runtime_data(session: AsyncSession) -> None:
+    await session.execute(delete(OptimizationRunModel))
     await session.execute(delete(TimePunchModel))
     await session.execute(delete(ResidentAcuityModel))
     await session.execute(delete(ScheduleAssignmentModel))

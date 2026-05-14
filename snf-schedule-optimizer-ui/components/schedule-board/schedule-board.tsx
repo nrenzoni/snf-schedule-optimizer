@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect, useId, useMemo, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import {
   closestCenter,
-  DragOverEvent,
   defaultDropAnimationSideEffects,
   DndContext,
   DragEndEvent,
@@ -13,30 +12,28 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { addDays, format, isSameDay, subDays } from "date-fns";
-import { cn } from "@/lib/utils";
+import { addDays, format, isSameDay, startOfWeek, subDays } from "date-fns";
+import { cn, createClientUuid } from "@/lib/utils";
 import {
   Activity,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   ChevronUp,
   DollarSign,
   LayoutList,
-  TrendingUp,
-  Undo2,
+  RotateCcw,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import {
-  mockSimulateAction,
-  SimulateActionResponse,
-} from "@/hooks/proto-mocks";
 import { toast } from "sonner";
 import {
+  MoveValidationPreview,
   Shift,
   SHIFT_TYPES,
+  ShiftTypeKey,
   SimulatedUnit,
   Staff,
+  TimelineSlotData,
   ViewMode,
 } from "@/types/scheduler";
 import ShiftCard from "@/components/schedule-board/shift-card";
@@ -48,46 +45,59 @@ import { useShallow } from "zustand/react/shallow";
 import { parseAsString, useQueryState } from "nuqs";
 import { formatDateYYYMMDD, TODAY_STRING } from "@/utils/scheduling-logic";
 import { iconButtonVariants, segmentedButtonVariants } from "@/components/ui/styles";
+import { create } from "@bufbuild/protobuf";
+import { StagedSchedulePatchSchema } from "@/gen/scheduling/v1/scheduling_pb";
+import { validateShiftMove } from "@/api/scheduling-client";
+import { protoPatchConflictToUI, protoStagedPatchToUI } from "@/hooks/use-schedule-query";
 
-// --- CONFIGURATION ---
-
-// 1. Strict Widths for Alignment
-// We use fixed widths to ensure the header and body columns align perfectly
 export const STAFF_COL_WIDTH = "w-48 min-w-[12rem]";
 export const CELL_WIDTH = "w-[72px] min-w-[72px]";
 
-// --- CALCULATOR HELPER ---
-
-const restrictToHorizontalAxis: Modifier = ({ transform }) => {
-  return {
-    ...transform,
-    y: 0,
-  };
-};
+const restrictToHorizontalAxis: Modifier = ({ transform }) => ({
+  ...transform,
+  y: 0,
+});
 
 const VISIBLE_DAY_COUNT = 6;
 
 interface ScheduleBoardProps {
-  initialShifts: Shift[];
+  shifts: Shift[];
   staffList: Staff[];
   units: SimulatedUnit[];
+  targetShiftIds: Map<string, string>;
+  dragDisabled: boolean;
 }
 
-// --- MAIN BOARD ---
 export default function ScheduleBoard({
-  initialShifts,
+  shifts,
   staffList,
   units,
+  targetShiftIds,
+  dragDisabled,
 }: ScheduleBoardProps) {
-  // 2. Generate a stable ID
   const dndContextId = useId();
-
-  // This returns > 0 if any query is currently fetching in the background
   const isFetching = useIsFetching();
-  const { isOptimizing, scheduleCount } = useSchedulingStore(
+  const {
+    selectedFacility,
+    scheduleId,
+    scheduleVersion,
+    draftState,
+    scheduleCount,
+    appendDraftPatch,
+    clearDraft,
+    setDraftConflicts,
+    setHasPendingValidation,
+  } = useSchedulingStore(
     useShallow((state) => ({
-      isOptimizing: state.isOptimizing,
-      scheduleCount: state.scheduleMap.size,
+      selectedFacility: state.selectedFacility,
+      scheduleId: state.scheduleId,
+      scheduleVersion: state.scheduleVersion,
+      draftState: state.draftState,
+      scheduleCount: state.effectiveScheduleMap.size,
+      appendDraftPatch: state.appendDraftPatch,
+      clearDraft: state.clearDraft,
+      setDraftConflicts: state.setDraftConflicts,
+      setHasPendingValidation: state.setHasPendingValidation,
     })),
   );
   const [anchorDateStr, setAnchorDateStr] = useQueryState(
@@ -95,38 +105,18 @@ export default function ScheduleBoard({
     parseAsString.withDefault(TODAY_STRING),
   );
 
-  const [shifts, setShifts] = useState<Shift[]>(initialShifts);
-
   const [viewMode, setViewMode] = useState<ViewMode>("ROLE");
   const [groupingMode, setGroupingMode] = useState<"ROLE" | "BUDGET">("ROLE");
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
+  const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
+  const [validationPreview, setValidationPreview] =
+    useState<MoveValidationPreview | null>(null);
 
-  // --- SIMULATION STATE ---
-  const [simulatingSlotId, setSimulatingSlotId] = useState<string | null>(null); // Which slot are we hovering?
-  const [simulationResult, setSimulationResult] =
-    useState<SimulateActionResponse | null>(null);
-
-  // Expanded State for 2 Levels
   const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>({});
   const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({
     "U1-RN": true,
   });
 
-  useEffect(() => {
-    setShifts(initialShifts);
-  }, [initialShifts]);
-
-  useEffect(() => {
-    setExpandedUnits((current) => {
-      const next: Record<string, boolean> = {};
-      for (const unit of units) {
-        next[unit.id] = current[unit.id] ?? true;
-      }
-      return next;
-    });
-  }, [units]);
-
-  // Group by Unit First
   const unitGroups = useMemo(() => {
     return units.map((unit) => ({
       unit,
@@ -137,210 +127,145 @@ export default function ScheduleBoard({
   const anchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
   const visibleStartDate = useMemo(() => subDays(anchorDate, 2), [anchorDate]);
   const visibleDates = useMemo(
-    () =>
-      Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) =>
-        addDays(visibleStartDate, index),
-      ),
+    () => Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) => addDays(visibleStartDate, index)),
     [visibleStartDate],
   );
+
+  const resolveTargetShiftId = (unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => {
+    return targetShiftIds.get(`${unitId}:${dateStr}:${shiftKey}`) ?? null;
+  };
 
   const pageSchedule = (dayDelta: number) => {
     setAnchorDateStr(formatDateYYYMMDD(addDays(anchorDate, dayDelta)));
   };
 
-  // Expand/Collapse Logic
   const handleCollapseAll = () => {
     setExpandedUnits({});
     setExpandedRoles({});
   };
+
   const handleExpandAll = () => {
     const allUnits = Object.fromEntries(units.map((unit) => [unit.id, true]));
     setExpandedUnits(allUnits);
   };
 
-  // We use a Ref to keep track of the last request to avoid race conditions
-  const lastSimulatedTarget = React.useRef<string | null>(null);
-
-  const handleDragOver = async (event: DragOverEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    setPendingSlotId(null);
+
     if (!over) {
-      setSimulationResult(null);
-      setSimulatingSlotId(null);
+      setValidationPreview(null);
       return;
     }
 
-    // 1. Identify the slot we are hovering over
-    const targetSlotId = String(over.id); // e.g., "st1::2023-10-01::DAY"
+    const activeData = active.data.current?.shift as Shift | undefined;
+    const overData = over.data.current as TimelineSlotData | undefined;
 
-    // 2. Debounce: If we are still hovering the same slot, do nothing
-    if (lastSimulatedTarget.current === targetSlotId) return;
-    lastSimulatedTarget.current = targetSlotId;
+    if (
+      !activeData ||
+      !overData ||
+      !selectedFacility ||
+      !scheduleId ||
+      !overData.shiftId ||
+      dragDisabled
+    ) {
+      setValidationPreview(null);
+      return;
+    }
 
-    setSimulatingSlotId(targetSlotId);
-
-    // 3. Extract Metadata from the ID (Parsing your format)
-    // ID Format: "staffId::dateStr::shiftType"
-    const [targetWorkerId, targetDateStr, targetShiftType] = targetSlotId.split("::");
-    const activeShift = active.data.current?.shift as Shift | undefined;
-
-    if (!activeShift) {
+    if (activeData.shiftId === overData.shiftId) {
+      setValidationPreview(null);
       return;
     }
 
     try {
-      // 4. Call Mock Backend (SimulateAction RPC)
-      const result = await mockSimulateAction({
-        shiftId: activeShift.id,
-        targetWorkerId,
-        targetDateStr,
-        targetShiftType,
-      });
+      setHasPendingValidation(true);
+      const slotId = String(over.id);
+      setPendingSlotId(slotId);
 
-      // Only update if we are STILL hovering this slot (async check)
-      if (lastSimulatedTarget.current === targetSlotId) {
-        setSimulationResult(result);
-      }
-    } catch (e) {
-      console.error("Simulation failed", e);
-    }
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    // 1. Capture the LAST simulation result before we clear state
-    // We use a local ref or just the current state because React state updates are batched,
-    // but inside this event handler 'simulationResult' might be stale if not careful.
-    // However, since dragOver happens before dragEnd, state should be fresh enough for this demo.
-    const currentSimulation = simulationResult;
-
-    // Clean up simulation/hover state immediately so the UI snaps back
-    setSimulatingSlotId(null);
-    setSimulationResult(null);
-
-    if (!over) return;
-
-    const activeData = active.data.current?.shift as Shift | undefined;
-    const overData = over.data.current as
-      | { staffId: string; dateStr: string; typeKey: Shift["shiftType"] }
-      | undefined;
-
-    if (!activeData || !overData) {
-      return;
-    }
-
-    const { staffId, dateStr, typeKey } = overData;
-
-    // If we dropped it in the exact same spot (same day, same shift type), do nothing.
-    if (activeData.dateStr === dateStr && activeData.shiftType === typeKey) {
-      return;
-    }
-
-    // Validation: Don't allow drop if simulation said CRITICAL
-    if (currentSimulation?.complianceStatus === 2) {
-      // ValidationLevel.CRITICAL
-      toast.error("Move blocked", {
-        description: currentSimulation.rejectionReason,
-      });
-      return;
-    }
-
-    // Validation: Staff match check (from previous turn)
-    if (activeData.staffId !== staffId) return;
-
-    // 2. SNAPSHOT FOR UNDO
-    // We need to know exactly what the shift looked like BEFORE this move
-    const previousShiftState = { ...activeData };
-
-    // 3. OPTIMISTIC UPDATE
-    setShifts((prev) =>
-      prev.map((s) => {
-        if (s.id === active.id) {
-          return { ...s, dateStr, shiftType: typeKey };
-        }
-        return s;
-      }),
-    );
-
-    // 4. TRIGGER RICH TOAST
-    // We allow the toast to be dismissed or undone
-    if (currentSimulation) {
-      toast.custom(
-        (t) => (
-          // CHANGED: bg-slate-900 -> bg-white, text-white -> text-slate-900, border-slate-800 -> border-slate-200
-          <div className="app-card flex w-full max-w-md items-center justify-between gap-4 p-4 text-foreground">
-            <div className="flex flex-col gap-1">
-              {/* Header */}
-              <div className="flex items-center gap-2">
-                <div
-                  className={cn(
-                    "w-2 h-2 rounded-full",
-                    currentSimulation.complianceStatus === 1
-                      ? "bg-amber-500"
-                      : "bg-emerald-500",
-                  )}
-                />
-                <span className="font-semibold text-sm">Shift Updated</span>
-              </div>
-
-              {/* Metrics Line */}
-              <div className="flex items-center gap-3 text-xs text-slate-600">
-                {/* Cost */}
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-400">Cost:</span>
-                  <span className="font-mono font-bold text-slate-700">
-                    {currentSimulation.costDelta > 0 ? "+" : ""}$
-                    {currentSimulation.costDelta}
-                  </span>
-                  {currentSimulation.causesOvertime && (
-                    <span className="bg-red-100 text-red-700 border border-red-200 text-[9px] px-1 rounded uppercase font-bold">
-                      OT
-                    </span>
-                  )}
-                </div>
-                <div className="w-px h-3 bg-slate-200" />
-                {/* HPRD */}
-                <div className="flex items-center gap-1">
-                  <span className="text-slate-400">HPRD:</span>
-                  <span
-                    className={cn(
-                      "font-mono font-bold flex items-center",
-                      currentSimulation.hprdDelta >= 0
-                        ? "text-emerald-600"
-                        : "text-amber-600",
-                    )}
-                  >
-                    {currentSimulation.hprdDelta > 0 ? "+" : ""}
-                    {currentSimulation.hprdDelta.toFixed(2)}
-                    <TrendingUp size={10} className="ml-0.5" />
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* 5. UNDO ACTION (LIGHT THEME) */}
-            <button
-              onClick={() => {
-                setShifts((current) =>
-                  current.map((s) => {
-                    if (s.id === previousShiftState.id) {
-                      return previousShiftState;
-                    }
-                    return s;
-                  }),
-                );
-                toast.dismiss(t);
-                toast.info("Shift move undone");
-              }}
-              // CHANGED: Dark button -> Light gray button
-              className="flex items-center gap-1 rounded border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200"
-            >
-              <Undo2 size={12} /> Undo
-            </button>
-          </div>
+      const payPeriodStart = startOfWeek(new Date(activeData.dateStr), { weekStartsOn: 0 });
+      const response = await validateShiftMove({
+        orgId: selectedFacility.orgId,
+        facilityId: selectedFacility.facilityId,
+        scheduleId,
+        employeeId: activeData.staffId,
+        fromShiftId: activeData.shiftId,
+        toShiftId: overData.shiftId,
+        payPeriodStartTs: BigInt(Math.floor(payPeriodStart.getTime() / 1000)),
+        scheduleVersion,
+        stagedPatches: draftState.patches.map((patch) =>
+          create(StagedSchedulePatchSchema, {
+            patchId: patch.patchId,
+            employeeId: patch.employeeId,
+            employeeName: patch.employeeName ?? "",
+            fromShiftId: patch.fromShiftId ?? "",
+            toShiftId: patch.toShiftId ?? "",
+            pinned: patch.pinned,
+            warnings: patch.warnings,
+            causesOvertime: patch.causesOvertime,
+            totalCost: patch.totalCost,
+            createdAt: patch.createdAt ?? "",
+          }),
         ),
-        { duration: 5000 },
-      );
+        patchId: createClientUuid(),
+      });
+
+      const preview: MoveValidationPreview = {
+        validationLevel: response.isStale
+          ? "stale"
+          : response.patch
+            ? protoStagedPatchToUI(response.patch).validationLevel
+            : response.isValid
+              ? "ok"
+              : "critical",
+        warnings: response.warnings,
+        causesOvertime: response.patch?.causesOvertime ?? false,
+        totalCost: response.totalCost,
+        isValid: response.isValid,
+        errorDetails: response.errorDetails || undefined,
+      };
+      setValidationPreview(preview);
+
+      if (!response.isSuccess) {
+        toast.error("Move validation failed", {
+          description: response.errorDetails || "The backend could not validate this move.",
+        });
+        return;
+      }
+
+      if (response.conflicts.length > 0) {
+        setDraftConflicts(response.conflicts.map(protoPatchConflictToUI));
+      }
+
+      if (response.isStale) {
+        toast.error("Schedule changed on the server", {
+          description: "Refresh before applying more staged changes.",
+        });
+        return;
+      }
+
+      if (!response.isValid || !response.patch) {
+        toast.error("Move blocked", {
+          description: response.errorDetails || response.warnings.join(" ") || "This move is not allowed.",
+        });
+        return;
+      }
+
+      appendDraftPatch(protoStagedPatchToUI(response.patch));
+      toast.success("Pinned change staged", {
+        description:
+          response.warnings.join(" ") ||
+          (response.patch.causesOvertime
+            ? "Move staged with overtime warning."
+            : "Validated move staged locally until optimization."),
+      });
+    } catch (error) {
+      toast.error("Move validation failed", {
+        description: error instanceof Error ? error.message : "Unexpected scheduling error",
+      });
+    } finally {
+      setPendingSlotId(null);
+      setHasPendingValidation(false);
     }
   };
 
@@ -355,15 +280,15 @@ export default function ScheduleBoard({
       collisionDetection={closestCenter}
       modifiers={[restrictToHorizontalAxis]}
       onDragStart={(e) => setActiveShift(e.active.data.current?.shift)}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
+      onDragEnd={(event) => void handleDragEnd(event)}
+      onDragCancel={() => {
+        setPendingSlotId(null);
+        setValidationPreview(null);
+      }}
     >
       <div className="app-card relative flex h-full min-h-0 flex-col overflow-hidden xl:min-h-0">
-        <LoadingOverlay
-          isVisible={isFetching > 0 && !isOptimizing && scheduleCount > 0}
-        />
+        <LoadingOverlay isVisible={isFetching > 0 && scheduleCount > 0} />
 
-        {/* HEADER TOOLBAR */}
         <div className="z-50 flex items-center justify-between border-b border-border bg-card px-4 py-3">
           <div className="flex items-center gap-3">
             <h2 className="flex items-center gap-2 font-semibold text-foreground">
@@ -379,8 +304,7 @@ export default function ScheduleBoard({
                 <ChevronLeft size={16} />
               </button>
               <span className="px-2 text-xs font-medium text-muted-foreground">
-                {format(visibleDates[0], "MMM d")} -{" "}
-                {format(visibleDates[VISIBLE_DAY_COUNT - 1], "MMM d")}
+                {format(visibleDates[0], "MMM d")} - {format(visibleDates[VISIBLE_DAY_COUNT - 1], "MMM d")}
               </span>
               <button
                 type="button"
@@ -393,6 +317,15 @@ export default function ScheduleBoard({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={clearDraft}
+              disabled={draftState.patches.length === 0}
+              className={iconButtonVariants({ tone: "soft", disabled: draftState.patches.length === 0 })}
+              aria-label="Revert staged changes"
+            >
+              <RotateCcw size={14} />
+            </button>
             <div className="app-segmented flex items-center text-xs font-bold">
               <span className="px-2 text-slate-500">Sub-Group:</span>
               <button
@@ -426,10 +359,8 @@ export default function ScheduleBoard({
           </div>
         </div>
 
-        {/* SCROLL AREA */}
         <div className="relative flex-1 overflow-auto bg-background xl:min-h-0">
           <div className="min-w-max p-4 pb-20">
-            {/* GLOBAL DATE HEADER (Stays sticky, does NOT fade) */}
             <div className="sticky top-0 z-40 mb-2 flex rounded-lg border border-border bg-card shadow-none">
               <div
                 className={cn(
@@ -463,17 +394,12 @@ export default function ScheduleBoard({
               {visibleDates.map((date, i) => {
                 const isToday = isSameDay(date, new Date());
                 return (
-                  <div
-                    key={i}
-                    className="flex border-r border-border last:border-0"
-                  >
+                  <div key={i} className="flex border-r border-border last:border-0">
                     <div className="flex flex-col">
                       <div
                         className={cn(
-                           "w-full border-b border-border py-1.5 text-center text-xs font-medium",
-                           isToday
-                             ? "bg-primary text-primary-foreground"
-                             : "bg-background text-foreground",
+                          "w-full border-b border-border py-1.5 text-center text-xs font-medium",
+                          isToday ? "bg-primary text-primary-foreground" : "bg-background text-foreground",
                         )}
                       >
                         {format(date, "EEE, MMM d")}
@@ -498,12 +424,10 @@ export default function ScheduleBoard({
               })}
             </div>
 
-            {/* UNIT GROUPS */}
-            {/* Changing the KEY forces React to re-trigger the animation */}
             <motion.div
               key={`${groupingMode}-${viewMode}`}
-              initial={{ opacity: 0, y: 5 }} // Start slightly invisible and lower
-              animate={{ opacity: 1, y: 0 }} // Fade in and slide up
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
             >
               {unitGroups.map((group) => (
@@ -515,7 +439,7 @@ export default function ScheduleBoard({
                   dates={visibleDates}
                   viewMode={viewMode}
                   groupingMode={groupingMode}
-                  isExpanded={expandedUnits[group.unit.id]}
+                  isExpanded={expandedUnits[group.unit.id] ?? true}
                   onToggle={() =>
                     setExpandedUnits((prev) => ({
                       ...prev,
@@ -523,11 +447,11 @@ export default function ScheduleBoard({
                     }))
                   }
                   roleState={expandedRoles}
-                  toggleRole={(key: string) =>
-                    setExpandedRoles((prev) => ({ ...prev, [key]: !prev[key] }))
-                  }
-                  simulatingSlotId={simulatingSlotId}
-                  simulationResult={simulationResult}
+                  toggleRole={(key: string) => setExpandedRoles((prev) => ({ ...prev, [key]: !prev[key] }))}
+                  pendingSlotId={pendingSlotId}
+                  validationPreview={validationPreview}
+                  dragDisabled={dragDisabled}
+                  resolveTargetShiftId={resolveTargetShiftId}
                 />
               ))}
             </motion.div>
@@ -541,9 +465,7 @@ export default function ScheduleBoard({
           }),
         }}
       >
-        {activeShift ? (
-          <ShiftCard shift={activeShift} mode={viewMode} isOverlay />
-        ) : null}
+        {activeShift ? <ShiftCard shift={activeShift} mode={viewMode} isOverlay /> : null}
       </DragOverlay>
     </DndContext>
   );

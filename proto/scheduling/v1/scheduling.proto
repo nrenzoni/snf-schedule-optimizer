@@ -12,8 +12,20 @@ service SchedulingService {
   // Retrieves the schedule and HRPD metrics for a given date range (usually a month).
   rpc GetMonthlySchedule(GetMonthlyScheduleRequest) returns (GetMonthlyScheduleResponse);
 
+  // Returns lightweight version/run status for the current schedule workspace.
+  rpc GetScheduleStatus(GetScheduleStatusRequest) returns (GetScheduleStatusResponse);
+
   // Runs a full optimization pass and optionally persists the resulting schedule.
   rpc OptimizeSchedule(OptimizeScheduleRequest) returns (OptimizeScheduleResponse);
+
+  // Starts a long-running optimization run against the current schedule plus staged patches.
+  rpc StartOptimizationRun(StartOptimizationRunRequest) returns (StartOptimizationRunResponse);
+
+  // Returns the latest persisted state for a long-running optimization run.
+  rpc GetOptimizationRun(GetOptimizationRunRequest) returns (GetOptimizationRunResponse);
+
+  // Streams status snapshots for a long-running optimization run.
+  rpc StreamOptimizationRun(StreamOptimizationRunRequest) returns (stream OptimizationRunEvent);
 
   // Validates if a specific move (drag & drop) is feasible against all business rules.
   // This is used for real-time validation in the UI.
@@ -48,6 +60,28 @@ message GetMonthlyScheduleResponse {
   string schedule_id = 3;
   int32 schedule_version = 4;
   OptimizationSummary latest_optimization = 5;
+  OptimizationStats latest_optimization_stats = 6;
+  FinancialReport latest_optimization_financials = 7;
+  OptimizationRun active_optimization_run = 8;
+  string updated_at = 9;
+}
+
+message GetScheduleStatusRequest {
+  string org_id = 1;
+  string facility_id = 2;
+  string schedule_id = 3;
+  int32 current_schedule_version = 4;
+}
+
+message GetScheduleStatusResponse {
+  string schedule_id = 1;
+  int32 latest_schedule_version = 2;
+  bool has_newer_version = 3;
+  OptimizationRun active_optimization_run = 4;
+  OptimizationSummary latest_optimization = 5;
+  OptimizationStats latest_optimization_stats = 6;
+  FinancialReport latest_optimization_financials = 7;
+  string updated_at = 8;
 }
 
 message OptimizeScheduleRequest {
@@ -71,6 +105,49 @@ message OptimizeScheduleResponse {
   OptimizationSummary summary = 9;
 }
 
+message StartOptimizationRunRequest {
+  string org_id = 1;
+  string facility_id = 2;
+  string schedule_id = 3;
+  int32 base_schedule_version = 4;
+  string start_date = 5;
+  optional string end_date = 6;
+  OptimizationSettings settings = 7;
+  bool persist_result = 8;
+  string client_request_id = 9;
+  repeated StagedSchedulePatch staged_patches = 10;
+  bool allow_overwrite = 11;
+}
+
+message StartOptimizationRunResponse {
+  bool accepted = 1;
+  string error_details = 2;
+  bool version_conflict = 3;
+  int32 latest_schedule_version = 4;
+  OptimizationRun run = 5;
+  repeated PatchConflict conflicts = 6;
+}
+
+message GetOptimizationRunRequest {
+  string run_id = 1;
+}
+
+message GetOptimizationRunResponse {
+  bool found = 1;
+  OptimizationRun run = 2;
+  map<string, DaySchedule> schedules = 3;
+}
+
+message StreamOptimizationRunRequest {
+  string run_id = 1;
+}
+
+message OptimizationRunEvent {
+  int64 sequence = 1;
+  OptimizationRun run = 2;
+  map<string, DaySchedule> schedules = 3;
+}
+
 message ValidateShiftMoveRequest {
   string org_id = 1;
   string facility_id = 2;
@@ -84,20 +161,29 @@ message ValidateShiftMoveRequest {
   int64 pay_period_start_ts = 7;
   // Optional version check to prevent stale updates
   int32 schedule_version = 8;
+  repeated StagedSchedulePatch staged_patches = 9;
+  string patch_id = 10;
 }
 
 message ValidateShiftMoveResponse {
   bool is_success = 1;
+  bool is_valid = 2;
+  ValidationLevel validation_level = 3;
   // Detailed diagnostic report if is_success is false
-  string error_details = 2;
-  // The updated schedule state after the move
-  DaySchedule updated_schedule = 3;
+  string error_details = 4;
+  // The updated schedule state after staged patches plus this move.
+  map<string, DaySchedule> affected_schedules = 5;
   // Impact on the budget/financials
-  FinancialReport financials = 4;
+  FinancialReport financials = 6;
   // Internal solver metrics
-  OptimizationStats stats = 5;
+  OptimizationStats stats = 7;
   // Convenient top-level access to the resulting cost
-  double total_cost = 6;
+  double total_cost = 8;
+  repeated string warnings = 9;
+  StagedSchedulePatch patch = 10;
+  int32 latest_schedule_version = 11;
+  bool is_stale = 12;
+  repeated PatchConflict conflicts = 13;
 }
 
 message RemoveNurseFromShiftRequest {
@@ -111,6 +197,74 @@ message RemoveNurseFromShiftResponse {
   string message = 2;
   // Optionally return the updated DaySchedule
   DaySchedule updated_schedule = 3;
+}
+
+enum ValidationLevel {
+  VALIDATION_LEVEL_UNSPECIFIED = 0;
+  VALIDATION_OK = 1;
+  VALIDATION_WARNING = 2;
+  VALIDATION_CRITICAL = 3;
+  VALIDATION_STALE = 4;
+}
+
+enum OptimizationRunStatus {
+  OPTIMIZATION_RUN_STATUS_UNSPECIFIED = 0;
+  OPTIMIZATION_RUN_STATUS_QUEUED = 1;
+  OPTIMIZATION_RUN_STATUS_RUNNING = 2;
+  OPTIMIZATION_RUN_STATUS_COMPLETED = 3;
+  OPTIMIZATION_RUN_STATUS_FAILED = 4;
+}
+
+enum OptimizationRunStage {
+  OPTIMIZATION_RUN_STAGE_UNSPECIFIED = 0;
+  OPTIMIZATION_RUN_STAGE_QUEUED = 1;
+  OPTIMIZATION_RUN_STAGE_REBASING = 2;
+  OPTIMIZATION_RUN_STAGE_SOLVING = 3;
+  OPTIMIZATION_RUN_STAGE_ANALYZING = 4;
+  OPTIMIZATION_RUN_STAGE_PERSISTING = 5;
+  OPTIMIZATION_RUN_STAGE_COMPLETED = 6;
+  OPTIMIZATION_RUN_STAGE_FAILED = 7;
+}
+
+message StagedSchedulePatch {
+  string patch_id = 1;
+  string employee_id = 2;
+  string employee_name = 3;
+  string from_shift_id = 4;
+  string to_shift_id = 5;
+  bool pinned = 6;
+  repeated string warnings = 7;
+  ValidationLevel validation_level = 8;
+  bool causes_overtime = 9;
+  double total_cost = 10;
+  string created_at = 11;
+}
+
+message PatchConflict {
+  string patch_id = 1;
+  string employee_id = 2;
+  string employee_name = 3;
+  string from_shift_id = 4;
+  string to_shift_id = 5;
+  string reason = 6;
+  string latest_shift_id = 7;
+}
+
+message OptimizationRun {
+  string run_id = 1;
+  string schedule_id = 2;
+  int32 base_schedule_version = 3;
+  int32 result_schedule_version = 4;
+  OptimizationRunStatus status = 5;
+  OptimizationRunStage stage = 6;
+  int32 progress_percent = 7;
+  string status_message = 8;
+  string started_at = 9;
+  string completed_at = 10;
+  string error_details = 11;
+  FinancialReport financials = 12;
+  OptimizationStats stats = 13;
+  OptimizationSummary summary = 14;
 }
 
 // --- Data Structures ---

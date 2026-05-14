@@ -1,15 +1,9 @@
 import { useDroppable } from "@dnd-kit/core";
 import React from "react";
-import { SimulateActionResponse, ValidationLevel } from "@/hooks/proto-mocks";
 import { cn } from "@/lib/utils";
 import { CELL_WIDTH } from "@/components/schedule-board/schedule-board";
-import { Ban, Plus } from "lucide-react";
-
-type TimelineSlotData = {
-  staffId: string;
-  dateStr: string;
-  typeKey: string;
-};
+import { Ban, LoaderCircle, Plus } from "lucide-react";
+import { MoveValidationPreview, TimelineSlotData } from "@/types/scheduler";
 
 // droppable
 export default function TimelineSlot({
@@ -19,8 +13,8 @@ export default function TimelineSlot({
   isEvenDay,
   isToday,
   isLastShift,
-  isSimulatingTarget,
-  simulationResult,
+  isPendingTarget,
+  validationPreview,
 }: {
   id: string;
   data: TimelineSlotData;
@@ -28,8 +22,8 @@ export default function TimelineSlot({
   isEvenDay: boolean;
   isToday: boolean;
   isLastShift: boolean;
-  isSimulatingTarget: boolean;
-  simulationResult: SimulateActionResponse | null;
+  isPendingTarget: boolean;
+  validationPreview: MoveValidationPreview | null;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id, data });
 
@@ -51,23 +45,19 @@ export default function TimelineSlot({
     ringClass = "ring-2 ring-ring z-10";
 
     // SIMULATION OVERRIDES (The "Yellow/Red" Feedback)
-    if (isSimulatingTarget && simulationResult) {
-      if (
-        simulationResult.complianceStatus === ValidationLevel.VALIDATION_WARNING
-      ) {
+    if (validationPreview) {
+      if (validationPreview.validationLevel === "warning") {
         // YELLOW ZONE (Overtime / Cost Warning)
         bgClass = "bg-amber-50 pattern-diagonal-lines pattern-amber-100"; // hypothetical pattern class
         ringClass = "ring-2 ring-amber-400 z-20";
       } else if (
-        simulationResult.complianceStatus ===
-        ValidationLevel.VALIDATION_CRITICAL
+        validationPreview.validationLevel === "critical" ||
+        validationPreview.validationLevel === "stale"
       ) {
         // RED ZONE (Blocked)
         bgClass = "bg-red-50";
         ringClass = "ring-2 ring-red-500 z-20";
-      } else if (
-        simulationResult.complianceStatus === ValidationLevel.VALIDATION_OK
-      ) {
+      } else if (validationPreview.validationLevel === "ok") {
         // GREEN ZONE (Good move)
         bgClass = "bg-emerald-50";
         ringClass = "ring-2 ring-emerald-400 z-20";
@@ -88,6 +78,12 @@ export default function TimelineSlot({
     >
       {children}
 
+      {isPendingTarget ? (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70">
+          <LoaderCircle className="animate-spin text-primary" size={18} />
+        </div>
+      ) : null}
+
       {/* Phantom Add Button */}
       {/* Only show if empty and not currently dragging over */}
       {isEmpty && !isOver && (
@@ -100,9 +96,7 @@ export default function TimelineSlot({
 
       {/* Error Icon inside slot if Critical */}
       {isOver &&
-        isSimulatingTarget &&
-        simulationResult?.complianceStatus ===
-          ValidationLevel.VALIDATION_CRITICAL && (
+        validationPreview?.validationLevel === "critical" && (
           <div className="absolute inset-0 flex items-center justify-center bg-red-100/50">
             <Ban className="text-red-500 opacity-50" size={24} />
           </div>

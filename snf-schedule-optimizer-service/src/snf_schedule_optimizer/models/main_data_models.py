@@ -22,6 +22,10 @@ if TYPE_CHECKING:
         IDifferentialRule,
         IOvertimeRule,
     )
+    from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
+        ScheduleFinancialReport,
+    )
+    from snf_schedule_optimizer.optimizer.models import ScheduleOptimizationStats
 
 
 # --- A. EHR / Acuity Data ---
@@ -228,7 +232,8 @@ class Schedule:
 
     # facility_id is Optional because an "Enterprise Optimization" might return a Schedule containing assignments for multiple facilities.
     facility_id: DomainPrimaryKeyType | None = None
-    schedule_id: DomainPrimaryKeyType | None = None  # Persistence ID
+    schedule_id: DomainPrimaryKeyType | None = None  # Snapshot persistence ID
+    schedule_lineage_id: DomainPrimaryKeyType | None = None  # Stable workspace ID
     schedule_version: int = 1
 
     # composite key prevents collisions in multi-facility reports. org_id not needed as this exists within an org context, i.e., class contains org_id
@@ -238,6 +243,9 @@ class Schedule:
     start_date: str | None = None
     end_date: str | None = None
     latest_optimization: OptimizationSummary | None = None
+    latest_optimization_stats: ScheduleOptimizationStats | None = None
+    latest_optimization_financials: ScheduleFinancialReport | None = None
+    updated_at: str | None = None
 
     def get_assigned_employees(self, facility_id: int, shift_id: int) -> list[int]:
         key = ShiftKey(facility_id, shift_id)
@@ -332,6 +340,56 @@ class OptimizationSummary:
     uncovered_shifts: int
     completed_at: str
     applied_settings: OptimizationSettings
+
+
+@dataclass(frozen=True)
+class StagedSchedulePatch:
+    patch_id: str
+    employee_id: EmployeeIdType
+    employee_name: str | None = None
+    from_shift_id: DomainPrimaryKeyType | None = None
+    to_shift_id: DomainPrimaryKeyType | None = None
+    pinned: bool = True
+    warnings: tuple[str, ...] = ()
+    validation_level: str = "ok"
+    causes_overtime: bool = False
+    total_cost: float = 0.0
+    created_at: str | None = None
+
+
+@dataclass(frozen=True)
+class PatchConflict:
+    patch_id: str
+    employee_id: EmployeeIdType
+    employee_name: str | None = None
+    from_shift_id: DomainPrimaryKeyType | None = None
+    to_shift_id: DomainPrimaryKeyType | None = None
+    reason: str = ""
+    latest_shift_id: DomainPrimaryKeyType | None = None
+
+
+@dataclass(frozen=True)
+class OptimizationRun:
+    run_id: str
+    org_id: DomainPrimaryKeyType
+    facility_id: DomainPrimaryKeyType
+    schedule_id: DomainPrimaryKeyType
+    schedule_lineage_id: DomainPrimaryKeyType
+    base_schedule_version: int
+    result_schedule_id: DomainPrimaryKeyType | None = None
+    result_schedule_version: int | None = None
+    status: str = "queued"
+    stage: str = "queued"
+    progress_percent: int = 0
+    status_message: str = ""
+    started_at: str | None = None
+    completed_at: str | None = None
+    error_details: str | None = None
+    financials: ScheduleFinancialReport | None = None
+    stats: ScheduleOptimizationStats | None = None
+    summary: OptimizationSummary | None = None
+    patches: tuple[StagedSchedulePatch, ...] = ()
+    client_request_id: str | None = None
 
 
 @dataclass(frozen=True)

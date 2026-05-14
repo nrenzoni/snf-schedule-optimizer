@@ -5,7 +5,7 @@ import { ROLES, Shift, ViewMode } from "@/types/scheduler";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
-import { AlertCircle, DollarSign } from "lucide-react";
+import { AlertCircle, DollarSign, Pin, TriangleAlert } from "lucide-react";
 import {
   HoverCard,
   HoverCardContent,
@@ -17,15 +17,18 @@ export default function ShiftCard({
   shift,
   mode,
   isOverlay = false,
+  dragDisabled = false,
 }: {
   shift: Shift;
   mode: ViewMode;
   isOverlay?: boolean;
+  dragDisabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: shift.id,
       data: { shift },
+      disabled: dragDisabled,
     });
 
   const style: React.CSSProperties = {
@@ -64,13 +67,14 @@ export default function ShiftCard({
       // Enable layout animation
       layout={!isOverlay}
       // Smooth spring animation for the "Undo" action
-      transition={{
-        type: "spring",
-        stiffness: 400,
-        damping: 30,
-      }}
-      className={cn(
-        "group relative mx-auto flex h-[90%] w-[96%] cursor-grab select-none flex-col justify-center rounded-lg border border-l-4 text-[10px] shadow-none transition-shadow active:cursor-grabbing hover:shadow-sm",
+        transition={{
+          type: "spring",
+          stiffness: 400,
+          damping: 30,
+        }}
+        className={cn(
+        "group relative mx-auto flex h-[90%] w-[96%] select-none flex-col justify-center rounded-lg border border-l-4 text-[10px] shadow-none transition-shadow hover:shadow-sm",
+        dragDisabled ? "cursor-not-allowed opacity-70" : "cursor-grab active:cursor-grabbing",
         getColor(),
         agencyStripe,
         // Remove 'scale' transforms from here, rely on dnd-kit or framer
@@ -80,7 +84,11 @@ export default function ShiftCard({
     >
       <div className="flex justify-between">
         <span>{shift.role}</span>
-        {shift.isAgency && <AlertCircle size={10} className="text-red-600" />}
+        <div className="flex items-center gap-1">
+          {shift.pinned ? <Pin size={10} className="text-primary" /> : null}
+          {shift.warnings?.length ? <TriangleAlert size={10} className="text-amber-600" /> : null}
+          {shift.isAgency && <AlertCircle size={10} className="text-red-600" />}
+        </div>
       </div>
 
       <div className="flex justify-between items-center font-bold px-1.5 leading-tight">
@@ -147,7 +155,18 @@ export default function ShiftCard({
                     {shift.isOvertime ? "Overtime" : "Standard"}
                   </div>
                 </div>
+                <div>
+                  <div className="text-muted-foreground">Draft</div>
+                  <div className={shift.pinned ? "text-primary" : "text-muted-foreground"}>
+                    {shift.pinned ? "Pinned" : "Server"}
+                  </div>
+                </div>
               </div>
+              {shift.warnings?.length ? (
+                <div className="rounded-md bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
+                  {shift.warnings.join(" ")}
+                </div>
+              ) : null}
             </div>
           </HoverCardContent>
         </HoverCard>

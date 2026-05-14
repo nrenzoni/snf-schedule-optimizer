@@ -35,6 +35,66 @@ export interface UIFinancials {
   regularPayCost: number;
 }
 
+export type UIValidationLevel = "ok" | "warning" | "critical" | "stale";
+
+export interface UIPatchConflict {
+  patchId: string;
+  employeeId: string;
+  employeeName: string | null;
+  fromShiftId: string | null;
+  toShiftId: string | null;
+  reason: string;
+  latestShiftId: string | null;
+}
+
+export interface UIStagedPatch {
+  patchId: string;
+  employeeId: string;
+  employeeName: string | null;
+  fromShiftId: string | null;
+  toShiftId: string | null;
+  pinned: boolean;
+  warnings: string[];
+  validationLevel: UIValidationLevel;
+  causesOvertime: boolean;
+  totalCost: number;
+  createdAt: string | null;
+}
+
+export type UIOptimizationRunStatus = "queued" | "running" | "completed" | "failed";
+export type UIOptimizationRunStage =
+  | "queued"
+  | "rebase"
+  | "solving"
+  | "analyzing"
+  | "persisting"
+  | "completed"
+  | "failed";
+
+export interface UIOptimizationRun {
+  runId: string;
+  scheduleId: string;
+  baseScheduleVersion: number;
+  resultScheduleVersion: number | null;
+  status: UIOptimizationRunStatus;
+  stage: UIOptimizationRunStage;
+  progressPercent: number;
+  statusMessage: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  errorDetails: string | null;
+  financials: UIFinancials | null;
+  stats: UIOptimizationStats | null;
+  summary: UIOptimizationSummary | null;
+}
+
+export interface UIDraftState {
+  baseScheduleVersion: number;
+  patches: UIStagedPatch[];
+  conflicts: UIPatchConflict[];
+  hasPendingValidation: boolean;
+}
+
 export interface UINurse {
   id: string;
   name: string;
@@ -68,6 +128,8 @@ export interface UISchedulePayload {
   facilityId: string;
   schedules: Map<string, UIDaySchedule>;
   latestOptimization: UIOptimizationSummary | null;
+  optimizationStats?: UIOptimizationStats | null;
+  optimizationFinancials?: UIFinancials | null;
 }
 
 export type ScheduleMap = Map<string, UIDaySchedule>;

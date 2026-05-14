@@ -100,7 +100,12 @@ export default function DashboardContent({
   const {
     selectedFacility,
     scheduleCount,
-    isOptimizing,
+    activeRun,
+    hydratePersistedDraftState,
+    hasNewerVersion,
+    latestKnownScheduleVersion,
+    draftPatchCount,
+    draftConflicts,
     schedulerSettings,
     latestOptimization,
     optimizationStats,
@@ -108,8 +113,13 @@ export default function DashboardContent({
   } = useSchedulingStore(
     useShallow((state) => ({
       selectedFacility: state.selectedFacility,
-      scheduleCount: state.scheduleMap.size,
-      isOptimizing: state.isOptimizing,
+      scheduleCount: state.effectiveScheduleMap.size,
+      activeRun: state.activeRun,
+      hydratePersistedDraftState: state.hydratePersistedDraftState,
+      hasNewerVersion: state.hasNewerVersion,
+      latestKnownScheduleVersion: state.latestKnownScheduleVersion,
+      draftPatchCount: state.draftState.patches.length,
+      draftConflicts: state.draftState.conflicts,
       schedulerSettings: state.schedulerSettings,
       latestOptimization: state.latestOptimization,
       optimizationStats: state.optimizationStats,
@@ -135,6 +145,8 @@ export default function DashboardContent({
 
     // Calendar/Data State
     triggerOptimization,
+    clearDraft,
+    isRunActive,
     updateSchedulerSettings,
   } = useScheduling();
 
@@ -142,6 +154,10 @@ export default function DashboardContent({
   const { error, isLoading, refetch } = useScheduleQuery(currentViewAnchorDate);
 
   const [showPulse, setShowPulse] = useState(true);
+
+  useEffect(() => {
+    hydratePersistedDraftState();
+  }, [hydratePersistedDraftState]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -273,7 +289,7 @@ export default function DashboardContent({
   return (
     <div className="app-bg min-h-screen p-2 font-sans md:p-3 xl:h-screen xl:overflow-hidden">
       <ThreeDAssemblyLoader
-        isLoading={isOptimizing}
+        isLoading={isRunActive}
       />
       <div className="mx-auto max-w-[1800px] xl:flex xl:h-full xl:flex-col">
         <Tabs
@@ -378,14 +394,33 @@ export default function DashboardContent({
 
                       <div className="flex justify-end">
                         <div className="flex flex-wrap items-center justify-end gap-2">
+                          {hasNewerVersion ? (
+                            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                              Newer schedule version detected on the backend.
+                              {latestKnownScheduleVersion > 0
+                                ? ` Latest version: ${latestKnownScheduleVersion}.`
+                                : null}
+                            </div>
+                          ) : null}
+                          {draftPatchCount > 0 ? (
+                            <button
+                              data-testid="revert-staged-changes"
+                              onClick={clearDraft}
+                              className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
+                            >
+                              Revert {draftPatchCount} staged
+                            </button>
+                          ) : null}
                           <button
                             data-testid="optimize-schedule"
-                            onClick={triggerOptimization}
-                            disabled={isOptimizing}
+                            onClick={() => {
+                              void triggerOptimization();
+                            }}
+                            disabled={isRunActive}
                             className="app-button-primary min-h-9 whitespace-nowrap px-4 py-2"
                           >
                             <Zap size={16} />
-                            <span>{isOptimizing ? "Optimizing..." : "Optimize"}</span>
+                            <span>{isRunActive ? "Optimizing..." : "Optimize"}</span>
                           </button>
                           <button
                             data-testid="open-schedule-summary"
@@ -437,6 +472,24 @@ export default function DashboardContent({
                           <div className="xl:flex xl:h-full xl:min-h-0 xl:flex-col">{timelineView}</div>
                         </div>
                       )}
+
+                      {activeRun ? (
+                        <div className="app-soft-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm text-muted-foreground">
+                          <div>
+                            <span className="font-medium text-foreground">Run:</span> {activeRun.stage}
+                            {activeRun.statusMessage ? ` - ${activeRun.statusMessage}` : null}
+                          </div>
+                          <div>
+                            <span className="font-medium text-foreground">Progress:</span> {activeRun.progressPercent}%
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {draftConflicts.length > 0 ? (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                          {draftConflicts.length} staged change conflict{draftConflicts.length === 1 ? "" : "s"} need review.
+                        </div>
+                      ) : null}
                     </div>
                   </TabsContent>
 

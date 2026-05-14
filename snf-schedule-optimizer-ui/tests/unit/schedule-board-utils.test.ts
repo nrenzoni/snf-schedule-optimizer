@@ -11,15 +11,21 @@ const staffList: Staff[] = [
 const shifts: Shift[] = [
   {
     id: "shift-1",
+    shiftId: "shift-1",
     staffId: "st1",
+    employeeName: "Alice",
     dateStr: "2026-05-11",
+    unitId: "U1",
     role: "RN",
     shiftType: "DAY",
   },
   {
     id: "shift-2",
+    shiftId: "shift-2",
     staffId: "st2",
+    employeeName: "Bob",
     dateStr: "2026-05-11",
+    unitId: "U1",
     role: "LPN",
     shiftType: "DAY",
     isOvertime: true,

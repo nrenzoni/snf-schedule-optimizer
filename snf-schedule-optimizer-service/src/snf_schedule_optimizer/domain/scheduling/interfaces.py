@@ -5,10 +5,13 @@ from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
     NurseProfile,
+    OptimizationRun,
+    PatchConflict,
     PreferenceWeights,
     Schedule,
     Shift,
     ShiftSpecificRequirements,
+    StagedSchedulePatch,
 )
 
 
@@ -74,4 +77,47 @@ class IScheduleRepo(abc.ABC):
     @abc.abstractmethod
     async def next_schedule_id(self, org_id: DomainPrimaryKeyType) -> DomainPrimaryKeyType:
         """Allocates the next schedule identifier for the org."""
+        pass
+
+    @abc.abstractmethod
+    async def get_latest_schedule_version(
+        self,
+        org_id: DomainPrimaryKeyType,
+        schedule_id: DomainPrimaryKeyType,
+    ) -> int | None:
+        """Returns the latest persisted version for the stable schedule workspace."""
+        pass
+
+    @abc.abstractmethod
+    async def reapply_patches(
+        self,
+        schedule: Schedule,
+        patches: list[StagedSchedulePatch],
+    ) -> tuple[Schedule, list[PatchConflict]]:
+        """Applies staged manual patches to a schedule, returning any conflicts."""
+        pass
+
+    @abc.abstractmethod
+    async def save_optimization_run(self, run: OptimizationRun) -> None:
+        """Persists optimization run metadata."""
+        pass
+
+    @abc.abstractmethod
+    async def get_optimization_run(self, run_id: str) -> OptimizationRun | None:
+        """Loads a persisted optimization run by its public ID."""
+        pass
+
+    @abc.abstractmethod
+    async def get_active_optimization_run(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
+        schedule_id: DomainPrimaryKeyType,
+    ) -> OptimizationRun | None:
+        """Returns the most recent queued/running optimization run for the workspace."""
+        pass
+
+    @abc.abstractmethod
+    async def commit(self) -> None:
+        """Flushes and commits request-scoped mutations."""
         pass

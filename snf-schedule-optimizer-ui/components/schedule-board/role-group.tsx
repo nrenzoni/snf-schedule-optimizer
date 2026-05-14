@@ -3,15 +3,21 @@ import { STAFF_COL_WIDTH } from "@/components/schedule-board/schedule-board";
 import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { format, isSameDay } from "date-fns";
-import { Shift, SHIFT_TYPES, ShiftTypeKey, Staff } from "@/types/scheduler";
+import {
+  MoveValidationPreview,
+  Shift,
+  SHIFT_TYPES,
+  ShiftTypeKey,
+  Staff,
+} from "@/types/scheduler";
 import GroupSummaryCell from "@/components/schedule-board/group-summary-cell";
 import { AnimatePresence, motion } from "framer-motion";
 import TimelineSlot from "@/components/schedule-board/timeline-slot";
 import ShiftCard from "@/components/schedule-board/shift-card";
 import { calculateCellMetric } from "@/components/schedule-board/utils";
-import { SimulateActionResponse } from "@/hooks/proto-mocks";
 
 interface RoleGroupProps {
+  unitId: string;
   groupKey: string;
   label: string;
   staffMembers: Staff[];
@@ -21,11 +27,14 @@ interface RoleGroupProps {
   groupingMode: "ROLE" | "BUDGET";
   isExpanded: boolean;
   onToggle: () => void;
-  simulatingSlotId: string | null;
-  simulationResult: SimulateActionResponse | null;
+  pendingSlotId: string | null;
+  validationPreview: MoveValidationPreview | null;
+  dragDisabled: boolean;
+  resolveTargetShiftId: (unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => string | null;
 }
 
 export default function RoleGroup({
+  unitId,
   groupKey,
   label,
   staffMembers,
@@ -35,8 +44,10 @@ export default function RoleGroup({
   groupingMode,
   isExpanded,
   onToggle,
-  simulatingSlotId,
-  simulationResult,
+  pendingSlotId,
+  validationPreview,
+  dragDisabled,
+  resolveTargetShiftId,
 }: RoleGroupProps) {
   return (
     <div className="border-b border-border bg-card last:border-b-0">
@@ -125,6 +136,7 @@ export default function RoleGroup({
                     return (Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map(
                       (shiftKey, idx) => {
                         const slotId = `${staff.id}::${dateStr}::${shiftKey}`;
+                        const targetShiftId = resolveTargetShiftId(unitId, dateStr, shiftKey);
                         return (
                           <TimelineSlot
                             key={`${staff.id}-${dateStr}-${shiftKey}`}
@@ -133,12 +145,13 @@ export default function RoleGroup({
                               staffId: staff.id,
                               dateStr,
                               typeKey: shiftKey,
+                              shiftId: targetShiftId ?? "",
                             }}
                             isEvenDay={dayIndex % 2 === 0}
                             isToday={isToday}
                             isLastShift={idx === 2}
-                            isSimulatingTarget={simulatingSlotId === slotId}
-                            simulationResult={simulationResult}
+                            isPendingTarget={pendingSlotId === slotId}
+                            validationPreview={pendingSlotId === slotId ? validationPreview : null}
                           >
                             {shifts
                               .filter(
@@ -152,6 +165,7 @@ export default function RoleGroup({
                                   key={s.id}
                                   shift={s}
                                   mode={viewMode}
+                                  dragDisabled={dragDisabled}
                                 />
                               ))}
                           </TimelineSlot>

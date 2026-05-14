@@ -1,12 +1,37 @@
+import type { UIValidationLevel } from "@/types/scheduling";
+
 export type Shift = {
   id: string;
+  shiftId: string;
   staffId: string;
+  employeeName: string;
   dateStr: string;
+  unitId: string;
   role: RoleKey;
   shiftType: ShiftTypeKey;
   // Metadata for "Budget" view
   isOvertime?: boolean;
   isAgency?: boolean;
+  pinned?: boolean;
+  warnings?: string[];
+  validationLevel?: UIValidationLevel;
+  totalCost?: number;
+};
+
+export type TimelineSlotData = {
+  staffId: string;
+  dateStr: string;
+  typeKey: string;
+  shiftId: string;
+};
+
+export type MoveValidationPreview = {
+  validationLevel: UIValidationLevel;
+  warnings: string[];
+  causesOvertime: boolean;
+  totalCost: number;
+  isValid: boolean;
+  errorDetails?: string;
 };
 
 export type Staff = {

@@ -97,7 +97,7 @@ test("optimize flow updates the persisted schedule summary", async ({ page }) =>
     name: /schedule data could not be loaded/i,
   });
   const optimizeResponse = page.waitForResponse((response) => {
-    return response.url().includes("/scheduling.v1.SchedulingService/OptimizeSchedule");
+    return response.url().includes("/scheduling.v1.SchedulingService/StartOptimizationRun");
   });
 
   await expect(optimizeButton).toBeVisible();
@@ -109,8 +109,9 @@ test("optimize flow updates the persisted schedule summary", async ({ page }) =>
   await optimizeButton.click();
   const response = await optimizeResponse;
   expect(response.ok()).toBeTruthy();
-  await expect(optimizeButton).toBeEnabled({ timeout: 60000 });
-  await expect(optimizeButton).toContainText(/^optimize$/i);
+  await expect(optimizeButton).toContainText(/optimizing/i);
+  await expect(page.getByText(/run:/i)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText(/progress:/i)).toBeVisible({ timeout: 10000 });
 
   await summaryButton.click();
 
@@ -126,4 +127,59 @@ test("optimize flow updates the persisted schedule summary", async ({ page }) =>
   expect(latestRunText).not.toMatch(/no optimization completed yet/i);
 
   await expect(page.getByRole("button", { name: /close summary/i })).toBeVisible();
+});
+
+test("persisted active run hydrates without mismatch", async ({ page }) => {
+  const consoleErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text());
+    }
+  });
+
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      "snf-scheduling-draft-v1",
+      JSON.stringify({
+        draft: {
+          baseScheduleVersion: 1,
+          patches: [],
+          conflicts: [],
+          hasPendingValidation: false,
+        },
+        activeRun: {
+          runId: "persisted-run",
+          scheduleId: "persisted-schedule",
+          baseScheduleVersion: 1,
+          resultScheduleVersion: null,
+          status: "running",
+          stage: "solving",
+          progressPercent: 45,
+          statusMessage: "Resuming persisted run",
+          startedAt: "2026-05-13T12:00:00Z",
+          completedAt: null,
+          errorDetails: null,
+          financials: null,
+          stats: null,
+          summary: null,
+        },
+      }),
+    );
+  });
+
+  await page.goto("/schedule?tab=scheduling&view=timeline");
+
+  const runPanel = page.locator("div.app-soft-panel").filter({
+    hasText: /run:/i,
+  }).last();
+
+  await expect(runPanel).toContainText(/run:\s*solving/i);
+  await expect(runPanel).toContainText(/progress:\s*45%/i);
+
+  expect(
+    consoleErrors.some((entry) => entry.includes("Hydration failed")),
+  ).toBeFalsy();
+  expect(
+    consoleErrors.some((entry) => entry.includes("server rendered HTML didn't match the client")),
+  ).toBeFalsy();
 });

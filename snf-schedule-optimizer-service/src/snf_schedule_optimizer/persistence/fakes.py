@@ -35,6 +35,8 @@ from snf_schedule_optimizer.models import (
     MealDeductionRules,
     MlModelOutputs,
     NurseProfile,
+    OptimizationRun,
+    PatchConflict,
     PreferenceWeights,
     PunchType,
     RoundingType,
@@ -44,6 +46,7 @@ from snf_schedule_optimizer.models import (
     ShiftSpecificRequirements,
     SplitDayType,
     StaffCompensationRecord,
+    StagedSchedulePatch,
     WorkedShiftSegment,
 )
 from snf_schedule_optimizer.optimizer.context import (
@@ -374,6 +377,7 @@ class FakeScheduleRepo(IScheduleRepo):
     def __init__(self, schedules: dict[ScheduleLookupKey, Schedule] | None = None):
         # Key: (schedule_id, org_id) -> Schedule
         self._schedules = schedules or {}
+        self._runs: dict[str, OptimizationRun] = {}
 
     async def get_schedule(
         self,
@@ -407,6 +411,104 @@ class FakeScheduleRepo(IScheduleRepo):
             if key.org_id == org_id and schedule.schedule_id is not None
         ]
         return (max(existing_ids) if existing_ids else 0) + 1
+
+    async def get_latest_schedule_version(
+        self,
+        org_id: DomainPrimaryKeyType,
+        schedule_id: DomainPrimaryKeyType,
+    ) -> int | None:
+        schedule = self._schedules.get(ScheduleLookupKey(org_id, schedule_id))
+        return schedule.schedule_version if schedule is not None else None
+
+    async def reapply_patches(
+        self,
+        schedule: Schedule,
+        patches: list[StagedSchedulePatch],
+    ) -> tuple[Schedule, list[PatchConflict]]:
+        shift_assignments = {
+            key: list(employee_ids) for key, employee_ids in schedule.shift_assignments.items()
+        }
+        conflicts: list[PatchConflict] = []
+        for patch in patches:
+            from_key = next(
+                (key for key in shift_assignments if key.shift_id == patch.from_shift_id),
+                None,
+            )
+            to_key = next(
+                (key for key in shift_assignments if key.shift_id == patch.to_shift_id),
+                None,
+            )
+            if patch.from_shift_id is not None and from_key is None:
+                conflicts.append(
+                    PatchConflict(
+                        patch_id=patch.patch_id,
+                        employee_id=patch.employee_id,
+                        employee_name=patch.employee_name,
+                        from_shift_id=patch.from_shift_id,
+                        to_shift_id=patch.to_shift_id,
+                        reason="Original assignment missing",
+                    )
+                )
+                continue
+            if patch.to_shift_id is not None and to_key is None:
+                conflicts.append(
+                    PatchConflict(
+                        patch_id=patch.patch_id,
+                        employee_id=patch.employee_id,
+                        employee_name=patch.employee_name,
+                        from_shift_id=patch.from_shift_id,
+                        to_shift_id=patch.to_shift_id,
+                        reason="Target shift missing",
+                    )
+                )
+                continue
+            if from_key is not None and patch.employee_id in shift_assignments[from_key]:
+                shift_assignments[from_key].remove(patch.employee_id)
+            if to_key is not None and patch.employee_id not in shift_assignments[to_key]:
+                shift_assignments[to_key].append(patch.employee_id)
+
+        return (
+            Schedule(
+                org_id=schedule.org_id,
+                facility_id=schedule.facility_id,
+                schedule_id=schedule.schedule_id,
+                schedule_lineage_id=schedule.schedule_lineage_id,
+                schedule_version=schedule.schedule_version,
+                shift_assignments=shift_assignments,
+                start_date=schedule.start_date,
+                end_date=schedule.end_date,
+                latest_optimization=schedule.latest_optimization,
+                latest_optimization_stats=schedule.latest_optimization_stats,
+                latest_optimization_financials=schedule.latest_optimization_financials,
+                updated_at=schedule.updated_at,
+            ),
+            conflicts,
+        )
+
+    async def save_optimization_run(self, run: OptimizationRun) -> None:
+        self._runs[run.run_id] = run
+
+    async def get_optimization_run(self, run_id: str) -> OptimizationRun | None:
+        return self._runs.get(run_id)
+
+    async def get_active_optimization_run(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
+        schedule_id: DomainPrimaryKeyType,
+    ) -> OptimizationRun | None:
+        for run in self._runs.values():
+            if (
+                run.org_id == org_id
+                and run.facility_id == facility_id
+                and run.schedule_id == schedule_id
+                and run.status in {"queued", "running"}
+            ):
+                return run
+        return None
+
+    async def commit(self) -> None:
+        return None
 
 
 class FakeFacilityRepo(IFacilityRepo):

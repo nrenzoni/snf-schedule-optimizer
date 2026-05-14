@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 // --- LEVEL 1: UNIT GROUP (Top Level) ---
 import React, { useMemo } from "react";
 import {
+  MoveValidationPreview,
   RoleKey,
   ROLES,
   SHIFT_TYPES,
@@ -18,7 +19,6 @@ import { format, isSameDay } from "date-fns";
 import GroupSummaryCell from "@/components/schedule-board/group-summary-cell";
 import RoleGroup from "@/components/schedule-board/role-group";
 import { calculateCellMetric } from "@/components/schedule-board/utils";
-import { SimulateActionResponse } from "@/hooks/proto-mocks";
 import { Shift, SimulatedUnit, ViewMode } from "@/types/scheduler";
 
 type NestedGroup = {
@@ -38,8 +38,10 @@ interface UnitGroupProps {
   onToggle: () => void;
   roleState: Record<string, boolean>;
   toggleRole: (key: string) => void;
-  simulatingSlotId: string | null;
-  simulationResult: SimulateActionResponse | null;
+  pendingSlotId: string | null;
+  validationPreview: MoveValidationPreview | null;
+  dragDisabled: boolean;
+  resolveTargetShiftId: (unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => string | null;
 }
 
 export default function UnitGroup({
@@ -53,8 +55,10 @@ export default function UnitGroup({
   onToggle,
   roleState,
   toggleRole,
-  simulatingSlotId,
-  simulationResult,
+  pendingSlotId,
+  validationPreview,
+  dragDisabled,
+  resolveTargetShiftId,
 }: UnitGroupProps) {
   // 1. Group Data inside this Unit
   const nestedGroups = useMemo(() => {
@@ -165,8 +169,11 @@ export default function UnitGroup({
                 groupingMode={groupingMode}
                 isExpanded={!!roleState[`${unit.id}-${group.key}`]}
                 onToggle={() => toggleRole(`${unit.id}-${group.key}`)}
-                simulatingSlotId={simulatingSlotId}
-                simulationResult={simulationResult}
+                pendingSlotId={pendingSlotId}
+                validationPreview={validationPreview}
+                dragDisabled={dragDisabled}
+                unitId={unit.id}
+                resolveTargetShiftId={resolveTargetShiftId}
               />
             ))}
           </motion.div>

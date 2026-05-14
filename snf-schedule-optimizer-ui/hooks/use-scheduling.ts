@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import {
   UICalendarDay,
-  UIDaySchedule,
   UINurse,
+  UIPatchConflict,
   UISchedulerSettings,
   UIShift,
+  UIStagedPatch,
 } from "@/types/scheduling";
 import {
   formatDateYYYMMDD,
@@ -16,26 +17,26 @@ import {
   TODAY,
   TODAY_STRING,
 } from "@/utils/scheduling-logic";
-import { schedulingClient } from "@/api/scheduling-client";
+import {
+  getScheduleStatus,
+  hasBlockingConflicts,
+  pollOptimizationRun,
+  startOptimizationRun,
+  streamOptimizationRun,
+} from "@/api/scheduling-client";
 import {
   defaultSchedulerSettings,
   useSchedulingStore,
 } from "@/store/schedulingStore";
 import { useShallow } from "zustand/react/shallow";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
+import { OptimizationSettings, StagedSchedulePatchSchema } from "@/gen/scheduling/v1/scheduling_pb";
+import { create } from "@bufbuild/protobuf";
 import {
-  DaySchedule as ProtoDaySchedule,
-  FinancialReport,
-  OptimizationSettings,
-  OptimizationStats,
-  OptimizationSummary,
-} from "@/gen/scheduling/v1/scheduling_pb";
-import {
-  protoDayToUI,
-  protoFinancialsToUI,
-  protoStatsToUI,
-  protoSummaryToUI,
+  protoOptimizationRunToUI,
+  protoPatchConflictToUI,
 } from "@/hooks/use-schedule-query";
+import { createClientUuid } from "@/lib/utils";
 
 interface UseSchedulingReturn {
   currentDate: Date;
@@ -45,6 +46,7 @@ interface UseSchedulingReturn {
   selectedNurse: UINurse | null;
   isModalVisible: boolean;
   isTwoWeekView: boolean;
+  isRunActive: boolean;
   toggleCalendarView: () => void;
   changeMonth: (offset: number) => void;
   openShiftDetails: (day: UICalendarDay) => void;
@@ -54,7 +56,8 @@ interface UseSchedulingReturn {
   closeModal: () => void;
   removeNurseFromShift: (nurse: UINurse) => Promise<void>;
   addNurseToShift: () => void;
-  triggerOptimization: () => Promise<void>;
+  triggerOptimization: (allowOverwrite?: boolean) => Promise<void>;
+  clearDraft: () => void;
   updateSchedulerSettings: (settings: UISchedulerSettings) => void;
   SHIFT_NAMES: typeof SHIFT_NAMES;
 }
@@ -74,26 +77,60 @@ const optimizationSettingsToProto = (settings: UISchedulerSettings): Optimizatio
   customPreferencePenalty: settings.customPreferencePenalty,
 });
 
+const toProtoPatch = (patch: UIStagedPatch) =>
+  create(StagedSchedulePatchSchema, {
+    patchId: patch.patchId,
+    employeeId: patch.employeeId,
+    employeeName: patch.employeeName ?? "",
+    fromShiftId: patch.fromShiftId ?? "",
+    toShiftId: patch.toShiftId ?? "",
+    pinned: patch.pinned,
+    warnings: patch.warnings,
+    totalCost: patch.totalCost,
+    causesOvertime: patch.causesOvertime,
+    createdAt: patch.createdAt ?? "",
+  });
+
+const isRunActive = (status: string | null | undefined) => status === "queued" || status === "running";
+
 export function useScheduling(): UseSchedulingReturn {
   const {
-    scheduleMap,
+    effectiveScheduleMap,
     isLoading,
-    setIsOptimizing,
     schedulerSettings,
     setSchedulerSettings,
     selectedFacility,
-    setOptimizeResult,
+    scheduleId,
+    scheduleVersion,
+    draftState,
+    activeRun,
+    setDraftConflicts,
+    setHasPendingValidation,
+    setActiveRun,
+    setRunProgress,
+    setHasNewerVersion,
+    clearDraft,
   } = useSchedulingStore(
     useShallow((state) => ({
-      scheduleMap: state.scheduleMap,
+      effectiveScheduleMap: state.effectiveScheduleMap,
       isLoading: state.isDataLoading,
-      setIsOptimizing: state.setIsOptimizing,
       schedulerSettings: state.schedulerSettings,
       setSchedulerSettings: state.setSchedulerSettings,
       selectedFacility: state.selectedFacility,
-      setOptimizeResult: state.setOptimizeResult,
+      scheduleId: state.scheduleId,
+      scheduleVersion: state.scheduleVersion,
+      draftState: state.draftState,
+      activeRun: state.activeRun,
+      setDraftConflicts: state.setDraftConflicts,
+      setHasPendingValidation: state.setHasPendingValidation,
+      setActiveRun: state.setActiveRun,
+      setRunProgress: state.setRunProgress,
+      setHasNewerVersion: state.setHasNewerVersion,
+      clearDraft: state.clearDraft,
     })),
   );
+
+  const runStreamAbortRef = useRef<AbortController | null>(null);
 
   const [selectedDateStr, setSelectedDateStr] = useQueryState("date");
   const [isTwoWeekView, setIsTwoWeekView] = useQueryState(
@@ -108,80 +145,151 @@ export function useScheduling(): UseSchedulingReturn {
   const [selectedNurseId, setSelectedNurseId] = useQueryState("nurseId");
 
   const currentViewAnchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
+  const runIsActive = isRunActive(activeRun?.status);
 
-  const triggerOptimization = useCallback(async () => {
-    if (!selectedFacility) {
-      toast.error("Optimization unavailable", {
-        description: "No facility context is loaded yet.",
-      });
-      return;
-    }
+  const syncRunProgress = useCallback(
+    async (runId: string) => {
+      runStreamAbortRef.current?.abort();
+      const abortController = new AbortController();
+      runStreamAbortRef.current = abortController;
 
-    const startDate = new Date(currentViewAnchorDate);
-    startDate.setDate(startDate.getDate() - 2);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 5);
-
-    try {
-      setIsOptimizing(true);
-      const response = await schedulingClient.optimizeSchedule({
-        orgId: selectedFacility.orgId,
-        facilityId: selectedFacility.facilityId,
-        startDate: formatDateYYYMMDD(startDate),
-        endDate: formatDateYYYMMDD(endDate),
-        settings: optimizationSettingsToProto(schedulerSettings),
-        persistResult: true,
-      });
-
-      if (!response.isSuccess) {
-        toast.error("Optimization failed", {
-          description: response.errorDetails || "The optimizer did not return a schedule.",
+      try {
+        await streamOptimizationRun(runId, (event) => {
+          if (abortController.signal.aborted) {
+            return;
+          }
+          const uiRun = protoOptimizationRunToUI(event.run);
+          if (!uiRun) {
+            return;
+          }
+          setRunProgress(uiRun);
+          if (!isRunActive(uiRun.status)) {
+            abortController.abort();
+          }
         });
-        setIsOptimizing(false);
+      } catch {
+        if (abortController.signal.aborted) {
+          return;
+        }
+
+        const latest = await pollOptimizationRun(runId).catch(() => null);
+        const uiRun = protoOptimizationRunToUI(latest?.run);
+        if (uiRun) {
+          setRunProgress(uiRun);
+        }
+      }
+    },
+    [setRunProgress],
+  );
+
+  const triggerOptimization = useCallback(
+    async (allowOverwrite = false) => {
+      if (!selectedFacility || !scheduleId) {
+        toast.error("Optimization unavailable", {
+          description: "No facility schedule is loaded yet.",
+        });
         return;
       }
 
-      const optimizedMap = new Map<string, UIDaySchedule>();
-      Object.entries(response.schedules).forEach(([date, day]) => {
-        optimizedMap.set(date, protoDayToUI(day as ProtoDaySchedule));
-      });
+      if (runIsActive) {
+        toast.info("Optimization already running", {
+          description: "Wait for the current run to finish before starting another.",
+        });
+        return;
+      }
 
-      const summary = protoSummaryToUI(response.summary as OptimizationSummary | undefined);
-      const stats = protoStatsToUI(response.stats as OptimizationStats | undefined);
-      const financials = protoFinancialsToUI(response.financials as FinancialReport | undefined);
+      const startDate = new Date(currentViewAnchorDate);
+      startDate.setDate(startDate.getDate() - 2);
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + 5);
 
-      setOptimizeResult(
-        optimizedMap,
-        selectedFacility,
-        response.scheduleId,
-        response.scheduleVersion,
-        summary,
-        stats,
-        financials,
-      );
+      try {
+        const status = await getScheduleStatus({
+          orgId: selectedFacility.orgId,
+          facilityId: selectedFacility.facilityId,
+          scheduleId,
+          currentScheduleVersion: scheduleVersion,
+        });
 
-      toast.success("Optimization completed", {
-        description: stats
-          ? `${Math.round(stats.executionTimeMs)} ms, $${Math.round(financials?.totalEnterpriseCost ?? 0).toLocaleString()} projected labor cost`
-          : "Schedule updated successfully.",
-      });
-    } catch (error) {
-      toast.error("Optimization failed", {
-        description: error instanceof Error ? error.message : "Unexpected optimizer error",
-      });
-      setIsOptimizing(false);
-    }
-  }, [
-    currentViewAnchorDate,
-    schedulerSettings,
-    selectedFacility,
-    setIsOptimizing,
-    setOptimizeResult,
-  ]);
+        setHasNewerVersion(status.hasNewerVersion, status.latestScheduleVersion);
+        if (status.hasNewerVersion && !allowOverwrite) {
+          toast.error("Newer schedule version available", {
+            description: "Refresh or explicitly continue with overwrite before optimizing.",
+          });
+          return;
+        }
+
+        const response = await startOptimizationRun({
+          orgId: selectedFacility.orgId,
+          facilityId: selectedFacility.facilityId,
+          scheduleId,
+          baseScheduleVersion: scheduleVersion,
+          startDate: formatDateYYYMMDD(startDate),
+          endDate: formatDateYYYMMDD(endDate),
+          settings: optimizationSettingsToProto(schedulerSettings),
+          persistResult: true,
+          clientRequestId: createClientUuid(),
+          stagedPatches: draftState.patches.map(toProtoPatch),
+          allowOverwrite,
+        });
+
+        if (response.versionConflict) {
+          setHasNewerVersion(true, response.latestScheduleVersion);
+        }
+
+        const conflicts: UIPatchConflict[] = response.conflicts.map(protoPatchConflictToUI);
+        if (hasBlockingConflicts(response.conflicts)) {
+          setDraftConflicts(conflicts);
+          toast.error("Optimization blocked by draft conflicts", {
+            description: "Resolve staged patch conflicts before retrying.",
+          });
+          return;
+        }
+
+        if (!response.accepted || !response.run) {
+          toast.error("Optimization failed to start", {
+            description: response.errorDetails || "The backend did not accept the run.",
+          });
+          return;
+        }
+
+        const uiRun = protoOptimizationRunToUI(response.run);
+        if (!uiRun) {
+          toast.error("Optimization failed to start", {
+            description: "The run response was incomplete.",
+          });
+          return;
+        }
+
+        setActiveRun(uiRun);
+        toast.success("Optimization started", {
+          description: "Run progress will continue across refreshes.",
+        });
+        void syncRunProgress(uiRun.runId);
+      } catch (error) {
+        toast.error("Optimization failed", {
+          description: error instanceof Error ? error.message : "Unexpected optimizer error",
+        });
+      }
+    },
+    [
+      currentViewAnchorDate,
+      draftState.patches,
+      runIsActive,
+      scheduleId,
+      scheduleVersion,
+      schedulerSettings,
+      selectedFacility,
+      setActiveRun,
+      setDraftConflicts,
+      setHasNewerVersion,
+      syncRunProgress,
+    ],
+  );
 
   const selectedDay = useMemo(() => {
     if (!selectedDateStr) return null;
-    const schedule = scheduleMap.get(selectedDateStr) || null;
+    const schedule = effectiveScheduleMap.get(selectedDateStr) || null;
     return {
       dateString: selectedDateStr,
       date: new Date(selectedDateStr),
@@ -194,7 +302,7 @@ export function useScheduling(): UseSchedulingReturn {
       isSelectable: true,
       dayHPRDPercentage: 0,
     } as UICalendarDay;
-  }, [selectedDateStr, scheduleMap]);
+  }, [selectedDateStr, effectiveScheduleMap]);
 
   const selectedShift = useMemo(() => {
     if (!selectedDay?.schedule || !selectedShiftName) return null;
@@ -237,7 +345,7 @@ export function useScheduling(): UseSchedulingReturn {
     for (let i = 0; i < totalDaysToRender; i++) {
       const dayDate = new Date(iterationDay);
       const dayDateString = formatDateYYYMMDD(dayDate);
-      const schedule = scheduleMap.get(dayDateString) || null;
+      const schedule = effectiveScheduleMap.get(dayDateString) || null;
       const dayDateMs = dayDate.getTime();
 
       let dayHPRDPercentage = 0;
@@ -270,7 +378,7 @@ export function useScheduling(): UseSchedulingReturn {
       iterationDay.setDate(iterationDay.getDate() + 1);
     }
     return days;
-  }, [currentViewAnchorDate, scheduleMap, isTwoWeekView, isLoading]);
+  }, [currentViewAnchorDate, effectiveScheduleMap, isTwoWeekView, isLoading]);
 
   const closeModal = useCallback(() => {
     setSelectedDateStr(null);
@@ -325,28 +433,11 @@ export function useScheduling(): UseSchedulingReturn {
     [setSelectedNurseId],
   );
 
-  const removeNurseFromShift = useCallback(
-    async (nurse: UINurse): Promise<void> => {
-      if (!selectedDay || !selectedShift) return;
-
-      const request = {
-        shiftDate: selectedDay.dateString,
-        shiftName: selectedShift.shiftName,
-        nurseId: nurse.id,
-      };
-
-      try {
-        const response = await schedulingClient.removeNurseFromShift(request);
-
-        if (!response.success) {
-          console.error("Failed to remove nurse:", response.message);
-        }
-      } catch (error) {
-        console.error("RPC Error during nurse removal:", error);
-      }
-    },
-    [selectedDay, selectedShift],
-  );
+  const removeNurseFromShift = useCallback(async (): Promise<void> => {
+    toast.info("Shift edits now use drag and drop staging", {
+      description: "Use the schedule board to stage and validate pinned changes.",
+    });
+  }, []);
 
   const addNurseToShift = useCallback((): void => {}, []);
 
@@ -362,6 +453,18 @@ export function useScheduling(): UseSchedulingReturn {
   );
 
   useEffect(() => {
+    const runId = activeRun?.runId;
+    if (!runId || !runIsActive) {
+      runStreamAbortRef.current?.abort();
+      return;
+    }
+    void syncRunProgress(runId);
+    return () => {
+      runStreamAbortRef.current?.abort();
+    };
+  }, [activeRun?.runId, runIsActive, syncRunProgress]);
+
+  useEffect(() => {
     const isDaySelected = !!selectedDay;
     document.body.style.overflow = isDaySelected ? "hidden" : "";
     return () => {
@@ -373,10 +476,8 @@ export function useScheduling(): UseSchedulingReturn {
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        if (selectedDay) {
-          closeModal();
-        }
+      if (event.key === "Escape" && selectedDay) {
+        closeModal();
       }
     };
 
@@ -385,6 +486,15 @@ export function useScheduling(): UseSchedulingReturn {
       window.removeEventListener("keydown", handleEscapeKey);
     };
   }, [closeModal, selectedDay]);
+
+  useEffect(() => {
+    if (!selectedFacility || !scheduleId) {
+      return;
+    }
+    if (draftState.hasPendingValidation) {
+      setHasPendingValidation(false);
+    }
+  }, [draftState.hasPendingValidation, scheduleId, selectedFacility, setHasPendingValidation]);
 
   return {
     selectedDay,
@@ -400,10 +510,12 @@ export function useScheduling(): UseSchedulingReturn {
     currentDate,
     calendarDays,
     isTwoWeekView,
+    isRunActive: runIsActive,
     removeNurseFromShift,
     addNurseToShift,
     toggleCalendarView,
     triggerOptimization,
+    clearDraft,
     updateSchedulerSettings,
     SHIFT_NAMES,
   };

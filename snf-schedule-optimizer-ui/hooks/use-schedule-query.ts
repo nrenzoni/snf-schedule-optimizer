@@ -5,8 +5,12 @@ import {
   ScheduleMap,
   UIDaySchedule,
   UIFinancials,
+  UIOptimizationRun,
   UIOptimizationStats,
   UIOptimizationSummary,
+  UIPatchConflict,
+  UIStagedPatch,
+  UIValidationLevel,
   UINurse,
   UIShift,
 } from "@/types/scheduling";
@@ -15,10 +19,16 @@ import {
   DaySchedule as ProtoDaySchedule,
   FinancialReport,
   Nurse as ProtoNurse,
+  OptimizationRun,
+  OptimizationRunStage,
+  OptimizationRunStatus,
   OptimizationStats,
   OptimizationSummary,
   OrgFacility,
+  PatchConflict,
+  StagedSchedulePatch,
   Shift as ProtoShift,
+  ValidationLevel,
 } from "@/gen/scheduling/v1/scheduling_pb";
 import { configuredBaseUrl, schedulingClient } from "@/api/scheduling-client";
 import { useEffect } from "react";
@@ -119,6 +129,106 @@ export const protoStatsToUI = (stats?: OptimizationStats): UIOptimizationStats |
   };
 };
 
+const protoValidationLevelToUI = (
+  level: ValidationLevel | undefined,
+): UIValidationLevel => {
+  switch (level) {
+    case ValidationLevel.VALIDATION_WARNING:
+      return "warning";
+    case ValidationLevel.VALIDATION_CRITICAL:
+      return "critical";
+    case ValidationLevel.VALIDATION_STALE:
+      return "stale";
+    case ValidationLevel.VALIDATION_OK:
+    default:
+      return "ok";
+  }
+};
+
+export const protoPatchConflictToUI = (conflict: PatchConflict): UIPatchConflict => ({
+  patchId: conflict.patchId,
+  employeeId: conflict.employeeId,
+  employeeName: conflict.employeeName || null,
+  fromShiftId: conflict.fromShiftId || null,
+  toShiftId: conflict.toShiftId || null,
+  reason: conflict.reason,
+  latestShiftId: conflict.latestShiftId || null,
+});
+
+export const protoStagedPatchToUI = (patch: StagedSchedulePatch): UIStagedPatch => ({
+  patchId: patch.patchId,
+  employeeId: patch.employeeId,
+  employeeName: patch.employeeName || null,
+  fromShiftId: patch.fromShiftId || null,
+  toShiftId: patch.toShiftId || null,
+  pinned: patch.pinned,
+  warnings: patch.warnings,
+  validationLevel: protoValidationLevelToUI(patch.validationLevel),
+  causesOvertime: patch.causesOvertime,
+  totalCost: patch.totalCost,
+  createdAt: patch.createdAt || null,
+});
+
+const protoRunStatusToUI = (status: OptimizationRunStatus): UIOptimizationRun["status"] => {
+  switch (status) {
+    case OptimizationRunStatus.QUEUED:
+      return "queued";
+    case OptimizationRunStatus.COMPLETED:
+      return "completed";
+    case OptimizationRunStatus.FAILED:
+      return "failed";
+    case OptimizationRunStatus.RUNNING:
+    default:
+      return "running";
+  }
+};
+
+const protoRunStageToUI = (stage: OptimizationRunStage): UIOptimizationRun["stage"] => {
+  switch (stage) {
+    case OptimizationRunStage.QUEUED:
+      return "queued";
+    case OptimizationRunStage.REBASING:
+      return "rebase";
+    case OptimizationRunStage.SOLVING:
+      return "solving";
+    case OptimizationRunStage.ANALYZING:
+      return "analyzing";
+    case OptimizationRunStage.PERSISTING:
+      return "persisting";
+    case OptimizationRunStage.COMPLETED:
+      return "completed";
+    case OptimizationRunStage.FAILED:
+      return "failed";
+    default:
+      return "queued";
+  }
+};
+
+export const protoOptimizationRunToUI = (
+  run?: OptimizationRun,
+): UIOptimizationRun | null => {
+  if (!run) {
+    return null;
+  }
+
+  return {
+    runId: run.runId,
+    scheduleId: run.scheduleId,
+    baseScheduleVersion: run.baseScheduleVersion,
+    resultScheduleVersion: run.resultScheduleVersion || null,
+    status: protoRunStatusToUI(run.status),
+    stage: protoRunStageToUI(run.stage),
+    progressPercent: run.progressPercent,
+    statusMessage: run.statusMessage,
+    startedAt: run.startedAt || null,
+    completedAt: run.completedAt || null,
+    errorDetails: run.errorDetails || null,
+    financials: protoFinancialsToUI(run.financials),
+    stats: protoStatsToUI(run.stats),
+    summary: protoSummaryToUI(run.summary),
+  };
+};
+
 interface ScheduleQueryKey {
   startDate: string;
   endDate: string;
@@ -133,6 +243,10 @@ async function fetchScheduleData({
   scheduleId: string;
   scheduleVersion: number;
   latestOptimization: UIOptimizationSummary | null;
+  optimizationStats: UIOptimizationStats | null;
+  optimizationFinancials: UIFinancials | null;
+  activeRun: UIOptimizationRun | null;
+  updatedAt: string | null;
 }> {
   if (!configuredBaseUrl) {
     throw new ScheduleQueryError(
@@ -173,15 +287,18 @@ async function fetchScheduleData({
     scheduleId: response.scheduleId,
     scheduleVersion: response.scheduleVersion,
     latestOptimization: protoSummaryToUI(response.latestOptimization),
+    optimizationStats: protoStatsToUI(response.latestOptimizationStats),
+    optimizationFinancials: protoFinancialsToUI(response.latestOptimizationFinancials),
+    activeRun: protoOptimizationRunToUI(response.activeOptimizationRun),
+    updatedAt: response.updatedAt || null,
   };
 }
 
 export default function useScheduleQuery(anchorDate: Date) {
-  const { replaceScheduleData, setScheduleData, setIsOptimizing } = useSchedulingStore(
+  const { replaceScheduleData, setScheduleData } = useSchedulingStore(
     useShallow((state) => ({
       replaceScheduleData: state.replaceScheduleData,
       setScheduleData: state.setScheduleData,
-      setIsOptimizing: state.setIsOptimizing,
     })),
   );
 
@@ -202,18 +319,18 @@ export default function useScheduleQuery(anchorDate: Date) {
   });
 
   useEffect(() => {
-    if (!query.isFetching) {
-      setIsOptimizing(false);
-    }
-
     if (query.status === "success") {
-      replaceScheduleData(
-        query.data.scheduleMap,
-        query.data.selectedFacility,
-        query.data.scheduleId,
-        query.data.scheduleVersion,
-        query.data.latestOptimization,
-      );
+      replaceScheduleData({
+        map: query.data.scheduleMap,
+        facility: query.data.selectedFacility,
+        scheduleId: query.data.scheduleId,
+        scheduleVersion: query.data.scheduleVersion,
+        latestOptimization: query.data.latestOptimization,
+        optimizationStats: query.data.optimizationStats,
+        optimizationFinancials: query.data.optimizationFinancials,
+        activeRun: query.data.activeRun,
+        updatedAt: query.data.updatedAt,
+      });
     } else if (query.status === "error") {
       setScheduleData(new Map(), false, query.error as Error, null);
     } else if (query.status === "pending") {
@@ -225,7 +342,6 @@ export default function useScheduleQuery(anchorDate: Date) {
     query.data,
     query.error,
     replaceScheduleData,
-    setIsOptimizing,
     setScheduleData,
   ]);
 
