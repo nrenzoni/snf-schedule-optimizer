@@ -9,6 +9,7 @@ from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
     EmployeeIdType,
+    EmployeeStateSnapshot,
     FacilityConfig,
     FacilityIdType,
     HprdEnforcedRole,
@@ -238,6 +239,22 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
 
     def get_optimization_settings(self) -> OptimizationSettings:
         return self._optimization_settings
+
+    async def get_employee_states(
+        self,
+    ) -> dict[DomainPrimaryKeyType, EmployeeStateSnapshot]:
+        states: dict[DomainPrimaryKeyType, EmployeeStateSnapshot] = {}
+        for emp in self._employees:
+            hours = self._accumulated_hours.get(emp.employee_id, 0.0)
+            states[emp.employee_id] = EmployeeStateSnapshot(
+                employee_id=emp.employee_id,
+                worked_hours_day=0.0,
+                worked_hours_week=hours,
+                worked_hours_pay_period=hours,
+                consecutive_days_worked=0,
+                last_shift_end=None,
+            )
+        return states
 
     @staticmethod
     def from_snapshot_payload(

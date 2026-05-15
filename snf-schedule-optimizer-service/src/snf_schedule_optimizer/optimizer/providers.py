@@ -14,6 +14,7 @@ from snf_schedule_optimizer.ml_output_repo import IMLModelOutputsRepo
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
+    EmployeeStateSnapshot,
     FacilityConfig,
     FacilityIdType,
     MlModelOutputs,
@@ -263,6 +264,23 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
 
     def get_optimization_settings(self) -> OptimizationSettings:
         return self._optimization_settings
+
+    async def get_employee_states(
+        self,
+    ) -> dict[DomainPrimaryKeyType, EmployeeStateSnapshot]:
+        employees = await self.get_all_employees()
+        states: dict[DomainPrimaryKeyType, EmployeeStateSnapshot] = {}
+        for emp in employees:
+            hours = await self.get_accumulated_hours_for_pay_period(emp.employee_id)
+            states[emp.employee_id] = EmployeeStateSnapshot(
+                employee_id=emp.employee_id,
+                worked_hours_day=0.0,
+                worked_hours_week=hours,
+                worked_hours_pay_period=hours,
+                consecutive_days_worked=0,
+                last_shift_end=None,
+            )
+        return states
 
 
 class ScenarioDataProviderFactory:

@@ -1,4 +1,5 @@
 import pulp
+import whenever
 from pulp import LpProblem
 
 from snf_schedule_optimizer.models import DomainPrimaryKeyType
@@ -139,8 +140,13 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
             data_provider.get_shifts_for_facility(facility_id),
             key=lambda shift: shift.shift_start_dt,
         )
-        min_rest_hours = data_provider.get_optimization_settings().min_rest_period
+        if not shifts:
+            return None
 
+        min_rest_hours = data_provider.get_optimization_settings().min_rest_period
+        employee_states = await data_provider.get_employee_states()
+
+        # 1. Rest constraints between decision-horizon shifts (existing logic)
         for i in range(len(shifts) - 1):
             for j in range(i + 1, len(shifts)):
                 s1, s2 = shifts[i], shifts[j]
@@ -166,6 +172,62 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
                     problem += (
                         v1 + v2 <= 1,
                         f"Fatigue_{facility_id}_{emp_id}_{s1.shift_id}_{s2.shift_id}",
+                    )
+
+        # 2. History-aware rest: block early decision shifts if employee worked recently
+        if shifts:
+            first_shift_start = shifts[0].shift_start_dt
+            for emp_id, state in employee_states.items():
+                if state.last_shift_end is None:
+                    continue
+                try:
+                    last_end_dt = whenever.ZonedDateTime.parse_common_iso(state.last_shift_end)
+                except Exception:
+                    continue
+                rest_gap = (first_shift_start - last_end_dt).in_hours()
+                if rest_gap >= min_rest_hours:
+                    continue
+
+                for shift in shifts:
+                    gap = (shift.shift_start_dt - last_end_dt).in_hours()
+                    if gap >= min_rest_hours:
+                        continue
+                    v = lp_holder.get_variable(shift, emp_id)
+                    if v is None:
+                        continue
+                    problem += (
+                        v == 0,
+                        f"HistoryRest_{facility_id}_{emp_id}_{shift.shift_id}",
+                    )
+
+        return None
+
+
+class ConsecutiveDaysLimitConstraintStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        config = data_provider.get_facility_config(facility_id)
+        max_days = config.max_consecutive_work_days
+        if max_days <= 0:
+            return None
+
+        employee_states = await data_provider.get_employee_states()
+        shifts = data_provider.get_shifts_for_facility(facility_id)
+
+        for emp_id, state in employee_states.items():
+            if state.consecutive_days_worked >= max_days:
+                for shift in shifts:
+                    v = lp_holder.get_variable(shift, emp_id)
+                    if v is None:
+                        continue
+                    problem += (
+                        v == 0,
+                        f"ConsecDaysCap_{facility_id}_{emp_id}_{shift.shift_id}",
                     )
 
         return None

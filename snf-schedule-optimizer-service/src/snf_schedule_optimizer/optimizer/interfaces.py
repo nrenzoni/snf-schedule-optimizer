@@ -11,6 +11,7 @@ from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
     EmployeeIdType,
+    EmployeeStateSnapshot,
     FacilityConfig,
     FacilityIdType,
     MlModelOutputs,
@@ -262,4 +263,11 @@ class IScenarioDataProvider(abc.ABC):
     @abc.abstractmethod
     def get_optimization_settings(self) -> OptimizationSettings:
         """Returns run-scoped settings for the current optimization."""
+        pass
+
+    @abc.abstractmethod
+    async def get_employee_states(
+        self,
+    ) -> dict[DomainPrimaryKeyType, EmployeeStateSnapshot]:
+        """Returns pre-computed workload state for all employees."""
         pass
