@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ARRAY, Float, String
+from sqlalchemy import ARRAY, BigInteger, Float, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from snf_schedule_optimizer.models import DomainPrimaryKeyType, NurseProfile
@@ -36,6 +36,10 @@ class NurseProfileModel(SQLABase):
         lazy="selectin",
     )
 
+    primary_unit_id: Mapped[int | None] = mapped_column(
+        BigInteger, nullable=True, default=None
+    )
+
     # One-to-many relationship with preferences
     preferences: Mapped[list["StaffShiftPreferenceModel"]] = relationship(
         # "StaffShiftPreferenceModel",
@@ -45,14 +49,12 @@ class NurseProfileModel(SQLABase):
     )
 
     def to_domain(self) -> NurseProfile:
-        """
-        Converts the database model to the NurseProfile domain entity.
-        """
         return NurseProfile(
             employee_id=self.employee_id,
             available_hours_weekly=self.available_hours_weekly,
             skills=self.skills,
             shift_custom_preferences=[p.to_domain() for p in self.preferences],
+            primary_unit_id=self.primary_unit_id,
         )
 
     @staticmethod
@@ -74,4 +76,5 @@ class NurseProfileModel(SQLABase):
             available_hours_weekly=domain.available_hours_weekly,
             skills=domain.skills,
             preferences=custom_preferences_,
+            primary_unit_id=domain.primary_unit_id,
         )

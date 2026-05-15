@@ -269,6 +269,11 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
             facility_id=None,
         )
 
+    def get_facility_context(
+        self, facility_id: DomainPrimaryKeyType
+    ) -> FacilityScenarioContext:
+        return self._facility_contexts[facility_id]
+
 
 class ScenarioDataProviderFactory:
     """

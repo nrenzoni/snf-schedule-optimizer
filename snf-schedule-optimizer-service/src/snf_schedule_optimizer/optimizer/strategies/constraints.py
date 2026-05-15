@@ -1,8 +1,14 @@
 import pulp
 import whenever
 from pulp import LpProblem
+from typing import Any, cast
 
-from snf_schedule_optimizer.models import DomainPrimaryKeyType, NurseProfile
+from snf_schedule_optimizer.models import (
+    DomainPrimaryKeyType,
+    EmploymentClassification,
+    HprdEnforcedRole,
+    NurseProfile,
+)
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IFacilityScopedConstraintStrategy,
@@ -425,3 +431,227 @@ class LicensedNursePerShiftConstraintStrategy(IFacilityScopedConstraintStrategy)
                 f"Licensed247_{facility_id}_{shift.shift_id}",
             )
         return None
+
+
+class UnitMinimumStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        context = data_provider.get_facility_context(facility_id)
+        unit_minimums = context.unit_minimums
+        if not unit_minimums:
+            return None
+
+        shifts = data_provider.get_shifts_for_facility(facility_id)
+        for shift in shifts:
+            for unit_id, role_to_minimum in unit_minimums.items():
+                for role, minimum_count in role_to_minimum.items():
+                    if minimum_count <= 0:
+                        continue
+                    eligible_vars = []
+                    for nurse in await data_provider.get_nurses_for_shift(shift):
+                        if nurse.primary_unit_id != unit_id:
+                            continue
+                        employee = await data_provider.get_employee_by_id(
+                            nurse.employee_id
+                        )
+                        if not employee or employee.job_title != role.value:
+                            continue
+                        lp_var = lp_holder.get_variable(shift, nurse.employee_id)
+                        if lp_var is not None:
+                            eligible_vars.append(lp_var)
+                    if not eligible_vars:
+                        return InfeasibilityReasonResult(
+                            reason=InfeasibilityReason.NO_AVAILABLE_NURSES,
+                            details=f"No eligible nurse for role {role.value} in unit {unit_id} shift {shift.shift_id} at facility {facility_id}",
+                        )
+                    problem += (
+                        pulp.lpSum(eligible_vars) >= minimum_count,
+                        build_lp_variable_name(
+                            "UnitMin",
+                            facility_id,
+                            unit_id,
+                            shift.shift_id,
+                            role.value,
+                        ),
+                    )
+        return None
+
+
+class EmploymentClassificationConstraintStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        shifts = data_provider.get_shifts_for_facility(facility_id)
+        config = data_provider.get_facility_config(facility_id)
+
+        nurses_by_id: dict[DomainPrimaryKeyType, tuple[NurseProfile, EmploymentClassification]] = {}
+        for shift in shifts:
+            for nurse in await data_provider.get_nurses_for_shift(shift):
+                if nurse.employee_id not in nurses_by_id:
+                    employee = await data_provider.get_employee_by_id(
+                        nurse.employee_id
+                    )
+                    if employee:
+                        nurses_by_id[nurse.employee_id] = (nurse, employee.classification)
+
+        for emp_id, (nurse, classification) in nurses_by_id.items():
+            max_hours = nurse.available_hours_weekly
+            if classification == EmploymentClassification.PART_TIME:
+                max_hours *= config.part_time_hour_fraction
+
+            assigned_hours = []
+            for shift in shifts:
+                lp_var = lp_holder.get_variable(shift, emp_id)
+                if lp_var is not None:
+                    assigned_hours.append(lp_var * shift.duration_hours)
+
+            if assigned_hours:
+                problem += (
+                    pulp.lpSum(assigned_hours) <= max_hours,
+                    build_lp_variable_name(
+                        "EmpClassCap", facility_id, emp_id, classification.value
+                    ),
+                )
+        return None
+
+
+class PdpmCategoryConstraintStrategy(IFacilityScopedConstraintStrategy):
+    def __init__(
+        self,
+        resident_acuity_retriever: Any = None,
+    ):
+        self._resident_acuity_retriever = resident_acuity_retriever
+
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        config = data_provider.get_facility_config(facility_id)
+        pdpm_ratios = config.pdpm_category_ratios
+        if not pdpm_ratios:
+            return None
+
+        shifts = data_provider.get_shifts_for_facility(facility_id)
+
+        category_resident_counts = self._compute_pdpm_category_counts(
+            data_provider, facility_id
+        )
+
+        for shift in shifts:
+            for category, role_to_ratio in pdpm_ratios.items():
+                resident_count = category_resident_counts.get(category, 0)
+                if resident_count == 0:
+                    continue
+                for role, ratio in role_to_ratio.items():
+                    required_nurses = _ceil_nonzero(resident_count * ratio)
+                    if required_nurses <= 0:
+                        continue
+                    eligible_vars = []
+                    for nurse in await data_provider.get_nurses_for_shift(shift):
+                        employee = await data_provider.get_employee_by_id(
+                            nurse.employee_id
+                        )
+                        if not employee or employee.job_title != role.value:
+                            continue
+                        lp_var = lp_holder.get_variable(shift, nurse.employee_id)
+                        if lp_var is not None:
+                            eligible_vars.append(lp_var)
+                    if not eligible_vars:
+                        return InfeasibilityReasonResult(
+                            reason=InfeasibilityReason.NO_AVAILABLE_NURSES,
+                            details=f"No eligible nurse for PDPM category {category} role {role.value} in shift {shift.shift_id} at facility {facility_id}",
+                        )
+                    problem += (
+                        pulp.lpSum(eligible_vars) >= required_nurses,
+                        build_lp_variable_name(
+                            "PdpmCat",
+                            facility_id,
+                            shift.shift_id,
+                            category,
+                            role.value,
+                        ),
+                    )
+        return None
+
+    def _compute_pdpm_category_counts(
+        self,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> dict[str, int]:
+        if self._resident_acuity_retriever is not None:
+            try:
+                func = getattr(
+                    self._resident_acuity_retriever,
+                    "get_pdpm_category_counts",
+                    None,
+                )
+                if func is not None:
+                    return cast(dict[str, int], func(facility_id))
+            except Exception:
+                pass
+        return {}
+
+
+class FloatLimitConstraintStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        ctx = data_provider.get_facility_context(facility_id)
+        if ctx.hr_config is None or ctx.hr_config.max_floating_assignments_per_month is None:
+            return None
+
+        max_floats = ctx.hr_config.max_floating_assignments_per_month
+        if max_floats <= 0:
+            return None
+
+        shifts = data_provider.get_shifts_for_facility(facility_id)
+        if not shifts:
+            return None
+
+        nurses_by_id: dict[DomainPrimaryKeyType, NurseProfile] = {}
+        for shift in shifts:
+            for nurse in await data_provider.get_nurses_for_shift(shift):
+                nurses_by_id[nurse.employee_id] = nurse
+
+        for emp_id, nurse in nurses_by_id.items():
+            if nurse.primary_unit_id is None:
+                continue
+            float_vars = []
+            for shift in shifts:
+                if shift.unit_id is None or shift.unit_id == nurse.primary_unit_id:
+                    continue
+                v = lp_holder.get_variable(shift, emp_id)
+                if v is not None:
+                    float_vars.append(v)
+            if float_vars and max_floats > 0:
+                problem += (
+                    pulp.lpSum(float_vars) <= max_floats,
+                    build_lp_variable_name(
+                        "FloatLimit", facility_id, emp_id
+                    ),
+                )
+        return None
+
+
+def _ceil_nonzero(value: float) -> int:
+    if value <= 0:
+        return 0
+    import math
+
+    return max(1, math.ceil(value))

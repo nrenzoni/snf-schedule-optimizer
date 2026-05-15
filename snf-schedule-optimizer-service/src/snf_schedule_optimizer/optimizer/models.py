@@ -1,7 +1,7 @@
 import enum
 from dataclasses import dataclass
 
-from snf_schedule_optimizer.models import Schedule
+from snf_schedule_optimizer.models import EmployeeIdType, Schedule
 
 
 class InfeasibilityReason(enum.StrEnum):
@@ -60,3 +60,5 @@ class ScheduleOptimizationResults:
     constraint_slacks: dict[str, float] | None
     infeasibility_reason: InfeasibilityReasonResult | None
     statistics: ScheduleOptimizationStats | None = None
+    weekend_assignment_distribution: dict[EmployeeIdType, int] | None = None
+    fairness_score: float | None = None

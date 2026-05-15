@@ -8,6 +8,7 @@ from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     EmployeeIdType,
     FacilityConfig,
+    FacilityHrConfig,
     HprdEnforcedRole,
     MinMandates,
     OptimizationSettings,
@@ -27,6 +28,10 @@ class FacilityScenarioContext:
     optimization_settings: OptimizationSettings = field(
         default_factory=OptimizationSettings
     )
+    unit_minimums: dict[DomainPrimaryKeyType, dict[HprdEnforcedRole, float]] = field(
+        default_factory=dict
+    )
+    hr_config: FacilityHrConfig | None = None
 
     default_hprd_rn: float = 0.5
     default_hprd_cna: float = 2.4

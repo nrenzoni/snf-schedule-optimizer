@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, NamedTuple
 from uuid import UUID
 
@@ -9,6 +9,8 @@ import whenever
 
 from snf_schedule_optimizer.models import (
     DifferentialType,
+    EmploymentClassification,
+    HprdEnforcedRole,
     OvertimeTriggerType,
     PreferenceType,
     PunchType,
@@ -39,6 +41,7 @@ class ResidentAcuity:
     pt_score_gg: int  # e.g., Functional status score (Section GG)
     nta_score: int  # Non-Therapy Ancillary comorbidity score
     clinical_category: str  # e.g., 'Acute Infection', 'Major Joint'
+    pdpm_clinical_category: str | None = None  # e.g. "Extensive Services", "Special Care High"
 
 
 @dataclass(frozen=True)
@@ -76,6 +79,7 @@ class Employee:
     name: str
     job_title: str
     hire_date: whenever.Date
+    classification: EmploymentClassification = EmploymentClassification.FULL_TIME
     # certifications: Optional[List[str]]  # e.g., 'BLS', 'ACLS'  # moved to EmployeeCertification
 
 
@@ -178,6 +182,11 @@ class FacilityConfig:
     agency_ot_multiplier: float = 1.5
     max_night_shifts_per_month: int | None = None
     max_weekend_shifts_per_month: int | None = None
+    part_time_hour_fraction: float = 0.75
+    pdpm_category_ratios: dict[str, dict[HprdEnforcedRole, float]] = field(
+        default_factory=dict
+    )
+    holiday_dates: list[whenever.Date] = field(default_factory=list)
 
 
 type DomainPrimaryKeyType = int
@@ -315,6 +324,8 @@ class PreferenceWeights:
     team_consistency_penalty: float = 300.0
     high_risk_shift_penalty: float = 2000.0
     custom_preference_penalty: float = 1500.0
+    weekend_fairness_penalty: float = 10.0
+    holiday_fairness_penalty: float = 20.0
 
 
 @dataclass(frozen=True)

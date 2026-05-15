@@ -267,6 +267,11 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
             )
         return states
 
+    def get_facility_context(
+        self, facility_id: DomainPrimaryKeyType
+    ) -> FacilityScenarioContext:
+        return self._facility_contexts[facility_id]
+
     @staticmethod
     def from_snapshot_payload(
         payload: dict[str, object],

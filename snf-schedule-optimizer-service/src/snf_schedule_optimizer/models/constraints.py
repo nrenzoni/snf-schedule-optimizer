@@ -98,6 +98,12 @@ class OvertimeTriggerType(StrEnum):
     CONSECUTIVE_DAYS = "CONSECUTIVE_DAYS"
 
 
+class EmploymentClassification(StrEnum):
+    FULL_TIME = "FT"
+    PART_TIME = "PT"
+    PRN = "PRN"
+
+
 class DifferentialRuleType(StrEnum):
     WEEKEND = "WEEKEND"
     NIGHT_SHIFT = "NIGHT_SHIFT"

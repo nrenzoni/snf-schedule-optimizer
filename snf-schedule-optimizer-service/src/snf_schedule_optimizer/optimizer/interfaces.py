@@ -271,3 +271,9 @@ class IScenarioDataProvider(abc.ABC):
     ) -> dict[DomainPrimaryKeyType, EmployeeStateSnapshot]:
         """Returns pre-computed workload state for all employees."""
         pass
+
+    @abc.abstractmethod
+    def get_facility_context(
+        self, facility_id: DomainPrimaryKeyType
+    ) -> FacilityScenarioContext:
+        pass

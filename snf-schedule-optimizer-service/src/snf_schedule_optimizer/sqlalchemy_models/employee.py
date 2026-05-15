@@ -4,7 +4,7 @@ import whenever
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from ..models import DomainPrimaryKeyType, Employee
+from ..models import DomainPrimaryKeyType, Employee, EmploymentClassification
 from ..utils.sqlalchemy_types.whenever_types import DateType
 from .base import SQLABase
 
@@ -27,19 +27,21 @@ class EmployeeModel(SQLABase):
 
     hire_date: Mapped[whenever.Date] = mapped_column(DateType, nullable=False)
 
+    classification: Mapped[str] = mapped_column(
+        String(10), nullable=False, default="FT"
+    )
+
     certifications: Mapped[list["EmployeeCertificationModel"]] = relationship(
         back_populates="employee", cascade="all, delete-orphan"
     )
 
     def to_domain(self) -> Employee:
-        """
-        Converts the database model to the domain Employee entity.
-        """
         return Employee(
             employee_id=self.id,
             name=str(self.name),
             job_title=str(self.job_title),
             hire_date=self.hire_date,
+            classification=EmploymentClassification(self.classification),
         )
 
     @staticmethod
@@ -53,4 +55,5 @@ class EmployeeModel(SQLABase):
             name=domain.name,
             job_title=domain.job_title,
             hire_date=domain.hire_date,
+            classification=domain.classification.value,
         )

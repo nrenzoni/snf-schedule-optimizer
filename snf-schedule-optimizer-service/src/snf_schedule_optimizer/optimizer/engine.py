@@ -1,8 +1,10 @@
 import asyncio
 import logging
+import math
 import time
 
 import pulp
+import whenever
 from pulp import LpMinimize, LpProblem
 
 from snf_schedule_optimizer.models import DomainPrimaryKeyType, PreferenceWeights
@@ -153,6 +155,12 @@ class NurseShiftScheduleOptimizer:
         )
 
         org_id = data_provider.get_org_id()
+        holiday_dates: dict[int, set[whenever.Date]] = {}
+        for fid in data_provider.get_facility_ids():
+            config = data_provider.get_facility_config(fid)
+            if config.holiday_dates:
+                holiday_dates[fid] = set(config.holiday_dates)
+
         logger.info(
             "CBC solver started V=%d C=%d (timeout=%ds)",
             problem.numVariables(),
@@ -164,6 +172,7 @@ class NurseShiftScheduleOptimizer:
             org_id,
             problem,
             lp_vars,
+            holiday_dates,
         )
 
     def _early_infeasibility(
@@ -189,6 +198,7 @@ class NurseShiftScheduleOptimizer:
         org_id: DomainPrimaryKeyType,
         problem: pulp.LpProblem,
         lp_holder: LpNurseShiftVariableHolder,
+        holiday_dates: dict[int, set[whenever.Date]],
     ) -> ScheduleOptimizationResults:
         solver_result = self.solver_adapter.solve(problem)
 
@@ -219,25 +229,43 @@ class NurseShiftScheduleOptimizer:
                 statistics=stats,
             )
 
-        # in the future, output sum of penalization per different constraint groups
-        # e.g., sum of penalties for preference violations, overtime,
-        # Turnover Risk Nurses (1st need this in ML feed to optimization)
-        # * output how often schedule assigned high-risk nurses to undesirable shifts
-        # * how often did we violate preferences for high-risk nurses
-        # how often schedule respected pairing preferences (1st need to collect this as input from nurses)
-
         constraint_slacks = {
             name: constraint.slack
             for name, constraint in problem.constraints.items()
             if constraint.slack is not None
         }
 
-        # Use the extracted component
         schedule = self._extractor.extract(
             lp_holder,
             org_id,
             None,
         )
+
+        weekend_distribution: dict[int, int] = {}
+        all_values: list[int] = []
+        for key, variable in lp_holder.get_all_assignments().items():
+            if variable.varValue and variable.varValue > 0.5:
+                shift = key.shift
+                emp_id = key.employee_id
+                if shift.day_of_week == whenever.Weekday.SATURDAY or shift.day_of_week == whenever.Weekday.SUNDAY:
+                    weekend_distribution[emp_id] = weekend_distribution.get(emp_id, 0) + 1
+                holidays = holiday_dates.get(shift.facility_id, set())
+                if shift.shift_start_dt.date() in holidays:
+                    weekend_distribution[emp_id] = weekend_distribution.get(emp_id, 0) + 1
+
+        for emp_id in lp_holder.get_all_employees():
+            if emp_id not in weekend_distribution:
+                weekend_distribution[emp_id] = 0
+
+        all_counts = list(weekend_distribution.values())
+        fairness_score = 100.0
+        if len(all_counts) > 1:
+            avg = sum(all_counts) / len(all_counts)
+            variance = sum((c - avg) ** 2 for c in all_counts) / len(all_counts)
+            std_dev = math.sqrt(variance)
+            if avg > 0:
+                fairness_score = 100.0 * (1.0 - std_dev / avg)
+                fairness_score = max(0.0, min(100.0, fairness_score))
 
         return ScheduleOptimizationResults(
             success=True,
@@ -245,4 +273,6 @@ class NurseShiftScheduleOptimizer:
             constraint_slacks=constraint_slacks,
             infeasibility_reason=None,
             statistics=stats,
+            weekend_assignment_distribution=weekend_distribution,
+            fairness_score=fairness_score,
         )

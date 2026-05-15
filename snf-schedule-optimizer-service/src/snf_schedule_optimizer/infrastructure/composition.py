@@ -5,7 +5,12 @@ from typing import Any, ClassVar, cast
 from sqlalchemy import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from that_depends import BaseContainer, Provide
-from that_depends.providers import AbstractProvider, ContextResource, Factory
+from that_depends.providers import (
+    AbstractProvider,
+    ContextResource,
+    Factory,
+    Singleton,
+)
 from that_depends.providers.context_resources import ContextScopes
 
 from snf_schedule_optimizer.domain.hr.certification_service import (
@@ -77,14 +82,21 @@ from snf_schedule_optimizer.optimizer.strategies.constraints import (
     ConsecutiveDaysLimitConstraintStrategy,
     ConsecutiveRnCoverageConstraintStrategy,
     ConsecutiveShiftFatigueStrategy,
+    EmploymentClassificationConstraintStrategy,
+    FloatLimitConstraintStrategy,
     HprdStaffingConstraintStrategy,
     LicensedNursePerShiftConstraintStrategy,
     MaxShiftLengthConstraintStrategy,
     MaxWeeklyHoursConstraintStrategy,
     NurseShiftCountLimitStrategy,
+    PdpmCategoryConstraintStrategy,
+    UnitMinimumStaffingConstraintStrategy,
 )
 from snf_schedule_optimizer.optimizer.strategies.pay import WeeklyVolumePayStrategy
-from snf_schedule_optimizer.optimizer.strategies.penalties import QualityOfLifeStrategy
+from snf_schedule_optimizer.optimizer.strategies.penalties import (
+    QualityOfLifeStrategy,
+    WeekendFairnessPenaltyStrategy,
+)
 
 # Strategies
 from snf_schedule_optimizer.optimizer.strategies.variables import (
@@ -367,13 +379,17 @@ def build_scheduler_container(
                     HprdStaffingConstraintStrategy(checker),
                     ConsecutiveRnCoverageConstraintStrategy(),
                     LicensedNursePerShiftConstraintStrategy(),
+                    UnitMinimumStaffingConstraintStrategy(),
+                    PdpmCategoryConstraintStrategy(),
                 ],
             ),
             Provide[nurse_hard_block_checker],
         )
 
+        fairness_strategy = Singleton(WeekendFairnessPenaltyStrategy)
+
         facility_rule_strategies_list = Factory(
-            lambda: cast(
+            lambda fairness: cast(
                 list[IFacilityScopedConstraintStrategy],
                 [
                     ConsecutiveDaysLimitConstraintStrategy(),
@@ -381,24 +397,30 @@ def build_scheduler_container(
                     MaxShiftLengthConstraintStrategy(),
                     MaxWeeklyHoursConstraintStrategy(),
                     NurseShiftCountLimitStrategy(),
+                    EmploymentClassificationConstraintStrategy(),
+                    FloatLimitConstraintStrategy(),
+                    fairness,
                 ],
-            )
+            ),
+            Provide[fairness_strategy],
         )
 
         penalty_strategies_list = Factory(
-            lambda pp, nr, er: cast(
+            lambda pp, nr, er, fairness: cast(
                 list[IObjectivePenaltyStrategy],
                 [
                     QualityOfLifeStrategy(
                         preference_processor=pp,
                         nurse_retriever=nr,
                         employee_retriever=er,
-                    )
+                    ),
+                    fairness,
                 ],
             ),
             Provide[penalty_processor],
             Provide[nurse_retriever],
             Provide[employee_retriever],
+            Provide[fairness_strategy],
         )
 
         optimizer = Factory(
