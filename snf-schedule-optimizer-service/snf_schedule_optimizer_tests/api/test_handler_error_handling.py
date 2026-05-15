@@ -7,6 +7,10 @@ from snf_schedule_optimizer.api.grpc.scheduler_handler import (
     SchedulingServiceHandler,
     get_internal_id,
 )
+from snf_schedule_optimizer.api.grpc.scheduler_mappers import (
+    decode_patch,
+    decode_staged_patches,
+)
 from snf_schedule_optimizer.generated.scheduling.v1 import scheduling_pb2
 from snf_schedule_optimizer.infrastructure.sqid_converter import IdObfuscator
 
@@ -69,35 +73,35 @@ class TestDecodeOrgAndFacility:
 
 class TestDecodePatch:
     def test_returns_failure_for_invalid_employee_id(
-        self, handler: SchedulingServiceHandler
+        self, obfuscator: IdObfuscator
     ) -> None:
         proto_patch = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
             employee_id="not-a-valid-employee-id",
         )
-        result = handler._decode_patch(proto_patch)
+        result = decode_patch(obfuscator, proto_patch)
         assert isinstance(result, Failure)
         assert "Employee" in result.failure()
 
     def test_returns_failure_for_invalid_from_shift_id(
-        self, handler: SchedulingServiceHandler
+        self, obfuscator: IdObfuscator
     ) -> None:
-        employee_id = handler.id_obfuscator.encode(100)
+        employee_id = obfuscator.encode(100)
         proto_patch = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
             employee_id=employee_id,
             from_shift_id="not-a-valid-shift-id",
         )
-        result = handler._decode_patch(proto_patch)
+        result = decode_patch(obfuscator, proto_patch)
         assert isinstance(result, Failure)
         assert "Shift" in result.failure()
 
     def test_returns_success_for_valid_patch(
-        self, handler: SchedulingServiceHandler
+        self, obfuscator: IdObfuscator
     ) -> None:
-        employee_id = handler.id_obfuscator.encode(100)
-        from_shift_id = handler.id_obfuscator.encode(200)
-        to_shift_id = handler.id_obfuscator.encode(300)
+        employee_id = obfuscator.encode(100)
+        from_shift_id = obfuscator.encode(200)
+        to_shift_id = obfuscator.encode(300)
         proto_patch = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
             employee_id=employee_id,
@@ -109,7 +113,7 @@ class TestDecodePatch:
             total_cost=150.0,
             created_at="2025-01-01",
         )
-        result = handler._decode_patch(proto_patch)
+        result = decode_patch(obfuscator, proto_patch)
         assert isinstance(result, Success)
         patch = result.unwrap()
         assert patch.patch_id == "p1"
@@ -122,14 +126,14 @@ class TestDecodePatch:
         assert patch.total_cost == 150.0
 
     def test_returns_success_with_none_for_missing_shift_ids(
-        self, handler: SchedulingServiceHandler
+        self, obfuscator: IdObfuscator
     ) -> None:
-        employee_id = handler.id_obfuscator.encode(100)
+        employee_id = obfuscator.encode(100)
         proto_patch = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
             employee_id=employee_id,
         )
-        result = handler._decode_patch(proto_patch)
+        result = decode_patch(obfuscator, proto_patch)
         assert isinstance(result, Success)
         patch = result.unwrap()
         assert patch.from_shift_id is None
@@ -137,8 +141,8 @@ class TestDecodePatch:
 
 
 class TestDecodeStagedPatches:
-    def test_returns_first_failure(self, handler: SchedulingServiceHandler) -> None:
-        employee_id = handler.id_obfuscator.encode(100)
+    def test_returns_first_failure(self, obfuscator: IdObfuscator) -> None:
+        employee_id = obfuscator.encode(100)
         good_patch = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
             employee_id=employee_id,
@@ -147,14 +151,14 @@ class TestDecodeStagedPatches:
             patch_id="p2",
             employee_id="not-valid",
         )
-        result = handler._decode_staged_patches([good_patch, bad_patch])
+        result = decode_staged_patches(obfuscator, [good_patch, bad_patch])
         assert isinstance(result, Failure)
         assert "Employee" in result.failure()
 
     def test_returns_all_decoded_on_success(
-        self, handler: SchedulingServiceHandler
+        self, obfuscator: IdObfuscator
     ) -> None:
-        employee_id = handler.id_obfuscator.encode(100)
+        employee_id = obfuscator.encode(100)
         p1 = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
             employee_id=employee_id,
@@ -163,7 +167,7 @@ class TestDecodeStagedPatches:
             patch_id="p2",
             employee_id=employee_id,
         )
-        result = handler._decode_staged_patches([p1, p2])
+        result = decode_staged_patches(obfuscator, [p1, p2])
         assert isinstance(result, Success)
         patches = result.unwrap()
         assert len(patches) == 2
@@ -171,9 +175,9 @@ class TestDecodeStagedPatches:
         assert patches[1].patch_id == "p2"
 
     def test_empty_list_returns_empty_tuple(
-        self, handler: SchedulingServiceHandler
+        self, obfuscator: IdObfuscator
     ) -> None:
-        result = handler._decode_staged_patches([])
+        result = decode_staged_patches(obfuscator, [])
         assert isinstance(result, Success)
         assert result.unwrap() == ()
 
