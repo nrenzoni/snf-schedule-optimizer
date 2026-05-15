@@ -96,9 +96,7 @@ class TestDecodePatch:
         assert isinstance(result, Failure)
         assert "Shift" in result.failure()
 
-    def test_returns_success_for_valid_patch(
-        self, obfuscator: IdObfuscator
-    ) -> None:
+    def test_returns_success_for_valid_patch(self, obfuscator: IdObfuscator) -> None:
         employee_id = obfuscator.encode(100)
         from_shift_id = obfuscator.encode(200)
         to_shift_id = obfuscator.encode(300)
@@ -155,9 +153,7 @@ class TestDecodeStagedPatches:
         assert isinstance(result, Failure)
         assert "Employee" in result.failure()
 
-    def test_returns_all_decoded_on_success(
-        self, obfuscator: IdObfuscator
-    ) -> None:
+    def test_returns_all_decoded_on_success(self, obfuscator: IdObfuscator) -> None:
         employee_id = obfuscator.encode(100)
         p1 = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
@@ -174,9 +170,7 @@ class TestDecodeStagedPatches:
         assert patches[0].patch_id == "p1"
         assert patches[1].patch_id == "p2"
 
-    def test_empty_list_returns_empty_tuple(
-        self, obfuscator: IdObfuscator
-    ) -> None:
+    def test_empty_list_returns_empty_tuple(self, obfuscator: IdObfuscator) -> None:
         result = decode_staged_patches(obfuscator, [])
         assert isinstance(result, Success)
         assert result.unwrap() == ()

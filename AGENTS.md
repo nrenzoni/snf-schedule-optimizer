@@ -37,6 +37,7 @@ The dev database is published on host port `35435` to avoid common local Postgre
 - If `snf-schedule-optimizer-ui/**` changes:
   - Run `just check-ui`
 - If `snf-schedule-optimizer-service/**` changes:
+  - Run `just auto-fix-format-be`
   - Run `just check-be`
 - If `proto/**` changes:
   - Run `just proto`
