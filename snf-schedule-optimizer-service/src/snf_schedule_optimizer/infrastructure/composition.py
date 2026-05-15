@@ -296,6 +296,8 @@ def build_scheduler_container(
         ml_retriever = Factory(MLModelOutputsRepo)  # no-db client
 
         # domain / optimization wiring (unchanged)
+        nurse_hard_block_checker = Factory(NurseHardBlockCheckerImpl)
+
         provider_factory = Factory(
             ScenarioDataProviderFactory,
             employee_retriever=Provide[employee_retriever],
@@ -304,9 +306,8 @@ def build_scheduler_container(
             staff_compensation_service=Provide[compensation_retriever],
             ml_model_retriever=Provide[ml_retriever],
             work_history_service=Provide[work_history_service],
+            hard_block_checker=Provide[nurse_hard_block_checker],
         )
-
-        # 4. Payroll & Costing Logic
         certification_service = Factory(
             CertificationService,
             repo=Provide[retrievers.certification_retriever],

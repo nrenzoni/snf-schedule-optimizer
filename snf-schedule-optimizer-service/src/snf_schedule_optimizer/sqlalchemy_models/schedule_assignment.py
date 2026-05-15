@@ -1,3 +1,4 @@
+from sqlalchemy import Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
@@ -13,6 +14,7 @@ class ScheduleAssignmentModel(SQLABase):
     schedule_id: Mapped[int] = mapped_column(primary_key=True)
     assignment_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     org_id: Mapped[int] = mapped_column(index=True, nullable=False)
+    schedule_version_id: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)
 
     facility_id: Mapped[int] = mapped_column(index=True, nullable=False)
     shift_id: Mapped[int] = mapped_column(index=True, nullable=False)

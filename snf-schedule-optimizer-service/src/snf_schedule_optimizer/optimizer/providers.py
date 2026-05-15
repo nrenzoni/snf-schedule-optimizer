@@ -30,6 +30,7 @@ from snf_schedule_optimizer.optimizer.context import (
 )
 from snf_schedule_optimizer.optimizer.interfaces import (
     IHprdRequirementCalculator,
+    INurseHardBlockChecker,
     IScenarioDataProvider,
 )
 from snf_schedule_optimizer.persistence import INurseRepo
@@ -59,6 +60,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         pay_period_start: whenever.Instant,
         optimization_start_time: whenever.Instant,
         optimization_settings: OptimizationSettings,
+        hard_block_checker: INurseHardBlockChecker | None = None,
         # min_mandates: "MinMandates",
     ):
         self.target_org_id = target_org_id
@@ -113,7 +115,9 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self._accumulated_hours_cache: dict[DomainPrimaryKeyType, float] = {}
         self._cached_comp_records: dict[DomainPrimaryKeyType, StaffCompensationRecord] | None = None
         self._work_history_preloaded = False
-        self._candidate_eligibility_service = CandidateEligibilityService()
+        self._candidate_eligibility_service = CandidateEligibilityService(
+            hard_block_checker=hard_block_checker,
+        )
 
     def get_org_id(self) -> DomainPrimaryKeyType:
         """Returns the organization ID for this optimization run."""
@@ -297,6 +301,7 @@ class ScenarioDataProviderFactory:
         staff_compensation_service: IStaffCompensationRepo,
         ml_model_retriever: IMLModelOutputsRepo,
         work_history_service: IEmployeeWorkHistoryService,
+        hard_block_checker: INurseHardBlockChecker | None = None,
     ):
         self.employee_retriever = employee_retriever
         self.nurse_retriever = nurse_retriever
@@ -304,6 +309,7 @@ class ScenarioDataProviderFactory:
         self.staff_compensation_service = staff_compensation_service
         self.ml_model_retriever = ml_model_retriever
         self.work_history_service = work_history_service
+        self.hard_block_checker = hard_block_checker
 
     def create(
         self,
@@ -325,4 +331,5 @@ class ScenarioDataProviderFactory:
             pay_period_start=pay_period_start,
             optimization_start_time=optimization_start_time,
             optimization_settings=optimization_settings,
+            hard_block_checker=self.hard_block_checker,
         )

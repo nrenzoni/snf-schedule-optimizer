@@ -20,11 +20,9 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
         self,
         burden_calc: ILaborBurdenCalculator,
         incentive_mgr: IIncentiveManager,
-        # nurse_retriever: INurseRetriever,
     ):
         self.burden_calc = burden_calc
         self.incentive_mgr = incentive_mgr
-        # self.nurse_retriever = nurse_retriever
 
     async def get_objective_terms(
         self,
@@ -35,6 +33,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
 
         for shift in data_provider.get_all_shifts():
             duration = (shift.shift_end_dt - shift.shift_start_dt).in_hours()
+            config = data_provider.get_facility_config(shift.facility_id)
             nurses = await data_provider.get_nurses_for_shift(shift)
 
             for nurse in nurses:
@@ -49,7 +48,6 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
                 if not employee:
                     continue
 
-                # --- 1. Base Calculations ---
                 comp_record = (
                     await data_provider.get_compensation_for_date(
                         nurse.employee_id,
@@ -57,7 +55,7 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
                     )
                 )
                 if not comp_record:
-                    continue  # No compensation record found
+                    continue
 
                 base_rate = float(comp_record.base_rate_effective)
                 if base_rate is None:
@@ -65,31 +63,21 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
 
                 base_wage = base_rate * duration
 
-                # --- 2. Shift Differentials (Shift Dependent) ---
                 diff_rate = 0.0
                 if not shift.day_shift:
-                    diff_rate += 2.00
+                    diff_rate += base_rate * max(0.0, config.night_shift_multiplier - 1.0)
                 if is_weekend(shift.shift_start_dt.date().day_of_week()):
-                    diff_rate += 1.50
+                    diff_rate += base_rate * max(0.0, config.weekend_multiplier - 1.0)
                 shift_diff_cost = diff_rate * duration
-
-                employee = await data_provider.get_employee_by_id(nurse.employee_id)
-                if not employee:
-                    continue
-
-                # --- 3. Burden (Taxes & Benefits) ---
-                # We burden the Base + Diff (usually taxes apply to diffs too)
 
                 statutory, benefits = self.burden_calc.calculate_burden(
                     employee, base_wage + shift_diff_cost
                 )
 
-                # --- 4. Incentives (Holidays, Pickups) ---
                 incentives = self.incentive_mgr.calculate_incentives(
                     shift, employee, base_rate
                 )
 
-                # --- 5. Total Decision Cost ---
                 total_cost = (
                     base_wage + shift_diff_cost + statutory + benefits + incentives
                 )

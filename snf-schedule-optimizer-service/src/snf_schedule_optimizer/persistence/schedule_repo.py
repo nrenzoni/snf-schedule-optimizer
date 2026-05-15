@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import Any, cast
 
 import whenever
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
@@ -41,6 +41,9 @@ from snf_schedule_optimizer.sqlalchemy_models.schedule_assignment import (
     ScheduleAssignmentModel,
 )
 from snf_schedule_optimizer.sqlalchemy_models.schedule_record import ScheduleRecordModel
+from snf_schedule_optimizer.sqlalchemy_models.schedule_version import (
+    ScheduleVersionModel,
+)
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 
 
@@ -55,9 +58,23 @@ class SQLScheduleRepo(IScheduleRepo):
         """
         Fetches assignments from the DB and reconstructs the Domain Schedule object.
         """
+        # Find the latest schedule_version_id for this schedule
+        latest_version_subq = (
+            select(func.max(ScheduleVersionModel.schedule_version_id))
+            .where(
+                ScheduleVersionModel.org_id == schedule_lookup.org_id,
+                ScheduleVersionModel.schedule_id == schedule_lookup.schedule_id,
+            )
+            .scalar_subquery()
+        )
+
         stmt = select(ScheduleAssignmentModel).where(
             ScheduleAssignmentModel.org_id == schedule_lookup.org_id,
             ScheduleAssignmentModel.schedule_id == schedule_lookup.schedule_id,
+            or_(
+                ScheduleAssignmentModel.schedule_version_id == latest_version_subq,
+                ScheduleAssignmentModel.schedule_version_id.is_(None),
+            ),
         )
 
         results: Sequence[ScheduleAssignmentModel] | None = (
@@ -119,9 +136,22 @@ class SQLScheduleRepo(IScheduleRepo):
         if schedule_record is None:
             return None
 
+        latest_version_subq = (
+            select(func.max(ScheduleVersionModel.schedule_version_id))
+            .where(
+                ScheduleVersionModel.org_id == org_id,
+                ScheduleVersionModel.schedule_id == schedule_record.schedule_id,
+            )
+            .scalar_subquery()
+        )
+
         stmt = select(ScheduleAssignmentModel).where(
             ScheduleAssignmentModel.org_id == org_id,
             ScheduleAssignmentModel.schedule_id == schedule_record.schedule_id,
+            or_(
+                ScheduleAssignmentModel.schedule_version_id == latest_version_subq,
+                ScheduleAssignmentModel.schedule_version_id.is_(None),
+            ),
         )
         results = (await self.db_session.scalars(stmt)).all()
         latest_run = await self.get_latest_completed_optimization_run(
@@ -203,27 +233,31 @@ class SQLScheduleRepo(IScheduleRepo):
             existing_record.end_date = end_date
             existing_record.version = schedule.schedule_version
 
-        await self.db_session.execute(
-            delete(ScheduleAssignmentModel).where(
-                ScheduleAssignmentModel.org_id == schedule.org_id,
-                ScheduleAssignmentModel.schedule_id == schedule.schedule_id,
-            )
+        # Immutable version: create a new ScheduleVersion row
+        version_model = ScheduleVersionModel(
+            schedule_id=schedule.schedule_id,
+            org_id=schedule.org_id,
+            facility_id=facility_id,
+            version_number=schedule.schedule_version,
         )
+        self.db_session.add(version_model)
+        await self.db_session.flush()
 
-        assignment_id = 1
+        version_id = version_model.schedule_version_id
+
         for shift_key, employee_ids in schedule.shift_assignments.items():
             for employee_id in employee_ids:
                 self.db_session.add(
                     ScheduleAssignmentModel(
                         schedule_id=schedule.schedule_id,
-                        assignment_id=assignment_id,
+                        assignment_id=0,
                         org_id=schedule.org_id,
                         facility_id=shift_key.facility_id,
                         shift_id=shift_key.shift_id,
                         employee_id=employee_id,
+                        schedule_version_id=version_id,
                     )
                 )
-                assignment_id += 1
 
     async def next_schedule_id(self, org_id: int) -> int:
         stmt = select(func.max(ScheduleRecordModel.schedule_id)).where(
