@@ -1,6 +1,5 @@
 """Tests for CandidateEligibilityService with hard block checker integration."""
 
-
 import whenever
 
 from snf_schedule_optimizer.models import (
@@ -96,9 +95,7 @@ def test_already_locked_to_same_shift_returns_ineligible() -> None:
 
 
 def test_hard_block_day_off_returns_ineligible_with_checker() -> None:
-    svc = CandidateEligibilityService(
-        hard_block_checker=NurseHardBlockCheckerImpl()
-    )
+    svc = CandidateEligibilityService(hard_block_checker=NurseHardBlockCheckerImpl())
     shift = make_shift()
     nurse = NurseProfile(
         employee_id=1,
@@ -124,9 +121,7 @@ def test_hard_block_day_off_returns_ineligible_with_checker() -> None:
 
 
 def test_hard_block_weekend_off_returns_ineligible_with_checker() -> None:
-    svc = CandidateEligibilityService(
-        hard_block_checker=NurseHardBlockCheckerImpl()
-    )
+    svc = CandidateEligibilityService(hard_block_checker=NurseHardBlockCheckerImpl())
     start = whenever.ZonedDateTime(2025, 1, 4, 7, tz="America/New_York")
     shift = Shift(
         org_id=1,

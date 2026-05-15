@@ -212,7 +212,11 @@ class SQLRawHistoryRepo(IRawHistoryRepo):
             select(TimePunchModel)
             .options(joinedload(TimePunchModel.shift_template))
             .where(and_(*conditions))
-            .order_by(TimePunchModel.employee_id, TimePunchModel.shift_id, TimePunchModel.punch_time)
+            .order_by(
+                TimePunchModel.employee_id,
+                TimePunchModel.shift_id,
+                TimePunchModel.punch_time,
+            )
         )
 
         punch_models: Iterable[TimePunchModel] = (
@@ -242,8 +246,7 @@ class SQLRawHistoryRepo(IRawHistoryRepo):
                     shift_id=shift_id,
                 )
                 punches_domain = [
-                    self._map_punch_model_to_domain(p, facility_tz)
-                    for p in punch_list
+                    self._map_punch_model_to_domain(p, facility_tz) for p in punch_list
                 ]
                 emp_history[shift_key] = punches_domain
 

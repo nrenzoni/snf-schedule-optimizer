@@ -41,10 +41,18 @@ class OptimizationRunModel(SQLABase):
         nullable=False,
         server_default=func.now(),
     )
-    completed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
-    heartbeat_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
-    lease_expires_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
-    cancel_requested_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    heartbeat_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    lease_expires_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
+    cancel_requested_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

@@ -74,9 +74,7 @@ def _employee_from_dict(raw: dict[str, Any]) -> Employee:
 def _nurse_from_dict(raw: dict[str, Any]) -> NurseProfile:
     prefs = raw.get("shift_custom_preferences")
     shift_custom_preferences = (
-        [_reconstruct_preference(_PrefDict(**p)) for p in prefs]
-        if prefs
-        else None
+        [_reconstruct_preference(_PrefDict(**p)) for p in prefs] if prefs else None
     )
     return NurseProfile(
         employee_id=raw["employee_id"],
@@ -97,7 +95,9 @@ def _config_from_dict(raw: dict[str, Any]) -> FacilityConfig:
         shifts_per_day=raw["shifts_per_day"],
         overtime_threshold_hours_per_week=raw["overtime_threshold_hours_per_week"],
         start_of_work_week_day=whenever.Weekday[raw["start_of_work_week_day"]],
-        start_of_work_day_time=whenever.Time.parse_common_iso(raw["start_of_work_day_time"]),
+        start_of_work_day_time=whenever.Time.parse_common_iso(
+            raw["start_of_work_day_time"]
+        ),
         pay_period=whenever.DateDelta(days=int(pay_period_days)),
         weekend_multiplier=raw["weekend_multiplier"],
         night_shift_multiplier=raw["night_shift_multiplier"],
@@ -121,7 +121,9 @@ def _comp_from_dict(raw: dict[str, Any]) -> StaffCompensationRecord:
         base_rate_effective=raw["base_rate_effective"],
         ot_multiplier=raw.get("ot_multiplier", 1.5),
         is_agency=raw.get("is_agency", False),
-        effective_start_date=whenever.Date.parse_common_iso(raw["effective_start_date"]),
+        effective_start_date=whenever.Date.parse_common_iso(
+            raw["effective_start_date"]
+        ),
         effective_end_date=(
             whenever.Date.parse_common_iso(raw["effective_end_date"])
             if raw.get("effective_end_date")
@@ -180,7 +182,8 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
         accumulated_hours: dict[DomainPrimaryKeyType, float],
         compensation: dict[DomainPrimaryKeyType, StaffCompensationRecord],
         optimization_settings: OptimizationSettings,
-        employee_states: dict[DomainPrimaryKeyType, EmployeeStateSnapshot] | None = None,
+        employee_states: dict[DomainPrimaryKeyType, EmployeeStateSnapshot]
+        | None = None,
     ):
         self._org_id = org_id
         self._facility_contexts = facility_contexts
@@ -299,10 +302,16 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
             max_shift_length=settings_raw.get("max_shift_length", 12.0),
             premium_weekend=settings_raw.get("premium_weekend", True),
             premium_holiday=settings_raw.get("premium_holiday", False),
-            overtime_avoidance_penalty=settings_raw.get("overtime_avoidance_penalty", 1000.0),
-            team_consistency_penalty=settings_raw.get("team_consistency_penalty", 300.0),
+            overtime_avoidance_penalty=settings_raw.get(
+                "overtime_avoidance_penalty", 1000.0
+            ),
+            team_consistency_penalty=settings_raw.get(
+                "team_consistency_penalty", 300.0
+            ),
             high_risk_shift_penalty=settings_raw.get("high_risk_shift_penalty", 2000.0),
-            custom_preference_penalty=settings_raw.get("custom_preference_penalty", 1500.0),
+            custom_preference_penalty=settings_raw.get(
+                "custom_preference_penalty", 1500.0
+            ),
         )
 
         org_id: int = payload.get("settings_org_id", 0)  # type: ignore[assignment]
@@ -315,14 +324,18 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
             tz = config.tz
             shifts = [_shift_from_dict(s, tz) for s in ctx_raw["shifts"]]
             all_shifts.extend(shifts)
-            mandates = _mandates_from_dict(ctx_raw["min_mandates"]) if ctx_raw.get("min_mandates") else MinMandates(
-                min_rn_hprd=config.default_hprd_rn,
-                min_lpn_hprd=config.default_hprd_lpn,
-                min_cna_hprd=config.default_hprd_cna,
-                min_total_hprd=config.default_hprd_total,
-                min_staff_per_shift_rn=1,
-                min_staff_per_shift_lpn=0,
-                min_staff_per_shift_cna=2,
+            mandates = (
+                _mandates_from_dict(ctx_raw["min_mandates"])
+                if ctx_raw.get("min_mandates")
+                else MinMandates(
+                    min_rn_hprd=config.default_hprd_rn,
+                    min_lpn_hprd=config.default_hprd_lpn,
+                    min_cna_hprd=config.default_hprd_cna,
+                    min_total_hprd=config.default_hprd_total,
+                    min_staff_per_shift_rn=1,
+                    min_staff_per_shift_lpn=0,
+                    min_staff_per_shift_cna=2,
+                )
             )
             facility_contexts[fac_id] = FacilityScenarioContext(
                 facility_id=fac_id,
@@ -331,8 +344,12 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
                 min_mandates=mandates,
                 optimization_settings=settings,
                 default_hprd_rn=ctx_raw.get("default_hprd_rn", config.default_hprd_rn),
-                default_hprd_cna=ctx_raw.get("default_hprd_cna", config.default_hprd_cna),
-                default_hprd_total=ctx_raw.get("default_hprd_total", config.default_hprd_total),
+                default_hprd_cna=ctx_raw.get(
+                    "default_hprd_cna", config.default_hprd_cna
+                ),
+                default_hprd_total=ctx_raw.get(
+                    "default_hprd_total", config.default_hprd_total
+                ),
             )
 
         employees = [_employee_from_dict(e) for e in raw_emps]
@@ -344,7 +361,9 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
                 shift_key = ShiftKey(int(parts[0]), int(parts[1]))
                 nurses_by_shift[shift_key] = [_nurse_from_dict(n) for n in nurse_list]
 
-        hprd_requirements: dict[DomainPrimaryKeyType, HprdShiftNurseRequirementHolder] = {}
+        hprd_requirements: dict[
+            DomainPrimaryKeyType, HprdShiftNurseRequirementHolder
+        ] = {}
         for fac_id_str, req_raw in raw_hprd.items():
             fac_id = int(fac_id_str)
             if fac_id not in facility_contexts:
@@ -358,13 +377,16 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
                 for role_idx, value in enumerate(row):
                     if role_idx < 3:
                         shift_id = ctx.shifts[shift_idx].shift_id
-                        holder[shift_id, list(HprdEnforcedRole)[role_idx]] = float(value)
+                        holder[shift_id, list(HprdEnforcedRole)[role_idx]] = float(
+                            value
+                        )
             hprd_requirements[fac_id] = holder
 
         accumulated_hours = {int(k): float(v) for k, v in raw_hours.items()}
 
         compensation_records: dict[DomainPrimaryKeyType, StaffCompensationRecord] = {
-            int(k): _comp_from_dict(v) for k, v in raw_comp.items()
+            int(k): _comp_from_dict(v)
+            for k, v in raw_comp.items()
             if isinstance(v, dict)
         }
 

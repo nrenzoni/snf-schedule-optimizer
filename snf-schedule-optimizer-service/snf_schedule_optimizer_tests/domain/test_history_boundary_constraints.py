@@ -155,13 +155,15 @@ async def test_consecutive_days_limit_blocks_when_history_exceeds() -> None:
     provider = _FakeProvider(
         shifts=[s1],
         nurses_map={s1.shift_id: [nurse]},
-        employee_states={1: EmployeeStateSnapshot(
-            employee_id=1,
-            worked_hours_week=0.0,
-            worked_hours_pay_period=0.0,
-            consecutive_days_worked=5,
-            last_shift_end=None,
-        )},
+        employee_states={
+            1: EmployeeStateSnapshot(
+                employee_id=1,
+                worked_hours_week=0.0,
+                worked_hours_pay_period=0.0,
+                consecutive_days_worked=5,
+                last_shift_end=None,
+            )
+        },
         config=FacilityConfig(
             org_id=1,
             facility_id=1,

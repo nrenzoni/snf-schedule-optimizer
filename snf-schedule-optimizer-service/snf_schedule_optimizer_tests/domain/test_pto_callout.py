@@ -10,21 +10,22 @@ from snf_schedule_optimizer.models import (
     MlModelOutputs,
     NurseProfile,
     OptimizationSettings,
-    PTORequest,
     PreferenceWeights,
+    PTORequest,
     Shift,
     ShiftKey,
     StaffCompensationRecord,
 )
+from snf_schedule_optimizer.optimizer.calculators import NurseHardBlockCheckerImpl
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
     HprdStaffingConstraintStrategy,
 )
 from snf_schedule_optimizer.optimizer.strategies.variables import (
     CoreVariableGenerationStrategy,
 )
-from snf_schedule_optimizer.optimizer.calculators import NurseHardBlockCheckerImpl
 from snf_schedule_optimizer.persistence.fakes import (
     FakeEmployeeRepo,
     FakeHprdRequirementCalculator,
@@ -32,9 +33,7 @@ from snf_schedule_optimizer.persistence.fakes import (
     FakeNurseRepo,
     FakeStaffCompensationRepo,
     FakeWorkHistoryService,
-    ShiftRequirementsRepoImpl,
 )
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 
 tz_ny = "America/New_York"
 
@@ -44,23 +43,35 @@ async def test_pto_full_day_blocks_assignment() -> None:
     ref = whenever.ZonedDateTime(2025, 1, 2, 7, tz=tz_ny)
 
     emp = Employee(
-        employee_id=1, name="PTO RN", job_title="RN", hire_date=whenever.Date(2024, 1, 1)
+        employee_id=1,
+        name="PTO RN",
+        job_title="RN",
+        hire_date=whenever.Date(2024, 1, 1),
     )
     nurse = NurseProfile(
-        employee_id=1, available_hours_weekly=40, skills=["RN"], shift_custom_preferences=[]
+        employee_id=1,
+        available_hours_weekly=40,
+        skills=["RN"],
+        shift_custom_preferences=[],
     )
     comp = StaffCompensationRecord(
-        employee_id=1, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=1,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
     shift = Shift(
-        org_id=1, shift_key=ShiftKey(facility_id=1, shift_id=1),
-        shift_number=1, day_shift=True,
+        org_id=1,
+        shift_key=ShiftKey(facility_id=1, shift_id=1),
+        shift_number=1,
+        day_shift=True,
         day_of_week=ref.date().day_of_week(),
         shift_start_dt=ref,
         shift_end_dt=ref.add(hours=8),
-        unit_id=None, is_scheduled=True,
+        unit_id=None,
+        is_scheduled=True,
     )
 
     pto = PTORequest(
@@ -94,14 +105,19 @@ async def test_pto_full_day_blocks_assignment() -> None:
         org_id=1,
         facility_contexts={
             1: FacilityScenarioContext(
-                facility_id=1, shifts=[shift],
+                facility_id=1,
+                shifts=[shift],
                 config=FacilityConfig(
-                    org_id=1, facility_id=1, shifts_per_day=3,
+                    org_id=1,
+                    facility_id=1,
+                    shifts_per_day=3,
                     overtime_threshold_hours_per_week=40,
                     start_of_work_week_day=whenever.Weekday.MONDAY,
                     start_of_work_day_time=whenever.Time(7, 0, 0),
                     pay_period=whenever.DateDelta(weeks=1),
-                    weekend_multiplier=1.0, night_shift_multiplier=1.0, tz=tz_ny,
+                    weekend_multiplier=1.0,
+                    night_shift_multiplier=1.0,
+                    tz=tz_ny,
                 ),
                 pto_requests=[pto],
             )
@@ -112,7 +128,8 @@ async def test_pto_full_day_blocks_assignment() -> None:
     )
 
     result = await optimizer.solve(
-        data_provider=provider, preference_weights=PreferenceWeights(),
+        data_provider=provider,
+        preference_weights=PreferenceWeights(),
     )
 
     assert not result.success, "Should be infeasible with only PTO-blocked nurse"
@@ -130,27 +147,42 @@ async def test_callout_buffer_inflates_staffing() -> None:
         employee_id=2, name="RN 2", job_title="RN", hire_date=whenever.Date(2024, 1, 1)
     )
     nurse1 = NurseProfile(
-        employee_id=1, available_hours_weekly=40, skills=["RN"], shift_custom_preferences=[]
+        employee_id=1,
+        available_hours_weekly=40,
+        skills=["RN"],
+        shift_custom_preferences=[],
     )
     nurse2 = NurseProfile(
-        employee_id=2, available_hours_weekly=40, skills=["RN"], shift_custom_preferences=[]
+        employee_id=2,
+        available_hours_weekly=40,
+        skills=["RN"],
+        shift_custom_preferences=[],
     )
     comp = StaffCompensationRecord(
-        employee_id=1, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=1,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
     comp2 = StaffCompensationRecord(
-        employee_id=2, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=2,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
     shift = Shift(
-        org_id=1, shift_key=ShiftKey(facility_id=1, shift_id=1),
-        shift_number=1, day_shift=True,
+        org_id=1,
+        shift_key=ShiftKey(facility_id=1, shift_id=1),
+        shift_number=1,
+        day_shift=True,
         day_of_week=ref.date().day_of_week(),
         shift_start_dt=ref,
         shift_end_dt=ref.add(hours=8),
-        unit_id=None, is_scheduled=True,
+        unit_id=None,
+        is_scheduled=True,
     )
 
     fake_hprd = FakeHprdRequirementCalculator(
@@ -187,14 +219,19 @@ async def test_callout_buffer_inflates_staffing() -> None:
         org_id=1,
         facility_contexts={
             1: FacilityScenarioContext(
-                facility_id=1, shifts=[shift],
+                facility_id=1,
+                shifts=[shift],
                 config=FacilityConfig(
-                    org_id=1, facility_id=1, shifts_per_day=3,
+                    org_id=1,
+                    facility_id=1,
+                    shifts_per_day=3,
                     overtime_threshold_hours_per_week=40,
                     start_of_work_week_day=whenever.Weekday.MONDAY,
                     start_of_work_day_time=whenever.Time(7, 0, 0),
                     pay_period=whenever.DateDelta(weeks=1),
-                    weekend_multiplier=1.0, night_shift_multiplier=1.0, tz=tz_ny,
+                    weekend_multiplier=1.0,
+                    night_shift_multiplier=1.0,
+                    tz=tz_ny,
                 ),
                 min_mandates=MinMandates(
                     min_rn_hprd=0.5,
@@ -214,7 +251,8 @@ async def test_callout_buffer_inflates_staffing() -> None:
     )
 
     result = await optimizer.solve(
-        data_provider=provider, preference_weights=PreferenceWeights(),
+        data_provider=provider,
+        preference_weights=PreferenceWeights(),
     )
 
     assert result.success, f"Infeasible: {result.infeasibility_reason}"
@@ -224,4 +262,6 @@ async def test_callout_buffer_inflates_staffing() -> None:
 
     assert 1 in staff, "RN 1 should be assigned"
     assert 2 in staff, "RN 2 should be assigned (callout buffer inflates demand)"
-    assert len(staff) >= 2, f"Expected 2 RNs assigned due to callout buffer, got {len(staff)}"
+    assert len(staff) >= 2, (
+        f"Expected 2 RNs assigned due to callout buffer, got {len(staff)}"
+    )

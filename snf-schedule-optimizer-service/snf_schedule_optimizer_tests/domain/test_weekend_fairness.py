@@ -17,6 +17,7 @@ from snf_schedule_optimizer.models import (
 from snf_schedule_optimizer.optimizer.calculators import NurseHardBlockCheckerImpl
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
     HprdStaffingConstraintStrategy,
 )
@@ -34,7 +35,6 @@ from snf_schedule_optimizer.persistence.fakes import (
     FakeStaffCompensationRepo,
     FakeWorkHistoryService,
 )
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 
 tz_ny = "America/New_York"
 
@@ -73,29 +73,43 @@ async def test_fairness_penalty_reduces_imbalance() -> None:
     )
 
     rn1_emp = Employee(
-        employee_id=1, name="RN A", job_title="RN",
+        employee_id=1,
+        name="RN A",
+        job_title="RN",
         hire_date=whenever.Date(2024, 1, 1),
     )
     rn1_nurse = NurseProfile(
-        employee_id=1, available_hours_weekly=40, skills=["RN"],
+        employee_id=1,
+        available_hours_weekly=40,
+        skills=["RN"],
         shift_custom_preferences=[],
     )
     rn1_comp = StaffCompensationRecord(
-        employee_id=1, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=1,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
     rn2_emp = Employee(
-        employee_id=2, name="RN B", job_title="RN",
+        employee_id=2,
+        name="RN B",
+        job_title="RN",
         hire_date=whenever.Date(2024, 1, 1),
     )
     rn2_nurse = NurseProfile(
-        employee_id=2, available_hours_weekly=40, skills=["RN"],
+        employee_id=2,
+        available_hours_weekly=40,
+        skills=["RN"],
         shift_custom_preferences=[],
     )
     rn2_comp = StaffCompensationRecord(
-        employee_id=2, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=2,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
     shifts = [sat_shift, sun_shift]
@@ -137,12 +151,15 @@ async def test_fairness_penalty_reduces_imbalance() -> None:
                 facility_id=1,
                 shifts=shifts,
                 config=FacilityConfig(
-                    org_id=1, facility_id=1, shifts_per_day=3,
+                    org_id=1,
+                    facility_id=1,
+                    shifts_per_day=3,
                     overtime_threshold_hours_per_week=40,
                     start_of_work_week_day=whenever.Weekday.MONDAY,
                     start_of_work_day_time=whenever.Time(7, 0, 0),
                     pay_period=whenever.DateDelta(weeks=1),
-                    weekend_multiplier=1.0, night_shift_multiplier=1.0,
+                    weekend_multiplier=1.0,
+                    night_shift_multiplier=1.0,
                     tz=tz_ny,
                 ),
             )
@@ -157,19 +174,16 @@ async def test_fairness_penalty_reduces_imbalance() -> None:
     )
 
     result = await optimizer.solve(
-        data_provider=provider, preference_weights=weights,
+        data_provider=provider,
+        preference_weights=weights,
     )
 
     assert result.success, f"Infeasible: {result.infeasibility_reason}"
     assert result.optimal_schedule is not None
     assignments = result.optimal_schedule.shift_assignments
 
-    rn1_count = sum(
-        1 for key, emps in assignments.items() if 1 in emps
-    )
-    rn2_count = sum(
-        1 for key, emps in assignments.items() if 2 in emps
-    )
+    rn1_count = sum(1 for key, emps in assignments.items() if 1 in emps)
+    rn2_count = sum(1 for key, emps in assignments.items() if 2 in emps)
 
     assert rn1_count + rn2_count == 2, (
         f"Both weekend shifts should be covered, got {rn1_count + rn2_count}"
@@ -210,29 +224,43 @@ async def test_fairness_score_in_result() -> None:
     )
 
     rn1_emp = Employee(
-        employee_id=1, name="RN A", job_title="RN",
+        employee_id=1,
+        name="RN A",
+        job_title="RN",
         hire_date=whenever.Date(2024, 1, 1),
     )
     rn1_nurse = NurseProfile(
-        employee_id=1, available_hours_weekly=40, skills=["RN"],
+        employee_id=1,
+        available_hours_weekly=40,
+        skills=["RN"],
         shift_custom_preferences=[],
     )
     rn1_comp = StaffCompensationRecord(
-        employee_id=1, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=1,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
     rn2_emp = Employee(
-        employee_id=2, name="RN B", job_title="RN",
+        employee_id=2,
+        name="RN B",
+        job_title="RN",
         hire_date=whenever.Date(2024, 1, 1),
     )
     rn2_nurse = NurseProfile(
-        employee_id=2, available_hours_weekly=40, skills=["RN"],
+        employee_id=2,
+        available_hours_weekly=40,
+        skills=["RN"],
         shift_custom_preferences=[],
     )
     rn2_comp = StaffCompensationRecord(
-        employee_id=2, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=2,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
     shifts = [sat_shift, sun_shift]
@@ -274,12 +302,15 @@ async def test_fairness_score_in_result() -> None:
                 facility_id=1,
                 shifts=shifts,
                 config=FacilityConfig(
-                    org_id=1, facility_id=1, shifts_per_day=3,
+                    org_id=1,
+                    facility_id=1,
+                    shifts_per_day=3,
                     overtime_threshold_hours_per_week=40,
                     start_of_work_week_day=whenever.Weekday.MONDAY,
                     start_of_work_day_time=whenever.Time(7, 0, 0),
                     pay_period=whenever.DateDelta(weeks=1),
-                    weekend_multiplier=1.0, night_shift_multiplier=1.0,
+                    weekend_multiplier=1.0,
+                    night_shift_multiplier=1.0,
                     tz=tz_ny,
                 ),
             )
@@ -294,10 +325,15 @@ async def test_fairness_score_in_result() -> None:
     )
 
     result = await optimizer.solve(
-        data_provider=provider, preference_weights=weights,
+        data_provider=provider,
+        preference_weights=weights,
     )
 
     assert result.success, f"Infeasible: {result.infeasibility_reason}"
     assert result.fairness_score is not None, "Result should have fairness_score"
-    assert result.fairness_score >= 0, f"fairness_score must be >= 0, got {result.fairness_score}"
-    assert result.weekend_assignment_distribution is not None, "Result should have distribution"
+    assert result.fairness_score >= 0, (
+        f"fairness_score must be >= 0, got {result.fairness_score}"
+    )
+    assert result.weekend_assignment_distribution is not None, (
+        "Result should have distribution"
+    )

@@ -49,11 +49,9 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
                 if not employee:
                     continue
 
-                comp_record = (
-                    await data_provider.get_compensation_for_date(
-                        nurse.employee_id,
-                        shift.shift_start_dt.date(),
-                    )
+                comp_record = await data_provider.get_compensation_for_date(
+                    nurse.employee_id,
+                    shift.shift_start_dt.date(),
                 )
                 if not comp_record:
                     continue
@@ -66,7 +64,9 @@ class ComprehensiveShiftCostStrategy(IPayModelStrategy):
 
                 diff_rate = 0.0
                 if not shift.day_shift:
-                    diff_rate += base_rate * max(0.0, config.night_shift_multiplier - 1.0)
+                    diff_rate += base_rate * max(
+                        0.0, config.night_shift_multiplier - 1.0
+                    )
                 if is_weekend(shift.shift_start_dt.date().day_of_week()):
                     diff_rate += base_rate * max(0.0, config.weekend_multiplier - 1.0)
                 shift_diff_cost = diff_rate * duration
@@ -224,7 +224,11 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                         0.0, config.weekend_multiplier - 1.0
                     )
 
-                if settings.premium_holiday and shift.shift_start_dt.date().month == 1 and shift.shift_start_dt.date().day == 1:
+                if (
+                    settings.premium_holiday
+                    and shift.shift_start_dt.date().month == 1
+                    and shift.shift_start_dt.date().day == 1
+                ):
                     shift_cost += straight_time_breakdown.base_wage * 0.5
 
                 terms.append(variable * shift_cost)
@@ -242,11 +246,9 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
             if not pay_vars:
                 continue
 
-            comp_record = (
-                await data_provider.get_compensation_for_date(
-                    emp_id,
-                    reference_date.date(),
-                )
+            comp_record = await data_provider.get_compensation_for_date(
+                emp_id,
+                reference_date.date(),
             )
             if not comp_record:
                 continue

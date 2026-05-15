@@ -77,10 +77,14 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
                     for resident in residents_acuity
                     if resident.pt_score_gg >= 14 or resident.nta_score >= 8
                 )
-                demand_factor += stressed_count / shift_census if shift_census > 0 else 0.0
+                demand_factor += (
+                    stressed_count / shift_census if shift_census > 0 else 0.0
+                )
 
             if settings.use_callout_buffer and shift_census > 0:
-                buffer_multiplier = 1.0 + (callout_forecast if callout_forecast > 0 else 0.05)
+                buffer_multiplier = 1.0 + (
+                    callout_forecast if callout_forecast > 0 else 0.05
+                )
                 demand_factor *= buffer_multiplier
 
             hours_in_shift = shift.duration_hours
@@ -92,16 +96,28 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
             # Scale by the shift's fraction of the day to get per-shift demand.
             shift_day_fraction = hours_in_shift / 24.0
             required_rn_hours = (
-                targets.target_hprd_rn * shift_census * shift_day_fraction * demand_factor
+                targets.target_hprd_rn
+                * shift_census
+                * shift_day_fraction
+                * demand_factor
             )
             required_lpn_hours = (
-                targets.target_hprd_lpn * shift_census * shift_day_fraction * demand_factor
+                targets.target_hprd_lpn
+                * shift_census
+                * shift_day_fraction
+                * demand_factor
             )
             required_cna_hours = (
-                targets.target_hprd_cna * shift_census * shift_day_fraction * demand_factor
+                targets.target_hprd_cna
+                * shift_census
+                * shift_day_fraction
+                * demand_factor
             )
             required_total_hours = (
-                targets.target_total_hprd * shift_census * shift_day_fraction * demand_factor
+                targets.target_total_hprd
+                * shift_census
+                * shift_day_fraction
+                * demand_factor
             )
 
             # Step D: Apply "Bodies on the Floor" Minimums (Min Mandates)

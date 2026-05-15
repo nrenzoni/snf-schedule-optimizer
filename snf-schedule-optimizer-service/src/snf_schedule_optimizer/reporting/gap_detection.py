@@ -116,9 +116,7 @@ class GapDetectionProcessor:
                     )
 
         for facility_id, fac_shifts in facility_shifts.items():
-            sorted_shifts = sorted(
-                fac_shifts, key=lambda s: s.shift_start_dt
-            )
+            sorted_shifts = sorted(fac_shifts, key=lambda s: s.shift_start_dt)
             for i in range(len(sorted_shifts) - 1):
                 current = sorted_shifts[i]
                 next_shift = sorted_shifts[i + 1]

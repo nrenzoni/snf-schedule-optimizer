@@ -371,9 +371,7 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
                 for segment in segments:
                     total_hours_week += segment.duration_hours
 
-            latest_facility_tz = (
-                configs[0].tz if configs else "America/New_York"
-            )
+            latest_facility_tz = configs[0].tz if configs else "America/New_York"
             check_date_zoned = check_date.to_tz(latest_facility_tz)
             target_date = check_date_zoned.date().subtract(days=1)
             consecutive = 0

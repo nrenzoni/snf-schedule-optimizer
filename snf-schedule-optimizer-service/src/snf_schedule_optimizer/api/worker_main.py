@@ -78,7 +78,10 @@ async def run_worker() -> None:
                     worker_id=worker_id,
                     schedule_repo=schedule_repo,
                     scheduler_facade=scheduler_facade,
-                    renew_lease=lambda run_id, claim_token, heartbeat_at, lease_expires_at: _renew_lease(
+                    renew_lease=lambda run_id,
+                    claim_token,
+                    heartbeat_at,
+                    lease_expires_at: _renew_lease(
                         scheduler_container,
                         run_id,
                         claim_token,
@@ -89,7 +92,9 @@ async def run_worker() -> None:
                 try:
                     claimed = await worker.run_once()
                 except Exception:
-                    logger.exception("optimization worker iteration failed worker_id=%s", worker_id)
+                    logger.exception(
+                        "optimization worker iteration failed worker_id=%s", worker_id
+                    )
                     await schedule_repo.rollback()
                     claimed = False
             if not claimed:

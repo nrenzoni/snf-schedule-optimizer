@@ -116,9 +116,7 @@ class NurseShiftScheduleOptimizer:
                     return self._early_infeasibility(infeasibility, problem)
 
         for pay_strategy in self.global_pay_strategies:
-            await pay_strategy.apply_constraints(
-                problem, lp_vars, data_provider
-            )
+            await pay_strategy.apply_constraints(problem, lp_vars, data_provider)
 
         logger.info(
             "Constraints applied: V=%d C=%d (phase %.2fs, total %.2fs)",
@@ -242,16 +240,22 @@ class NurseShiftScheduleOptimizer:
         )
 
         weekend_distribution: dict[int, int] = {}
-        all_values: list[int] = []
         for key, variable in lp_holder.get_all_assignments().items():
             if variable.varValue and variable.varValue > 0.5:
                 shift = key.shift
                 emp_id = key.employee_id
-                if shift.day_of_week == whenever.Weekday.SATURDAY or shift.day_of_week == whenever.Weekday.SUNDAY:
-                    weekend_distribution[emp_id] = weekend_distribution.get(emp_id, 0) + 1
+                if (
+                    shift.day_of_week == whenever.Weekday.SATURDAY
+                    or shift.day_of_week == whenever.Weekday.SUNDAY
+                ):
+                    weekend_distribution[emp_id] = (
+                        weekend_distribution.get(emp_id, 0) + 1
+                    )
                 holidays = holiday_dates.get(shift.facility_id, set())
                 if shift.shift_start_dt.date() in holidays:
-                    weekend_distribution[emp_id] = weekend_distribution.get(emp_id, 0) + 1
+                    weekend_distribution[emp_id] = (
+                        weekend_distribution.get(emp_id, 0) + 1
+                    )
 
         for emp_id in lp_holder.get_all_employees():
             if emp_id not in weekend_distribution:

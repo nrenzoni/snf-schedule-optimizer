@@ -5,7 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from that_depends import container_context
 from that_depends.providers.context_resources import ContextScopes, SupportsContext
 
-from snf_schedule_optimizer.infrastructure.composition import build_repos_container
+from snf_schedule_optimizer.infrastructure.composition import (
+    build_facility_container,
+    build_infra_container,
+    build_repos_container,
+    build_scheduler_container,
+)
 
 
 class FakeSession:
@@ -70,3 +75,44 @@ async def test_repos_container_db_session_requires_container_context() -> None:
         assert "Context is not set" in str(exc)
     else:
         raise AssertionError("db_session resolved outside container_context")
+
+
+async def test_infra_container_id_obfuscator_resolves() -> None:
+    infra_container = build_infra_container()
+    await infra_container.id_obfuscator.resolve()
+
+
+async def test_facility_container_all_top_level_providers_resolve() -> None:
+    session_factory = FakeSessionFactory()
+    repos_container = build_repos_container(
+        cast(AsyncEngine, object()),
+        cast(async_sessionmaker[AsyncSession], session_factory),
+    )
+    facility_container = build_facility_container(repos_container)
+
+    async with container_context(
+        cast(SupportsContext[Any], facility_container),
+        scope=ContextScopes.REQUEST,
+    ):
+        await facility_container.facility_facade.resolve()
+        await facility_container.facility_repo.resolve()
+
+
+async def test_scheduler_container_all_top_level_providers_resolve() -> None:
+    session_factory = FakeSessionFactory()
+    repos_container = build_repos_container(
+        cast(AsyncEngine, object()),
+        cast(async_sessionmaker[AsyncSession], session_factory),
+    )
+    scheduler_container = build_scheduler_container(repos_container)
+
+    async with container_context(
+        cast(SupportsContext[Any], scheduler_container),
+        scope=ContextScopes.REQUEST,
+    ):
+        await scheduler_container.scheduler_service.resolve()
+        await scheduler_container.optimizer.resolve()
+        await scheduler_container.provider_factory.resolve()
+        await scheduler_container.cost_evaluator.resolve()
+        await scheduler_container.gap_detector.resolve()
+        await scheduler_container.pbj_generator.resolve()

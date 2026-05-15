@@ -16,6 +16,7 @@ from snf_schedule_optimizer.models import (
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
     UnitMinimumStaffingConstraintStrategy,
 )
@@ -30,7 +31,6 @@ from snf_schedule_optimizer.persistence.fakes import (
     FakeStaffCompensationRepo,
     FakeWorkHistoryService,
 )
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 
 tz_ny = "America/New_York"
 
@@ -211,7 +211,9 @@ async def test_infeasible_when_unit_has_no_eligible_nurse() -> None:
         data_provider=provider, preference_weights=PreferenceWeights()
     )
 
-    assert not result.success, "Should be infeasible when unit requires RN but only CNA available"
+    assert not result.success, (
+        "Should be infeasible when unit requires RN but only CNA available"
+    )
     assert result.infeasibility_reason is not None
     details = result.infeasibility_reason.details
     assert details is not None

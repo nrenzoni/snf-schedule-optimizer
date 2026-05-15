@@ -97,7 +97,9 @@ class WorkforceSchedulerFacadePort(Protocol):
         org_id: DomainPrimaryKeyType,
         facility_id: DomainPrimaryKeyType | None,
         start_date: str,
-    ) -> tuple[Schedule, dict[ShiftKey, Shift], dict[int, Employee], FacilityConfig]: ...
+    ) -> tuple[
+        Schedule, dict[ShiftKey, Shift], dict[int, Employee], FacilityConfig
+    ]: ...
 
     async def close(self) -> None: ...
 
@@ -205,7 +207,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             org_id=request.org_id,
             facility_contexts={request.facility_id: facility_context},
             preference_weights=request.settings.to_preference_weights(),
-            pay_period_start=facility_context.shifts[0].shift_start_dt.start_of_day().to_instant(),
+            pay_period_start=facility_context.shifts[0]
+            .shift_start_dt.start_of_day()
+            .to_instant(),
             optimization_settings=request.settings,
         )
         if request.persist_result and result.is_success and result.schedule is not None:
@@ -215,13 +219,17 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 start_date=request.start_date,
             )
             if base_schedule is None or base_schedule.schedule_id is None:
-                schedule_id = await self.schedule_retriever.next_schedule_id(request.org_id)
+                schedule_id = await self.schedule_retriever.next_schedule_id(
+                    request.org_id
+                )
                 version = 1
             else:
                 schedule_id = base_schedule.schedule_id
-                latest_version = await self.schedule_retriever.get_latest_schedule_version(
-                    request.org_id,
-                    schedule_id,
+                latest_version = (
+                    await self.schedule_retriever.get_latest_schedule_version(
+                        request.org_id,
+                        schedule_id,
+                    )
                 )
                 version = (latest_version or 0) + 1
             persisted_schedule = self._build_persisted_schedule(
@@ -281,7 +289,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 list(request.staged_patches),
             )
 
-        if latest_version != request.base_schedule_version and (conflicts or not request.allow_overwrite):
+        if latest_version != request.base_schedule_version and (
+            conflicts or not request.allow_overwrite
+        ):
             return OptimizationOutput(
                 is_success=False,
                 schedule=current_schedule,
@@ -296,13 +306,18 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             )
 
         if request.client_request_id:
-            existing_run = await self.schedule_retriever.get_optimization_run_by_client_request(
-                request.org_id,
-                request.facility_id,
-                request.schedule_id,
-                request.client_request_id,
+            existing_run = (
+                await self.schedule_retriever.get_optimization_run_by_client_request(
+                    request.org_id,
+                    request.facility_id,
+                    request.schedule_id,
+                    request.client_request_id,
+                )
             )
-            if existing_run is not None and existing_run.status in {"queued", "running"}:
+            if existing_run is not None and existing_run.status in {
+                "queued",
+                "running",
+            }:
                 return OptimizationOutput(
                     is_success=True,
                     schedule=rebased_schedule,
@@ -382,7 +397,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             org_id,
             schedule_id,
         )
-        has_newer_version = (latest_version or schedule.schedule_version) > current_schedule_version
+        has_newer_version = (
+            latest_version or schedule.schedule_version
+        ) > current_schedule_version
         return schedule, active_run, has_newer_version
 
     async def validate_shift_move(
@@ -495,7 +512,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             warnings=warnings,
             validation_level=validation_level,
             causes_overtime=any("overtime" in warning.lower() for warning in warnings),
-            total_cost=result.financials.total_enterprise_cost if result.financials else 0.0,
+            total_cost=result.financials.total_enterprise_cost
+            if result.financials
+            else 0.0,
             created_at=whenever.Instant.now().format_iso(),
         )
 
@@ -530,19 +549,27 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         if schedule is None:
             raise ValueError("No schedule found for the requested month.")
 
-        target_facility_id = facility_id if facility_id is not None else schedule.facility_id
+        target_facility_id = (
+            facility_id if facility_id is not None else schedule.facility_id
+        )
         if target_facility_id is None:
             raise ValueError("A facility_id is required to load a monthly schedule.")
 
-        configs = await self.facility_repository.get_configs(org_id, [target_facility_id])
+        configs = await self.facility_repository.get_configs(
+            org_id, [target_facility_id]
+        )
         if not configs:
-            raise ValueError(f"Facility config not found for facility_id: {target_facility_id}")
+            raise ValueError(
+                f"Facility config not found for facility_id: {target_facility_id}"
+            )
 
         facility_config = configs[0]
         timezone_map = {facility_config.facility_id: facility_config.tz}
 
         shift_keys = [
-            key for key in schedule.shift_assignments if key.facility_id == target_facility_id
+            key
+            for key in schedule.shift_assignments
+            if key.facility_id == target_facility_id
         ]
         shifts = await self.shift_retriever.get_shifts_by_keys(
             shift_keys=shift_keys,
@@ -550,7 +577,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             org_id=org_id,
         )
 
-        employees = await self.provider_factory.employee_retriever.get_all_employees(org_id)
+        employees = await self.provider_factory.employee_retriever.get_all_employees(
+            org_id
+        )
         employee_map = {employee.employee_id: employee for employee in employees}
 
         return schedule, shifts, employee_map, facility_config
@@ -625,12 +654,15 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 (
                     assigned
                     for shift_assignment_key, assigned in schedule.shift_assignments.items()
-                    if shift_assignment_key == ShiftKey(request.facility_id, request.from_shift_id)
+                    if shift_assignment_key
+                    == ShiftKey(request.facility_id, request.from_shift_id)
                 ),
                 None,
             )
             if from_shift_assigned is None:
-                raise ValueError(f"Shift {request.from_shift_id} not found in schedule.")
+                raise ValueError(
+                    f"Shift {request.from_shift_id} not found in schedule."
+                )
             if request.employee_id in from_shift_assigned:
                 from_shift_assigned.remove(request.employee_id)
 
@@ -666,7 +698,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         configs = await self.facility_repository.get_configs(org_id, list(facility_ids))
         config_map = {c.facility_id: c for c in configs}
         tz_map = {c.facility_id: c.tz for c in configs}
-        shifts_map = await self.shift_retriever.get_shifts_by_keys(list(keys_to_fetch), tz_map, org_id)
+        shifts_map = await self.shift_retriever.get_shifts_by_keys(
+            list(keys_to_fetch), tz_map, org_id
+        )
 
         shifts_by_fac: dict[DomainPrimaryKeyType, list[Shift]] = defaultdict(list)
         for shift in shifts_map.values():
@@ -695,7 +729,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
     ) -> FacilityScenarioContext:
         configs = await self.facility_repository.get_configs(org_id, [facility_id])
         if not configs:
-            raise ValueError(f"Facility config not found for facility_id: {facility_id}")
+            raise ValueError(
+                f"Facility config not found for facility_id: {facility_id}"
+            )
         facility_config = configs[0]
         tz_map = {facility_id: facility_config.tz}
         all_shifts = await self.shift_retriever.get_shifts_for_org(org_id, tz_map)
@@ -703,7 +739,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             shift
             for shift in all_shifts
             if shift.facility_id == facility_id
-            and start_date <= shift.shift_start_dt.to_tz(facility_config.tz).date().format_common_iso() <= end_date
+            and start_date
+            <= shift.shift_start_dt.to_tz(facility_config.tz).date().format_common_iso()
+            <= end_date
         ]
         if not relevant_shifts:
             raise ValueError("No shifts found in the requested optimization window.")
@@ -735,7 +773,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         covered_shifts = sum(
             1 for shift in all_shifts if schedule.shift_assignments.get(shift.shift_key)
         )
-        total_assignments = sum(len(assignments) for assignments in schedule.shift_assignments.values())
+        total_assignments = sum(
+            len(assignments) for assignments in schedule.shift_assignments.values()
+        )
         return OptimizationSummary(
             assignments_changed=total_assignments,
             total_assignments=total_assignments,

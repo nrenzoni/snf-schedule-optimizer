@@ -11,7 +11,9 @@ from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 class ScheduleVersionModel(SQLABase):
     __tablename__ = "schedule_version"
 
-    schedule_version_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    schedule_version_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
     schedule_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
     org_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
     facility_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)

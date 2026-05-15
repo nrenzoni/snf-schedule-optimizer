@@ -19,7 +19,9 @@ from snf_schedule_optimizer.persistence.fakes import FakeShiftRequirementsRepo
 from snf_schedule_optimizer.resident_acuity_repo import FakeResidentAcuityPerShiftRepo
 
 
-async def test_demand_model_filters_census_by_unit_and_uses_modifiers_not_headcount() -> None:
+async def test_demand_model_filters_census_by_unit_and_uses_modifiers_not_headcount() -> (
+    None
+):
     shift_start = whenever.ZonedDateTime(2025, 1, 1, 7, tz="America/New_York")
     shift = Shift(
         org_id=1,
@@ -102,9 +104,15 @@ async def test_demand_model_filters_census_by_unit_and_uses_modifiers_not_headco
 
     requirements = await calculator.calculate_requirements(context)
 
-    assert requirements[101, HprdEnforcedRole.RN] == pytest.approx(1.575 / 3.0, rel=0.01)
-    assert requirements[101, HprdEnforcedRole.LPN] == pytest.approx(0.7875 / 3.0, rel=0.01)
-    assert requirements[101, HprdEnforcedRole.CNA] == pytest.approx(3.15 / 3.0, rel=0.01)
+    assert requirements[101, HprdEnforcedRole.RN] == pytest.approx(
+        1.575 / 3.0, rel=0.01
+    )
+    assert requirements[101, HprdEnforcedRole.LPN] == pytest.approx(
+        0.7875 / 3.0, rel=0.01
+    )
+    assert requirements[101, HprdEnforcedRole.CNA] == pytest.approx(
+        3.15 / 3.0, rel=0.01
+    )
     assert requirements.get_total_req(101) == pytest.approx(4.725 / 3.0, rel=0.01)
 
 
@@ -191,22 +199,30 @@ async def test_hprd_headcount_independent_of_shift_duration() -> None:
 
     def make_ctx(hours: int) -> FacilityScenarioContext:
         shift = Shift(
-            org_id=1, shift_key=ShiftKey(facility_id=1, shift_id=300 + hours),
-            shift_number=1, day_shift=True,
+            org_id=1,
+            shift_key=ShiftKey(facility_id=1, shift_id=300 + hours),
+            shift_number=1,
+            day_shift=True,
             day_of_week=ref.date().day_of_week(),
             shift_start_dt=ref,
             shift_end_dt=ref.add(hours=hours),
-            unit_id=10, is_scheduled=True,
+            unit_id=10,
+            is_scheduled=True,
         )
         return FacilityScenarioContext(
-            facility_id=1, shifts=[shift],
+            facility_id=1,
+            shifts=[shift],
             config=FacilityConfig(
-                org_id=1, facility_id=1, shifts_per_day=24 // hours,
+                org_id=1,
+                facility_id=1,
+                shifts_per_day=24 // hours,
                 overtime_threshold_hours_per_week=40,
                 start_of_work_week_day=whenever.Weekday.MONDAY,
                 start_of_work_day_time=whenever.Time(7, 0, 0),
                 pay_period=whenever.DateDelta(weeks=1),
-                weekend_multiplier=1.0, night_shift_multiplier=1.0, tz="America/New_York",
+                weekend_multiplier=1.0,
+                night_shift_multiplier=1.0,
+                tz="America/New_York",
             ),
             min_mandates=MinMandates(0.0, 0.0, 0.0, 0.0, 0, 0, 0),
             optimization_settings=OptimizationSettings(
@@ -221,8 +237,8 @@ async def test_hprd_headcount_independent_of_shift_duration() -> None:
     rn_12 = req_12[312, HprdEnforcedRole.RN]
 
     assert rn_8 == pytest.approx(3.0 * 1 / 24.0, rel=0.01), (
-        f"8h shift RN headcount: expected {3.0/24.0:.4f}, got {rn_8:.4f}"
+        f"8h shift RN headcount: expected {3.0 / 24.0:.4f}, got {rn_8:.4f}"
     )
     assert rn_12 == pytest.approx(3.0 * 1 / 24.0, rel=0.01), (
-        f"12h shift RN headcount: expected {3.0/24.0:.4f}, got {rn_12:.4f}"
+        f"12h shift RN headcount: expected {3.0 / 24.0:.4f}, got {rn_12:.4f}"
     )

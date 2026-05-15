@@ -34,7 +34,8 @@ class SQLResidentAcuityPerShiftRepo(IResidentAcuityPerShiftRepo):
                 ResidentAcuityModel.unit_id == shift.unit_id,
                 # Simple logic: records for the shift's calendar day
                 ResidentAcuityModel.census_day >= shift.shift_start_dt.start_of_day(),
-                ResidentAcuityModel.census_day < shift.shift_start_dt.start_of_day().add(days=1),
+                ResidentAcuityModel.census_day
+                < shift.shift_start_dt.start_of_day().add(days=1),
             )
         )
 

@@ -17,6 +17,7 @@ from snf_schedule_optimizer.models import (
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
     EmploymentClassificationConstraintStrategy,
 )
@@ -31,7 +32,6 @@ from snf_schedule_optimizer.persistence.fakes import (
     FakeStaffCompensationRepo,
     FakeWorkHistoryService,
 )
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 
 tz_ny = "America/New_York"
 
@@ -78,10 +78,7 @@ async def test_full_time_capped_at_40h() -> None:
         )
 
     fake_hprd = FakeHprdRequirementCalculator(
-        {
-            (s.shift_id, HprdEnforcedRole.RN): 1.0
-            for s in shifts
-        }
+        {(s.shift_id, HprdEnforcedRole.RN): 1.0 for s in shifts}
     )
 
     optimizer = NurseShiftScheduleOptimizer(
@@ -133,9 +130,7 @@ async def test_full_time_capped_at_40h() -> None:
     assert result.success, f"Infeasible: {result.infeasibility_reason}"
     assert result.optimal_schedule is not None
     assignments = result.optimal_schedule.shift_assignments
-    assigned_count = sum(
-        1 for key, emps in assignments.items() if 1 in emps
-    )
+    assigned_count = sum(1 for key, emps in assignments.items() if 1 in emps)
     assert assigned_count <= 5, (
         f"FT nurse capped at 40h (5x8h), got {assigned_count} shifts"
     )
@@ -183,10 +178,7 @@ async def test_part_time_capped_at_fraction() -> None:
         )
 
     fake_hprd = FakeHprdRequirementCalculator(
-        {
-            (s.shift_id, HprdEnforcedRole.RN): 1.0
-            for s in shifts
-        }
+        {(s.shift_id, HprdEnforcedRole.RN): 1.0 for s in shifts}
     )
 
     optimizer = NurseShiftScheduleOptimizer(
@@ -239,9 +231,7 @@ async def test_part_time_capped_at_fraction() -> None:
     assert result.success, f"Infeasible: {result.infeasibility_reason}"
     assert result.optimal_schedule is not None
     assignments = result.optimal_schedule.shift_assignments
-    assigned_count = sum(
-        1 for key, emps in assignments.items() if 2 in emps
-    )
+    assigned_count = sum(1 for key, emps in assignments.items() if 2 in emps)
     assert assigned_count <= 3, (
         f"PT nurse capped at 30h (40*0.75, 3x8h), got {assigned_count} shifts"
     )
@@ -289,10 +279,7 @@ async def test_prn_no_minimum_guarantee() -> None:
         )
 
     fake_hprd = FakeHprdRequirementCalculator(
-        {
-            (s.shift_id, HprdEnforcedRole.RN): 0.0
-            for s in shifts
-        }
+        {(s.shift_id, HprdEnforcedRole.RN): 0.0 for s in shifts}
     )
 
     optimizer = NurseShiftScheduleOptimizer(

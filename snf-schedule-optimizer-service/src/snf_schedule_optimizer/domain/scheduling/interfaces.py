@@ -78,7 +78,9 @@ class IScheduleRepo(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def next_schedule_id(self, org_id: DomainPrimaryKeyType) -> DomainPrimaryKeyType:
+    async def next_schedule_id(
+        self, org_id: DomainPrimaryKeyType
+    ) -> DomainPrimaryKeyType:
         """Allocates the next schedule identifier for the org."""
         pass
 
@@ -185,7 +187,9 @@ class IScheduleRepo(abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def get_optimization_snapshot(self, snapshot_id: str) -> OptimizationSnapshot | None:
+    async def get_optimization_snapshot(
+        self, snapshot_id: str
+    ) -> OptimizationSnapshot | None:
         """Loads a persisted optimization snapshot by ID."""
         pass
 

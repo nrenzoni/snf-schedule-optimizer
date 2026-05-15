@@ -36,8 +36,11 @@ build-ui:
 lint-be:
   cd snf-schedule-optimizer-service && PYTHONPATH=src uv run ruff check .
 
+auto-fix-format-be:
+    cd snf-schedule-optimizer-service && PYTHONPATH=src uv run ruff check --fix . && PYTHONPATH=src uv run ruff format .
+
 typecheck-be:
-  cd snf-schedule-optimizer-service && PYTHONPATH=src uv run mypy
+    cd snf-schedule-optimizer-service && PYTHONPATH=src uv run mypy
 
 test-be:
   cd snf-schedule-optimizer-service && PYTHONPATH=src uv run pytest

@@ -57,6 +57,11 @@
       "text": "Master Schedule"
     },
     {
+      "name": "facility summary visible with loaded days",
+      "action": "expect_text",
+      "text": "loaded days:"
+    },
+    {
       "name": "facility summary visible",
       "action": "expect_test_id",
       "testId": "facility-summary"

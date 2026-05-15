@@ -1,12 +1,12 @@
+from typing import Any, cast
+
 import pulp
 import whenever
 from pulp import LpProblem
-from typing import Any, cast
 
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     EmploymentClassification,
-    HprdEnforcedRole,
     NurseProfile,
     Shift,
 )
@@ -118,7 +118,9 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
                 employee = await data_provider.get_employee_by_id(nurse.employee_id)
                 if employee is None:
                     continue
-                if employee.job_title in {role.value for role in requirements_holder.roles}:
+                if employee.job_title in {
+                    role.value for role in requirements_holder.roles
+                }:
                     total_available_vars.append(lp_var)
 
             if len(total_available_vars) == 0:
@@ -129,7 +131,9 @@ class HprdStaffingConstraintStrategy(IFacilityScopedConstraintStrategy):
 
             problem += (
                 pulp.lpSum(total_available_vars) >= total_required,
-                build_lp_variable_name("MinStaffTotal", shift.facility_id, shift.shift_id),
+                build_lp_variable_name(
+                    "MinStaffTotal", shift.facility_id, shift.shift_id
+                ),
             )
 
         return None
@@ -150,7 +154,9 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
         if not shifts:
             return None
 
-        min_rest_hours_val: float = data_provider.get_optimization_settings().min_rest_period
+        min_rest_hours_val: float = (
+            data_provider.get_optimization_settings().min_rest_period
+        )
         config = data_provider.get_facility_config(facility_id)
         circadian_rest = config.min_circadian_rest_after_night if config else 11.0
         employee_states = await data_provider.get_employee_states()
@@ -206,13 +212,17 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
                 if state.last_shift_end is None:
                     continue
                 try:
-                    last_end_dt = whenever.ZonedDateTime.parse_common_iso(state.last_shift_end)
+                    last_end_dt = whenever.ZonedDateTime.parse_common_iso(
+                        state.last_shift_end
+                    )
                 except Exception:
                     continue
                 rest_gap = (first_shift_start - last_end_dt).in_hours()
 
                 effective_rest: float = min_rest_hours_val
-                if _is_night_shift_type(state.last_shift_type) and _is_day_shift(shifts[0]):
+                if _is_night_shift_type(state.last_shift_type) and _is_day_shift(
+                    shifts[0]
+                ):
                     effective_rest = circadian_rest
 
                 if rest_gap >= effective_rest:
@@ -221,7 +231,9 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
                 for shift in shifts:
                     gap = (shift.shift_start_dt - last_end_dt).in_hours()
                     need_rest = effective_rest
-                    if _is_night_shift_type(state.last_shift_type) and _is_day_shift(shift):
+                    if _is_night_shift_type(state.last_shift_type) and _is_day_shift(
+                        shift
+                    ):
                         need_rest = circadian_rest
                     if gap >= need_rest:
                         continue
@@ -375,16 +387,12 @@ class NurseShiftCountLimitStrategy(IFacilityScopedConstraintStrategy):
             if night_vars and max_nights is not None and max_nights > 0:
                 problem += (
                     pulp.lpSum(night_vars) <= max_nights,
-                    build_lp_variable_name(
-                        "MaxNightShifts", facility_id, emp_id
-                    ),
+                    build_lp_variable_name("MaxNightShifts", facility_id, emp_id),
                 )
             if weekend_vars and max_weekends is not None and max_weekends > 0:
                 problem += (
                     pulp.lpSum(weekend_vars) <= max_weekends,
-                    build_lp_variable_name(
-                        "MaxWeekendShifts", facility_id, emp_id
-                    ),
+                    build_lp_variable_name("MaxWeekendShifts", facility_id, emp_id),
                 )
 
         return None
@@ -520,15 +528,18 @@ class EmploymentClassificationConstraintStrategy(IFacilityScopedConstraintStrate
         shifts = data_provider.get_shifts_for_facility(facility_id)
         config = data_provider.get_facility_config(facility_id)
 
-        nurses_by_id: dict[DomainPrimaryKeyType, tuple[NurseProfile, EmploymentClassification]] = {}
+        nurses_by_id: dict[
+            DomainPrimaryKeyType, tuple[NurseProfile, EmploymentClassification]
+        ] = {}
         for shift in shifts:
             for nurse in await data_provider.get_nurses_for_shift(shift):
                 if nurse.employee_id not in nurses_by_id:
-                    employee = await data_provider.get_employee_by_id(
-                        nurse.employee_id
-                    )
+                    employee = await data_provider.get_employee_by_id(nurse.employee_id)
                     if employee:
-                        nurses_by_id[nurse.employee_id] = (nurse, employee.classification)
+                        nurses_by_id[nurse.employee_id] = (
+                            nurse,
+                            employee.classification,
+                        )
 
         for emp_id, (nurse, classification) in nurses_by_id.items():
             max_hours = nurse.available_hours_weekly
@@ -640,7 +651,10 @@ class FloatLimitConstraintStrategy(IFacilityScopedConstraintStrategy):
         facility_id: DomainPrimaryKeyType,
     ) -> InfeasibilityReasonResult | None:
         ctx = data_provider.get_facility_context(facility_id)
-        if ctx.hr_config is None or ctx.hr_config.max_floating_assignments_per_month is None:
+        if (
+            ctx.hr_config is None
+            or ctx.hr_config.max_floating_assignments_per_month is None
+        ):
             return None
 
         max_floats = ctx.hr_config.max_floating_assignments_per_month
@@ -669,9 +683,7 @@ class FloatLimitConstraintStrategy(IFacilityScopedConstraintStrategy):
             if float_vars and max_floats > 0:
                 problem += (
                     pulp.lpSum(float_vars) <= max_floats,
-                    build_lp_variable_name(
-                        "FloatLimit", facility_id, emp_id
-                    ),
+                    build_lp_variable_name("FloatLimit", facility_id, emp_id),
                 )
         return None
 

@@ -204,10 +204,7 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
         pay_period_start: whenever.Instant,
         facility_id: DomainPrimaryKeyType | None = None,
     ) -> dict[DomainPrimaryKeyType, float]:
-        return {
-            emp_id: self._hours_map.get(emp_id, 0.0)
-            for emp_id in employee_ids
-        }
+        return {emp_id: self._hours_map.get(emp_id, 0.0) for emp_id in employee_ids}
 
     async def get_remaining_non_ot_hours(
         self,
@@ -245,7 +242,7 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
         check_date: whenever.Instant,
         facility_id: DomainPrimaryKeyType | None = None,
     ) -> dict[DomainPrimaryKeyType, "EmployeeStateSnapshot"]:
-        states: dict[DomainPrimaryKeyType, "EmployeeStateSnapshot"] = {}
+        states: dict[DomainPrimaryKeyType, EmployeeStateSnapshot] = {}
         for eid in employee_ids:
             states[eid] = EmployeeStateSnapshot(
                 employee_id=eid,
@@ -457,9 +454,13 @@ class FakeScheduleRepo(IScheduleRepo):
     async def save_schedule(self, schedule: Schedule) -> None:
         if schedule.schedule_id is None:
             raise ValueError("schedule_id is required")
-        self._schedules[ScheduleLookupKey(schedule.org_id, schedule.schedule_id)] = schedule
+        self._schedules[ScheduleLookupKey(schedule.org_id, schedule.schedule_id)] = (
+            schedule
+        )
 
-    async def next_schedule_id(self, org_id: DomainPrimaryKeyType) -> DomainPrimaryKeyType:
+    async def next_schedule_id(
+        self, org_id: DomainPrimaryKeyType
+    ) -> DomainPrimaryKeyType:
         existing_ids = [
             schedule.schedule_id
             for key, schedule in self._schedules.items()
@@ -481,12 +482,17 @@ class FakeScheduleRepo(IScheduleRepo):
         patches: list[StagedSchedulePatch],
     ) -> tuple[Schedule, list[PatchConflict]]:
         shift_assignments = {
-            key: list(employee_ids) for key, employee_ids in schedule.shift_assignments.items()
+            key: list(employee_ids)
+            for key, employee_ids in schedule.shift_assignments.items()
         }
         conflicts: list[PatchConflict] = []
         for patch in patches:
             from_key = next(
-                (key for key in shift_assignments if key.shift_id == patch.from_shift_id),
+                (
+                    key
+                    for key in shift_assignments
+                    if key.shift_id == patch.from_shift_id
+                ),
                 None,
             )
             to_key = next(
@@ -517,9 +523,15 @@ class FakeScheduleRepo(IScheduleRepo):
                     )
                 )
                 continue
-            if from_key is not None and patch.employee_id in shift_assignments[from_key]:
+            if (
+                from_key is not None
+                and patch.employee_id in shift_assignments[from_key]
+            ):
                 shift_assignments[from_key].remove(patch.employee_id)
-            if to_key is not None and patch.employee_id not in shift_assignments[to_key]:
+            if (
+                to_key is not None
+                and patch.employee_id not in shift_assignments[to_key]
+            ):
                 shift_assignments[to_key].append(patch.employee_id)
 
         return (
@@ -651,7 +663,11 @@ class FakeScheduleRepo(IScheduleRepo):
         run = self._runs.get(run_id)
         if run is None or run.claim_token != claim_token:
             return False
-        completed_at = whenever.Instant.now().format_iso() if status in {"completed", "failed"} else run.completed_at
+        completed_at = (
+            whenever.Instant.now().format_iso()
+            if status in {"completed", "failed"}
+            else run.completed_at
+        )
         self._runs[run_id] = OptimizationRun(
             **{
                 **run.__dict__,
@@ -672,7 +688,9 @@ class FakeScheduleRepo(IScheduleRepo):
     async def save_optimization_snapshot(self, snapshot: OptimizationSnapshot) -> None:
         self._snapshots[snapshot.snapshot_id] = snapshot
 
-    async def get_optimization_snapshot(self, snapshot_id: str) -> OptimizationSnapshot | None:
+    async def get_optimization_snapshot(
+        self, snapshot_id: str
+    ) -> OptimizationSnapshot | None:
         return self._snapshots.get(snapshot_id)
 
     async def commit(self) -> None:

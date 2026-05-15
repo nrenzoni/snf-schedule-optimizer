@@ -41,7 +41,9 @@ class ResidentAcuity:
     pt_score_gg: int  # e.g., Functional status score (Section GG)
     nta_score: int  # Non-Therapy Ancillary comorbidity score
     clinical_category: str  # e.g., 'Acute Infection', 'Major Joint'
-    pdpm_clinical_category: str | None = None  # e.g. "Extensive Services", "Special Care High"
+    pdpm_clinical_category: str | None = (
+        None  # e.g. "Extensive Services", "Special Care High"
+    )
 
 
 @dataclass(frozen=True)

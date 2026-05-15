@@ -41,12 +41,15 @@ async def test_uncovered_shift_generates_alert() -> None:
     )
 
     config = FacilityConfig(
-        org_id=1, facility_id=1, shifts_per_day=3,
+        org_id=1,
+        facility_id=1,
+        shifts_per_day=3,
         overtime_threshold_hours_per_week=40,
         start_of_work_week_day=whenever.Weekday.MONDAY,
         start_of_work_day_time=whenever.Time(7, 0, 0),
         pay_period=whenever.DateDelta(weeks=1),
-        weekend_multiplier=1.0, night_shift_multiplier=1.0,
+        weekend_multiplier=1.0,
+        night_shift_multiplier=1.0,
         tz=tz_ny,
     )
 
@@ -76,9 +79,13 @@ async def test_uncovered_shift_generates_alert() -> None:
         shift_assignments={},
         shifts=[shift],
         data_provider=provider,
-        facility_contexts={1: FacilityScenarioContext(
-            facility_id=1, shifts=[shift], config=config,
-        )},
+        facility_contexts={
+            1: FacilityScenarioContext(
+                facility_id=1,
+                shifts=[shift],
+                config=config,
+            )
+        },
     )
 
     uncovered = [a for a in alerts if a.gap_type == "UNCOVERED"]
@@ -102,31 +109,39 @@ async def test_skill_gap_generates_alert() -> None:
     )
 
     config = FacilityConfig(
-        org_id=1, facility_id=1, shifts_per_day=3,
+        org_id=1,
+        facility_id=1,
+        shifts_per_day=3,
         overtime_threshold_hours_per_week=40,
         start_of_work_week_day=whenever.Weekday.MONDAY,
         start_of_work_day_time=whenever.Time(7, 0, 0),
         pay_period=whenever.DateDelta(weeks=1),
-        weekend_multiplier=1.0, night_shift_multiplier=1.0,
+        weekend_multiplier=1.0,
+        night_shift_multiplier=1.0,
         tz=tz_ny,
     )
 
     cna_emp = Employee(
-        employee_id=1, name="CNA A", job_title="CNA",
+        employee_id=1,
+        name="CNA A",
+        job_title="CNA",
         hire_date=whenever.Date(2024, 1, 1),
     )
     cna_nurse = NurseProfile(
-        employee_id=1, available_hours_weekly=40,
-        skills=["CNA"], shift_custom_preferences=[],
+        employee_id=1,
+        available_hours_weekly=40,
+        skills=["CNA"],
+        shift_custom_preferences=[],
     )
     cna_comp = StaffCompensationRecord(
-        employee_id=1, base_rate_effective=20.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=1,
+        base_rate_effective=20.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
-    fake_hprd = FakeHprdRequirementCalculator(
-        {(1, HprdEnforcedRole.RN): 1.0}
-    )
+    fake_hprd = FakeHprdRequirementCalculator({(1, HprdEnforcedRole.RN): 1.0})
 
     provider = ScenarioDataProviderFactory(
         employee_retriever=FakeEmployeeRepo([cna_emp]),
@@ -154,9 +169,13 @@ async def test_skill_gap_generates_alert() -> None:
         shift_assignments={shift.shift_key: [1]},
         shifts=[shift],
         data_provider=provider,
-        facility_contexts={1: FacilityScenarioContext(
-            facility_id=1, shifts=[shift], config=config,
-        )},
+        facility_contexts={
+            1: FacilityScenarioContext(
+                facility_id=1,
+                shifts=[shift],
+                config=config,
+            )
+        },
     )
 
     skill_gaps = [a for a in alerts if a.gap_type == "SKILL_GAP"]

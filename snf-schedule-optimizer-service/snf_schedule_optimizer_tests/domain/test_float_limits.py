@@ -18,6 +18,7 @@ from snf_schedule_optimizer.models import (
 from snf_schedule_optimizer.optimizer.calculators import NurseHardBlockCheckerImpl
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
     FloatLimitConstraintStrategy,
     HprdStaffingConstraintStrategy,
@@ -33,7 +34,6 @@ from snf_schedule_optimizer.persistence.fakes import (
     FakeStaffCompensationRepo,
     FakeWorkHistoryService,
 )
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 
 tz_ny = "America/New_York"
 
@@ -101,10 +101,7 @@ async def test_float_limit_not_exceeded() -> None:
         )
 
     fake_hprd = FakeHprdRequirementCalculator(
-        {
-            (s.shift_id, HprdEnforcedRole.RN): 1.0
-            for s in shifts
-        }
+        {(s.shift_id, HprdEnforcedRole.RN): 1.0 for s in shifts}
     )
 
     hr_config = FacilityHrConfig(
@@ -172,9 +169,7 @@ async def test_float_limit_not_exceeded() -> None:
     assert result.success, f"Infeasible: {result.infeasibility_reason}"
     assert result.optimal_schedule is not None
     assignments = result.optimal_schedule.shift_assignments
-    float_nurse_assignments = sum(
-        1 for key, emps in assignments.items() if 1 in emps
-    )
+    float_nurse_assignments = sum(1 for key, emps in assignments.items() if 1 in emps)
     assert float_nurse_assignments <= 2, (
         f"Float limit of 2 exceeded, got {float_nurse_assignments} floating assignments"
     )
@@ -222,10 +217,7 @@ async def test_no_float_limit_when_disabled() -> None:
         )
 
     fake_hprd = FakeHprdRequirementCalculator(
-        {
-            (s.shift_id, HprdEnforcedRole.RN): 1.0
-            for s in shifts
-        }
+        {(s.shift_id, HprdEnforcedRole.RN): 1.0 for s in shifts}
     )
 
     hr_config = FacilityHrConfig(
@@ -293,9 +285,7 @@ async def test_no_float_limit_when_disabled() -> None:
     assert result.success, f"Infeasible: {result.infeasibility_reason}"
     assert result.optimal_schedule is not None
     assignments = result.optimal_schedule.shift_assignments
-    float_nurse_assignments = sum(
-        1 for key, emps in assignments.items() if 1 in emps
-    )
+    float_nurse_assignments = sum(1 for key, emps in assignments.items() if 1 in emps)
     assert float_nurse_assignments == 3, (
         f"Without float limit, all 3 floating shifts should be assignable, got {float_nurse_assignments}"
     )

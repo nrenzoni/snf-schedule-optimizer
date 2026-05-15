@@ -16,6 +16,7 @@ from snf_schedule_optimizer.models import (
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
     PdpmCategoryConstraintStrategy,
 )
@@ -30,7 +31,6 @@ from snf_schedule_optimizer.persistence.fakes import (
     FakeStaffCompensationRepo,
     FakeWorkHistoryService,
 )
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 
 tz_ny = "America/New_York"
 
@@ -97,9 +97,7 @@ async def test_pdpm_category_drives_nurse_count() -> None:
         employee_retriever=FakeEmployeeRepo([rn_emp, rn_emp2]),
         nurse_retriever=FakeNurseRepo([rn_nurse, rn_nurse2]),
         hprd_calculator=fake_hprd,
-        staff_compensation_service=FakeStaffCompensationRepo(
-            [rn_comp, rn_comp2]
-        ),
+        staff_compensation_service=FakeStaffCompensationRepo([rn_comp, rn_comp2]),
         ml_model_retriever=FakeMLModelRepo(MlModelOutputs({}, 0.0, {}, {})),
         work_history_service=FakeWorkHistoryService({}),
     ).create(

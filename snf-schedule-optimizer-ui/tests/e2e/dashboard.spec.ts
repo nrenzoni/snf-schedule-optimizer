@@ -30,7 +30,11 @@ test("landing page launches the interactive demo", async ({ page }) => {
 });
 
 test("scheduling toolbar stays shared across list and timeline", async ({ page }) => {
+  const monthlyResponse = page.waitForResponse((response) =>
+    response.url().includes("/scheduling.v1.SchedulingService/GetMonthlySchedule"),
+  );
   await page.goto("/schedule?tab=scheduling&view=timeline");
+  expect((await monthlyResponse).ok()).toBeTruthy();
 
   const timelineButton = page.getByTestId("view-timeline");
   const listButton = page.getByTestId("view-list");
@@ -129,16 +133,21 @@ test("list schedule day card opens shift assignments without client errors", asy
 test("optimize flow updates the persisted schedule summary", async ({ page }) => {
   test.setTimeout(120_000);
 
+  const optimizeResponse = page.waitForResponse((response) => {
+    return response.url().includes("/scheduling.v1.SchedulingService/StartOptimizationRun");
+  });
+  const monthlyResponse = page.waitForResponse((response) =>
+    response.url().includes("/scheduling.v1.SchedulingService/GetMonthlySchedule"),
+  );
+
   await page.goto("/schedule?tab=scheduling&view=timeline");
+  expect((await monthlyResponse).ok()).toBeTruthy();
 
   const optimizeButton = page.getByTestId("optimize-schedule");
   const summaryButton = page.getByTestId("open-schedule-summary");
   const facilitySummary = page.getByTestId("facility-summary");
   const scheduleLoadError = page.getByRole("heading", {
     name: /schedule data could not be loaded/i,
-  });
-  const optimizeResponse = page.waitForResponse((response) => {
-    return response.url().includes("/scheduling.v1.SchedulingService/StartOptimizationRun");
   });
 
   await expect(optimizeButton).toBeVisible();
@@ -211,7 +220,12 @@ test("persisted active run hydrates without mismatch", async ({ page }) => {
     );
   });
 
+  const monthlyResponse = page.waitForResponse((response) =>
+    response.url().includes("/scheduling.v1.SchedulingService/GetMonthlySchedule"),
+  );
+
   await page.goto("/schedule?tab=scheduling&view=timeline");
+  expect((await monthlyResponse).ok()).toBeTruthy();
 
   const runPanel = page.locator("div.app-soft-panel").filter({
     hasText: /run:/i,

@@ -175,9 +175,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         if shift.shift_key not in self._shift_nurses_cache:
             nurses = await self._nurse_retriever.get_nurses(shift)
             eligible_nurses = []
-            pto_requests = self._facility_contexts.get(
-                shift.facility_id
-            )
+            pto_requests = self._facility_contexts.get(shift.facility_id)
             pto_list = pto_requests.pto_requests if pto_requests else []
             for nurse in nurses:
                 employee = await self.get_employee_by_id(nurse.employee_id)

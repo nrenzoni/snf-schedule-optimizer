@@ -29,6 +29,7 @@ class _FakeDataProvider:
 
     def get_optimization_settings(self) -> object:
         from snf_schedule_optimizer.models import OptimizationSettings
+
         return OptimizationSettings()
 
 

@@ -26,16 +26,22 @@ def handler(obfuscator: IdObfuscator) -> SchedulingServiceHandler:
 
 
 class TestDecodeOrgAndFacility:
-    def test_returns_failure_for_invalid_org_id(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_failure_for_invalid_org_id(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         result = handler._decode_org_and_facility("not-a-valid-id", "")
         assert isinstance(result, Failure)
 
-    def test_returns_failure_for_invalid_facility_id(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_failure_for_invalid_facility_id(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         org_id = handler.id_obfuscator.encode(1)
         result = handler._decode_org_and_facility(org_id, "not-a-valid-id")
         assert isinstance(result, Failure)
 
-    def test_returns_success_for_valid_ids(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_success_for_valid_ids(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         org_id = handler.id_obfuscator.encode(1)
         fac_id = handler.id_obfuscator.encode(2)
         result = handler._decode_org_and_facility(org_id, fac_id)
@@ -44,7 +50,9 @@ class TestDecodeOrgAndFacility:
         assert org == 1
         assert fac == 2
 
-    def test_returns_success_with_none_for_missing_facility(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_success_with_none_for_missing_facility(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         org_id = handler.id_obfuscator.encode(1)
         result = handler._decode_org_and_facility(org_id, "")
         assert isinstance(result, Success)
@@ -52,13 +60,17 @@ class TestDecodeOrgAndFacility:
         assert org == 1
         assert fac is None
 
-    def test_returns_failure_for_empty_org_id(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_failure_for_empty_org_id(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         result = handler._decode_org_and_facility("", "")
         assert isinstance(result, Failure)
 
 
 class TestDecodePatch:
-    def test_returns_failure_for_invalid_employee_id(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_failure_for_invalid_employee_id(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         proto_patch = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
             employee_id="not-a-valid-employee-id",
@@ -67,7 +79,9 @@ class TestDecodePatch:
         assert isinstance(result, Failure)
         assert "Employee" in result.failure()
 
-    def test_returns_failure_for_invalid_from_shift_id(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_failure_for_invalid_from_shift_id(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         employee_id = handler.id_obfuscator.encode(100)
         proto_patch = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
@@ -78,7 +92,9 @@ class TestDecodePatch:
         assert isinstance(result, Failure)
         assert "Shift" in result.failure()
 
-    def test_returns_success_for_valid_patch(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_success_for_valid_patch(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         employee_id = handler.id_obfuscator.encode(100)
         from_shift_id = handler.id_obfuscator.encode(200)
         to_shift_id = handler.id_obfuscator.encode(300)
@@ -105,7 +121,9 @@ class TestDecodePatch:
         assert patch.causes_overtime is True
         assert patch.total_cost == 150.0
 
-    def test_returns_success_with_none_for_missing_shift_ids(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_success_with_none_for_missing_shift_ids(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         employee_id = handler.id_obfuscator.encode(100)
         proto_patch = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
@@ -133,7 +151,9 @@ class TestDecodeStagedPatches:
         assert isinstance(result, Failure)
         assert "Employee" in result.failure()
 
-    def test_returns_all_decoded_on_success(self, handler: SchedulingServiceHandler) -> None:
+    def test_returns_all_decoded_on_success(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         employee_id = handler.id_obfuscator.encode(100)
         p1 = scheduling_pb2.StagedSchedulePatch(
             patch_id="p1",
@@ -150,14 +170,18 @@ class TestDecodeStagedPatches:
         assert patches[0].patch_id == "p1"
         assert patches[1].patch_id == "p2"
 
-    def test_empty_list_returns_empty_tuple(self, handler: SchedulingServiceHandler) -> None:
+    def test_empty_list_returns_empty_tuple(
+        self, handler: SchedulingServiceHandler
+    ) -> None:
         result = handler._decode_staged_patches([])
         assert isinstance(result, Success)
         assert result.unwrap() == ()
 
 
 class TestGetInternalId:
-    def test_returns_failure_for_missing_required_id(self, obfuscator: IdObfuscator) -> None:
+    def test_returns_failure_for_missing_required_id(
+        self, obfuscator: IdObfuscator
+    ) -> None:
         result = get_internal_id(obfuscator, "", "Organization")
         assert isinstance(result, Failure)
         assert "Missing" in result.failure()
@@ -167,7 +191,9 @@ class TestGetInternalId:
         assert isinstance(result, Failure)
         assert "Invalid" in result.failure()
 
-    def test_returns_success_with_none_for_optional_empty(self, obfuscator: IdObfuscator) -> None:
+    def test_returns_success_with_none_for_optional_empty(
+        self, obfuscator: IdObfuscator
+    ) -> None:
         result = get_internal_id(obfuscator, "", "Facility", required=False)
         assert isinstance(result, Success)
         assert result.unwrap() is None

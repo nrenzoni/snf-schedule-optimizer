@@ -191,6 +191,4 @@ async def test_preference_penalty_and_ot_penalty_accumulate() -> None:
         accumulated_hours=38.0,
     )
 
-    assert penalty > 1500.0, (
-        f"Expected >1500 (1500 pref + OT penalty), got {penalty}"
-    )
+    assert penalty > 1500.0, f"Expected >1500 (1500 pref + OT penalty), got {penalty}"

@@ -37,10 +37,7 @@ def _build_e2e_fixture() -> tuple[
         Employee(2, "CNA 1", "CNA", ref_date.date()),
         Employee(3, "CNA 2", "CNA", ref_date.date()),
     ]
-    nurses = [
-        NurseProfile(e.employee_id, 40, [e.job_title], [])
-        for e in employees
-    ]
+    nurses = [NurseProfile(e.employee_id, 40, [e.job_title], []) for e in employees]
     compensations = [
         StaffCompensationRecord(
             employee_id=e.employee_id,

@@ -159,8 +159,12 @@ class DemoSeeder:
     ) -> Schedule:
         assignments: ShiftAssignmentsType = defaultdict(list)
         rn_ids = [nurse.employee_id for nurse in nurses if "RN" in (nurse.skills or [])]
-        lpn_ids = [nurse.employee_id for nurse in nurses if "LPN" in (nurse.skills or [])]
-        cna_ids = [nurse.employee_id for nurse in nurses if "CNA" in (nurse.skills or [])]
+        lpn_ids = [
+            nurse.employee_id for nurse in nurses if "LPN" in (nurse.skills or [])
+        ]
+        cna_ids = [
+            nurse.employee_id for nurse in nurses if "CNA" in (nurse.skills or [])
+        ]
         if not rn_ids and not lpn_ids and not cna_ids:
             return Schedule(
                 org_id=org_id,
@@ -175,7 +179,9 @@ class DemoSeeder:
             104: {1: (1, 2, 5), 2: (1, 1, 4), 3: (1, 1, 3)},  # Subacute
         }
 
-        def add_staff(pool: list[int], count: int, start: int, shift_key: ShiftKey) -> None:
+        def add_staff(
+            pool: list[int], count: int, start: int, shift_key: ShiftKey
+        ) -> None:
             if not pool:
                 return
             for offset in range(count):
@@ -183,7 +189,9 @@ class DemoSeeder:
 
         # Create a deterministic baseline rotation with realistic SNF coverage pressure.
         for index, shift in enumerate(shifts):
-            rn_count, lpn_count, cna_count = unit_staffing.get(shift.unit_id or 0, {}).get(
+            rn_count, lpn_count, cna_count = unit_staffing.get(
+                shift.unit_id or 0, {}
+            ).get(
                 shift.shift_number,
                 (1, 1, 4),
             )
@@ -202,11 +210,17 @@ class DemoSeeder:
             facility_id=facility_id,
             schedule_id=1,
             shift_assignments=dict(assignments),
-            start_date=shifts[0].shift_start_dt.date().format_common_iso() if shifts else None,
-            end_date=shifts[-1].shift_start_dt.date().format_common_iso() if shifts else None,
+            start_date=shifts[0].shift_start_dt.date().format_common_iso()
+            if shifts
+            else None,
+            end_date=shifts[-1].shift_start_dt.date().format_common_iso()
+            if shifts
+            else None,
         )
 
-    def _seed_acuity_records(self, org_id: int, facility_id: int, scenario: object) -> None:
+    def _seed_acuity_records(
+        self, org_id: int, facility_id: int, scenario: object
+    ) -> None:
         for resident in getattr(scenario, "acuity_data", []):
             self.db_session.add(
                 ResidentAcuityModel(
@@ -255,7 +269,9 @@ class DemoSeeder:
                         shift_id=shift.shift_id,
                         shift_code=f"SHIFT-{shift.shift_id}",
                         job_code=None,
-                        cost_center_1=str(shift.unit_id) if shift.unit_id is not None else None,
+                        cost_center_1=str(shift.unit_id)
+                        if shift.unit_id is not None
+                        else None,
                         cost_center_2=None,
                         cost_center_3=None,
                         rate=None,
@@ -277,7 +293,9 @@ class DemoSeeder:
                         shift_id=shift.shift_id,
                         shift_code=f"SHIFT-{shift.shift_id}",
                         job_code=None,
-                        cost_center_1=str(shift.unit_id) if shift.unit_id is not None else None,
+                        cost_center_1=str(shift.unit_id)
+                        if shift.unit_id is not None
+                        else None,
                         cost_center_2=None,
                         cost_center_3=None,
                         rate=None,

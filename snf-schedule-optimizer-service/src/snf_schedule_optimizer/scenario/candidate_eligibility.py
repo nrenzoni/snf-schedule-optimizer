@@ -46,9 +46,13 @@ class CandidateEligibilityService:
                 if pto.employee_id == employee.employee_id and pto.date == shift_date:
                     if pto.hours == 0:
                         return CandidateEligibilityResult(nurse, False, "pto_full_day")
-                    remaining_available = nurse.available_hours_weekly - already_worked_hours - pto.hours
+                    remaining_available = (
+                        nurse.available_hours_weekly - already_worked_hours - pto.hours
+                    )
                     if remaining_available < shift.duration_hours:
-                        return CandidateEligibilityResult(nurse, False, "pto_partial_hours")
+                        return CandidateEligibilityResult(
+                            nurse, False, "pto_partial_hours"
+                        )
 
         if employee.job_title not in {"RN", "LPN", "CNA"}:
             return CandidateEligibilityResult(nurse, False, "non_direct_care_role")
@@ -58,19 +62,30 @@ class CandidateEligibilityService:
 
         remaining_hours = nurse.available_hours_weekly - already_worked_hours
         if remaining_hours < shift.duration_hours:
-            return CandidateEligibilityResult(nurse, False, "insufficient_weekly_capacity")
+            return CandidateEligibilityResult(
+                nurse, False, "insufficient_weekly_capacity"
+            )
 
-        if self._hard_block_checker is not None and self._hard_block_checker.check(nurse, shift):
+        if self._hard_block_checker is not None and self._hard_block_checker.check(
+            nurse, shift
+        ):
             return CandidateEligibilityResult(nurse, False, "hard_block")
 
         if locked_assignments_for_emp:
             for la in locked_assignments_for_emp:
-                if la.shift_key == shift.shift_key and la.employee_id == employee.employee_id:
-                    return CandidateEligibilityResult(nurse, False, "already_locked_to_shift")
+                if (
+                    la.shift_key == shift.shift_key
+                    and la.employee_id == employee.employee_id
+                ):
+                    return CandidateEligibilityResult(
+                        nurse, False, "already_locked_to_shift"
+                    )
 
         if employee_state is not None:
             if employee_state.consecutive_days_worked > 0:
-                total_potential = employee_state.worked_hours_pay_period + shift.duration_hours
+                total_potential = (
+                    employee_state.worked_hours_pay_period + shift.duration_hours
+                )
                 remaining = nurse.available_hours_weekly - total_potential
                 if remaining < 0 and already_worked_hours > 0:
                     return CandidateEligibilityResult(

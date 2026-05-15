@@ -1,5 +1,3 @@
-import math
-
 import pulp
 import whenever
 from pulp import LpProblem
@@ -64,7 +62,9 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
                 if lp_var is None:
                     continue
 
-                assignments_by_employee.setdefault(nurse.employee_id, []).append((shift, lp_var))
+                assignments_by_employee.setdefault(nurse.employee_id, []).append(
+                    (shift, lp_var)
+                )
 
                 # 1. Calculate Preference Penalty (The "Soft" Constraints)
                 # (Delegates to your service from Turn 2)
@@ -153,7 +153,10 @@ class WeekendFairnessPenaltyStrategy(
             weekend_vars[emp_id] = []
             holiday_vars[emp_id] = []
             for shift, var in shift_var_list:
-                if shift.day_of_week == whenever.Weekday.SATURDAY or shift.day_of_week == whenever.Weekday.SUNDAY:
+                if (
+                    shift.day_of_week == whenever.Weekday.SATURDAY
+                    or shift.day_of_week == whenever.Weekday.SUNDAY
+                ):
                     weekend_vars[emp_id].append(var)
                 holidays = facility_configs.get(shift.facility_id, set())
                 if shift.shift_start_dt.date() in holidays:

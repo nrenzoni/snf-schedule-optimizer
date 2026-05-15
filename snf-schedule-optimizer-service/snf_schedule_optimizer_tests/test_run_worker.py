@@ -181,7 +181,9 @@ async def test_worker_reclaims_stale_running_run() -> None:
     first_claim = await schedule_repo.claim_next_queued_optimization_run(
         worker_id="dead-worker",
         claim_token="dead-token",
-        lease_expires_at=whenever.Instant.now().subtract(seconds=LEASE_SECONDS + 1).format_iso(),
+        lease_expires_at=whenever.Instant.now()
+        .subtract(seconds=LEASE_SECONDS + 1)
+        .format_iso(),
     )
     assert first_claim is not None
     await schedule_repo.commit()
@@ -215,7 +217,9 @@ async def test_worker_reclaim_skips_duplicate_progress_events() -> None:
     first_claim = await schedule_repo.claim_next_queued_optimization_run(
         worker_id="dead-worker",
         claim_token="dead-token",
-        lease_expires_at=whenever.Instant.now().subtract(seconds=LEASE_SECONDS + 1).format_iso(),
+        lease_expires_at=whenever.Instant.now()
+        .subtract(seconds=LEASE_SECONDS + 1)
+        .format_iso(),
     )
     assert first_claim is not None
     await schedule_repo.append_optimization_run_event(

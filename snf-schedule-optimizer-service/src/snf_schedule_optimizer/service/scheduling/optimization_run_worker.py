@@ -58,9 +58,7 @@ class OptimizationRunWorker:
         worker_id: str,
         schedule_repo: IScheduleRepo,
         scheduler_facade: WorkforceSchedulerFacade,
-        renew_lease: (
-            Callable[[str, str, str, str], Awaitable[bool]] | None
-        ) = None,
+        renew_lease: (Callable[[str, str, str, str], Awaitable[bool]] | None) = None,
     ) -> None:
         self.worker_id = worker_id
         self.schedule_repo = schedule_repo
@@ -84,7 +82,9 @@ class OptimizationRunWorker:
 
     async def _claim_once(self) -> WorkerClaim | None:
         claim_token = uuid4().hex
-        lease_expires_at = whenever.Instant.now().add(seconds=LEASE_SECONDS).format_iso()
+        lease_expires_at = (
+            whenever.Instant.now().add(seconds=LEASE_SECONDS).format_iso()
+        )
         run = await self.schedule_repo.claim_next_queued_optimization_run(
             worker_id=self.worker_id,
             claim_token=claim_token,
@@ -125,7 +125,9 @@ class OptimizationRunWorker:
             )
 
             facility_contexts = {request.facility_id: facility_context}
-            pay_period_start = facility_context.shifts[0].shift_start_dt.start_of_day().to_instant()
+            pay_period_start = (
+                facility_context.shifts[0].shift_start_dt.start_of_day().to_instant()
+            )
 
             live_provider = self.scheduler_facade.create_data_provider(
                 org_id=request.org_id,
@@ -258,7 +260,9 @@ class OptimizationRunWorker:
                     persisted_schedule.schedule_id if request.persist_result else None
                 ),
                 result_schedule_version=(
-                    persisted_schedule.schedule_version if request.persist_result else None
+                    persisted_schedule.schedule_version
+                    if request.persist_result
+                    else None
                 ),
                 financials=result.financials,
                 stats=result.stats,
@@ -317,7 +321,9 @@ class OptimizationRunWorker:
             await asyncio.sleep(LEASE_SECONDS / 3)
             now = whenever.Instant.now().format_iso()
             lease = whenever.Instant.now().add(seconds=LEASE_SECONDS).format_iso()
-            renewed = await self._renew_lease(claim.run.run_id, claim.claim_token, now, lease)
+            renewed = await self._renew_lease(
+                claim.run.run_id, claim.claim_token, now, lease
+            )
             if not renewed:
                 return
 
@@ -424,8 +430,14 @@ class OptimizationRunWorker:
     ) -> OptimizationSnapshot:
         decision_start = request.start_date
         decision_end = request.end_date or request.start_date
-        policy_start = whenever.Date.parse_common_iso(decision_start).subtract(days=7).format_common_iso()
-        policy_end = whenever.Date.parse_common_iso(decision_end).add(days=7).format_common_iso()
+        policy_start = (
+            whenever.Date.parse_common_iso(decision_start)
+            .subtract(days=7)
+            .format_common_iso()
+        )
+        policy_end = (
+            whenever.Date.parse_common_iso(decision_end).add(days=7).format_common_iso()
+        )
 
         rebased_schedule = base_schedule
         conflicts: list[PatchConflict] = []
@@ -435,7 +447,11 @@ class OptimizationRunWorker:
                 list(request.staged_patches),
             )
         locked_assignments = [
-            LockedAssignment(employee_id=patch.employee_id, shift_key=key, created_at=patch.created_at)
+            LockedAssignment(
+                employee_id=patch.employee_id,
+                shift_key=key,
+                created_at=patch.created_at,
+            )
             for patch in request.staged_patches
             if patch.to_shift_id is not None
             for key in [
@@ -460,9 +476,7 @@ class OptimizationRunWorker:
         for shift in all_shifts:
             nurses = await live_provider.get_nurses_for_shift(shift)
             key_str = f"{shift.facility_id}:{shift.shift_id}"
-            nurses_by_shift[key_str] = [
-                _serialize_nurse(n) for n in nurses
-            ]
+            nurses_by_shift[key_str] = [_serialize_nurse(n) for n in nurses]
 
         hprd_req = await live_provider.get_hprd_requirements_for_facility(
             request.facility_id
@@ -489,7 +503,11 @@ class OptimizationRunWorker:
         hprd_values: list[list[float]] = []
         for shift_id in (s.shift_id for s in all_shifts):
             row = []
-            for role in [HprdEnforcedRole.RN, HprdEnforcedRole.LPN, HprdEnforcedRole.CNA]:
+            for role in [
+                HprdEnforcedRole.RN,
+                HprdEnforcedRole.LPN,
+                HprdEnforcedRole.CNA,
+            ]:
                 row.append(hprd_req[shift_id, role])
             hprd_values.append(row)
 
@@ -594,7 +612,11 @@ class OptimizationRunWorker:
             facility_id = item.get("facility_id")
             shift_id = item.get("shift_id")
             employee_id = item.get("employee_id")
-            if not isinstance(facility_id, int) or not isinstance(shift_id, int) or not isinstance(employee_id, int):
+            if (
+                not isinstance(facility_id, int)
+                or not isinstance(shift_id, int)
+                or not isinstance(employee_id, int)
+            ):
                 continue
             created_at = item.get("created_at")
             source = item.get("source")

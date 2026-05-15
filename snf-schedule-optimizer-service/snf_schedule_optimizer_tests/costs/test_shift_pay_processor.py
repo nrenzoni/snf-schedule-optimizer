@@ -1,5 +1,7 @@
 """I.6: skip_overtime_computation flag prevents OT in straight-time costing."""
 
+from unittest.mock import AsyncMock, MagicMock
+
 import whenever
 
 from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
@@ -12,8 +14,6 @@ from snf_schedule_optimizer.models import (
     ShiftKey,
     StaffCompensationRecord,
 )
-from unittest.mock import AsyncMock, MagicMock
-from snf_schedule_optimizer.optimizer.models import ShiftCostBreakdown
 
 
 async def test_skip_overtime_returns_zero_ot_premium() -> None:
@@ -33,17 +33,23 @@ async def test_skip_overtime_returns_zero_ot_premium() -> None:
         employee_id=1, name="Test", job_title="RN", hire_date=whenever.Date(2024, 1, 1)
     )
     config = FacilityConfig(
-        org_id=1, facility_id=1, shifts_per_day=3,
+        org_id=1,
+        facility_id=1,
+        shifts_per_day=3,
         overtime_threshold_hours_per_week=40,
         start_of_work_week_day=whenever.Weekday.MONDAY,
         start_of_work_day_time=whenever.Time(7, 0, 0),
         pay_period=whenever.DateDelta(weeks=1),
-        weekend_multiplier=1.0, night_shift_multiplier=1.0,
+        weekend_multiplier=1.0,
+        night_shift_multiplier=1.0,
         tz="America/New_York",
     )
     comp = StaffCompensationRecord(
-        employee_id=1, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=1,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
     mock_comp_service = MagicMock()
@@ -62,8 +68,10 @@ async def test_skip_overtime_returns_zero_ot_premium() -> None:
     )
 
     with_ot = await processor.calculate_detailed_cost(
-        employee=employee, shift=shift,
-        current_weekly_hours=36.0, facility_config=config,
+        employee=employee,
+        shift=shift,
+        current_weekly_hours=36.0,
+        facility_config=config,
         skip_overtime_computation=False,
     )
     assert with_ot.overtime_premium > 0, (
@@ -71,8 +79,10 @@ async def test_skip_overtime_returns_zero_ot_premium() -> None:
     )
 
     without_ot = await processor.calculate_detailed_cost(
-        employee=employee, shift=shift,
-        current_weekly_hours=36.0, facility_config=config,
+        employee=employee,
+        shift=shift,
+        current_weekly_hours=36.0,
+        facility_config=config,
         skip_overtime_computation=True,
     )
     assert without_ot.overtime_premium == 0, (

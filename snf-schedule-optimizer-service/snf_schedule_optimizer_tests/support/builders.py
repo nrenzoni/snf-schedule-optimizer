@@ -224,10 +224,12 @@ class OptimizerTestBuilder:
         # We use a real Slicer and a mocked Rate Calculator for simplicity
 
         mock_eligibility = MagicMock()
-        mock_eligibility.get_applicable_rules = AsyncMock(return_value=(
-            [],
-            [],
-        ))  # No diffs/OT rules by default
+        mock_eligibility.get_applicable_rules = AsyncMock(
+            return_value=(
+                [],
+                [],
+            )
+        )  # No diffs/OT rules by default
 
         self.pay_processor = ShiftPayProcessor(
             eligibility_service=mock_eligibility,

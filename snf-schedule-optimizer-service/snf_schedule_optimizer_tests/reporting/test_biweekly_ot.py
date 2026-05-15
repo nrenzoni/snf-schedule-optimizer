@@ -1,5 +1,13 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import whenever
 
+from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
+    ShiftPayProcessor,
+)
+from snf_schedule_optimizer.domain.payroll.calculations.shift_slicers import (
+    TimeOverlapShiftSlicer,
+)
 from snf_schedule_optimizer.models import (
     Employee,
     FacilityConfig,
@@ -15,6 +23,7 @@ from snf_schedule_optimizer.models import (
 from snf_schedule_optimizer.optimizer.calculators import NurseHardBlockCheckerImpl
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.engine import NurseShiftScheduleOptimizer
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
     HprdStaffingConstraintStrategy,
 )
@@ -25,7 +34,6 @@ from snf_schedule_optimizer.optimizer.strategies.pay import (
 from snf_schedule_optimizer.optimizer.strategies.variables import (
     CoreVariableGenerationStrategy,
 )
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.persistence.fakes import (
     FakeEmployeeRepo,
     FakeHprdRequirementCalculator,
@@ -34,15 +42,6 @@ from snf_schedule_optimizer.persistence.fakes import (
     FakeStaffCompensationRepo,
     FakeWorkHistoryService,
 )
-from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
-    ShiftPayProcessor,
-)
-from snf_schedule_optimizer.domain.payroll.calculations.shift_slicers import (
-    TimeOverlapShiftSlicer,
-)
-
-from unittest.mock import AsyncMock, MagicMock
-
 
 tz_ny = "America/New_York"
 
@@ -53,9 +52,7 @@ def _make_shifts(
     shifts: list[Shift] = []
     for day_offset in range(n_days):
         day = ref.add(days=day_offset)
-        start = whenever.ZonedDateTime(
-            day.year, day.month, day.day, 7, tz=tz_ny
-        )
+        start = whenever.ZonedDateTime(day.year, day.month, day.day, 7, tz=tz_ny)
         end = start.add(hours=hours_per_shift)
         shift = Shift(
             org_id=1,
@@ -74,9 +71,7 @@ def _make_shifts(
 
 def _make_pay_processor(comp: StaffCompensationRecord) -> ShiftPayProcessor:
     mock_eligibility = MagicMock()
-    mock_eligibility.get_applicable_rules = AsyncMock(
-        return_value=([], [])
-    )
+    mock_eligibility.get_applicable_rules = AsyncMock(return_value=([], []))
     return ShiftPayProcessor(
         eligibility_service=mock_eligibility,
         slicer=TimeOverlapShiftSlicer(),
@@ -89,16 +84,23 @@ async def test_biweekly_ot_fires_when_total_exceeds_80h() -> None:
     shifts = _make_shifts(ref, 8)
 
     nurse_emp = Employee(
-        employee_id=1, name="RN A", job_title="RN",
+        employee_id=1,
+        name="RN A",
+        job_title="RN",
         hire_date=whenever.Date(2024, 1, 1),
     )
     nurse_profile = NurseProfile(
-        employee_id=1, available_hours_weekly=80,
-        skills=["RN"], shift_custom_preferences=[],
+        employee_id=1,
+        available_hours_weekly=80,
+        skills=["RN"],
+        shift_custom_preferences=[],
     )
     comp = StaffCompensationRecord(
-        employee_id=1, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=1,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
     pay_processor = _make_pay_processor(comp)
@@ -111,7 +113,8 @@ async def test_biweekly_ot_fires_when_total_exceeds_80h() -> None:
         core_variable_strategy=CoreVariableGenerationStrategy(),
         global_pay_strategies=[
             WeeklyVolumePayStrategy(
-                shift_pay_processor=pay_processor, threshold=40.0,
+                shift_pay_processor=pay_processor,
+                threshold=40.0,
             ),
             BiWeeklyPayPeriodOTStrategy(threshold=80.0),
         ],
@@ -136,12 +139,15 @@ async def test_biweekly_ot_fires_when_total_exceeds_80h() -> None:
                 facility_id=1,
                 shifts=shifts,
                 config=FacilityConfig(
-                    org_id=1, facility_id=1, shifts_per_day=3,
+                    org_id=1,
+                    facility_id=1,
+                    shifts_per_day=3,
                     overtime_threshold_hours_per_week=40,
                     start_of_work_week_day=whenever.Weekday.MONDAY,
                     start_of_work_day_time=whenever.Time(7, 0, 0),
                     pay_period=whenever.DateDelta(weeks=1),
-                    weekend_multiplier=1.0, night_shift_multiplier=1.0,
+                    weekend_multiplier=1.0,
+                    night_shift_multiplier=1.0,
                     tz=tz_ny,
                 ),
             )
@@ -166,7 +172,8 @@ async def test_biweekly_ot_fires_when_total_exceeds_80h() -> None:
     assigned_hours = sum(
         shift.duration_hours
         for shift_key, emp_ids in assignments.items()
-        for shift in shifts if shift.shift_key == shift_key
+        for shift in shifts
+        if shift.shift_key == shift_key
         for _ in emp_ids
     )
 
@@ -180,16 +187,23 @@ async def test_biweekly_ot_does_not_fire_below_threshold() -> None:
     shifts = _make_shifts(ref, 5)
 
     nurse_emp = Employee(
-        employee_id=1, name="RN A", job_title="RN",
+        employee_id=1,
+        name="RN A",
+        job_title="RN",
         hire_date=whenever.Date(2024, 1, 1),
     )
     nurse_profile = NurseProfile(
-        employee_id=1, available_hours_weekly=80,
-        skills=["RN"], shift_custom_preferences=[],
+        employee_id=1,
+        available_hours_weekly=80,
+        skills=["RN"],
+        shift_custom_preferences=[],
     )
     comp = StaffCompensationRecord(
-        employee_id=1, base_rate_effective=30.0, ot_multiplier=1.5,
-        is_agency=False, effective_start_date=whenever.Date(2024, 1, 1),
+        employee_id=1,
+        base_rate_effective=30.0,
+        ot_multiplier=1.5,
+        is_agency=False,
+        effective_start_date=whenever.Date(2024, 1, 1),
     )
 
     pay_processor = _make_pay_processor(comp)
@@ -202,7 +216,8 @@ async def test_biweekly_ot_does_not_fire_below_threshold() -> None:
         core_variable_strategy=CoreVariableGenerationStrategy(),
         global_pay_strategies=[
             WeeklyVolumePayStrategy(
-                shift_pay_processor=pay_processor, threshold=40.0,
+                shift_pay_processor=pay_processor,
+                threshold=40.0,
             ),
             BiWeeklyPayPeriodOTStrategy(threshold=80.0),
         ],
@@ -227,12 +242,15 @@ async def test_biweekly_ot_does_not_fire_below_threshold() -> None:
                 facility_id=1,
                 shifts=shifts,
                 config=FacilityConfig(
-                    org_id=1, facility_id=1, shifts_per_day=3,
+                    org_id=1,
+                    facility_id=1,
+                    shifts_per_day=3,
                     overtime_threshold_hours_per_week=40,
                     start_of_work_week_day=whenever.Weekday.MONDAY,
                     start_of_work_day_time=whenever.Time(7, 0, 0),
                     pay_period=whenever.DateDelta(weeks=1),
-                    weekend_multiplier=1.0, night_shift_multiplier=1.0,
+                    weekend_multiplier=1.0,
+                    night_shift_multiplier=1.0,
                     tz=tz_ny,
                 ),
             )
@@ -257,7 +275,8 @@ async def test_biweekly_ot_does_not_fire_below_threshold() -> None:
     assigned_hours = sum(
         shift.duration_hours
         for shift_key, emp_ids in assignments.items()
-        for shift in shifts if shift.shift_key == shift_key
+        for shift in shifts
+        if shift.shift_key == shift_key
         for _ in emp_ids
     )
 

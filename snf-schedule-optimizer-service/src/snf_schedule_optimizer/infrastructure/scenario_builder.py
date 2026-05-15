@@ -131,7 +131,9 @@ class ScenarioBuilder:
                     shift_start = current_dt.add(days=day).replace(
                         hour=start_hour % 24, minute=0, second=0
                     )
-                    shift_end = shift_start.add(hours=self.time_cfg.shift_duration_hours)
+                    shift_end = shift_start.add(
+                        hours=self.time_cfg.shift_duration_hours
+                    )
 
                     is_day = 7 <= shift_start.hour < 15
 
@@ -216,7 +218,9 @@ class ScenarioBuilder:
                 104: 24,
             }
             variance = self.rng.randint(-2, 3)
-            day_unit_counts[key] = max(18, base_by_unit.get(shift.unit_id, 30) + variance)
+            day_unit_counts[key] = max(
+                18, base_by_unit.get(shift.unit_id, 30) + variance
+            )
 
         acuity_data: list[ResidentAcuity] = []
         resident_id = 1
@@ -239,7 +243,9 @@ class ScenarioBuilder:
                         pt_score_gg=15 if high_acuity else self.rng.randint(5, 11),
                         nta_score=8 if high_acuity else self.rng.randint(1, 5),
                         clinical_category=(
-                            "High Acuity Rehab" if high_acuity else "Standard Skilled Nursing"
+                            "High Acuity Rehab"
+                            if high_acuity
+                            else "Standard Skilled Nursing"
                         ),
                     )
                 )

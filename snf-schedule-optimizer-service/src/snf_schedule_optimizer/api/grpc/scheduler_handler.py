@@ -115,7 +115,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             self._facility_context(facility_container),
             scope=ContextScopes.REQUEST,
         ):
-            facility_facade: FacilityFacade = await facility_container.facility_facade.resolve()
+            facility_facade: FacilityFacade = (
+                await facility_container.facility_facade.resolve()
+            )
             facility_configs = await facility_facade.get_all_system_facilities()
         org_facs = [
             scheduling_dot_v1_dot_scheduling__pb2.OrgFacility(
@@ -143,7 +145,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             scheduling_pb2.GetMonthlyScheduleResponse,
         ],
     ) -> scheduling_pb2.GetMonthlyScheduleResponse:
-        org_fac_result = self._decode_org_and_facility(request.org_id, request.facility_id)
+        org_fac_result = self._decode_org_and_facility(
+            request.org_id, request.facility_id
+        )
         if isinstance(org_fac_result, Failure):
             return scheduling_pb2.GetMonthlyScheduleResponse()
         org_id, facility_id = org_fac_result.unwrap()
@@ -156,7 +160,12 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             scheduler_service: WorkforceSchedulerFacadePort = (
                 await scheduler_container.scheduler_service.resolve()
             )
-            schedule, shifts, employees, facility_config = await scheduler_service.get_monthly_schedule(
+            (
+                schedule,
+                shifts,
+                employees,
+                facility_config,
+            ) = await scheduler_service.get_monthly_schedule(
                 org_id=org_id,
                 facility_id=facility_id,
                 start_date=request.start_date,
@@ -171,7 +180,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 )
                 status_run = status_result[1]
                 if status_run is not None:
-                    active_run = await scheduler_service.get_optimization_run(status_run.run_id)
+                    active_run = await scheduler_service.get_optimization_run(
+                        status_run.run_id
+                    )
 
         day_schedules = self._map_monthly_schedule(
             schedule=schedule,
@@ -192,14 +203,18 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             updated_at=schedule.updated_at or "",
         )
         if schedule.latest_optimization is not None:
-            response.latest_optimization.CopyFrom(self._map_summary(schedule.latest_optimization))
+            response.latest_optimization.CopyFrom(
+                self._map_summary(schedule.latest_optimization)
+            )
         if schedule.latest_optimization_stats is not None:
             response.latest_optimization_stats.CopyFrom(
                 self._map_stats_from_values(schedule.latest_optimization_stats)
             )
         if schedule.latest_optimization_financials is not None:
             response.latest_optimization_financials.CopyFrom(
-                self._map_financials_from_values(schedule.latest_optimization_financials)
+                self._map_financials_from_values(
+                    schedule.latest_optimization_financials
+                )
             )
         if active_run is not None:
             response.active_optimization_run.CopyFrom(self._map_run(active_run))
@@ -218,11 +233,15 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             scheduling_pb2.GetScheduleStatusResponse,
         ],
     ) -> scheduling_pb2.GetScheduleStatusResponse:
-        org_fac_result = self._decode_org_and_facility(request.org_id, request.facility_id)
+        org_fac_result = self._decode_org_and_facility(
+            request.org_id, request.facility_id
+        )
         if isinstance(org_fac_result, Failure):
             return scheduling_pb2.GetScheduleStatusResponse()
         org_id, facility_id = org_fac_result.unwrap()
-        schedule_result = get_internal_id(self.id_obfuscator, request.schedule_id, "Schedule")
+        schedule_result = get_internal_id(
+            self.id_obfuscator, request.schedule_id, "Schedule"
+        )
         if isinstance(schedule_result, Failure):
             return scheduling_pb2.GetScheduleStatusResponse()
         schedule_id = schedule_result.unwrap()
@@ -238,7 +257,11 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             )
             if facility_id is None:
                 return scheduling_pb2.GetScheduleStatusResponse()
-            schedule, active_run, has_newer_version = await scheduler_service.get_schedule_status(
+            (
+                schedule,
+                active_run,
+                has_newer_version,
+            ) = await scheduler_service.get_schedule_status(
                 org_id=org_id,
                 facility_id=facility_id,
                 schedule_id=schedule_id,
@@ -252,14 +275,18 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             updated_at=schedule.updated_at or "",
         )
         if schedule.latest_optimization is not None:
-            response.latest_optimization.CopyFrom(self._map_summary(schedule.latest_optimization))
+            response.latest_optimization.CopyFrom(
+                self._map_summary(schedule.latest_optimization)
+            )
         if schedule.latest_optimization_stats is not None:
             response.latest_optimization_stats.CopyFrom(
                 self._map_stats_from_values(schedule.latest_optimization_stats)
             )
         if schedule.latest_optimization_financials is not None:
             response.latest_optimization_financials.CopyFrom(
-                self._map_financials_from_values(schedule.latest_optimization_financials)
+                self._map_financials_from_values(
+                    schedule.latest_optimization_financials
+                )
             )
         if active_run is not None:
             response.active_optimization_run.CopyFrom(self._map_run(active_run))
@@ -273,7 +300,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             scheduling_pb2.OptimizeScheduleResponse,
         ],
     ) -> scheduling_pb2.OptimizeScheduleResponse:
-        org_fac_result = self._decode_org_and_facility(request.org_id, request.facility_id)
+        org_fac_result = self._decode_org_and_facility(
+            request.org_id, request.facility_id
+        )
         if isinstance(org_fac_result, Failure):
             return scheduling_pb2.OptimizeScheduleResponse(
                 is_success=False,
@@ -314,7 +343,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             scheduling_pb2.StartOptimizationRunResponse,
         ],
     ) -> scheduling_pb2.StartOptimizationRunResponse:
-        org_fac_result = self._decode_org_and_facility(request.org_id, request.facility_id)
+        org_fac_result = self._decode_org_and_facility(
+            request.org_id, request.facility_id
+        )
         if isinstance(org_fac_result, Failure):
             return scheduling_pb2.StartOptimizationRunResponse(
                 accepted=False,
@@ -326,7 +357,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 accepted=False,
                 error_details="Facility is required for optimization.",
             )
-        schedule_result = get_internal_id(self.id_obfuscator, request.schedule_id, "Schedule")
+        schedule_result = get_internal_id(
+            self.id_obfuscator, request.schedule_id, "Schedule"
+        )
         if isinstance(schedule_result, Failure):
             return scheduling_pb2.StartOptimizationRunResponse(
                 accepted=False,
@@ -409,10 +442,17 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             scope=ContextScopes.REQUEST,
         ):
             scheduler_service = await scheduler_container.scheduler_service.resolve()
-            schedule, shifts, employees, facility_config = await scheduler_service.get_monthly_schedule(
+            (
+                schedule,
+                shifts,
+                employees,
+                facility_config,
+            ) = await scheduler_service.get_monthly_schedule(
                 org_id=run.org_id,
                 facility_id=run.facility_id,
-                start_date=run.started_at[:10] if run.started_at else whenever.Instant.now().format_iso()[:10],
+                start_date=run.started_at[:10]
+                if run.started_at
+                else whenever.Instant.now().format_iso()[:10],
             )
         for day, day_schedule in self._map_monthly_schedule(
             schedule=schedule,
@@ -443,7 +483,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 )
                 run = await scheduler_service.get_optimization_run(request.run_id)
                 schedule_repo = await scheduler_container.schedule_retriever.resolve()
-                events = await schedule_repo.list_optimization_run_events(request.run_id)
+                events = await schedule_repo.list_optimization_run_events(
+                    request.run_id
+                )
 
             if run is None:
                 break
@@ -463,20 +505,26 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 if event.sequence in yielded_sequences:
                     continue
                 yielded_sequences.add(event.sequence)
-                event_run = run if event.sequence == events[-1].sequence else OptimizationRun(
-                    **{
-                        **run.__dict__,
-                        "status": event.status,
-                        "stage": event.stage,
-                        "progress_percent": event.progress_percent,
-                        "status_message": event.status_message,
-                        "error_details": event.error_details,
-                    }
+                event_run = (
+                    run
+                    if event.sequence == events[-1].sequence
+                    else OptimizationRun(
+                        **{
+                            **run.__dict__,
+                            "status": event.status,
+                            "stage": event.stage,
+                            "progress_percent": event.progress_percent,
+                            "status_message": event.status_message,
+                            "error_details": event.error_details,
+                        }
+                    )
                 )
                 yield scheduling_pb2.OptimizationRunEvent(
                     sequence=event.sequence,
                     run=self._map_run(event_run),
-                    schedules=latest_response.schedules if event.sequence == events[-1].sequence else {},
+                    schedules=latest_response.schedules
+                    if event.sequence == events[-1].sequence
+                    else {},
                 )
 
             if latest_response.run.status in {
@@ -569,7 +617,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                     staged_patches=patches_result.unwrap(),
                     patch_id=request.patch_id or None,
                 ),
-                pay_period_start=whenever.Instant.from_timestamp(request.pay_period_start_ts),
+                pay_period_start=whenever.Instant.from_timestamp(
+                    request.pay_period_start_ts
+                ),
             )
 
         return Success(await self._map_validation_response(result))
@@ -596,12 +646,16 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             is_valid=result.is_valid,
             validation_level=self._map_validation_level(result.validation_level),
             error_details=result.error_details or "",
-            total_cost=result.financials.total_enterprise_cost if result.financials else 0.0,
+            total_cost=result.financials.total_enterprise_cost
+            if result.financials
+            else 0.0,
             latest_schedule_version=result.latest_schedule_version or 0,
             is_stale=result.validation_level == "stale",
         )
         if result.financials is not None:
-            response.financials.CopyFrom(self._map_financials_from_values(result.financials))
+            response.financials.CopyFrom(
+                self._map_financials_from_values(result.financials)
+            )
         if result.stats is not None:
             response.stats.CopyFrom(self._map_stats_from_values(result.stats))
         for warning in result.warnings:
@@ -612,7 +666,12 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             response.patch.CopyFrom(self._map_patch(result.patches[-1]))
         if result.schedule is not None:
             try:
-                schedule, shifts, employees, facility_config = await self._load_schedule_dependencies(
+                (
+                    schedule,
+                    shifts,
+                    employees,
+                    facility_config,
+                ) = await self._load_schedule_dependencies(
                     result.schedule.org_id,
                     result.schedule,
                 )
@@ -641,7 +700,12 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         )
         if result.schedule is None:
             return response
-        schedule, shifts, employees, facility_config = await self._load_schedule_dependencies(
+        (
+            schedule,
+            shifts,
+            employees,
+            facility_config,
+        ) = await self._load_schedule_dependencies(
             result.schedule.org_id,
             result.schedule,
         )
@@ -661,7 +725,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         response.schedule_id = self.id_obfuscator.encode(result.schedule.schedule_id)
         response.schedule_version = result.schedule.schedule_version
         if result.financials is not None:
-            response.financials.CopyFrom(self._map_financials_from_values(result.financials))
+            response.financials.CopyFrom(
+                self._map_financials_from_values(result.financials)
+            )
         if result.stats is not None:
             response.stats.CopyFrom(self._map_stats_from_values(result.stats))
         if result.summary is not None:
@@ -740,7 +806,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         self,
         org_id: int,
         schedule: Schedule,
-    ) -> tuple[Schedule, Mapping[ShiftKey, Shift], Mapping[int, Employee], FacilityConfig]:
+    ) -> tuple[
+        Schedule, Mapping[ShiftKey, Shift], Mapping[int, Employee], FacilityConfig
+    ]:
         scheduler_container = self._build_scheduler_container()
         async with container_context(
             self._scheduler_context(scheduler_container),
@@ -767,7 +835,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             shift = shifts.get(shift_key)
             if shift is None:
                 continue
-            shift_date = shift.shift_start_dt.to_tz(facility_tz).date().format_common_iso()
+            shift_date = (
+                shift.shift_start_dt.to_tz(facility_tz).date().format_common_iso()
+            )
             nurse_messages = []
             for employee_id in employee_ids:
                 employee = employees.get(employee_id)
@@ -807,7 +877,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             for day, day_shifts in grouped.items()
         }
 
-    def _map_patch(self, patch: StagedSchedulePatch) -> scheduling_pb2.StagedSchedulePatch:
+    def _map_patch(
+        self, patch: StagedSchedulePatch
+    ) -> scheduling_pb2.StagedSchedulePatch:
         return scheduling_pb2.StagedSchedulePatch(
             patch_id=patch.patch_id,
             employee_id=self.id_obfuscator.encode(patch.employee_id),
@@ -826,33 +898,43 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             created_at=patch.created_at or "",
         )
 
-    def _decode_patch(self, patch: scheduling_pb2.StagedSchedulePatch) -> Result[StagedSchedulePatch, str]:
-        employee_id_result = get_internal_id(self.id_obfuscator, patch.employee_id, "Employee")
+    def _decode_patch(
+        self, patch: scheduling_pb2.StagedSchedulePatch
+    ) -> Result[StagedSchedulePatch, str]:
+        employee_id_result = get_internal_id(
+            self.id_obfuscator, patch.employee_id, "Employee"
+        )
         if isinstance(employee_id_result, Failure):
             return Failure(employee_id_result.failure())
         employee_id = employee_id_result.unwrap()
         assert employee_id is not None
-        from_shift_id_result = get_internal_id(self.id_obfuscator, patch.from_shift_id, "Shift", required=False)
+        from_shift_id_result = get_internal_id(
+            self.id_obfuscator, patch.from_shift_id, "Shift", required=False
+        )
         if isinstance(from_shift_id_result, Failure):
             return Failure(from_shift_id_result.failure())
         from_shift_id = from_shift_id_result.unwrap()
-        to_shift_id_result = get_internal_id(self.id_obfuscator, patch.to_shift_id, "Shift", required=False)
+        to_shift_id_result = get_internal_id(
+            self.id_obfuscator, patch.to_shift_id, "Shift", required=False
+        )
         if isinstance(to_shift_id_result, Failure):
             return Failure(to_shift_id_result.failure())
         to_shift_id = to_shift_id_result.unwrap()
-        return Success(StagedSchedulePatch(
-            patch_id=patch.patch_id,
-            employee_id=employee_id,
-            employee_name=patch.employee_name or None,
-            from_shift_id=from_shift_id,
-            to_shift_id=to_shift_id,
-            pinned=patch.pinned,
-            warnings=tuple(patch.warnings),
-            validation_level=self._validation_level_name(patch.validation_level),
-            causes_overtime=patch.causes_overtime,
-            total_cost=patch.total_cost,
-            created_at=patch.created_at or None,
-        ))
+        return Success(
+            StagedSchedulePatch(
+                patch_id=patch.patch_id,
+                employee_id=employee_id,
+                employee_name=patch.employee_name or None,
+                from_shift_id=from_shift_id,
+                to_shift_id=to_shift_id,
+                pinned=patch.pinned,
+                warnings=tuple(patch.warnings),
+                validation_level=self._validation_level_name(patch.validation_level),
+                causes_overtime=patch.causes_overtime,
+                total_cost=patch.total_cost,
+                created_at=patch.created_at or None,
+            )
+        )
 
     def _decode_staged_patches(
         self,
@@ -898,14 +980,18 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             error_details=run.error_details or "",
         )
         if run.financials is not None:
-            proto_run.financials.CopyFrom(self._map_financials_from_values(run.financials))
+            proto_run.financials.CopyFrom(
+                self._map_financials_from_values(run.financials)
+            )
         if run.stats is not None:
             proto_run.stats.CopyFrom(self._map_stats_from_values(run.stats))
         if run.summary is not None:
             proto_run.summary.CopyFrom(self._map_summary(run.summary))
         return proto_run
 
-    def _decode_org_and_facility(self, org_id: str, facility_id: str) -> Result[tuple[int, int | None], str]:
+    def _decode_org_and_facility(
+        self, org_id: str, facility_id: str
+    ) -> Result[tuple[int, int | None], str]:
         org_result = get_internal_id(self.id_obfuscator, org_id, "Organization")
         if isinstance(org_result, Failure):
             return Failure(org_result.failure())

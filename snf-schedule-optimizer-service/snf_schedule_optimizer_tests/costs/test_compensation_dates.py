@@ -12,9 +12,9 @@ from snf_schedule_optimizer.models import (
     ShiftSpecificRequirements,
     StaffCompensationRecord,
 )
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
-from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.optimizer.calculators import HprdRequirementCalculator
+from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.persistence.fakes import (
     FakeEmployeeRepo,
     FakeMLModelRepo,
@@ -87,16 +87,24 @@ async def test_get_compensation_returns_record_for_exact_date() -> None:
     )
     comp_service = FakeStaffCompensationRepo([old_record, new_record])
     employee = Employee(
-        employee_id=1, name="Test RN", job_title="RN", hire_date=whenever.Date(2023, 1, 1)
+        employee_id=1,
+        name="Test RN",
+        job_title="RN",
+        hire_date=whenever.Date(2023, 1, 1),
     )
     nurse = NurseProfile(
-        employee_id=1, available_hours_weekly=40, skills=["RN"], shift_custom_preferences=[]
+        employee_id=1,
+        available_hours_weekly=40,
+        skills=["RN"],
+        shift_custom_preferences=[],
     )
     provider = _make_provider(comp_service, employee, nurse).create(
         org_id=1,
         facility_contexts={1: _make_context()},
         pay_period_start=whenever.ZonedDateTime(2025, 1, 1, tz=tz_ny).to_instant(),
-        optimization_start_time=whenever.ZonedDateTime(2025, 1, 2, tz=tz_ny).to_instant(),
+        optimization_start_time=whenever.ZonedDateTime(
+            2025, 1, 2, tz=tz_ny
+        ).to_instant(),
         optimization_settings=OptimizationSettings(),
     )
 
@@ -128,20 +136,30 @@ async def test_compensation_respects_rate_change_on_boundary() -> None:
     )
     comp_service = FakeStaffCompensationRepo([old_rate, new_rate])
     employee = Employee(
-        employee_id=5, name="Rate Test", job_title="CNA", hire_date=whenever.Date(2023, 1, 1)
+        employee_id=5,
+        name="Rate Test",
+        job_title="CNA",
+        hire_date=whenever.Date(2023, 1, 1),
     )
     nurse = NurseProfile(
-        employee_id=5, available_hours_weekly=40, skills=["CNA"], shift_custom_preferences=[]
+        employee_id=5,
+        available_hours_weekly=40,
+        skills=["CNA"],
+        shift_custom_preferences=[],
     )
     provider = _make_provider(comp_service, employee, nurse).create(
         org_id=1,
         facility_contexts={1: _make_context()},
         pay_period_start=whenever.ZonedDateTime(2025, 1, 1, tz=tz_ny).to_instant(),
-        optimization_start_time=whenever.ZonedDateTime(2025, 1, 2, tz=tz_ny).to_instant(),
+        optimization_start_time=whenever.ZonedDateTime(
+            2025, 1, 2, tz=tz_ny
+        ).to_instant(),
         optimization_settings=OptimizationSettings(),
     )
 
-    result_pre = await provider.get_compensation_for_date(5, whenever.Date(2024, 12, 30))
+    result_pre = await provider.get_compensation_for_date(
+        5, whenever.Date(2024, 12, 30)
+    )
     assert result_pre is not None
     assert result_pre.base_rate_effective == pytest.approx(25.0)
 

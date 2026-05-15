@@ -15,6 +15,7 @@ from snf_schedule_optimizer.models import (
     StaffCompensationRecord,
 )
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
+from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.persistence.fakes import (
     FakeEmployeeRepo,
     FakeHprdRequirementCalculator,
@@ -23,7 +24,6 @@ from snf_schedule_optimizer.persistence.fakes import (
     FakeStaffCompensationRepo,
     FakeWorkHistoryService,
 )
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer_tests.support import OptimizerTestBuilder
 
 tz_ny = "America/New_York"
@@ -33,10 +33,16 @@ async def test_agency_nurse_ot_multiplier_equals_staff() -> None:
     ref = whenever.ZonedDateTime(2025, 1, 6, tz=tz_ny)
 
     agency_emp = Employee(
-        employee_id=1, name="Agency RN", job_title="RN", hire_date=whenever.Date(2024, 1, 1)
+        employee_id=1,
+        name="Agency RN",
+        job_title="RN",
+        hire_date=whenever.Date(2024, 1, 1),
     )
     staff_emp = Employee(
-        employee_id=2, name="Staff RN", job_title="RN", hire_date=whenever.Date(2024, 1, 1)
+        employee_id=2,
+        name="Staff RN",
+        job_title="RN",
+        hire_date=whenever.Date(2024, 1, 1),
     )
     agency_comp = StaffCompensationRecord(
         employee_id=1,
@@ -53,10 +59,16 @@ async def test_agency_nurse_ot_multiplier_equals_staff() -> None:
         effective_start_date=whenever.Date(2024, 1, 1),
     )
     agency_nurse = NurseProfile(
-        employee_id=1, available_hours_weekly=60, skills=["RN"], shift_custom_preferences=[]
+        employee_id=1,
+        available_hours_weekly=60,
+        skills=["RN"],
+        shift_custom_preferences=[],
     )
     staff_nurse = NurseProfile(
-        employee_id=2, available_hours_weekly=60, skills=["RN"], shift_custom_preferences=[]
+        employee_id=2,
+        available_hours_weekly=60,
+        skills=["RN"],
+        shift_custom_preferences=[],
     )
 
     employees = [agency_emp, staff_emp]
