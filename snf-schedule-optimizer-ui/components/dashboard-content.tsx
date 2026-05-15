@@ -231,7 +231,6 @@ export default function DashboardContent({
 
                 <DashboardMetrics
                   activeModule={activeModule}
-                  scheduleCount={scheduleCount}
                 />
               </div>
             ) : null}

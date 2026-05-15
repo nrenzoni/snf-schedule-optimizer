@@ -18,8 +18,7 @@ import { Building2, ChevronDown, ChevronUp } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import GroupSummaryCell from "@/components/schedule-board/group-summary-cell";
 import RoleGroup from "@/components/schedule-board/role-group";
-import { calculateCellMetric } from "@/components/schedule-board/utils";
-import { Shift, SimulatedUnit, ViewMode } from "@/types/scheduler";
+import { Shift, SimulatedUnit, ViewMode, GroupMetric } from "@/types/scheduler";
 
 type NestedGroup = {
   key: string;
@@ -42,6 +41,7 @@ interface UnitGroupProps {
   validationPreview: MoveValidationPreview | null;
   dragDisabled: boolean;
   resolveTargetShiftId: (unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => string | null;
+  boardMetrics: Map<string, GroupMetric>;
   onDeleteShift: (shift: Shift) => Promise<boolean>;
 }
 
@@ -60,6 +60,7 @@ export default function UnitGroup({
   validationPreview,
   dragDisabled,
   resolveTargetShiftId,
+  boardMetrics,
   onDeleteShift,
 }: UnitGroupProps) {
   // 1. Group Data inside this Unit
@@ -129,19 +130,12 @@ export default function UnitGroup({
               <div key={`${unit.id}-${dateStr}`} className={DATE_GROUP_WIDTH}>
                 <div className="flex">
                   {(Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map((shiftKey) => {
-                    const metric = calculateCellMetric(
-                      shifts,
-                      { unitId: unit.id },
-                      viewMode,
-                      groupingMode,
-                      staffMembers,
-                      dateStr,
-                      shiftKey,
-                    );
+                    const key = `${unit.id}::${dateStr}::${shiftKey}`;
+                    const metric = boardMetrics.get(key);
                     return (
                       <GroupSummaryCell
                         key={`${unit.id}-${dateStr}-${shiftKey}`}
-                        metric={metric}
+                        metric={metric ?? { filledPct: 0, label: "-", status: "ok" }}
                         isTotal
                         isToday={isToday}
                       />
@@ -180,6 +174,7 @@ export default function UnitGroup({
                 dragDisabled={dragDisabled}
                 unitId={unit.id}
                 resolveTargetShiftId={resolveTargetShiftId}
+                boardMetrics={boardMetrics}
                 onDeleteShift={onDeleteShift}
               />
             ))}

@@ -23,6 +23,7 @@ const addEmployeeToShift = (
   employeeId: string,
   shiftId: string | null,
   employeeName: string | null,
+  nurseLookup: Map<string, UINurse>,
 ) => {
   if (!shiftId) return;
   for (const [date, day] of map.entries()) {
@@ -31,10 +32,7 @@ const addEmployeeToShift = (
       if (shift.nurses.some((nurse) => nurse.id === employeeId)) {
         return shift;
       }
-      const sourceNurse: UINurse | undefined = Array.from(map.values())
-        .flatMap((scheduleDay) => scheduleDay.shifts)
-        .flatMap((scheduleShift) => scheduleShift.nurses)
-        .find((nurse) => nurse.id === employeeId);
+      const sourceNurse = nurseLookup.get(employeeId);
       return {
         ...shift,
         nurses: [
@@ -56,9 +54,19 @@ const addEmployeeToShift = (
 
 export const applyPatchToMap = (serverScheduleMap: ScheduleMap, patches: UIStagedPatch[]): ScheduleMap => {
   const next = cloneMap(serverScheduleMap);
+  const nurseLookup = new Map<string, UINurse>();
+  for (const day of serverScheduleMap.values()) {
+    for (const shift of day.shifts) {
+      for (const nurse of shift.nurses) {
+        if (!nurseLookup.has(nurse.id)) {
+          nurseLookup.set(nurse.id, nurse);
+        }
+      }
+    }
+  }
   for (const patch of patches) {
     removeEmployeeFromShift(next, patch.employeeId, patch.fromShiftId);
-    addEmployeeToShift(next, patch.employeeId, patch.toShiftId, patch.employeeName);
+    addEmployeeToShift(next, patch.employeeId, patch.toShiftId, patch.employeeName, nurseLookup);
   }
   return next;
 };

@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import {
+  GroupMetric,
   MoveValidationPreview,
   Shift,
   SHIFT_TYPES,
@@ -14,7 +15,6 @@ import GroupSummaryCell from "@/components/schedule-board/group-summary-cell";
 import { AnimatePresence, motion } from "framer-motion";
 import TimelineSlot from "@/components/schedule-board/timeline-slot";
 import ShiftCard from "@/components/schedule-board/shift-card";
-import { calculateCellMetric } from "@/components/schedule-board/utils";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useState } from "react";
 
@@ -33,6 +33,7 @@ interface RoleGroupProps {
   validationPreview: MoveValidationPreview | null;
   dragDisabled: boolean;
   resolveTargetShiftId: (unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => string | null;
+  boardMetrics: Map<string, GroupMetric>;
   onDeleteShift: (shift: Shift) => Promise<boolean>;
 }
 
@@ -51,8 +52,10 @@ export default function RoleGroup({
   validationPreview,
   dragDisabled,
   resolveTargetShiftId,
+  boardMetrics,
   onDeleteShift,
 }: RoleGroupProps) {
+  void groupingMode;
   const [pendingDelete, setPendingDelete] = useState<Shift | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -91,19 +94,12 @@ export default function RoleGroup({
                 <div key={`${groupKey}-${dateStr}`} className="flex w-[216px] min-w-[216px] items-stretch">
                   <div className="flex min-h-full items-stretch">
                     {(Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map((shiftKey) => {
-                      const metric = calculateCellMetric(
-                        shifts,
-                        { unitId: unitId, groupId: groupKey },
-                        viewMode,
-                        groupingMode,
-                        staffMembers,
-                        dateStr,
-                        shiftKey,
-                      );
+                      const key = `${unitId}:${groupKey}::${dateStr}::${shiftKey}`;
+                      const metric = boardMetrics.get(key);
                       return (
                         <GroupSummaryCell
                           key={`${groupKey}-${dateStr}-${shiftKey}`}
-                          metric={metric}
+                          metric={metric ?? { filledPct: 0, label: "-", status: "ok" }}
                           isToday={isToday}
                           compact
                         />

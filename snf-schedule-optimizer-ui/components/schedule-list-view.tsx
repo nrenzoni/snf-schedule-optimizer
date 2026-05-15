@@ -13,7 +13,12 @@ import { ScheduleQueryError } from "@/hooks/use-schedule-query";
 import DashboardEmptyState from "@/components/dashboard-empty-state";
 import { cn } from "@/lib/utils";
 import { iconButtonVariants } from "@/components/ui/styles";
-import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
+import dynamic from "next/dynamic";
+
+const ThreeDAssemblyLoader = dynamic(
+  () => import("@/components/three-d-assembly-loader"),
+  { ssr: false },
+);
 
 const DAYS_OF_WEEK = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const monthYearFormatter = new Intl.DateTimeFormat("en-US", {

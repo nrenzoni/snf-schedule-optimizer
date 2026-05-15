@@ -26,6 +26,17 @@ export function useOptimizationRunSync() {
     await queryClient.invalidateQueries({ queryKey: ["schedule"] });
   }, [queryClient]);
 
+  const pollAndApplyFinalRun = useCallback(async (runId: string) => {
+    const latest = await pollOptimizationRun(runId).catch(() => null);
+    const uiRun = protoOptimizationRunToUI(latest?.run);
+    if (uiRun) {
+      setRunProgress(uiRun);
+      if (!isRunActive(uiRun.status)) {
+        await refetchSchedule();
+      }
+    }
+  }, [refetchSchedule, setRunProgress]);
+
   const syncRunProgress = useCallback(
     async (runId: string) => {
       runStreamAbortRef.current?.abort();
@@ -73,30 +84,16 @@ export function useOptimizationRunSync() {
           abortController.signal,
         );
 
-        const latest = await pollOptimizationRun(runId).catch(() => null);
-        const uiRun = protoOptimizationRunToUI(latest?.run);
-        if (uiRun) {
-          setRunProgress(uiRun);
-          if (!isRunActive(uiRun.status)) {
-            await refetchSchedule();
-          }
-        }
+        await pollAndApplyFinalRun(runId);
       } catch {
         if (abortController.signal.aborted) {
           return;
         }
 
-        const latest = await pollOptimizationRun(runId).catch(() => null);
-        const uiRun = protoOptimizationRunToUI(latest?.run);
-        if (uiRun) {
-          setRunProgress(uiRun);
-          if (!isRunActive(uiRun.status)) {
-            await refetchSchedule();
-          }
-        }
+        await pollAndApplyFinalRun(runId);
       }
     },
-    [refetchSchedule, setRunProgress],
+    [refetchSchedule, setRunProgress, pollAndApplyFinalRun],
   );
 
   const activeRunId = activeRun?.runId;

@@ -39,7 +39,13 @@ import { iconButtonVariants } from "@/components/ui/styles";
 import { useDragValidation } from "@/hooks/use-drag-validation";
 import { useStagedScheduleActions } from "@/hooks/use-staged-schedule-actions";
 import BoardHeader from "@/components/schedule-board/board-header";
-import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
+import { useBoardMetrics } from "@/hooks/use-board-metrics";
+import dynamic from "next/dynamic";
+
+const ThreeDAssemblyLoader = dynamic(
+  () => import("@/components/three-d-assembly-loader"),
+  { ssr: false },
+);
 
 export const STAFF_COL_WIDTH = "w-48 min-w-[12rem]";
 export const CELL_WIDTH = "w-[72px] min-w-[72px]";
@@ -128,11 +134,23 @@ export default function ScheduleBoard({
     }));
   }, [staffList, units]);
 
+  const staffByUnit = useMemo(() => {
+    const map = new Map<string, Staff[]>();
+    for (const unit of units) {
+      map.set(unit.id, staffList.filter((s) => s.unitId === unit.id));
+    }
+    return map;
+  }, [staffList, units]);
+
   const anchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
   const visibleStartDate = useMemo(() => subDays(anchorDate, 2), [anchorDate]);
   const visibleDates = useMemo(
     () => Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) => addDays(visibleStartDate, index)),
     [visibleStartDate],
+  );
+
+  const boardMetrics = useBoardMetrics(
+    shifts, units, staffByUnit, visibleDates, viewMode, groupingMode,
   );
 
   const resolveTargetShiftId = (unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => {
@@ -297,6 +315,7 @@ export default function ScheduleBoard({
                   validationPreview={validationPreview}
                   dragDisabled={dragDisabled}
                   resolveTargetShiftId={resolveTargetShiftId}
+                  boardMetrics={boardMetrics}
                   onDeleteShift={async (shift) => {
                     return stageValidatedPatch({
                       employeeId: shift.staffId,
