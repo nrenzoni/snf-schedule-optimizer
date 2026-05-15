@@ -250,7 +250,6 @@ class SQLScheduleRepo(IScheduleRepo):
                 self.db_session.add(
                     ScheduleAssignmentModel(
                         schedule_id=schedule.schedule_id,
-                        assignment_id=0,
                         org_id=schedule.org_id,
                         facility_id=shift_key.facility_id,
                         shift_id=shift_key.shift_id,
