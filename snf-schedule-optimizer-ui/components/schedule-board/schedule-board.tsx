@@ -5,7 +5,6 @@ import {
   closestCenter,
   defaultDropAnimationSideEffects,
   DndContext,
-  DragEndEvent,
   DragOverlay,
   KeyboardSensor,
   PointerSensor,
@@ -14,27 +13,18 @@ import {
 } from "@dnd-kit/core";
 import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { addDays, format, isSameDay, startOfWeek, subDays } from "date-fns";
-import { cn, createClientUuid } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
-  Activity,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ChevronUp,
-  DollarSign,
-  LayoutList,
-  RotateCcw,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
 import {
-  MoveValidationPreview,
   Shift,
   SHIFT_TYPES,
   ShiftTypeKey,
   SimulatedUnit,
   Staff,
-  TimelineSlotData,
   ViewMode,
 } from "@/types/scheduler";
 import ShiftCard from "@/components/schedule-board/shift-card";
@@ -45,11 +35,10 @@ import { useSchedulingStore } from "@/store/schedulingStore";
 import { useShallow } from "zustand/react/shallow";
 import { parseAsString, useQueryState } from "nuqs";
 import { formatDateYYYYMMDD, getTodayString } from "@/lib/scheduling-logic";
-import { iconButtonVariants, segmentedButtonVariants } from "@/components/ui/styles";
-import { validateShiftMove } from "@/api/scheduling-client";
-import { protoPatchConflictToUI, protoStagedPatchToUI } from "@/lib/proto-mappers";
-import { toProtoPatch } from "@/lib/scheduling-helpers";
+import { iconButtonVariants } from "@/components/ui/styles";
+import { useDragValidation } from "@/hooks/use-drag-validation";
 import { useStagedScheduleActions } from "@/hooks/use-staged-schedule-actions";
+import BoardHeader from "@/components/schedule-board/board-header";
 import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 
 export const STAFF_COL_WIDTH = "w-48 min-w-[12rem]";
@@ -109,9 +98,23 @@ export default function ScheduleBoard({
   const [viewMode, setViewMode] = useState<ViewMode>("ROLE");
   const [groupingMode, setGroupingMode] = useState<"ROLE" | "BUDGET">("ROLE");
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
-  const [pendingSlotId, setPendingSlotId] = useState<string | null>(null);
-  const [validationPreview, setValidationPreview] =
-    useState<MoveValidationPreview | null>(null);
+
+  const {
+    handleDragEnd,
+    pendingSlotId,
+    validationPreview,
+    setPendingSlotId,
+    setValidationPreview,
+  } = useDragValidation({
+    selectedFacility,
+    scheduleId,
+    scheduleVersion,
+    draftState,
+    dragDisabled,
+    appendDraftPatch,
+    setDraftConflicts,
+    setHasPendingValidation,
+  });
 
   const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>({});
   const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({
@@ -150,113 +153,6 @@ export default function ScheduleBoard({
     setExpandedUnits(allUnits);
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setPendingSlotId(null);
-
-    if (!over) {
-      setValidationPreview(null);
-      return;
-    }
-
-    const activeData = active.data.current?.shift as Shift | undefined;
-    const overData = over.data.current as TimelineSlotData | undefined;
-
-    if (
-      !activeData ||
-      !overData ||
-      !selectedFacility ||
-      !scheduleId ||
-      !overData.shiftId ||
-      dragDisabled
-    ) {
-      setValidationPreview(null);
-      return;
-    }
-
-    if (activeData.shiftId === overData.shiftId) {
-      setValidationPreview(null);
-      return;
-    }
-
-    try {
-      setHasPendingValidation(true);
-      const slotId = String(over.id);
-      setPendingSlotId(slotId);
-
-      const payPeriodStart = startOfWeek(new Date(activeData.dateStr), { weekStartsOn: 0 });
-      const response = await validateShiftMove({
-        orgId: selectedFacility.orgId,
-        facilityId: selectedFacility.facilityId,
-        scheduleId,
-        employeeId: activeData.staffId,
-        fromShiftId: activeData.shiftId,
-        toShiftId: overData.shiftId,
-        payPeriodStartTs: BigInt(Math.floor(payPeriodStart.getTime() / 1000)),
-        scheduleVersion,
-        stagedPatches: draftState.patches.map(toProtoPatch),
-        patchId: createClientUuid(),
-      });
-
-      const preview: MoveValidationPreview = {
-        validationLevel: response.isStale
-          ? "stale"
-          : response.patch
-            ? protoStagedPatchToUI(response.patch).validationLevel
-            : response.isValid
-              ? "ok"
-              : "critical",
-        warnings: response.warnings,
-        causesOvertime: response.patch?.causesOvertime ?? false,
-        totalCost: response.totalCost,
-        isValid: response.isValid,
-        errorDetails: response.errorDetails || undefined,
-      };
-      setValidationPreview(preview);
-
-      if (!response.isSuccess) {
-        toast.error("Move validation failed", {
-          description: response.errorDetails || "The backend could not validate this move.",
-        });
-        return;
-      }
-
-      if (response.isStale) {
-        toast.error("Schedule changed on the server", {
-          description: "Refresh before applying more staged changes.",
-        });
-        return;
-      }
-
-      if (response.conflicts.length > 0) {
-        setDraftConflicts(response.conflicts.map(protoPatchConflictToUI));
-      }
-
-      if (!response.isValid || !response.patch) {
-        toast.error("Move blocked", {
-          description: response.errorDetails || response.warnings.join(" ") || "This move is not allowed.",
-        });
-        return;
-      }
-
-      appendDraftPatch(protoStagedPatchToUI(response.patch));
-      toast.success("Pinned change staged", {
-        description:
-          response.warnings.join(" ") ||
-          (response.patch.causesOvertime
-            ? "Move staged with overtime warning."
-            : "Validated move staged locally until optimization."),
-      });
-    } catch (error) {
-      toast.error("Move validation failed", {
-        description: error instanceof Error ? error.message : "Unexpected scheduling error",
-      });
-    } finally {
-      setPendingSlotId(null);
-      setHasPendingValidation(false);
-    }
-  };
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor),
@@ -278,75 +174,21 @@ export default function ScheduleBoard({
       <div className="app-card relative flex h-full min-h-0 flex-col overflow-hidden xl:min-h-0">
         <LoadingOverlay isVisible={isFetching > 0 && scheduleCount > 0} />
 
-        <div className="z-50 flex items-center justify-between border-b border-border bg-card px-4 py-3">
-          <div className="flex items-center gap-3">
-            <h2 className="flex items-center gap-2 font-semibold text-foreground">
-              <LayoutList size={18} className="text-primary" /> Master Schedule
-            </h2>
-            <div className="app-segmented flex items-center gap-1 p-1">
-              <button
-                type="button"
-                onClick={() => pageSchedule(-VISIBLE_DAY_COUNT)}
-                className={iconButtonVariants({ tone: "default" })}
-                aria-label="Show previous 6 days"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <span className="px-2 text-xs font-medium text-muted-foreground">
-                {format(visibleDates[0], "MMM d")} - {format(visibleDates[VISIBLE_DAY_COUNT - 1], "MMM d")}
-              </span>
-              <button
-                type="button"
-                onClick={() => pageSchedule(VISIBLE_DAY_COUNT)}
-                className={iconButtonVariants({ tone: "default" })}
-                aria-label="Show next 6 days"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={clearDraft}
-              disabled={draftState.patches.length === 0}
-              className={iconButtonVariants({ tone: "soft", disabled: draftState.patches.length === 0 })}
-              aria-label="Revert staged changes"
-            >
-              <RotateCcw size={14} />
-            </button>
-            <div className="app-segmented flex items-center text-xs font-bold">
-              <span className="px-2 text-slate-500">Sub-Group:</span>
-              <button
-                onClick={() => setGroupingMode("ROLE")}
-                className={segmentedButtonVariants({ size: "sm", active: groupingMode === "ROLE" })}
-              >
-                Role
-              </button>
-              <button
-                onClick={() => setGroupingMode("BUDGET")}
-                className={segmentedButtonVariants({ size: "sm", active: groupingMode === "BUDGET" })}
-              >
-                Budget
-              </button>
-            </div>
-            <div className="app-segmented flex items-center text-xs font-bold">
-              <span className="px-2 text-slate-500">Metric:</span>
-              <button
-                onClick={() => setViewMode("ROLE")}
-                className={segmentedButtonVariants({ size: "sm", active: viewMode === "ROLE" })}
-              >
-                <Activity size={12} /> HPRD
-              </button>
-              <button
-                onClick={() => setViewMode("BUDGET")}
-                className={segmentedButtonVariants({ size: "sm", active: viewMode === "BUDGET" })}
-              >
-                <DollarSign size={12} /> Cost
-              </button>
-            </div>
-          </div>
-        </div>
+        <BoardHeader
+          visibleDates={visibleDates}
+          pageSchedule={pageSchedule}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          groupingMode={groupingMode}
+          setGroupingMode={setGroupingMode}
+          clearDraft={clearDraft}
+          draftState={draftState}
+          units={units}
+          handleCollapseAll={handleCollapseAll}
+          handleExpandAll={handleExpandAll}
+          dragDisabled={dragDisabled}
+          activeRun={activeRun}
+        />
 
         <div
           className={cn(
