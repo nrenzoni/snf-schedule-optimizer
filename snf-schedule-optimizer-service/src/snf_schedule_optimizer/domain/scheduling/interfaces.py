@@ -55,7 +55,11 @@ class IScheduleRepo(abc.ABC):
     """
 
     @abc.abstractmethod
-    async def get_schedule(self, schedule_lookup: ScheduleLookupKey) -> Schedule | None:
+    async def get_schedule(
+        self,
+        schedule_lookup: ScheduleLookupKey,
+        include_latest_run: bool = True,
+    ) -> Schedule | None:
         """
         Retrieves the schedule assignments for a specific schedule ID.
         Returns None if not found.
@@ -68,6 +72,7 @@ class IScheduleRepo(abc.ABC):
         org_id: DomainPrimaryKeyType,
         facility_id: DomainPrimaryKeyType | None,
         start_date: str,
+        include_latest_run: bool = True,
     ) -> Schedule | None:
         """Returns the demo schedule that overlaps the requested month."""
         pass
