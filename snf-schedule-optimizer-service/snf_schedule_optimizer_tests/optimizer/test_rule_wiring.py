@@ -10,7 +10,6 @@ from snf_schedule_optimizer.models import (
     NurseProfile,
     OptimizationSettings,
     Shift,
-    ShiftKey,
 )
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
@@ -21,20 +20,7 @@ from snf_schedule_optimizer.optimizer.strategies.constraints import (
     MaxWeeklyHoursConstraintStrategy,
 )
 
-
-def _make_shift(fid: int = 1, sid: int = 101, start_hour: int = 7, start_day: int = 1, hours: int = 8) -> Shift:
-    when = whenever.ZonedDateTime(2025, 1, start_day, start_hour, tz="America/New_York")
-    return Shift(
-        org_id=1,
-        shift_key=ShiftKey(facility_id=fid, shift_id=sid),
-        shift_number=1,
-        day_shift=start_hour < 18,
-        day_of_week=when.date().day_of_week(),
-        shift_start_dt=when,
-        shift_end_dt=when.add(hours=hours),
-        unit_id=None,
-        is_scheduled=True,
-    )
+from ..support.factories import make_shift
 
 
 class _FakeFacilityProvider:
@@ -75,7 +61,7 @@ class _FakeFacilityProvider:
 
 async def test_all_production_rule_strategies_are_instantiable() -> None:
     """Verify all four production rule strategies can be instantiated without error."""
-    shift = _make_shift()
+    shift = make_shift()
     nurses = [NurseProfile(1, 40, ["CNA"], [])]
     provider = _FakeFacilityProvider([shift], nurses)
     lp = LpNurseShiftVariableHolder()

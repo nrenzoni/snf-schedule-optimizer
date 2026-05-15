@@ -23,7 +23,7 @@ from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacade,
 )
 
-from ..test_builder import OptimizerTestBuilder
+from ..support import OptimizerTestBuilder
 
 
 def _build_e2e_fixture() -> tuple[

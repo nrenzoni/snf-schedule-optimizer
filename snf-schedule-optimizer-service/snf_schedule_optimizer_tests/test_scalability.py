@@ -14,7 +14,7 @@ from snf_schedule_optimizer.models.scenario_models import (
 from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
 from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
-from .test_builder import OptimizerTestBuilder
+from .support import OptimizerTestBuilder
 
 ny_tz = "America/New_York"
 

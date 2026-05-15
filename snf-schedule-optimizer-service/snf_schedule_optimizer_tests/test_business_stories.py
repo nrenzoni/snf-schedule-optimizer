@@ -22,7 +22,7 @@ from snf_schedule_optimizer.persistence.fakes import (
 )
 from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
-from .test_builder import OptimizerTestBuilder
+from .support import OptimizerTestBuilder
 
 tz_ny = "America/New_York"
 
@@ -66,11 +66,11 @@ async def test_financial_hero_ot_vs_agency() -> None:
         base_rate_effective=30.0,
         ot_multiplier=1.5,
         effective_start_date=ref_date.subtract(years=1).date(),
-        is_agency=True,
+        is_agency=False,
     )
     profile_a = NurseProfile(
         employee_id=1,
-        available_hours_weekly=12,
+        available_hours_weekly=50,
         skills=["RN"],
         shift_custom_preferences=[],
     )

@@ -4,7 +4,7 @@ from snf_schedule_optimizer.api import StartOptimizationRunRequest
 from snf_schedule_optimizer.domain.scheduling.interfaces import ScheduleLookupKey
 from snf_schedule_optimizer.models import OptimizationSettings, Schedule
 
-from .test_builder import OptimizerTestBuilder
+from ..support import OptimizerTestBuilder
 
 
 async def test_duplicate_client_request_id_returns_same_active_run() -> None:

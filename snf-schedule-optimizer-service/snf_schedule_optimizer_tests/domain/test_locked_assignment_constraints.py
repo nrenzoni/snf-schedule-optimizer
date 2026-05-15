@@ -3,12 +3,10 @@
 from typing import cast
 
 import pulp
-import whenever
 
 from snf_schedule_optimizer.models import (
     LockedAssignment,
     Shift,
-    ShiftKey,
 )
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
@@ -16,20 +14,7 @@ from snf_schedule_optimizer.optimizer.strategies.fixing import (
     LockedAssignmentConstraintStrategy,
 )
 
-
-def _make_shift(fid: int = 1, sid: int = 101, hours: int = 8, start_hour: int = 7) -> Shift:
-    start = whenever.ZonedDateTime(2025, 1, 1, start_hour, tz="America/New_York")
-    return Shift(
-        org_id=1,
-        shift_key=ShiftKey(facility_id=fid, shift_id=sid),
-        shift_number=1,
-        day_shift=start_hour == 7,
-        day_of_week=start.date().day_of_week(),
-        shift_start_dt=start,
-        shift_end_dt=start.add(hours=hours),
-        unit_id=None,
-        is_scheduled=True,
-    )
+from ..support.factories import make_shift
 
 
 class _FakeDataProvider:
@@ -48,7 +33,7 @@ class _FakeDataProvider:
 
 
 async def test_locked_assignment_forces_variable_to_one() -> None:
-    shift = _make_shift()
+    shift = make_shift()
     lp_holder = LpNurseShiftVariableHolder()
     v = lp_holder.add_variable(shift, 1)
     problem = pulp.LpProblem("lock-test", pulp.LpMinimize)
@@ -68,7 +53,7 @@ async def test_locked_assignment_forces_variable_to_one() -> None:
 
 
 async def test_locked_assignment_does_not_force_other_variables() -> None:
-    shift = _make_shift()
+    shift = make_shift()
     lp_holder = LpNurseShiftVariableHolder()
     v1 = lp_holder.add_variable(shift, 1)
     v2 = lp_holder.add_variable(shift, 2)
@@ -91,8 +76,8 @@ async def test_locked_assignment_does_not_force_other_variables() -> None:
 
 
 async def test_locked_assignment_for_wrong_facility_skipped() -> None:
-    shift_f1 = _make_shift(fid=1, sid=101)
-    shift_f2 = _make_shift(fid=2, sid=201)
+    shift_f1 = make_shift(facility_id=1, shift_id=101)
+    shift_f2 = make_shift(facility_id=2, shift_id=201)
     lp_holder = LpNurseShiftVariableHolder()
     v1 = lp_holder.add_variable(shift_f1, 1)
     v2 = lp_holder.add_variable(shift_f2, 1)
@@ -115,8 +100,8 @@ async def test_locked_assignment_for_wrong_facility_skipped() -> None:
 
 
 async def test_multiple_locked_assignments_both_enforced() -> None:
-    shift_1 = _make_shift(fid=1, sid=101, start_hour=7)
-    shift_2 = _make_shift(fid=1, sid=102, start_hour=19)
+    shift_1 = make_shift(facility_id=1, shift_id=101, start_hour=7)
+    shift_2 = make_shift(facility_id=1, shift_id=102, start_hour=19)
     lp_holder = LpNurseShiftVariableHolder()
     lp_holder.add_variable(shift_1, 1)
     lp_holder.add_variable(shift_2, 1)
@@ -139,7 +124,7 @@ async def test_multiple_locked_assignments_both_enforced() -> None:
 
 
 async def test_empty_locked_list_is_noop() -> None:
-    shift = _make_shift()
+    shift = make_shift()
     lp_holder = LpNurseShiftVariableHolder()
     lp_holder.add_variable(shift, 1)
     problem = pulp.LpProblem("lock-empty", pulp.LpMinimize)

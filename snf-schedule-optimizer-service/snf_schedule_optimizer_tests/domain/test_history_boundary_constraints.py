@@ -7,10 +7,10 @@ import whenever
 
 from snf_schedule_optimizer.models import (
     EmployeeStateSnapshot,
+    FacilityConfig,
     NurseProfile,
     OptimizationSettings,
     Shift,
-    ShiftKey,
 )
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
@@ -20,20 +20,7 @@ from snf_schedule_optimizer.optimizer.strategies.constraints import (
     MaxWeeklyHoursConstraintStrategy,
 )
 
-
-def _make_shift(fid: int = 1, sid: int = 101, start_hour: int = 7, start_day: int = 1, hours: int = 8) -> Shift:
-    when = whenever.ZonedDateTime(2025, 1, start_day, start_hour, tz="America/New_York")
-    return Shift(
-        org_id=1,
-        shift_key=ShiftKey(facility_id=fid, shift_id=sid),
-        shift_number=1,
-        day_shift=start_hour < 18,
-        day_of_week=when.date().day_of_week(),
-        shift_start_dt=when,
-        shift_end_dt=when.add(hours=hours),
-        unit_id=None,
-        is_scheduled=True,
-    )
+from ..support.factories import make_shift
 
 
 class _FakeProvider:
@@ -73,8 +60,8 @@ class _FakeProvider:
 
 
 async def test_fatigue_strategy_blocks_back_to_back_with_insufficient_rest() -> None:
-    s1 = _make_shift(sid=101, start_hour=7, start_day=1, hours=12)
-    s2 = _make_shift(sid=102, start_hour=15, start_day=1, hours=12)
+    s1 = make_shift(shift_id=101, start_hour=7, start_day=1, hours=12)
+    s2 = make_shift(shift_id=102, start_hour=15, start_day=1, hours=12)
     nurses = [
         NurseProfile(1, 40, ["CNA"], []),
         NurseProfile(2, 40, ["CNA"], []),
@@ -106,8 +93,8 @@ async def test_fatigue_strategy_blocks_back_to_back_with_insufficient_rest() -> 
 
 
 async def test_fatigue_strategy_allows_with_sufficient_rest() -> None:
-    s1 = _make_shift(sid=101, start_hour=7, start_day=1, hours=8)
-    s2 = _make_shift(sid=102, start_hour=7, start_day=3, hours=8)
+    s1 = make_shift(shift_id=101, start_hour=7, start_day=1, hours=8)
+    s2 = make_shift(shift_id=102, start_hour=7, start_day=3, hours=8)
     nurses = [NurseProfile(1, 40, ["CNA"], [])]
     provider = _FakeProvider(
         shifts=[s1, s2],
@@ -134,8 +121,8 @@ async def test_fatigue_strategy_allows_with_sufficient_rest() -> None:
 
 
 async def test_max_weekly_hours_respects_history() -> None:
-    s1 = _make_shift(sid=101, start_hour=7, start_day=1, hours=8)
-    s2 = _make_shift(sid=102, start_hour=7, start_day=2, hours=8)
+    s1 = make_shift(shift_id=101, start_hour=7, start_day=1, hours=8)
+    s2 = make_shift(shift_id=102, start_hour=7, start_day=2, hours=8)
     nurse = NurseProfile(1, 40, ["CNA"], [])
     provider = _FakeProvider(
         shifts=[s1, s2],
@@ -163,7 +150,7 @@ async def test_max_weekly_hours_respects_history() -> None:
 
 
 async def test_consecutive_days_limit_blocks_when_history_exceeds() -> None:
-    s1 = _make_shift(sid=101, start_hour=7, start_day=1, hours=8)
+    s1 = make_shift(shift_id=101, start_hour=7, start_day=1, hours=8)
     nurse = NurseProfile(1, 40, ["CNA"], [])
     provider = _FakeProvider(
         shifts=[s1],
@@ -175,21 +162,19 @@ async def test_consecutive_days_limit_blocks_when_history_exceeds() -> None:
             consecutive_days_worked=5,
             last_shift_end=None,
         )},
-        config=whenever.Weekday.MONDAY,
-    )
-    from snf_schedule_optimizer.models import FacilityConfig
-    provider._config = FacilityConfig(
-        org_id=1,
-        facility_id=1,
-        shifts_per_day=3,
-        overtime_threshold_hours_per_week=40,
-        start_of_work_week_day=whenever.Weekday.MONDAY,
-        start_of_work_day_time=whenever.Time(7, 0, 0),
-        pay_period=whenever.DateDelta(weeks=1),
-        weekend_multiplier=1.0,
-        night_shift_multiplier=1.0,
-        tz="America/New_York",
-        max_consecutive_work_days=5,
+        config=FacilityConfig(
+            org_id=1,
+            facility_id=1,
+            shifts_per_day=3,
+            overtime_threshold_hours_per_week=40,
+            start_of_work_week_day=whenever.Weekday.MONDAY,
+            start_of_work_day_time=whenever.Time(7, 0, 0),
+            pay_period=whenever.DateDelta(weeks=1),
+            weekend_multiplier=1.0,
+            night_shift_multiplier=1.0,
+            tz="America/New_York",
+            max_consecutive_work_days=5,
+        ),
     )
     lp = LpNurseShiftVariableHolder()
     lp.add_variable(s1, 1)

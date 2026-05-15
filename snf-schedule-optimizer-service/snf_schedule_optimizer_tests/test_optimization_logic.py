@@ -18,7 +18,7 @@ from snf_schedule_optimizer.optimizer.strategies.constraints import (
 from snf_schedule_optimizer.persistence.fakes import FakeHprdRequirementCalculator
 from snf_schedule_optimizer.utils.time_utils import TimeRoundingUtility
 
-from .test_builder import OptimizerTestBuilder
+from .support import OptimizerTestBuilder
 
 tz_ny = "America/New_York"
 
