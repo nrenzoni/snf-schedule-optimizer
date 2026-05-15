@@ -6,6 +6,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass, replace
+from typing import Any
 from uuid import uuid4
 
 import whenever
@@ -16,14 +17,24 @@ from snf_schedule_optimizer.domain.scheduling.interfaces import (
     ScheduleLookupKey,
 )
 from snf_schedule_optimizer.models import (
+    Employee,
+    FacilityConfig,
+    HprdEnforcedRole,
     LockedAssignment,
+    MinMandates,
     OptimizationRun,
     OptimizationRunEvent,
     OptimizationSettings,
     OptimizationSnapshot,
     PatchConflict,
     Schedule,
+    Shift,
     ShiftKey,
+)
+from snf_schedule_optimizer.optimizer.context import FacilityScenarioContext
+from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
+from snf_schedule_optimizer.optimizer.snapshot_provider import (
+    SnapshotScenarioDataProvider,
 )
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacade,
@@ -105,7 +116,28 @@ class OptimizationRunWorker:
             if base_schedule is None:
                 raise ValueError("Base schedule not found for claimed run.")
 
-            snapshot = await self._build_snapshot(current_run, request, base_schedule)
+            facility_context = await self.scheduler_facade._build_optimization_context(
+                org_id=request.org_id,
+                facility_id=request.facility_id,
+                start_date=request.start_date,
+                end_date=request.end_date or request.start_date,
+                optimization_settings=request.settings,
+            )
+
+            facility_contexts = {request.facility_id: facility_context}
+            pay_period_start = facility_context.shifts[0].shift_start_dt.start_of_day().to_instant()
+
+            live_provider = self.scheduler_facade.create_data_provider(
+                org_id=request.org_id,
+                facility_contexts=facility_contexts,
+                pay_period_start=pay_period_start,
+                optimization_start_time=whenever.Instant.now(),
+                optimization_settings=request.settings,
+            )
+
+            snapshot = await self._build_snapshot(
+                current_run, request, base_schedule, facility_context, live_provider
+            )
             await self.schedule_repo.save_optimization_snapshot(snapshot)
             current_run = replace(
                 current_run,
@@ -116,13 +148,17 @@ class OptimizationRunWorker:
             await self.schedule_repo.save_optimization_run(current_run)
             await self.schedule_repo.commit()
 
+            snapshot_data_provider = SnapshotScenarioDataProvider.from_snapshot_payload(
+                snapshot.payload
+            )
+
             current_run = await self._publish_progress(
                 current_run,
                 sequence=2,
                 status="running",
                 stage="indexing",
                 progress_percent=15,
-                status_message="Indexing scenario data",
+                status_message="Indexing scenario data from snapshot",
                 claim_token=claim.claim_token,
                 metrics={"snapshot_id": snapshot.snapshot_id},
             )
@@ -135,14 +171,6 @@ class OptimizationRunWorker:
                 progress_percent=30,
                 status_message="Building optimization model",
                 claim_token=claim.claim_token,
-            )
-
-            facility_context = await self.scheduler_facade._build_optimization_context(
-                org_id=request.org_id,
-                facility_id=request.facility_id,
-                start_date=request.start_date,
-                end_date=request.end_date or request.start_date,
-                optimization_settings=request.settings,
             )
 
             current_run = await self._publish_progress(
@@ -158,11 +186,12 @@ class OptimizationRunWorker:
             locked_assignments = self._locked_assignments_from_snapshot(snapshot)
             result = await self.scheduler_facade.optimize_schedule(
                 org_id=request.org_id,
-                facility_contexts={request.facility_id: facility_context},
+                facility_contexts=facility_contexts,
                 preference_weights=request.settings.to_preference_weights(),
-                pay_period_start=facility_context.shifts[0].shift_start_dt.start_of_day().to_instant(),
+                pay_period_start=pay_period_start,
                 optimization_settings=request.settings,
                 locked_assignments=locked_assignments,
+                data_provider=snapshot_data_provider,
             )
 
             if not result.is_success or result.schedule is None:
@@ -392,6 +421,8 @@ class OptimizationRunWorker:
         run: OptimizationRun,
         request: StartOptimizationRunRequest,
         base_schedule: Schedule,
+        facility_context: FacilityScenarioContext,
+        live_provider: IScenarioDataProvider,
     ) -> OptimizationSnapshot:
         decision_start = request.start_date
         decision_end = request.end_date or request.start_date
@@ -422,6 +453,48 @@ class OptimizationRunWorker:
             ]
             if key is not None
         ]
+
+        # Warm up all live provider caches before snapshotting
+        all_shifts = facility_context.shifts
+        all_employees = await live_provider.get_all_employees()
+
+        nurses_by_shift: dict[str, list[dict[str, object]]] = {}
+        for shift in all_shifts:
+            nurses = await live_provider.get_nurses_for_shift(shift)
+            key_str = f"{shift.facility_id}:{shift.shift_id}"
+            nurses_by_shift[key_str] = [
+                _serialize_nurse(n) for n in nurses
+            ]
+
+        hprd_req = await live_provider.get_hprd_requirements_for_facility(
+            request.facility_id
+        )
+
+        accumulated_hours: dict[str, float] = {}
+        for emp in all_employees:
+            hours = await live_provider.get_accumulated_hours_for_pay_period(
+                emp.employee_id
+            )
+            if hours:
+                accumulated_hours[str(emp.employee_id)] = hours
+
+        compensation: dict[str, dict[str, object]] = {}
+        for emp in all_employees:
+            comp = await live_provider.get_compensation_for_date(
+                emp.employee_id,
+                facility_context.shifts[0].shift_start_dt.date(),
+            )
+            if comp is not None:
+                compensation[str(emp.employee_id)] = _serialize_compensation(comp)
+
+        # Serialize HPRD requirements
+        hprd_values: list[list[float]] = []
+        for shift_id in (s.shift_id for s in all_shifts):
+            row = []
+            for role in [HprdEnforcedRole.RN, HprdEnforcedRole.LPN, HprdEnforcedRole.CNA]:
+                row.append(hprd_req[shift_id, role])
+            hprd_values.append(row)
+
         snapshot_payload: dict[str, object] = {
             "request": {
                 "org_id": request.org_id,
@@ -434,6 +507,7 @@ class OptimizationRunWorker:
                 "persist_result": request.persist_result,
             },
             "settings": request.settings.__dict__,
+            "settings_org_id": request.org_id,
             "patches": [patch.__dict__ for patch in request.staged_patches],
             "conflicts": [conflict.__dict__ for conflict in conflicts],
             "locked_assignments": [
@@ -454,6 +528,25 @@ class OptimizationRunWorker:
                     for key, value in base_schedule.shift_assignments.items()
                 },
             },
+            "facility_contexts": {
+                str(request.facility_id): {
+                    "config": _serialize_config(facility_context.config),
+                    "shifts": [_serialize_shift(s) for s in facility_context.shifts],
+                    "min_mandates": _serialize_mandates(facility_context.min_mandates),
+                    "default_hprd_rn": facility_context.default_hprd_rn,
+                    "default_hprd_cna": facility_context.default_hprd_cna,
+                    "default_hprd_total": facility_context.default_hprd_total,
+                }
+            },
+            "employees": [_serialize_employee(e) for e in all_employees],
+            "nurses_by_shift": nurses_by_shift,
+            "hprd_requirements": {
+                str(request.facility_id): {
+                    "values": hprd_values,
+                }
+            },
+            "accumulated_hours": accumulated_hours,
+            "compensation": compensation,
         }
         return OptimizationSnapshot(
             snapshot_id=uuid4().hex,
@@ -517,3 +610,100 @@ class OptimizationRunWorker:
             )
 
         return locked_assignments
+
+
+def _serialize_shift(shift: Shift) -> dict[str, object]:
+    return {
+        "org_id": shift.org_id,
+        "facility_id": shift.facility_id,
+        "shift_id": shift.shift_key.shift_id,
+        "shift_number": shift.shift_number,
+        "day_shift": shift.day_shift,
+        "day_of_week": shift.day_of_week.name,
+        "shift_start_iso": shift.shift_start_dt.format_common_iso(),
+        "shift_end_iso": shift.shift_end_dt.format_common_iso(),
+        "unit_id": shift.unit_id,
+        "is_scheduled": shift.is_scheduled,
+    }
+
+
+def _serialize_employee(emp: Employee) -> dict[str, object]:
+    return {
+        "employee_id": emp.employee_id,
+        "name": emp.name,
+        "job_title": emp.job_title,
+        "hire_date": emp.hire_date.format_common_iso(),
+    }
+
+
+def _serialize_nurse(nurse: Any) -> dict[str, object]:
+    prefs = None
+    if nurse.shift_custom_preferences:
+        prefs = [
+            {
+                "preference_type": p.preference_type.value,
+                "specific_value": p.specific_value,
+                "penalty_weight": p.penalty_weight,
+                "is_hard_block": p.is_hard_block,
+            }
+            for p in nurse.shift_custom_preferences
+        ]
+    return {
+        "employee_id": nurse.employee_id,
+        "available_hours_weekly": nurse.available_hours_weekly,
+        "skills": nurse.skills,
+        "shift_custom_preferences": prefs,
+    }
+
+
+def _serialize_config(config: FacilityConfig) -> dict[str, object]:
+    return {
+        "org_id": config.org_id,
+        "facility_id": config.facility_id,
+        "shifts_per_day": config.shifts_per_day,
+        "overtime_threshold_hours_per_week": config.overtime_threshold_hours_per_week,
+        "start_of_work_week_day": config.start_of_work_week_day.name,
+        "start_of_work_day_time": config.start_of_work_day_time.format_common_iso(),
+        "pay_period": config.pay_period.in_months_days()[1],
+        "weekend_multiplier": config.weekend_multiplier,
+        "night_shift_multiplier": config.night_shift_multiplier,
+        "tz": config.tz,
+        "default_hprd_rn": config.default_hprd_rn,
+        "default_hprd_lpn": config.default_hprd_lpn,
+        "default_hprd_cna": config.default_hprd_cna,
+        "default_hprd_total": config.default_hprd_total,
+        "min_rest_hours_between_shifts": config.min_rest_hours_between_shifts,
+        "max_consecutive_work_days": config.max_consecutive_work_days,
+        "max_total_hours_per_pay_period": config.max_total_hours_per_pay_period,
+    }
+
+
+def _serialize_mandates(mandates: MinMandates | None) -> dict[str, object] | None:
+    if mandates is None:
+        return None
+    return {
+        "min_rn_hprd": mandates.min_rn_hprd,
+        "min_lpn_hprd": mandates.min_lpn_hprd,
+        "min_cna_hprd": mandates.min_cna_hprd,
+        "min_total_hprd": mandates.min_total_hprd,
+        "min_staff_per_shift_rn": mandates.min_staff_per_shift_rn,
+        "min_staff_per_shift_lpn": mandates.min_staff_per_shift_lpn,
+        "min_staff_per_shift_cna": mandates.min_staff_per_shift_cna,
+    }
+
+
+def _serialize_compensation(comp: Any) -> dict[str, object]:
+    return {
+        "employee_id": comp.employee_id,
+        "base_rate_effective": comp.base_rate_effective,
+        "ot_multiplier": comp.ot_multiplier,
+        "is_agency": comp.is_agency,
+        "effective_start_date": comp.effective_start_date.format_common_iso(),
+        "effective_end_date": (
+            comp.effective_end_date.format_common_iso()
+            if comp.effective_end_date
+            else None
+        ),
+        "union_contract_id": comp.union_contract_id,
+        "pay_grade_or_step": comp.pay_grade_or_step,
+    }

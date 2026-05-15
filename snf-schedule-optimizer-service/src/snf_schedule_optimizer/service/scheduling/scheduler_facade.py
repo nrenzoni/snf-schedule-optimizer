@@ -44,7 +44,9 @@ from snf_schedule_optimizer.optimizer.interfaces import (
     IScenarioDataProvider,
 )
 from snf_schedule_optimizer.optimizer.models import ScheduleOptimizationResults
-from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
+from snf_schedule_optimizer.optimizer.providers import (
+    ScenarioDataProviderFactory,
+)
 from snf_schedule_optimizer.optimizer.reporting import ScheduleResultAnalyzer
 from snf_schedule_optimizer.optimizer.strategies.fixing import (
     LockedAssignmentConstraintStrategy,
@@ -117,6 +119,22 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         self.facility_repository = facility_repository
         self.shift_retriever = shift_retriever
 
+    def create_data_provider(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_contexts: dict[DomainPrimaryKeyType, FacilityScenarioContext],
+        pay_period_start: whenever.Instant,
+        optimization_start_time: whenever.Instant,
+        optimization_settings: OptimizationSettings,
+    ) -> IScenarioDataProvider:
+        return self.provider_factory.create(
+            org_id=org_id,
+            facility_contexts=facility_contexts,
+            pay_period_start=pay_period_start,
+            optimization_start_time=optimization_start_time,
+            optimization_settings=optimization_settings,
+        )
+
     async def optimize_schedule(
         self,
         org_id: DomainPrimaryKeyType,
@@ -127,17 +145,19 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         optimization_start_time: whenever.Instant | None = None,
         pinned_schedule: Schedule | None = None,
         locked_assignments: list[LockedAssignment] | None = None,
+        data_provider: IScenarioDataProvider | None = None,
     ) -> OptimizationOutput:
         optimization_start_time = optimization_start_time or whenever.Instant.now()
         optimization_settings = optimization_settings or OptimizationSettings()
 
-        data_provider = self.provider_factory.create(
-            org_id=org_id,
-            facility_contexts=facility_contexts,
-            pay_period_start=pay_period_start,
-            optimization_start_time=optimization_start_time,
-            optimization_settings=optimization_settings,
-        )
+        if data_provider is None:
+            data_provider = self.provider_factory.create(
+                org_id=org_id,
+                facility_contexts=facility_contexts,
+                pay_period_start=pay_period_start,
+                optimization_start_time=optimization_start_time,
+                optimization_settings=optimization_settings,
+            )
 
         additional_constraint_strategies: list[IFacilityScopedConstraintStrategy] = []
         if pinned_schedule is not None:
