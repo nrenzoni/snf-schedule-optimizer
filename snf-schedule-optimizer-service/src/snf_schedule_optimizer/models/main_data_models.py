@@ -99,6 +99,8 @@ class NurseProfile:
     )  # e.g., 'IV Therapy', 'Wound Care' perhaps turn into provider
     shift_custom_preferences: list[StaffShiftPreference] | None
     primary_unit_id: DomainPrimaryKeyType | None = None
+    is_preceptor: bool = False
+    is_charge_nurse: bool = False
 
     def __hash__(self) -> int:
         return hash(self.employee_id)
@@ -187,6 +189,9 @@ class FacilityConfig:
         default_factory=dict
     )
     holiday_dates: list[whenever.Date] = field(default_factory=list)
+    min_circadian_rest_after_night: float = 11.0
+    max_new_grads_per_preceptor: int = 2
+    require_charge_nurse_per_shift: bool = False
 
 
 type DomainPrimaryKeyType = int
@@ -464,6 +469,14 @@ class EmployeeStateSnapshot:
     worked_hours_pay_period: float = 0.0
     consecutive_days_worked: int = 0
     last_shift_end: str | None = None
+    last_shift_type: str | None = None
+
+
+@dataclass(frozen=True)
+class PTORequest:
+    employee_id: EmployeeIdType
+    date: whenever.Date
+    hours: float = 0.0
 
 
 @dataclass(frozen=True)

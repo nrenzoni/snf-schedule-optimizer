@@ -90,6 +90,7 @@ from snf_schedule_optimizer.optimizer.strategies.constraints import (
     MaxWeeklyHoursConstraintStrategy,
     NurseShiftCountLimitStrategy,
     PdpmCategoryConstraintStrategy,
+    PreceptorRatioConstraintStrategy,
     UnitMinimumStaffingConstraintStrategy,
 )
 from snf_schedule_optimizer.optimizer.strategies.pay import WeeklyVolumePayStrategy
@@ -399,6 +400,7 @@ def build_scheduler_container(
                     NurseShiftCountLimitStrategy(),
                     EmploymentClassificationConstraintStrategy(),
                     FloatLimitConstraintStrategy(),
+                    PreceptorRatioConstraintStrategy(),
                     fairness,
                 ],
             ),

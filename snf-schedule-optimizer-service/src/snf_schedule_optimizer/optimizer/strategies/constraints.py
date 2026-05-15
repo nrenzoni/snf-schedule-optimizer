@@ -8,6 +8,7 @@ from snf_schedule_optimizer.models import (
     EmploymentClassification,
     HprdEnforcedRole,
     NurseProfile,
+    Shift,
 )
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
@@ -149,8 +150,25 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
         if not shifts:
             return None
 
-        min_rest_hours = data_provider.get_optimization_settings().min_rest_period
+        min_rest_hours_val: float = data_provider.get_optimization_settings().min_rest_period
+        config = data_provider.get_facility_config(facility_id)
+        circadian_rest = config.min_circadian_rest_after_night if config else 11.0
         employee_states = await data_provider.get_employee_states()
+
+        def _is_night_shift(s: Shift) -> bool:
+            return not s.day_shift
+
+        def _is_day_shift(s: Shift) -> bool:
+            start_hour = s.shift_start_dt.time().hour
+            return start_hour < 12
+
+        def _get_rest_hours(s1: Shift, s2: Shift) -> float:
+            if _is_night_shift(s1) and _is_day_shift(s2):
+                return circadian_rest
+            return min_rest_hours_val
+
+        def _is_night_shift_type(shift_type: str | None) -> bool:
+            return shift_type is not None and shift_type.lower() == "night"
 
         # 1. Rest constraints between decision-horizon shifts (existing logic)
         for i in range(len(shifts) - 1):
@@ -159,7 +177,8 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
                 if s2.shift_start_dt <= s1.shift_start_dt:
                     continue
                 gap = (s2.shift_start_dt - s1.shift_end_dt).in_hours()
-                if gap >= min_rest_hours:
+                rest_needed = _get_rest_hours(s1, s2)
+                if gap >= rest_needed:
                     break
 
                 nurses_s1 = {
@@ -191,12 +210,20 @@ class ConsecutiveShiftFatigueStrategy(IFacilityScopedConstraintStrategy):
                 except Exception:
                     continue
                 rest_gap = (first_shift_start - last_end_dt).in_hours()
-                if rest_gap >= min_rest_hours:
+
+                effective_rest: float = min_rest_hours_val
+                if _is_night_shift_type(state.last_shift_type) and _is_day_shift(shifts[0]):
+                    effective_rest = circadian_rest
+
+                if rest_gap >= effective_rest:
                     continue
 
                 for shift in shifts:
                     gap = (shift.shift_start_dt - last_end_dt).in_hours()
-                    if gap >= min_rest_hours:
+                    need_rest = effective_rest
+                    if _is_night_shift_type(state.last_shift_type) and _is_day_shift(shift):
+                        need_rest = circadian_rest
+                    if gap >= need_rest:
                         continue
                     v = lp_holder.get_variable(shift, emp_id)
                     if v is None:
@@ -655,3 +682,86 @@ def _ceil_nonzero(value: float) -> int:
     import math
 
     return max(1, math.ceil(value))
+
+
+class PreceptorRatioConstraintStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        config = data_provider.get_facility_config(facility_id)
+        max_new = config.max_new_grads_per_preceptor
+        shifts = data_provider.get_shifts_for_facility(facility_id)
+
+        nurses_by_id: dict[DomainPrimaryKeyType, NurseProfile] = {}
+        for shift in shifts:
+            for nurse in await data_provider.get_nurses_for_shift(shift):
+                nurses_by_id[nurse.employee_id] = nurse
+
+        for shift in shifts:
+            new_grad_vars = []
+            preceptor_vars = []
+            charge_nurse_vars = []
+
+            for nurse in await data_provider.get_nurses_for_shift(shift):
+                v = lp_holder.get_variable(shift, nurse.employee_id)
+                if v is None:
+                    continue
+
+                employee = await data_provider.get_employee_by_id(nurse.employee_id)
+                if employee is None:
+                    continue
+
+                if employee.classification == EmploymentClassification.PRN:
+                    new_grad_vars.append(v)
+                else:
+                    hire_dt = whenever.ZonedDateTime(
+                        employee.hire_date.year,
+                        employee.hire_date.month,
+                        employee.hire_date.day,
+                        0,
+                        tz=shift.shift_start_dt.tz,
+                    )
+                    shift_dt = whenever.ZonedDateTime(
+                        shift.shift_start_dt.date().year,
+                        shift.shift_start_dt.date().month,
+                        shift.shift_start_dt.date().day,
+                        0,
+                        tz=shift.shift_start_dt.tz,
+                    )
+                    hire_delta_days = (shift_dt - hire_dt).in_hours() / 24.0
+                    if hire_delta_days <= 90:
+                        new_grad_vars.append(v)
+
+                if nurse.is_preceptor:
+                    preceptor_vars.append(v)
+
+                if nurse.is_charge_nurse:
+                    charge_nurse_vars.append(v)
+
+            if new_grad_vars and preceptor_vars:
+                problem += (
+                    pulp.lpSum(preceptor_vars) * max_new >= pulp.lpSum(new_grad_vars),
+                    f"PreceptorRatio_{facility_id}_{shift.shift_id}",
+                )
+            elif new_grad_vars and not preceptor_vars:
+                return InfeasibilityReasonResult(
+                    reason=InfeasibilityReason.NO_AVAILABLE_NURSES,
+                    details=f"No preceptor available for {len(new_grad_vars)} new grads in shift {shift.shift_id} at facility {facility_id}",
+                )
+
+            if config.require_charge_nurse_per_shift:
+                if not charge_nurse_vars:
+                    return InfeasibilityReasonResult(
+                        reason=InfeasibilityReason.NO_AVAILABLE_NURSES,
+                        details=f"No charge nurse available for shift {shift.shift_id} at facility {facility_id}",
+                    )
+                problem += (
+                    pulp.lpSum(charge_nurse_vars) >= 1,
+                    f"ChargeNurse_{facility_id}_{shift.shift_id}",
+                )
+
+        return None

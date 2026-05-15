@@ -102,10 +102,10 @@ async def test_demand_model_filters_census_by_unit_and_uses_modifiers_not_headco
 
     requirements = await calculator.calculate_requirements(context)
 
-    assert requirements[101, HprdEnforcedRole.RN] == pytest.approx(1.6 / 3.0, rel=0.01)
-    assert requirements[101, HprdEnforcedRole.LPN] == pytest.approx(0.8 / 3.0, rel=0.01)
-    assert requirements[101, HprdEnforcedRole.CNA] == pytest.approx(3.2 / 3.0, rel=0.01)
-    assert requirements.get_total_req(101) == pytest.approx(4.8 / 3.0, rel=0.01)
+    assert requirements[101, HprdEnforcedRole.RN] == pytest.approx(1.575 / 3.0, rel=0.01)
+    assert requirements[101, HprdEnforcedRole.LPN] == pytest.approx(0.7875 / 3.0, rel=0.01)
+    assert requirements[101, HprdEnforcedRole.CNA] == pytest.approx(3.15 / 3.0, rel=0.01)
+    assert requirements.get_total_req(101) == pytest.approx(4.725 / 3.0, rel=0.01)
 
 
 async def test_hprd_scales_with_shift_duration() -> None:
@@ -170,10 +170,10 @@ async def test_hprd_scales_with_shift_duration() -> None:
     )
 
     requirements = await calculator.calculate_requirements(context)
-    expected = 3.0 * 1 * (12.0 / 24.0) * 1.1 / 12.0
+    expected = 3.0 * 1 * (12.0 / 24.0) * 1.05 / 12.0
     assert requirements[102, HprdEnforcedRole.RN] == pytest.approx(expected, rel=0.01)
     assert requirements[102, HprdEnforcedRole.CNA] == pytest.approx(
-        6.0 * 1 * (12.0 / 24.0) * 1.1 / 12.0, rel=0.01
+        6.0 * 1 * (12.0 / 24.0) * 1.05 / 12.0, rel=0.01
     )
 
 

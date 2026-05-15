@@ -43,7 +43,7 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
         self.shift_requirements_retriever = shift_requirements_retriever
 
     async def calculate_requirements(
-        self, context: FacilityScenarioContext
+        self, context: FacilityScenarioContext, callout_forecast: float = 0.0
     ) -> HprdShiftNurseRequirementHolder:
         # 1. Initialize result holder
         hprd_shift_nurse_requirements = HprdShiftNurseRequirementHolder(
@@ -80,7 +80,8 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
                 demand_factor += stressed_count / shift_census if shift_census > 0 else 0.0
 
             if settings.use_callout_buffer and shift_census > 0:
-                demand_factor += settings.buffer_threshold / 100.0
+                buffer_multiplier = 1.0 + (callout_forecast if callout_forecast > 0 else 0.05)
+                demand_factor *= buffer_multiplier
 
             hours_in_shift = shift.duration_hours
             if hours_in_shift <= 0:

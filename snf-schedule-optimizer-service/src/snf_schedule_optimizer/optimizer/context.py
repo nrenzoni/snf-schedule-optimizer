@@ -12,6 +12,7 @@ from snf_schedule_optimizer.models import (
     HprdEnforcedRole,
     MinMandates,
     OptimizationSettings,
+    PTORequest,
     Shift,
 )
 from snf_schedule_optimizer.optimizer.lp_helpers import build_lp_variable_name
@@ -32,6 +33,7 @@ class FacilityScenarioContext:
         default_factory=dict
     )
     hr_config: FacilityHrConfig | None = None
+    pto_requests: list[PTORequest] = field(default_factory=list)
 
     default_hprd_rn: float = 0.5
     default_hprd_cna: float = 2.4

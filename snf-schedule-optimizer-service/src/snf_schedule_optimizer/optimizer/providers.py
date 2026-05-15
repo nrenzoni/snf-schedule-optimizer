@@ -158,9 +158,16 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         if facility_id not in self._cached_hprd_reqs:
             # print(f"Calculating heavy HPRD math for fac {facility_id}...")
             context = self._facility_contexts[facility_id]
+            shifts = context.shifts
+            callout_forecast = 0.0
+            if shifts and self._optimization_settings.use_callout_buffer:
+                ml_outputs = self._ml_model_retriever.get_model_outputs(shifts[0])
+                callout_forecast = ml_outputs.shift_call_out_forecast
             self._cached_hprd_reqs[
                 facility_id
-            ] = await self._hprd_calculator.calculate_requirements(context)
+            ] = await self._hprd_calculator.calculate_requirements(
+                context, callout_forecast=callout_forecast
+            )
         return self._cached_hprd_reqs[facility_id]
 
     # --- Case 2: Parameterized data cached manually with dicts ---
@@ -168,6 +175,10 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         if shift.shift_key not in self._shift_nurses_cache:
             nurses = await self._nurse_retriever.get_nurses(shift)
             eligible_nurses = []
+            pto_requests = self._facility_contexts.get(
+                shift.facility_id
+            )
+            pto_list = pto_requests.pto_requests if pto_requests else []
             for nurse in nurses:
                 employee = await self.get_employee_by_id(nurse.employee_id)
                 worked_hours = await self.get_accumulated_hours_for_pay_period(
@@ -178,6 +189,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
                     employee=employee,
                     shift=shift,
                     already_worked_hours=worked_hours,
+                    pto_requests=pto_list if pto_list else None,
                 )
                 if result.eligible:
                     eligible_nurses.append(nurse)

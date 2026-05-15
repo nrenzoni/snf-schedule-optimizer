@@ -83,6 +83,9 @@ def _nurse_from_dict(raw: dict[str, Any]) -> NurseProfile:
         available_hours_weekly=raw["available_hours_weekly"],
         skills=raw.get("skills"),
         shift_custom_preferences=shift_custom_preferences,
+        primary_unit_id=raw.get("primary_unit_id"),
+        is_preceptor=raw.get("is_preceptor", False),
+        is_charge_nurse=raw.get("is_charge_nurse", False),
     )
 
 
@@ -106,6 +109,9 @@ def _config_from_dict(raw: dict[str, Any]) -> FacilityConfig:
         min_rest_hours_between_shifts=raw.get("min_rest_hours_between_shifts", 10.0),
         max_consecutive_work_days=raw.get("max_consecutive_work_days", 5),
         max_total_hours_per_pay_period=raw.get("max_total_hours_per_pay_period", 80.0),
+        min_circadian_rest_after_night=raw.get("min_circadian_rest_after_night", 11.0),
+        max_new_grads_per_preceptor=raw.get("max_new_grads_per_preceptor", 2),
+        require_charge_nurse_per_shift=raw.get("require_charge_nurse_per_shift", False),
     )
 
 
@@ -264,6 +270,7 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
                 worked_hours_pay_period=hours,
                 consecutive_days_worked=0,
                 last_shift_end=None,
+                last_shift_type=None,
             )
         return states
 

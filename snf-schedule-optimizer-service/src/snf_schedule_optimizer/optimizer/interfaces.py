@@ -171,6 +171,7 @@ class IHprdRequirementCalculator(abc.ABC):
     async def calculate_requirements(
         self,
         context: FacilityScenarioContext,
+        callout_forecast: float = 0.0,
     ) -> HprdShiftNurseRequirementHolder:
         pass
 

@@ -7,6 +7,7 @@ from snf_schedule_optimizer.models import (
     EmployeeStateSnapshot,
     LockedAssignment,
     NurseProfile,
+    PTORequest,
     Shift,
 )
 from snf_schedule_optimizer.optimizer.interfaces import INurseHardBlockChecker
@@ -34,9 +35,20 @@ class CandidateEligibilityService:
         already_worked_hours: float,
         employee_state: EmployeeStateSnapshot | None = None,
         locked_assignments_for_emp: list[LockedAssignment] | None = None,
+        pto_requests: list[PTORequest] | None = None,
     ) -> CandidateEligibilityResult:
         if employee is None:
             return CandidateEligibilityResult(nurse, False, "employee_missing")
+
+        if pto_requests:
+            shift_date = shift.shift_start_dt.date()
+            for pto in pto_requests:
+                if pto.employee_id == employee.employee_id and pto.date == shift_date:
+                    if pto.hours == 0:
+                        return CandidateEligibilityResult(nurse, False, "pto_full_day")
+                    remaining_available = nurse.available_hours_weekly - already_worked_hours - pto.hours
+                    if remaining_available < shift.duration_hours:
+                        return CandidateEligibilityResult(nurse, False, "pto_partial_hours")
 
         if employee.job_title not in {"RN", "LPN", "CNA"}:
             return CandidateEligibilityResult(nurse, False, "non_direct_care_role")
