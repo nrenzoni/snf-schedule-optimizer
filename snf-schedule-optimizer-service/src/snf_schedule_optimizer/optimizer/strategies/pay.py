@@ -273,6 +273,7 @@ class BiWeeklyPayPeriodOTStrategy(IPayModelStrategy):
         lp_holder: LpNurseShiftVariableHolder,
         data_provider: IScenarioDataProvider,
     ) -> None:
+        self._bi_ot_vars.clear()
         for emp in await data_provider.get_all_employees():
             var = pulp.LpVariable(
                 f"BiWeekly_OT_Excess_{emp.employee_id}",

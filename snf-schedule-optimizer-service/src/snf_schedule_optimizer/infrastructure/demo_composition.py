@@ -1,3 +1,10 @@
+"""Intentionally disabled: Demo composition container.
+
+This module provides a fake in-memory retrievers container for demo/testing
+purposes. It is currently commented out to avoid coupling production code to
+test fakes. Uncomment and adapt it for local demo runs.
+"""
+
 # import whenever
 # from that_depends import BaseContainer, providers
 # from that_depends.providers import Singleton

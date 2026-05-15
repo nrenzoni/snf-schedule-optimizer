@@ -1,3 +1,10 @@
+"""Intentionally disabled: Connect-RPC verbose logging interceptor.
+
+This module provides an optional logging interceptor for Connect-RPC requests
+and responses. It is currently commented out to avoid unnecessary verbosity in
+production logs. Uncomment and enable it for debugging RPC payloads.
+"""
+
 # import logging
 # import sys
 # from collections.abc import Callable

@@ -434,6 +434,7 @@ class FakeScheduleRepo(IScheduleRepo):
     async def get_schedule(
         self,
         schedule_lookup: ScheduleLookupKey,
+        include_latest_run: bool = True,
     ) -> Schedule | None:
         return self._schedules.get(schedule_lookup)
 
@@ -442,6 +443,7 @@ class FakeScheduleRepo(IScheduleRepo):
         org_id: DomainPrimaryKeyType,
         facility_id: DomainPrimaryKeyType | None,
         start_date: str,
+        include_latest_run: bool = True,
     ) -> Schedule | None:
         for key, schedule in self._schedules.items():
             if key.org_id != org_id:
@@ -487,16 +489,24 @@ class FakeScheduleRepo(IScheduleRepo):
         }
         conflicts: list[PatchConflict] = []
         for patch in patches:
+            if patch.from_shift_id == patch.to_shift_id:
+                continue
             from_key = next(
                 (
                     key
                     for key in shift_assignments
-                    if key.shift_id == patch.from_shift_id
+                    if key.facility_id == schedule.facility_id
+                    and key.shift_id == patch.from_shift_id
                 ),
                 None,
             )
             to_key = next(
-                (key for key in shift_assignments if key.shift_id == patch.to_shift_id),
+                (
+                    key
+                    for key in shift_assignments
+                    if key.facility_id == schedule.facility_id
+                    and key.shift_id == patch.to_shift_id
+                ),
                 None,
             )
             if patch.from_shift_id is not None and from_key is None:
@@ -507,7 +517,7 @@ class FakeScheduleRepo(IScheduleRepo):
                         employee_name=patch.employee_name,
                         from_shift_id=patch.from_shift_id,
                         to_shift_id=patch.to_shift_id,
-                        reason="Original assignment missing",
+                        reason="Original assignment no longer exists.",
                     )
                 )
                 continue
@@ -519,14 +529,26 @@ class FakeScheduleRepo(IScheduleRepo):
                         employee_name=patch.employee_name,
                         from_shift_id=patch.from_shift_id,
                         to_shift_id=patch.to_shift_id,
-                        reason="Target shift missing",
+                        reason="Target shift is no longer available.",
                     )
                 )
                 continue
             if (
                 from_key is not None
-                and patch.employee_id in shift_assignments[from_key]
+                and patch.employee_id not in shift_assignments[from_key]
             ):
+                conflicts.append(
+                    PatchConflict(
+                        patch_id=patch.patch_id,
+                        employee_id=patch.employee_id,
+                        employee_name=patch.employee_name,
+                        from_shift_id=patch.from_shift_id,
+                        to_shift_id=patch.to_shift_id,
+                        reason="Employee is no longer assigned to the original shift.",
+                    )
+                )
+                continue
+            if from_key is not None:
                 shift_assignments[from_key].remove(patch.employee_id)
             if (
                 to_key is not None

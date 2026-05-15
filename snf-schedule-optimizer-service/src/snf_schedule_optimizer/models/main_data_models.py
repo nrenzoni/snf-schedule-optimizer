@@ -232,9 +232,6 @@ class Shift:
     def duration_hours(self) -> float:
         return self.shift_end_dt.difference(self.shift_start_dt).in_hours()
 
-    # def __hash__(self) -> int:
-    #     return hash((self.org_id, self.facility_id, self.shift_id))
-
     @property
     def facility_id(self) -> int:
         return self.shift_key.facility_id

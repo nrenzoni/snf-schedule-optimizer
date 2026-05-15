@@ -395,6 +395,7 @@ class OptimizationRunWorker:
                 run_id=claim.run.run_id,
                 sequence=final_sequence,
                 status=OptimizationRunStatus.FAILED.value,
+                stage=stage,
                 progress_percent=100,
                 status_message=status_message,
                 error_details=error_details,

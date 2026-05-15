@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict
 from collections.abc import Sequence
-from typing import Any, cast
+from typing import cast
 
 import whenever
 from sqlalchemy import func, or_, select
@@ -14,20 +14,22 @@ from snf_schedule_optimizer.domain.scheduling.interfaces import (
 from snf_schedule_optimizer.models import (
     OptimizationRun,
     OptimizationRunEvent,
-    OptimizationSettings,
     OptimizationSnapshot,
-    OptimizationSummary,
     PatchConflict,
     Schedule,
     ShiftAssignmentsType,
     ShiftKey,
     StagedSchedulePatch,
 )
-from snf_schedule_optimizer.models.scheduling.schedule_cost_models import (
-    CostBreakdown,
-    ScheduleFinancialReport,
+from snf_schedule_optimizer.persistence.schedule_mappers import (
+    dump_settings,
+    financials_to_dict,
+    map_run,
+    map_run_event,
+    patch_to_dict,
+    stats_to_dict,
+    summary_to_dict,
 )
-from snf_schedule_optimizer.optimizer.models import ScheduleOptimizationStats
 from snf_schedule_optimizer.sqlalchemy_models.optimization_run import (
     OptimizationRunModel,
 )
@@ -54,11 +56,11 @@ class SQLScheduleRepo(IScheduleRepo):
     async def get_schedule(
         self,
         schedule_lookup: ScheduleLookupKey,
+        include_latest_run: bool = True,
     ) -> Schedule | None:
         """
         Fetches assignments from the DB and reconstructs the Domain Schedule object.
         """
-        # Find the latest schedule_version_id for this schedule
         latest_version_subq = (
             select(func.max(ScheduleVersionModel.schedule_version_id))
             .where(
@@ -84,8 +86,6 @@ class SQLScheduleRepo(IScheduleRepo):
         if not results:
             return None
 
-        # Map DB Rows -> Domain Object
-        # Structure: dict[shift_id, list[employee_id]]
         assignments: ShiftAssignmentsType = defaultdict(list)
 
         for row in results:
@@ -94,11 +94,15 @@ class SQLScheduleRepo(IScheduleRepo):
         schedule_record = await self.db_session.get(
             ScheduleRecordModel, schedule_lookup.schedule_id
         )
-        latest_run = await self.get_latest_completed_optimization_run(
-            schedule_lookup.org_id,
-            schedule_record.facility_id if schedule_record else 0,
-            schedule_lookup.schedule_id,
-        )
+
+        if include_latest_run:
+            latest_run = await self.get_latest_completed_optimization_run(
+                schedule_lookup.org_id,
+                schedule_record.facility_id if schedule_record else 0,
+                schedule_lookup.schedule_id,
+            )
+        else:
+            latest_run = None
 
         return Schedule(
             org_id=schedule_lookup.org_id,
@@ -124,6 +128,7 @@ class SQLScheduleRepo(IScheduleRepo):
         org_id: int,
         facility_id: int | None,
         start_date: str,
+        include_latest_run: bool = True,
     ) -> Schedule | None:
         record_stmt = select(ScheduleRecordModel).where(
             ScheduleRecordModel.org_id == org_id,
@@ -160,11 +165,15 @@ class SQLScheduleRepo(IScheduleRepo):
             ),
         )
         results = (await self.db_session.scalars(stmt)).all()
-        latest_run = await self.get_latest_completed_optimization_run(
-            org_id,
-            schedule_record.facility_id,
-            schedule_record.schedule_id,
-        )
+
+        if include_latest_run:
+            latest_run = await self.get_latest_completed_optimization_run(
+                org_id,
+                schedule_record.facility_id,
+                schedule_record.schedule_id,
+            )
+        else:
+            latest_run = None
 
         assignments: ShiftAssignmentsType = defaultdict(list)
         for row in results:
@@ -302,27 +311,18 @@ class SQLScheduleRepo(IScheduleRepo):
         for shift_key, employee_ids in schedule.shift_assignments.items():
             shift_assignments[shift_key] = list(employee_ids)
 
+        sfid = schedule.facility_id or 0
+        key_lookup = {(key.facility_id, key.shift_id): key for key in shift_assignments}
+
         conflicts: list[PatchConflict] = []
         for patch in patches:
             if patch.from_shift_id == patch.to_shift_id:
                 continue
-            current_from_key = next(
-                (
-                    key
-                    for key in shift_assignments
-                    if key.facility_id == schedule.facility_id
-                    and key.shift_id == patch.from_shift_id
-                ),
-                None,
+            current_from_key = key_lookup.get(
+                (sfid, patch.from_shift_id or 0)
             )
-            current_to_key = next(
-                (
-                    key
-                    for key in shift_assignments
-                    if key.facility_id == schedule.facility_id
-                    and key.shift_id == patch.to_shift_id
-                ),
-                None,
+            current_to_key = key_lookup.get(
+                (sfid, patch.to_shift_id or 0)
             )
             if patch.from_shift_id is not None and current_from_key is None:
                 conflicts.append(
@@ -406,9 +406,7 @@ class SQLScheduleRepo(IScheduleRepo):
             "status_message": run.status_message,
             "error_details": run.error_details,
             "client_request_id": run.client_request_id,
-            "patches_json": json.dumps(
-                [self._patch_to_dict(patch) for patch in run.patches]
-            ),
+            "patches_json": json.dumps([patch_to_dict(patch) for patch in run.patches]),
             "persist_result": run.persist_result,
             "start_date": run.decision_start_date or "1970-01-01",
             "end_date": run.decision_end_date
@@ -427,16 +425,12 @@ class SQLScheduleRepo(IScheduleRepo):
                 if run.cancel_requested_at is not None
                 else None
             ),
-            "settings_json": self._dump_settings(run.settings)
-            if run.settings
-            else None,
-            "summary_json": json.dumps(self._summary_to_dict(run.summary))
+            "settings_json": dump_settings(run.settings) if run.settings else None,
+            "summary_json": json.dumps(summary_to_dict(run.summary))
             if run.summary
             else None,
-            "stats_json": json.dumps(self._stats_to_dict(run.stats))
-            if run.stats
-            else None,
-            "financials_json": json.dumps(self._financials_to_dict(run.financials))
+            "stats_json": json.dumps(stats_to_dict(run.stats)) if run.stats else None,
+            "financials_json": json.dumps(financials_to_dict(run.financials))
             if run.financials
             else None,
         }
@@ -506,13 +500,13 @@ class SQLScheduleRepo(IScheduleRepo):
             .order_by(OptimizationRunModel.updated_at.desc())
         )
         model = (await self.db_session.scalars(stmt)).first()
-        return self._map_run(model) if model is not None else None
+        return map_run(model) if model is not None else None
 
     async def get_optimization_run(self, run_id: str) -> OptimizationRun | None:
         model = await self.db_session.get(OptimizationRunModel, run_id)
         if model is None:
             return None
-        return self._map_run(model)
+        return map_run(model)
 
     async def get_active_optimization_run(
         self,
@@ -531,7 +525,7 @@ class SQLScheduleRepo(IScheduleRepo):
             .order_by(OptimizationRunModel.updated_at.desc())
         )
         model = (await self.db_session.scalars(stmt)).first()
-        return self._map_run(model) if model is not None else None
+        return map_run(model) if model is not None else None
 
     async def append_optimization_run_event(self, event: OptimizationRunEvent) -> None:
         with self.db_session.no_autoflush:
@@ -569,7 +563,7 @@ class SQLScheduleRepo(IScheduleRepo):
             .order_by(OptimizationRunEventModel.sequence.asc())
         )
         models = (await self.db_session.scalars(stmt)).all()
-        return [self._map_run_event(model) for model in models]
+        return [map_run_event(model) for model in models]
 
     async def claim_next_queued_optimization_run(
         self,
@@ -608,7 +602,7 @@ class SQLScheduleRepo(IScheduleRepo):
         if model.started_at is None:
             model.started_at = now
         await self.db_session.flush()
-        return self._map_run(model)
+        return map_run(model)
 
     async def renew_optimization_run_lease(
         self,
@@ -723,265 +717,10 @@ class SQLScheduleRepo(IScheduleRepo):
             .order_by(OptimizationRunModel.updated_at.desc())
         )
         model = (await self.db_session.scalars(stmt)).first()
-        return self._map_run(model) if model is not None else None
+        return map_run(model) if model is not None else None
 
     async def commit(self) -> None:
         await self.db_session.commit()
 
     async def rollback(self) -> None:
         await self.db_session.rollback()
-
-    @staticmethod
-    def _incentive_cost(financials: ScheduleFinancialReport | None) -> float | None:
-        if financials is None:
-            return None
-        return sum(
-            breakdown.bonuses
-            for breakdown in financials.breakdown_per_facility.values()
-        )
-
-    @staticmethod
-    def _overtime_cost(financials: ScheduleFinancialReport | None) -> float | None:
-        if financials is None:
-            return None
-        return sum(
-            breakdown.overtime_cost
-            for breakdown in financials.breakdown_per_facility.values()
-        )
-
-    @staticmethod
-    def _regular_cost(financials: ScheduleFinancialReport | None) -> float | None:
-        if financials is None:
-            return None
-        return sum(
-            breakdown.regular_cost
-            for breakdown in financials.breakdown_per_facility.values()
-        )
-
-    @staticmethod
-    def _patch_to_dict(patch: StagedSchedulePatch) -> dict[str, object]:
-        return {
-            "patch_id": patch.patch_id,
-            "employee_id": patch.employee_id,
-            "employee_name": patch.employee_name,
-            "from_shift_id": patch.from_shift_id,
-            "to_shift_id": patch.to_shift_id,
-            "pinned": patch.pinned,
-            "warnings": list(patch.warnings),
-            "validation_level": patch.validation_level,
-            "causes_overtime": patch.causes_overtime,
-            "total_cost": patch.total_cost,
-            "created_at": patch.created_at,
-        }
-
-    @staticmethod
-    def _patch_from_dict(payload: dict[str, object]) -> StagedSchedulePatch:
-        employee_name = payload.get("employee_name")
-        from_shift_id = payload.get("from_shift_id")
-        to_shift_id = payload.get("to_shift_id")
-        warnings = payload.get("warnings")
-        created_at = payload.get("created_at")
-        return StagedSchedulePatch(
-            patch_id=str(payload.get("patch_id", "")),
-            employee_id=int(cast(int | str, payload.get("employee_id", 0))),
-            employee_name=employee_name if isinstance(employee_name, str) else None,
-            from_shift_id=int(from_shift_id)
-            if isinstance(from_shift_id, (int, str)) and from_shift_id != ""
-            else None,
-            to_shift_id=int(to_shift_id)
-            if isinstance(to_shift_id, (int, str)) and to_shift_id != ""
-            else None,
-            pinned=bool(payload.get("pinned", True)),
-            warnings=tuple(str(item) for item in warnings)
-            if isinstance(warnings, list)
-            else (),
-            validation_level=str(payload.get("validation_level", "ok")),
-            causes_overtime=bool(payload.get("causes_overtime", False)),
-            total_cost=float(cast(float | int | str, payload.get("total_cost", 0.0))),
-            created_at=created_at if isinstance(created_at, str) else None,
-        )
-
-    @staticmethod
-    def _dump_settings(settings: OptimizationSettings) -> str:
-        return json.dumps(
-            {
-                "use_ml_forecast": settings.use_ml_forecast,
-                "use_callout_buffer": settings.use_callout_buffer,
-                "buffer_threshold": settings.buffer_threshold,
-                "min_rest_period": settings.min_rest_period,
-                "max_shift_length": settings.max_shift_length,
-                "premium_weekend": settings.premium_weekend,
-                "premium_holiday": settings.premium_holiday,
-                "overtime_avoidance_penalty": settings.overtime_avoidance_penalty,
-                "team_consistency_penalty": settings.team_consistency_penalty,
-                "high_risk_shift_penalty": settings.high_risk_shift_penalty,
-                "custom_preference_penalty": settings.custom_preference_penalty,
-            }
-        )
-
-    @staticmethod
-    def _summary_to_dict(
-        summary: OptimizationSummary | None,
-    ) -> dict[str, object] | None:
-        if summary is None:
-            return None
-        return {
-            "assignments_changed": summary.assignments_changed,
-            "total_assignments": summary.total_assignments,
-            "covered_shifts": summary.covered_shifts,
-            "uncovered_shifts": summary.uncovered_shifts,
-            "completed_at": summary.completed_at,
-            "applied_settings": json.loads(
-                SQLScheduleRepo._dump_settings(summary.applied_settings)
-            ),
-        }
-
-    @staticmethod
-    def _stats_to_dict(
-        stats: ScheduleOptimizationStats | None,
-    ) -> dict[str, object] | None:
-        if stats is None:
-            return None
-        return {
-            "execution_time_ms": stats.execution_time_ms,
-            "total_variables": stats.total_variables,
-            "total_constraints": stats.total_constraints,
-            "objective_value": stats.objective_value,
-        }
-
-    @staticmethod
-    def _financials_to_dict(
-        financials: ScheduleFinancialReport | None,
-    ) -> dict[str, object] | None:
-        if financials is None:
-            return None
-        return {
-            "total_enterprise_cost": financials.total_enterprise_cost,
-            "total_incentive_cost": SQLScheduleRepo._incentive_cost(financials) or 0.0,
-            "total_overtime_cost": SQLScheduleRepo._overtime_cost(financials) or 0.0,
-            "regular_pay_cost": SQLScheduleRepo._regular_cost(financials) or 0.0,
-        }
-
-    def _map_run(self, model: OptimizationRunModel) -> OptimizationRun:
-        stats_payload = (
-            cast(dict[str, Any], json.loads(model.stats_json))
-            if model.stats_json
-            else None
-        )
-        summary_payload = (
-            cast(dict[str, Any], json.loads(model.summary_json))
-            if model.summary_json
-            else None
-        )
-        settings_payload = (
-            cast(dict[str, Any], json.loads(model.settings_json))
-            if model.settings_json
-            else None
-        )
-        financials_payload = (
-            cast(dict[str, Any], json.loads(model.financials_json))
-            if model.financials_json
-            else None
-        )
-        return OptimizationRun(
-            run_id=model.run_id,
-            org_id=model.org_id,
-            facility_id=model.facility_id,
-            schedule_id=model.schedule_id,
-            schedule_lineage_id=model.schedule_id,
-            base_schedule_version=model.base_schedule_version,
-            result_schedule_id=model.result_schedule_id,
-            result_schedule_version=model.result_schedule_version,
-            status=model.status,
-            stage=model.stage,
-            progress_percent=model.progress_percent,
-            status_message=model.status_message,
-            started_at=model.started_at.isoformat(),
-            completed_at=model.completed_at.isoformat() if model.completed_at else None,
-            error_details=model.error_details,
-            financials=ScheduleFinancialReport(
-                total_enterprise_cost=float(
-                    financials_payload.get("total_enterprise_cost", 0.0)
-                ),
-                breakdown_per_facility={
-                    model.facility_id: CostBreakdown(
-                        regular_cost=float(
-                            financials_payload.get("regular_pay_cost", 0.0)
-                        ),
-                        overtime_cost=float(
-                            financials_payload.get("total_overtime_cost", 0.0)
-                        ),
-                        bonuses=float(
-                            financials_payload.get("total_incentive_cost", 0.0)
-                        ),
-                    )
-                },
-                breakdown_per_role={},
-            )
-            if financials_payload
-            else None,
-            stats=ScheduleOptimizationStats(
-                execution_time_ms=float(stats_payload.get("execution_time_ms", 0.0)),
-                total_variables=int(stats_payload.get("total_variables", 0)),
-                total_constraints=int(stats_payload.get("total_constraints", 0)),
-                objective_value=float(stats_payload["objective_value"])
-                if stats_payload.get("objective_value") is not None
-                else None,
-            )
-            if stats_payload
-            else None,
-            summary=OptimizationSummary(
-                assignments_changed=int(summary_payload.get("assignments_changed", 0)),
-                total_assignments=int(summary_payload.get("total_assignments", 0)),
-                covered_shifts=int(summary_payload.get("covered_shifts", 0)),
-                uncovered_shifts=int(summary_payload.get("uncovered_shifts", 0)),
-                completed_at=str(summary_payload.get("completed_at", "")),
-                applied_settings=OptimizationSettings(
-                    **summary_payload.get("applied_settings", {})
-                ),
-            )
-            if summary_payload
-            else None,
-            patches=tuple(
-                self._patch_from_dict(payload)
-                for payload in json.loads(model.patches_json or "[]")
-            ),
-            client_request_id=model.client_request_id,
-            settings=OptimizationSettings(**settings_payload)
-            if settings_payload
-            else None,
-            persist_result=model.persist_result,
-            decision_start_date=model.start_date,
-            decision_end_date=model.end_date,
-            policy_start_date=model.policy_start_date,
-            policy_end_date=model.policy_end_date,
-            snapshot_id=model.snapshot_id,
-            claimed_by=model.claimed_by,
-            claim_token=model.claim_token,
-            lease_expires_at=model.lease_expires_at.isoformat()
-            if model.lease_expires_at
-            else None,
-            heartbeat_at=model.heartbeat_at.isoformat() if model.heartbeat_at else None,
-            attempt_count=model.attempt_count,
-            failure_code=model.failure_code,
-            termination_reason=model.termination_reason,
-            cancel_requested_at=model.cancel_requested_at.isoformat()
-            if model.cancel_requested_at
-            else None,
-        )
-
-    @staticmethod
-    def _map_run_event(model: OptimizationRunEventModel) -> OptimizationRunEvent:
-        return OptimizationRunEvent(
-            run_id=model.run_id,
-            sequence=model.sequence,
-            status=model.status,
-            stage=model.stage,
-            progress_percent=model.progress_percent,
-            status_message=model.status_message,
-            error_details=model.error_details,
-            metrics=cast(dict[str, object], json.loads(model.metrics_json))
-            if model.metrics_json
-            else None,
-            created_at=model.created_at.isoformat(),
-        )

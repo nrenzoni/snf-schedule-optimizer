@@ -27,6 +27,7 @@ from snf_schedule_optimizer.models import (
     MinMandates,
     OptimizationRun,
     OptimizationRunEvent,
+    OptimizationRunStage,
     OptimizationRunStatus,
     OptimizationSettings,
     OptimizationSummary,

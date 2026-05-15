@@ -1,3 +1,4 @@
+import math
 from typing import Any, cast
 
 import pulp
@@ -691,8 +692,6 @@ class FloatLimitConstraintStrategy(IFacilityScopedConstraintStrategy):
 def _ceil_nonzero(value: float) -> int:
     if value <= 0:
         return 0
-    import math
-
     return max(1, math.ceil(value))
 
 

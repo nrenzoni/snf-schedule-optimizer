@@ -117,16 +117,13 @@ def create_app() -> FastAPI:
     return app
 
 
-app = create_app()
-
-
 async def main() -> None:
+    app = create_app()
     config = Config()
     port = os.getenv("PORT", "8000")
     config.bind = [f"0.0.0.0:{port}"]
 
-    # Enable Hypercorn access logs (Method, Path, Status Code)
-    config.accesslog = "-"  # "-" means log to stdout
+    config.accesslog = "-"
     config.errorlog = "-"
     config.loglevel = "debug"
 
