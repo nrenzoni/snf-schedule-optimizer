@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import {
   AlertTriangle,
   Clock,
@@ -15,6 +15,9 @@ import {
 } from "@/components/ui/styles";
 import { cn } from "@/lib/utils";
 import { UISchedulerSettings } from "@/types/scheduling";
+import { useForm, useWatch, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { schedulerSettingsSchema, SchedulerSettingsFormValues } from "@/lib/validation";
 
 interface SchedulingConfigModalProps {
   settings: UISchedulerSettings;
@@ -29,38 +32,51 @@ export function SchedulingConfigModal({
   onClose,
   onUpdate,
 }: SchedulingConfigModalProps) {
-  // Internal state for unsaved changes (kept for form management)
-  const [draftSettings, setDraftSettings] = useState<UISchedulerSettings>(settings);
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm<SchedulerSettingsFormValues>({
+    resolver: zodResolver(schedulerSettingsSchema),
+    defaultValues: settings,
+  });
 
-  const handleUpdate = (
-    key: keyof UISchedulerSettings,
-    value: UISchedulerSettings[keyof UISchedulerSettings],
-  ) => {
-    setDraftSettings((prev) => ({ ...prev, [key]: value }));
+  useEffect(() => {
+    reset(settings);
+  }, [settings, reset]);
+
+  const useCalloutBuffer = useWatch({ control, name: "useCalloutBuffer" });
+  const bufferThreshold = useWatch({ control, name: "bufferThreshold" });
+  const minRestPeriod = useWatch({ control, name: "minRestPeriod" });
+  const maxShiftLength = useWatch({ control, name: "maxShiftLength" });
+
+  const onSubmit = (data: SchedulerSettingsFormValues) => {
+    onUpdate(data);
+    onClose();
   };
 
-  const handleSave = () => {
-    onUpdate(draftSettings);
+  const handleCancel = () => {
+    reset(settings);
     onClose();
   };
 
   return (
     <ModalContainer
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleCancel}
       contentClassName="max-w-2xl"
     >
-      {/* 2. Content starts directly with the modal's main content div,
-               which no longer needs external transition classes. */}
-      <div className="w-full overflow-hidden bg-white/82">
-        {/* HEADER */}
+      <form onSubmit={handleSubmit(onSubmit)} className="w-full overflow-hidden bg-white/82">
         <div className="app-modal-header">
           <div className="flex items-center space-x-2 text-primary">
             <Settings size={20} />
             <h3 className="text-xl font-black">Scheduler Configuration</h3>
           </div>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={handleCancel}
             className={iconButtonVariants({ shape: "full", tone: "default" })}
           >
             <X size={20} />
@@ -72,7 +88,6 @@ export function SchedulingConfigModal({
             Staffing & ML Integration
           </h4>
           <div className="grid md:grid-cols-2 gap-8">
-            {/* 1. HPPD ML Forecast */}
             <div className="app-soft-panel flex items-center justify-between p-3">
               <div>
                 <label className="text-sm font-bold text-slate-800">
@@ -82,23 +97,25 @@ export function SchedulingConfigModal({
                   Adjust staffing based on AI predictions
                 </p>
               </div>
-              <button
-                onClick={() =>
-                  setDraftSettings((prev) => ({
-                    ...prev,
-                    useMLForecast: !prev.useMLForecast,
-                  }))
-                }
-                type="button"
-                className={toggleTrackVariants({ checked: draftSettings.useMLForecast })}
-              >
-                <span
-                  className={toggleThumbVariants({ checked: draftSettings.useMLForecast })}
-                />
-              </button>
+              <Controller
+                name="useMLForecast"
+                control={control}
+                render={({ field }) => (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={field.value}
+                    onClick={() => field.onChange(!field.value)}
+                    className={toggleTrackVariants({ checked: field.value })}
+                  >
+                    <span
+                      className={toggleThumbVariants({ checked: field.value })}
+                    />
+                  </button>
+                )}
+              />
             </div>
 
-            {/* 2. Call-out Buffer Toggle */}
             <div className="app-soft-panel flex items-center justify-between p-3">
               <div>
                 <label className="text-sm font-bold text-slate-800">
@@ -108,50 +125,52 @@ export function SchedulingConfigModal({
                   Reserve extra staff for high-risk shifts
                 </p>
               </div>
-              <button
-                onClick={() =>
-                  setDraftSettings((prev) => ({
-                    ...prev,
-                    useCalloutBuffer: !prev.useCalloutBuffer,
-                  }))
-                }
-                type="button"
-                className={toggleTrackVariants({ checked: draftSettings.useCalloutBuffer })}
-              >
-                <span
-                  className={toggleThumbVariants({ checked: draftSettings.useCalloutBuffer })}
-                />
-              </button>
+              <Controller
+                name="useCalloutBuffer"
+                control={control}
+                render={({ field }) => (
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={field.value}
+                    onClick={() => field.onChange(!field.value)}
+                    className={toggleTrackVariants({ checked: field.value })}
+                  >
+                    <span
+                      className={toggleThumbVariants({ checked: field.value })}
+                    />
+                  </button>
+                )}
+              />
             </div>
 
-            {/* 3. Buffer Threshold Slider */}
             <div
-                className={cn(
-                  "space-y-3 rounded-lg border border-border p-3",
-                  !draftSettings.useCalloutBuffer
-                    ? "pointer-events-none bg-background opacity-50"
-                    : "bg-card",
-                )}
+              className={cn(
+                "space-y-3 rounded-lg border border-border p-3",
+                !useCalloutBuffer
+                  ? "pointer-events-none bg-background opacity-50"
+                  : "bg-card",
+              )}
             >
               <div className="flex justify-between items-center">
                 <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
                   <Sliders size={16} /> Buffer Threshold
                 </label>
-              <span className="rounded bg-accent px-2 py-1 font-mono text-sm font-medium text-primary">
-                  {draftSettings.bufferThreshold}%
+                <span className="rounded bg-accent px-2 py-1 font-mono text-sm font-medium text-primary">
+                  {bufferThreshold}%
                 </span>
               </div>
               <input
                 type="range"
                 min="0"
                 max="20"
-                value={draftSettings.bufferThreshold}
-                onChange={(e) =>
-                  handleUpdate("bufferThreshold", parseInt(e.target.value))
-                }
+                {...register("bufferThreshold", { valueAsNumber: true })}
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-200 accent-indigo-600"
-                disabled={!draftSettings.useCalloutBuffer}
+                disabled={!useCalloutBuffer}
               />
+              {errors.bufferThreshold && (
+                <p className="text-xs text-red-500">{errors.bufferThreshold.message}</p>
+              )}
               <p className="text-xs text-slate-500">
                 Percentage of shift capacity to hold as reserve.
               </p>
@@ -162,7 +181,6 @@ export function SchedulingConfigModal({
             Compliance & Shift Rules
           </h4>
           <div className="grid md:grid-cols-2 gap-8">
-            {/* 4. Min Rest Period */}
             <div className="space-y-3 rounded-lg border border-border bg-card p-3">
               <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 <Clock size={16} /> Minimum Rest Period (Hours)
@@ -172,19 +190,18 @@ export function SchedulingConfigModal({
                 min="8"
                 max="16"
                 step="1"
-                value={draftSettings.minRestPeriod}
-                onChange={(e) =>
-                  handleUpdate("minRestPeriod", parseInt(e.target.value))
-                }
+                {...register("minRestPeriod", { valueAsNumber: true })}
                 className="app-input w-full text-lg"
               />
+              {errors.minRestPeriod && (
+                <p className="text-xs text-red-500">{errors.minRestPeriod.message}</p>
+              )}
               <p className="text-xs text-slate-500">
                 Enforce minimum rest time between shifts (Current:{" "}
-                {draftSettings.minRestPeriod} hrs).
+                {minRestPeriod} hrs).
               </p>
             </div>
 
-            {/* 5. Max Shift Length */}
             <div className="space-y-3 rounded-lg border border-border bg-card p-3">
               <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 <AlertTriangle size={16} /> Maximum Shift Length (Hours)
@@ -194,19 +211,18 @@ export function SchedulingConfigModal({
                 min="8"
                 max="14"
                 step="0.5"
-                value={draftSettings.maxShiftLength}
-                onChange={(e) =>
-                  handleUpdate("maxShiftLength", parseFloat(e.target.value))
-                }
+                {...register("maxShiftLength", { valueAsNumber: true })}
                 className="app-input w-full text-lg"
               />
+              {errors.maxShiftLength && (
+                <p className="text-xs text-red-500">{errors.maxShiftLength.message}</p>
+              )}
               <p className="text-xs text-slate-500">
                 Prevent burnout/fatigue by limiting shift duration (Current:{" "}
-                {draftSettings.maxShiftLength} hrs).
+                {maxShiftLength} hrs).
               </p>
             </div>
 
-            {/* 6. Premium Shift Criteria */}
             <div className="space-y-3 rounded-lg border border-border bg-card p-3 md:col-span-2">
               <label className="flex items-center gap-2 text-sm font-bold text-slate-800">
                 <DollarSign size={16} /> Premium Shift Criteria
@@ -215,10 +231,7 @@ export function SchedulingConfigModal({
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
-                    checked={draftSettings.premiumWeekend}
-                    onChange={(e) =>
-                      handleUpdate("premiumWeekend", e.target.checked)
-                    }
+                    {...register("premiumWeekend")}
                     className="rounded text-primary"
                   />
                   <label className="text-sm text-slate-700">
@@ -228,10 +241,7 @@ export function SchedulingConfigModal({
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
-                    checked={draftSettings.premiumHoliday}
-                    onChange={(e) =>
-                      handleUpdate("premiumHoliday", e.target.checked)
-                    }
+                    {...register("premiumHoliday")}
                     className="rounded text-primary"
                   />
                   <label className="text-sm text-slate-700">
@@ -258,12 +268,12 @@ export function SchedulingConfigModal({
                     type="number"
                     min="0"
                     step="50"
-                    value={draftSettings.overtimeAvoidancePenalty}
-                    onChange={(e) =>
-                      handleUpdate("overtimeAvoidancePenalty", parseFloat(e.target.value))
-                    }
+                    {...register("overtimeAvoidancePenalty", { valueAsNumber: true })}
                     className="app-input mt-1 w-full"
                   />
+                  {errors.overtimeAvoidancePenalty && (
+                    <p className="text-xs text-red-500">{errors.overtimeAvoidancePenalty.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-500">
@@ -273,12 +283,12 @@ export function SchedulingConfigModal({
                     type="number"
                     min="0"
                     step="25"
-                    value={draftSettings.teamConsistencyPenalty}
-                    onChange={(e) =>
-                      handleUpdate("teamConsistencyPenalty", parseFloat(e.target.value))
-                    }
+                    {...register("teamConsistencyPenalty", { valueAsNumber: true })}
                     className="app-input mt-1 w-full"
                   />
+                  {errors.teamConsistencyPenalty && (
+                    <p className="text-xs text-red-500">{errors.teamConsistencyPenalty.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-500">
@@ -288,12 +298,12 @@ export function SchedulingConfigModal({
                     type="number"
                     min="0"
                     step="50"
-                    value={draftSettings.highRiskShiftPenalty}
-                    onChange={(e) =>
-                      handleUpdate("highRiskShiftPenalty", parseFloat(e.target.value))
-                    }
+                    {...register("highRiskShiftPenalty", { valueAsNumber: true })}
                     className="app-input mt-1 w-full"
                   />
+                  {errors.highRiskShiftPenalty && (
+                    <p className="text-xs text-red-500">{errors.highRiskShiftPenalty.message}</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-500">
@@ -303,12 +313,12 @@ export function SchedulingConfigModal({
                     type="number"
                     min="0"
                     step="50"
-                    value={draftSettings.customPreferencePenalty}
-                    onChange={(e) =>
-                      handleUpdate("customPreferencePenalty", parseFloat(e.target.value))
-                    }
+                    {...register("customPreferencePenalty", { valueAsNumber: true })}
                     className="app-input mt-1 w-full"
                   />
+                  {errors.customPreferencePenalty && (
+                    <p className="text-xs text-red-500">{errors.customPreferencePenalty.message}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -317,23 +327,25 @@ export function SchedulingConfigModal({
 
         <div className="app-modal-footer">
           <button
-            onClick={() => {
-              setDraftSettings(settings);
-              onClose();
-            }}
+            type="button"
+            onClick={handleCancel}
             className="app-button-ghost"
           >
             Cancel
           </button>
           <button
+            type="submit"
             data-testid="save-scheduling-config"
-            onClick={handleSave}
-            className="app-button-primary"
+            disabled={!isDirty}
+            className={cn(
+              "app-button-primary",
+              !isDirty && "opacity-50 cursor-not-allowed",
+            )}
           >
             Save & Apply Settings
           </button>
         </div>
-      </div>
+      </form>
     </ModalContainer>
   );
 }

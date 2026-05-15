@@ -2,10 +2,9 @@ import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { pollOptimizationRun, streamOptimizationRun } from "@/api/scheduling-client";
-import { protoOptimizationRunToUI } from "@/hooks/use-schedule-query";
 import { useSchedulingStore } from "@/store/schedulingStore";
-
-const isRunActive = (status: string | null | undefined) => status === "queued" || status === "running";
+import { protoOptimizationRunToUI } from "@/lib/proto-mappers";
+import { isRunActive } from "@/lib/scheduling-helpers";
 
 export function useOptimizationRunSync() {
   const queryClient = useQueryClient();

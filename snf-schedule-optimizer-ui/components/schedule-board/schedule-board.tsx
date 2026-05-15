@@ -7,11 +7,12 @@ import {
   DndContext,
   DragEndEvent,
   DragOverlay,
-  Modifier,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { restrictToHorizontalAxis } from "@dnd-kit/modifiers";
 import { addDays, format, isSameDay, startOfWeek, subDays } from "date-fns";
 import { cn, createClientUuid } from "@/lib/utils";
 import {
@@ -43,23 +44,17 @@ import LoadingOverlay from "../ui/loading-overlay";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { useShallow } from "zustand/react/shallow";
 import { parseAsString, useQueryState } from "nuqs";
-import { formatDateYYYMMDD, TODAY_STRING } from "@/utils/scheduling-logic";
+import { formatDateYYYYMMDD, TODAY_STRING } from "@/utils/scheduling-logic";
 import { iconButtonVariants, segmentedButtonVariants } from "@/components/ui/styles";
-import { create } from "@bufbuild/protobuf";
-import { StagedSchedulePatchSchema } from "@/gen/scheduling/v1/scheduling_pb";
 import { validateShiftMove } from "@/api/scheduling-client";
-import { protoPatchConflictToUI, protoStagedPatchToUI } from "@/hooks/use-schedule-query";
+import { protoPatchConflictToUI, protoStagedPatchToUI } from "@/lib/proto-mappers";
+import { toProtoPatch } from "@/lib/scheduling-helpers";
 import { useStagedScheduleActions } from "@/hooks/use-staged-schedule-actions";
 import ThreeDAssemblyLoader from "@/components/three-d-assembly-loader";
 
 export const STAFF_COL_WIDTH = "w-48 min-w-[12rem]";
 export const CELL_WIDTH = "w-[72px] min-w-[72px]";
 export const DATE_GROUP_WIDTH = "w-[216px] min-w-[216px]";
-
-const restrictToHorizontalAxis: Modifier = ({ transform }) => ({
-  ...transform,
-  y: 0,
-});
 
 const VISIBLE_DAY_COUNT = 6;
 
@@ -142,7 +137,7 @@ export default function ScheduleBoard({
   };
 
   const pageSchedule = (dayDelta: number) => {
-    setAnchorDateStr(formatDateYYYMMDD(addDays(anchorDate, dayDelta)));
+    setAnchorDateStr(formatDateYYYYMMDD(addDays(anchorDate, dayDelta)));
   };
 
   const handleCollapseAll = () => {
@@ -199,20 +194,7 @@ export default function ScheduleBoard({
         toShiftId: overData.shiftId,
         payPeriodStartTs: BigInt(Math.floor(payPeriodStart.getTime() / 1000)),
         scheduleVersion,
-        stagedPatches: draftState.patches.map((patch) =>
-          create(StagedSchedulePatchSchema, {
-            patchId: patch.patchId,
-            employeeId: patch.employeeId,
-            employeeName: patch.employeeName ?? "",
-            fromShiftId: patch.fromShiftId ?? "",
-            toShiftId: patch.toShiftId ?? "",
-            pinned: patch.pinned,
-            warnings: patch.warnings,
-            causesOvertime: patch.causesOvertime,
-            totalCost: patch.totalCost,
-            createdAt: patch.createdAt ?? "",
-          }),
-        ),
+        stagedPatches: draftState.patches.map(toProtoPatch),
         patchId: createClientUuid(),
       });
 
@@ -239,15 +221,15 @@ export default function ScheduleBoard({
         return;
       }
 
-      if (response.conflicts.length > 0) {
-        setDraftConflicts(response.conflicts.map(protoPatchConflictToUI));
-      }
-
       if (response.isStale) {
         toast.error("Schedule changed on the server", {
           description: "Refresh before applying more staged changes.",
         });
         return;
+      }
+
+      if (response.conflicts.length > 0) {
+        setDraftConflicts(response.conflicts.map(protoPatchConflictToUI));
       }
 
       if (!response.isValid || !response.patch) {
@@ -277,6 +259,7 @@ export default function ScheduleBoard({
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
   );
 
   return (
@@ -459,7 +442,7 @@ export default function ScheduleBoard({
                   dates={visibleDates}
                   viewMode={viewMode}
                   groupingMode={groupingMode}
-                  isExpanded={expandedUnits[group.unit.id] ?? true}
+                  isExpanded={expandedUnits[group.unit.id] ?? false}
                   onToggle={() =>
                     setExpandedUnits((prev) => ({
                       ...prev,

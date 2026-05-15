@@ -1,26 +1,11 @@
 import { useCallback } from "react";
-import { create } from "@bufbuild/protobuf";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { validateShiftMove } from "@/api/scheduling-client";
 import { createClientUuid } from "@/lib/utils";
-import { protoPatchConflictToUI, protoStagedPatchToUI } from "@/hooks/use-schedule-query";
-import { StagedSchedulePatchSchema } from "@/gen/scheduling/v1/scheduling_pb";
-
-const toProtoPatch = (patch: ReturnType<typeof useSchedulingStore.getState>["draftState"]["patches"][number]) =>
-  create(StagedSchedulePatchSchema, {
-    patchId: patch.patchId,
-    employeeId: patch.employeeId,
-    employeeName: patch.employeeName ?? "",
-    fromShiftId: patch.fromShiftId ?? "",
-    toShiftId: patch.toShiftId ?? "",
-    pinned: patch.pinned,
-    warnings: patch.warnings,
-    totalCost: patch.totalCost,
-    causesOvertime: patch.causesOvertime,
-    createdAt: patch.createdAt ?? "",
-  });
+import { protoPatchConflictToUI, protoStagedPatchToUI } from "@/lib/proto-mappers";
+import { toProtoPatch } from "@/lib/scheduling-helpers";
 
 export function useStagedScheduleActions() {
   const {
@@ -83,15 +68,15 @@ export function useStagedScheduleActions() {
           return false;
         }
 
-        if (response.conflicts.length > 0) {
-          setDraftConflicts(response.conflicts.map(protoPatchConflictToUI));
-        }
-
         if (response.isStale) {
           toast.error("Schedule changed on the server", {
             description: "Refresh before applying more staged changes.",
           });
           return false;
+        }
+
+        if (response.conflicts.length > 0) {
+          setDraftConflicts(response.conflicts.map(protoPatchConflictToUI));
         }
 
         if (!response.isValid || !response.patch) {

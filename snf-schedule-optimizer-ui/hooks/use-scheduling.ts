@@ -6,11 +6,9 @@ import {
   UIPatchConflict,
   UISchedulerSettings,
   UIShift,
-  UIStagedPatch,
 } from "@/types/scheduling";
 import {
-  formatDateYYYMMDD,
-  FOURTEEN_DAYS_AHEAD,
+  formatDateYYYYMMDD,
   getStartOfMonth,
   getStartOfWeek,
   SHIFT_NAMES,
@@ -28,14 +26,15 @@ import {
 } from "@/store/schedulingStore";
 import { useShallow } from "zustand/react/shallow";
 import { parseAsBoolean, parseAsString, useQueryState } from "nuqs";
-import { OptimizationSettings, StagedSchedulePatchSchema } from "@/gen/scheduling/v1/scheduling_pb";
-import { create } from "@bufbuild/protobuf";
+import { OptimizationSettings } from "@/gen/scheduling/v1/scheduling_pb";
 import {
   protoOptimizationRunToUI,
   protoPatchConflictToUI,
-} from "@/hooks/use-schedule-query";
+} from "@/lib/proto-mappers";
+import { isRunActive, toProtoPatch } from "@/lib/scheduling-helpers";
 import { createClientUuid } from "@/lib/utils";
 import { useStagedScheduleActions } from "@/hooks/use-staged-schedule-actions";
+import { useScheduleCalendar } from "@/hooks/use-schedule-calendar";
 
 interface UseSchedulingReturn {
   currentDate: Date;
@@ -81,22 +80,6 @@ const optimizationSettingsToProto = (settings: UISchedulerSettings): Optimizatio
   highRiskShiftPenalty: settings.highRiskShiftPenalty,
   customPreferencePenalty: settings.customPreferencePenalty,
 });
-
-const toProtoPatch = (patch: UIStagedPatch) =>
-  create(StagedSchedulePatchSchema, {
-    patchId: patch.patchId,
-    employeeId: patch.employeeId,
-    employeeName: patch.employeeName ?? "",
-    fromShiftId: patch.fromShiftId ?? "",
-    toShiftId: patch.toShiftId ?? "",
-    pinned: patch.pinned,
-    warnings: patch.warnings,
-    totalCost: patch.totalCost,
-    causesOvertime: patch.causesOvertime,
-    createdAt: patch.createdAt ?? "",
-  });
-
-const isRunActive = (status: string | null | undefined) => status === "queued" || status === "running";
 
 export function useScheduling(): UseSchedulingReturn {
   const {
@@ -146,7 +129,13 @@ export function useScheduling(): UseSchedulingReturn {
   const [selectedShiftId, setSelectedShiftId] = useQueryState("shift");
   const [selectedNurseId, setSelectedNurseId] = useQueryState("nurseId");
 
-  const currentViewAnchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
+  const { calendarDays, currentViewAnchorDate } = useScheduleCalendar({
+    effectiveScheduleMap,
+    isLoading,
+    anchorDateStr,
+    isTwoWeekView,
+  });
+
   const runIsActive = isRunActive(activeRun?.status);
 
   const triggerOptimization = useCallback(
@@ -167,7 +156,7 @@ export function useScheduling(): UseSchedulingReturn {
 
       const startDate = new Date(currentViewAnchorDate);
       startDate.setDate(startDate.getDate() - 2);
-      const endDate = new Date(startDate);
+      const endDate = new Date(currentViewAnchorDate);
       endDate.setDate(endDate.getDate() + 5);
 
       try {
@@ -191,8 +180,8 @@ export function useScheduling(): UseSchedulingReturn {
           facilityId: selectedFacility.facilityId,
           scheduleId,
           baseScheduleVersion: scheduleVersion,
-          startDate: formatDateYYYMMDD(startDate),
-          endDate: formatDateYYYMMDD(endDate),
+          startDate: formatDateYYYYMMDD(startDate),
+          endDate: formatDateYYYYMMDD(endDate),
           settings: optimizationSettingsToProto(schedulerSettings),
           persistResult: true,
           clientRequestId: createClientUuid(),
@@ -283,68 +272,6 @@ export function useScheduling(): UseSchedulingReturn {
     return isTwoWeekView ? TODAY : currentViewAnchorDate;
   }, [isTwoWeekView, currentViewAnchorDate]);
 
-  const calendarDays = useMemo<UICalendarDay[]>(() => {
-    if (isLoading) {
-      return [];
-    }
-
-    const startDate = isTwoWeekView
-      ? getStartOfWeek(TODAY)
-      : (() => {
-          const year = currentViewAnchorDate.getFullYear();
-          const month = currentViewAnchorDate.getMonth();
-          const firstDayOfMonth = new Date(year, month, 1);
-          const startOffset = firstDayOfMonth.getDay();
-          return new Date(year, month, 1 - startOffset);
-        })();
-
-    const iterationDay = new Date(startDate);
-    const days: UICalendarDay[] = [];
-    const todayStart = new Date(TODAY);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayStartMs = todayStart.getTime();
-    const windowEndMs = FOURTEEN_DAYS_AHEAD.getTime();
-    const totalDaysToRender = isTwoWeekView ? 14 : 42;
-    const contextMonth = currentViewAnchorDate.getMonth();
-
-    for (let i = 0; i < totalDaysToRender; i++) {
-      const dayDate = new Date(iterationDay);
-      const dayDateString = formatDateYYYMMDD(dayDate);
-      const schedule = effectiveScheduleMap.get(dayDateString) || null;
-      const dayDateMs = dayDate.getTime();
-
-      let dayHPRDPercentage = 0;
-      if (schedule) {
-        const totalRequiredHours = schedule.shifts.reduce((sum, shift) => sum + shift.requiredHours, 0);
-        const totalActualHours = schedule.shifts.reduce((sum, shift) => sum + shift.actualHours, 0);
-        if (totalRequiredHours > 0) {
-          dayHPRDPercentage = Math.min(100, (totalActualHours / totalRequiredHours) * 100);
-        }
-      }
-
-      const isWithinWindow = dayDateMs >= todayStartMs && dayDateMs <= windowEndMs;
-      const isSelectable = isTwoWeekView
-        ? isWithinWindow
-        : dayDate.getMonth() === contextMonth && isWithinWindow;
-
-      days.push({
-        coverage: 0,
-        isPadding: false,
-        date: dayDate,
-        dateString: dayDateString,
-        dayOfMonth: dayDate.getDate(),
-        isToday: dayDateString === TODAY_STRING,
-        isCurrentMonth: !isTwoWeekView && dayDate.getMonth() === contextMonth,
-        isSelectable,
-        schedule,
-        dayHPRDPercentage,
-      });
-
-      iterationDay.setDate(iterationDay.getDate() + 1);
-    }
-    return days;
-  }, [currentViewAnchorDate, effectiveScheduleMap, isTwoWeekView, isLoading]);
-
   const closeModal = useCallback(() => {
     setSelectedDateStr(null);
     setSelectedShiftId(null);
@@ -355,9 +282,9 @@ export function useScheduling(): UseSchedulingReturn {
     const nextState = !isTwoWeekView;
     await setIsTwoWeekView(nextState);
     if (nextState) {
-      setAnchorDateStr(formatDateYYYMMDD(TODAY));
+      setAnchorDateStr(formatDateYYYYMMDD(TODAY));
     } else {
-      setAnchorDateStr(formatDateYYYMMDD(getStartOfMonth(TODAY)));
+      setAnchorDateStr(formatDateYYYYMMDD(getStartOfMonth(TODAY)));
     }
   }, [isTwoWeekView, setAnchorDateStr, setIsTwoWeekView]);
 
@@ -368,7 +295,7 @@ export function useScheduling(): UseSchedulingReturn {
         currentViewAnchorDate.getMonth() + offset,
         1,
       );
-      setAnchorDateStr(formatDateYYYMMDD(newDate));
+      setAnchorDateStr(formatDateYYYYMMDD(newDate));
     },
     [currentViewAnchorDate, setAnchorDateStr],
   );
@@ -439,7 +366,11 @@ export function useScheduling(): UseSchedulingReturn {
     [stageValidatedPatch],
   );
 
-  const addNurseToShift = useCallback((): void => {}, []);
+  const addNurseToShift = useCallback((): void => {
+    toast.error("Not yet available", {
+      description: "Manual nurse-to-shift assignment will be available in a future update.",
+    });
+  }, []);
 
   const closeNurseDetails = useCallback(() => {
     setSelectedNurseId(null);

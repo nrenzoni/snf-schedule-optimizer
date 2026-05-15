@@ -36,6 +36,8 @@ const shiftNameToType = (shiftName: UIShift["shiftName"]): ShiftTypeKey => {
       return "EVE";
     case "Night":
       return "NIGHT";
+    default:
+      return "DAY";
   }
 };
 

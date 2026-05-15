@@ -21,7 +21,7 @@ export const getStartOfMonth = (date: Date): Date => {
 };
 
 // Helper to format date to YYYY-MM-DD
-export const formatDateYYYMMDD = (date: Date): string => {
+export const formatDateYYYYMMDD = (date: Date): string => {
   const d = new Date(date);
   const month = (d.getMonth() + 1).toString().padStart(2, "0");
   const day = d.getDate().toString().padStart(2, "0");
@@ -40,7 +40,7 @@ export const getWindowEnd = (today: Date) => {
 const cleanToday = new Date();
 cleanToday.setHours(0, 0, 0, 0);
 export const TODAY = cleanToday;
-export const TODAY_STRING = formatDateYYYMMDD(TODAY);
+export const TODAY_STRING = formatDateYYYYMMDD(TODAY);
 export const FOURTEEN_DAYS_AHEAD = getWindowEnd(TODAY);
 
 // Helper function to create mock nurses for a specific shift
@@ -78,9 +78,8 @@ const createShift = (
 ): UIShift => {
   const patientCount = 30 + Math.floor(Math.random() * 15);
   const requiredHPRD = 5.5;
-  const shiftHours = shiftName === "Night" ? 12 : 8;
 
-  const requiredHours = (patientCount / shiftHours) * requiredHPRD;
+  const requiredHours = patientCount * requiredHPRD;
 
   const dayOfWeek = date.getDay();
   let baseNurses: number;
@@ -100,7 +99,7 @@ const createShift = (
     actualHours >= requiredHours && (isWeekend ? Math.random() > 0.3 : true);
 
   return {
-    shiftId: `${formatDateYYYMMDD(date)}-${shiftName.toLowerCase()}`,
+    shiftId: `${formatDateYYYYMMDD(date)}-${shiftName.toLowerCase()}`,
     shiftName,
     unitId: "unit-mock",
     unitName: "Mock Unit",
@@ -130,7 +129,7 @@ export function generateMockScheduleMap(
   for (let i = 0; i < daysToGenerate; i++) {
     // We are using 'mutableDate' as the current date for this iteration.
 
-    const dateString = formatDateYYYMMDD(mutableDate);
+    const dateString = formatDateYYYYMMDD(mutableDate);
 
     // Generate shifts using the helper function
     const shifts: UIShift[] = SHIFT_NAMES.map((name) =>
@@ -154,8 +153,7 @@ const createEmptyShift = (
 ): UIShift => {
   const patientCount = 30 + Math.floor(Math.random() * 15);
   const requiredHPRD = 5.5;
-  const shiftHours = shiftName === "Night" ? 12 : 8;
-  const requiredHours = (patientCount / shiftHours) * requiredHPRD;
+  const requiredHours = patientCount * requiredHPRD;
 
   // Key difference: actualHours is 0, nurses is empty.
   return {
@@ -181,7 +179,7 @@ export function generateEmptyScheduleMap(
   const mutableDate = new Date(startDate);
 
   for (let i = 0; i < daysToGenerate; i++) {
-    const dateString = formatDateYYYMMDD(mutableDate);
+    const dateString = formatDateYYYYMMDD(mutableDate);
 
     const shifts: UIShift[] = SHIFT_NAMES.map((name) =>
       createEmptyShift(name),
