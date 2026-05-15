@@ -16,6 +16,7 @@ from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
     EmployeeIdType,
+    EmployeeStateSnapshot,
     Shift,
     ShiftKey,
     TimePunch,
@@ -303,6 +304,91 @@ class EmployeeWorkHistoryServiceImpl(IEmployeeWorkHistoryService):
                     if segment.start_time >= pay_period_start:
                         total_hours += segment.duration_hours
             result[emp_id] = total_hours
+
+        return result
+
+    async def get_employee_history_states(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee_ids: list[EmployeeIdType],
+        check_date: whenever.Instant,
+        facility_id: DomainPrimaryKeyType | None = None,
+    ) -> dict[EmployeeIdType, EmployeeStateSnapshot]:
+        if not employee_ids:
+            return {}
+
+        configs = await self.facility_config_retriever.get_configs(org_id, None)
+        tz_map: dict[DomainPrimaryKeyType, str] = {c.facility_id: c.tz for c in configs}
+
+        bulk_raw = await self.history_retriever.get_raw_inputs_for_period_bulk(
+            org_id=org_id,
+            employee_ids=employee_ids,
+            check_date=check_date,
+            facility_timezones=tz_map,
+            facility_id=facility_id,
+        )
+
+        all_shift_keys: set[ShiftKey] = set()
+        for emp_data in bulk_raw.values():
+            all_shift_keys.update(emp_data.keys())
+
+        shifts: dict[ShiftKey, Shift] = {}
+        if all_shift_keys:
+            shifts = await self.shift_retriever.get_shifts_by_keys(
+                list(all_shift_keys), tz_map, org_id
+            )
+
+        result: dict[EmployeeIdType, EmployeeStateSnapshot] = {}
+        for emp_id in employee_ids:
+            emp_raw = bulk_raw.get(emp_id, {})
+            if not emp_raw:
+                result[emp_id] = EmployeeStateSnapshot(employee_id=emp_id)
+                continue
+
+            processed = await self._convert_raw_history_to_segments(emp_raw, shifts)
+
+            total_hours_week = 0.0
+            shift_dates: set[whenever.Date] = set()
+            last_shift_end: str | None = None
+            last_shift_type: str | None = None
+            latest_end_dt: whenever.ZonedDateTime | None = None
+
+            for shift_key, segments in processed.items():
+                shift = shifts.get(shift_key)
+                if not shift:
+                    continue
+
+                if shift.shift_end_dt > check_date.to_tz(shift.shift_end_dt.tz):
+                    continue
+
+                shift_dates.add(shift.shift_start_dt.date())
+
+                if latest_end_dt is None or shift.shift_end_dt > latest_end_dt:
+                    latest_end_dt = shift.shift_end_dt
+                    last_shift_end = shift.shift_end_dt.format_common_iso()
+                    last_shift_type = "day" if shift.day_shift else "night"
+
+                for segment in segments:
+                    total_hours_week += segment.duration_hours
+
+            latest_facility_tz = (
+                configs[0].tz if configs else "America/New_York"
+            )
+            check_date_zoned = check_date.to_tz(latest_facility_tz)
+            target_date = check_date_zoned.date().subtract(days=1)
+            consecutive = 0
+            while target_date in shift_dates:
+                consecutive += 1
+                target_date = target_date.subtract(days=1)
+
+            result[emp_id] = EmployeeStateSnapshot(
+                employee_id=emp_id,
+                worked_hours_week=total_hours_week,
+                worked_hours_pay_period=total_hours_week,
+                consecutive_days_worked=consecutive,
+                last_shift_end=last_shift_end,
+                last_shift_type=last_shift_type,
+            )
 
         return result
 
