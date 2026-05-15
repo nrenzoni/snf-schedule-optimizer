@@ -180,30 +180,33 @@ test("persisted active run hydrates without mismatch", async ({ page }) => {
 
   await page.addInitScript(() => {
     window.localStorage.setItem(
-      "snf-scheduling-draft-v1",
+      "snf-scheduling-store",
       JSON.stringify({
-        draft: {
-          baseScheduleVersion: 1,
-          patches: [],
-          conflicts: [],
-          hasPendingValidation: false,
+        state: {
+          draftState: {
+            baseScheduleVersion: 1,
+            patches: [],
+            conflicts: [],
+            hasPendingValidation: false,
+          },
+          activeRun: {
+            runId: "persisted-run",
+            scheduleId: "persisted-schedule",
+            baseScheduleVersion: 1,
+            resultScheduleVersion: null,
+            status: "running",
+            stage: "solving",
+            progressPercent: 45,
+            statusMessage: "Resuming persisted run",
+            startedAt: "2026-05-13T12:00:00Z",
+            completedAt: null,
+            errorDetails: null,
+            financials: null,
+            stats: null,
+            summary: null,
+          },
         },
-        activeRun: {
-          runId: "persisted-run",
-          scheduleId: "persisted-schedule",
-          baseScheduleVersion: 1,
-          resultScheduleVersion: null,
-          status: "running",
-          stage: "solving",
-          progressPercent: 45,
-          statusMessage: "Resuming persisted run",
-          startedAt: "2026-05-13T12:00:00Z",
-          completedAt: null,
-          errorDetails: null,
-          financials: null,
-          stats: null,
-          summary: null,
-        },
+        version: 1,
       }),
     );
   });
