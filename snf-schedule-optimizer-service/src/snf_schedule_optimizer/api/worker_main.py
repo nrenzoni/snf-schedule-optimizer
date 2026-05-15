@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import signal
 from contextlib import suppress
 from typing import cast
 
@@ -28,27 +29,13 @@ def _scheduler_context(
     return cast(SupportsContext[object], scheduler_container)
 
 
-async def _renew_lease(
-    scheduler_container: type[ISchedulerContainer],
-    run_id: str,
-    claim_token: str,
-    heartbeat_at: str,
-    lease_expires_at: str,
-) -> bool:
-    async with container_context(
-        _scheduler_context(scheduler_container),
-        scope=ContextScopes.REQUEST,
-    ):
-        schedule_repo = await scheduler_container.schedule_retriever.resolve()
-        renewed = await schedule_repo.renew_optimization_run_lease(
-            run_id=run_id,
-            claim_token=claim_token,
-            heartbeat_at=heartbeat_at,
-            lease_expires_at=lease_expires_at,
-        )
-        if renewed:
-            await schedule_repo.commit()
-        return renewed
+async def _heartbeat_logger(
+    worker_id: str,
+    stop_event: asyncio.Event,
+) -> None:
+    while not stop_event.is_set():
+        logger.info("worker heartbeat worker_id=%s", worker_id)
+        await asyncio.sleep(60)
 
 
 async def run_worker() -> None:
@@ -61,6 +48,7 @@ async def run_worker() -> None:
     scheduler_container = build_scheduler_container(repos_container)
 
     stop_event = asyncio.Event()
+    heartbeat_task = asyncio.create_task(_heartbeat_logger(worker_id, stop_event))
 
     try:
         logger.info("optimization worker started worker_id=%s", worker_id)
@@ -78,16 +66,6 @@ async def run_worker() -> None:
                     worker_id=worker_id,
                     schedule_repo=schedule_repo,
                     scheduler_facade=scheduler_facade,
-                    renew_lease=lambda run_id,
-                    claim_token,
-                    heartbeat_at,
-                    lease_expires_at: _renew_lease(
-                        scheduler_container,
-                        run_id,
-                        claim_token,
-                        heartbeat_at,
-                        lease_expires_at,
-                    ),
                 )
                 try:
                     claimed = await worker.run_once()
@@ -104,15 +82,27 @@ async def run_worker() -> None:
         raise
     finally:
         stop_event.set()
+        heartbeat_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await heartbeat_task
         await engine.dispose()
 
 
 async def main() -> None:
     logging.basicConfig(level=logging.INFO)
     task = asyncio.create_task(run_worker())
+
+    loop = asyncio.get_running_loop()
+
+    def _handle_signal() -> None:
+        task.cancel()
+
+    loop.add_signal_handler(signal.SIGTERM, _handle_signal)
+    loop.add_signal_handler(signal.SIGINT, _handle_signal)
+
     try:
         await task
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, asyncio.CancelledError):
         task.cancel()
         with suppress(asyncio.CancelledError):
             await task

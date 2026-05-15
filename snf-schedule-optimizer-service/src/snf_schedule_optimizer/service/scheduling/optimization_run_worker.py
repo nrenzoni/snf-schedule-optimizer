@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from dataclasses import dataclass, replace
 from typing import Any
@@ -22,8 +21,11 @@ from snf_schedule_optimizer.models import (
     HprdEnforcedRole,
     LockedAssignment,
     MinMandates,
+    OptimizationFailureCode,
     OptimizationRun,
     OptimizationRunEvent,
+    OptimizationRunStage,
+    OptimizationRunStatus,
     OptimizationSettings,
     OptimizationSnapshot,
     PatchConflict,
@@ -58,12 +60,10 @@ class OptimizationRunWorker:
         worker_id: str,
         schedule_repo: IScheduleRepo,
         scheduler_facade: WorkforceSchedulerFacade,
-        renew_lease: (Callable[[str, str, str, str], Awaitable[bool]] | None) = None,
     ) -> None:
         self.worker_id = worker_id
         self.schedule_repo = schedule_repo
         self.scheduler_facade = scheduler_facade
-        self.renew_lease = renew_lease
 
     async def run_forever(self, stop_event: asyncio.Event | None = None) -> None:
         while stop_event is None or not stop_event.is_set():
@@ -102,8 +102,8 @@ class OptimizationRunWorker:
             current_run = await self._publish_progress(
                 current_run,
                 sequence=1,
-                status="running",
-                stage="snapshotting",
+                status=OptimizationRunStatus.RUNNING.value,
+                stage=OptimizationRunStage.SNAPSHOTTING.value,
                 progress_percent=5,
                 status_message="Building optimization snapshot",
                 claim_token=claim.claim_token,
@@ -111,7 +111,8 @@ class OptimizationRunWorker:
 
             request = self._request_from_run(current_run)
             base_schedule = await self.schedule_repo.get_schedule(
-                ScheduleLookupKey(current_run.org_id, current_run.schedule_id)
+                ScheduleLookupKey(current_run.org_id, current_run.schedule_id),
+                include_latest_run=False,
             )
             if base_schedule is None:
                 raise ValueError("Base schedule not found for claimed run.")
@@ -157,8 +158,8 @@ class OptimizationRunWorker:
             current_run = await self._publish_progress(
                 current_run,
                 sequence=2,
-                status="running",
-                stage="indexing",
+                status=OptimizationRunStatus.RUNNING.value,
+                stage=OptimizationRunStage.INDEXING.value,
                 progress_percent=15,
                 status_message="Indexing scenario data from snapshot",
                 claim_token=claim.claim_token,
@@ -168,8 +169,8 @@ class OptimizationRunWorker:
             current_run = await self._publish_progress(
                 current_run,
                 sequence=3,
-                status="running",
-                stage="building_model",
+                status=OptimizationRunStatus.RUNNING.value,
+                stage=OptimizationRunStage.BUILDING_MODEL.value,
                 progress_percent=30,
                 status_message="Building optimization model",
                 claim_token=claim.claim_token,
@@ -178,8 +179,8 @@ class OptimizationRunWorker:
             current_run = await self._publish_progress(
                 current_run,
                 sequence=4,
-                status="running",
-                stage="solving",
+                status=OptimizationRunStatus.RUNNING.value,
+                stage=OptimizationRunStage.SOLVING.value,
                 progress_percent=55,
                 status_message="Solving staffing plan",
                 claim_token=claim.claim_token,
@@ -202,7 +203,7 @@ class OptimizationRunWorker:
                     stage="failed",
                     status_message="Optimization failed",
                     error_details=result.error_details,
-                    failure_code="solver_infeasible",
+                    failure_code=OptimizationFailureCode.SOLVER_INFEASIBLE.value,
                     final_sequence=5,
                 )
                 return
@@ -210,8 +211,8 @@ class OptimizationRunWorker:
             current_run = await self._publish_progress(
                 current_run,
                 sequence=5,
-                status="running",
-                stage="analyzing",
+                status=OptimizationRunStatus.RUNNING.value,
+                stage=OptimizationRunStage.ANALYZING.value,
                 progress_percent=80,
                 status_message="Analyzing staffing plan",
                 claim_token=claim.claim_token,
@@ -239,8 +240,8 @@ class OptimizationRunWorker:
             current_run = await self._publish_progress(
                 current_run,
                 sequence=6,
-                status="running",
-                stage="publishing",
+                status=OptimizationRunStatus.RUNNING.value,
+                stage=OptimizationRunStage.PUBLISHING.value,
                 progress_percent=92,
                 status_message="Publishing optimized schedule",
                 claim_token=claim.claim_token,
@@ -251,8 +252,8 @@ class OptimizationRunWorker:
 
             final_run = replace(
                 current_run,
-                status="completed",
-                stage="completed",
+                status=OptimizationRunStatus.COMPLETED.value,
+                stage=OptimizationRunStage.COMPLETED.value,
                 progress_percent=100,
                 status_message="Optimization completed",
                 completed_at=whenever.Instant.now().format_iso(),
@@ -274,8 +275,8 @@ class OptimizationRunWorker:
                 OptimizationRunEvent(
                     run_id=claim.run.run_id,
                     sequence=7,
-                    status="completed",
-                    stage="completed",
+                    status=OptimizationRunStatus.COMPLETED.value,
+                    stage=OptimizationRunStage.COMPLETED.value,
                     progress_percent=100,
                     status_message="Optimization completed",
                     metrics={
@@ -289,8 +290,8 @@ class OptimizationRunWorker:
             await self.schedule_repo.release_optimization_run_claim(
                 run_id=claim.run.run_id,
                 claim_token=claim.claim_token,
-                status="completed",
-                stage="completed",
+                status=OptimizationRunStatus.COMPLETED.value,
+                stage=OptimizationRunStage.COMPLETED.value,
                 status_message="Optimization completed",
             )
             await self.schedule_repo.commit()
@@ -299,10 +300,10 @@ class OptimizationRunWorker:
             try:
                 await self._finish_failure(
                     claim,
-                    stage="failed",
+                    stage=OptimizationRunStage.FAILED.value,
                     status_message="Optimization worker failed",
                     error_details=str(exc),
-                    failure_code="worker_error",
+                    failure_code=OptimizationFailureCode.WORKER_ERROR.value,
                     final_sequence=99,
                 )
             except Exception:
@@ -334,13 +335,6 @@ class OptimizationRunWorker:
         heartbeat_at: str,
         lease_expires_at: str,
     ) -> bool:
-        if self.renew_lease is not None:
-            return await self.renew_lease(
-                run_id,
-                claim_token,
-                heartbeat_at,
-                lease_expires_at,
-            )
         renewed = await self.schedule_repo.renew_optimization_run_lease(
             run_id=run_id,
             claim_token=claim_token,
@@ -400,8 +394,7 @@ class OptimizationRunWorker:
             OptimizationRunEvent(
                 run_id=claim.run.run_id,
                 sequence=final_sequence,
-                status="failed",
-                stage=stage,
+                status=OptimizationRunStatus.FAILED.value,
                 progress_percent=100,
                 status_message=status_message,
                 error_details=error_details,
@@ -412,7 +405,7 @@ class OptimizationRunWorker:
         await self.schedule_repo.release_optimization_run_claim(
             run_id=claim.run.run_id,
             claim_token=claim.claim_token,
-            status="failed",
+            status=OptimizationRunStatus.FAILED.value,
             stage=stage,
             status_message=status_message,
             error_details=error_details,

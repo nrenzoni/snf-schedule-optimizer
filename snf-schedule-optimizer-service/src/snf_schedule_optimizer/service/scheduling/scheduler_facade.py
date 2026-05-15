@@ -27,6 +27,7 @@ from snf_schedule_optimizer.models import (
     MinMandates,
     OptimizationRun,
     OptimizationRunEvent,
+    OptimizationRunStatus,
     OptimizationSettings,
     OptimizationSummary,
     PatchConflict,
@@ -171,23 +172,10 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 LockedAssignmentConstraintStrategy(locked_assignments)
             )
 
-        optimizer = self.optimizer
-        if additional_constraint_strategies:
-            optimizer = NurseShiftScheduleOptimizer(
-                core_variable_strategy=self.optimizer.core_variable_strategy,
-                global_pay_strategies=self.optimizer.global_pay_strategies,
-                facility_constraint_strategies=(
-                    self.optimizer.facility_constraint_strategies
-                    + additional_constraint_strategies
-                ),
-                facility_rule_strategies=self.optimizer.facility_rule_strategies,
-                penalty_strategies=self.optimizer.penalty_strategies,
-                solver_adapter=self.optimizer.solver_adapter,
-            )
-
-        result = await optimizer.solve(
+        result = await self.optimizer.solve(
             data_provider=data_provider,
             preference_weights=preference_weights,
+            additional_constraint_strategies=additional_constraint_strategies or None,
         )
 
         return await self._process_results(result, data_provider)
@@ -217,6 +205,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 org_id=request.org_id,
                 facility_id=request.facility_id,
                 start_date=request.start_date,
+                include_latest_run=False,
             )
             if base_schedule is None or base_schedule.schedule_id is None:
                 schedule_id = await self.schedule_retriever.next_schedule_id(
@@ -262,7 +251,8 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         request: StartOptimizationRunRequest,
     ) -> OptimizationOutput:
         current_schedule = await self.schedule_retriever.get_schedule(
-            ScheduleLookupKey(request.org_id, request.schedule_id)
+            ScheduleLookupKey(request.org_id, request.schedule_id),
+            include_latest_run=False,
         )
         if current_schedule is None:
             return OptimizationOutput(
@@ -315,8 +305,8 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 )
             )
             if existing_run is not None and existing_run.status in {
-                "queued",
-                "running",
+                OptimizationRunStatus.QUEUED.value,
+                OptimizationRunStatus.RUNNING.value,
             }:
                 return OptimizationOutput(
                     is_success=True,
@@ -336,8 +326,8 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             schedule_id=request.schedule_id,
             schedule_lineage_id=request.schedule_id,
             base_schedule_version=request.base_schedule_version,
-            status="queued",
-            stage="queued",
+            status=OptimizationRunStatus.QUEUED.value,
+            stage=OptimizationRunStage.QUEUED.value,
             progress_percent=0,
             status_message="Optimization queued",
             started_at=whenever.Instant.now().format_iso(),
@@ -353,8 +343,8 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             OptimizationRunEvent(
                 run_id=run.run_id,
                 sequence=0,
-                status="queued",
-                stage="queued",
+                status=OptimizationRunStatus.QUEUED.value,
+                stage=OptimizationRunStage.QUEUED.value,
                 progress_percent=0,
                 status_message="Optimization queued",
                 created_at=whenever.Instant.now().format_iso(),

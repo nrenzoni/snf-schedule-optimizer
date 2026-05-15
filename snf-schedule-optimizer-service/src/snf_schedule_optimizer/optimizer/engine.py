@@ -64,6 +64,8 @@ class NurseShiftScheduleOptimizer:
         self,
         data_provider: IScenarioDataProvider,
         preference_weights: PreferenceWeights,
+        additional_constraint_strategies: list[IFacilityScopedConstraintStrategy]
+        | None = None,
     ) -> ScheduleOptimizationResults:
         t_start = time.perf_counter()
         problem = LpProblem("Scheduling", LpMinimize)
@@ -100,20 +102,28 @@ class NurseShiftScheduleOptimizer:
         # --- Phase 2: Constraints ---
         t_phase = time.perf_counter()
 
-        for facility_id in facility_ids:
-            for rule_strategy in self.facility_rule_strategies:
-                infeasibility = await rule_strategy.apply_constraints(
-                    problem, lp_vars, data_provider, facility_id
-                )
-                if infeasibility is not None:
-                    return self._early_infeasibility(infeasibility, problem)
+        original_constraint_strategies = self.facility_constraint_strategies
+        if additional_constraint_strategies:
+            self.facility_constraint_strategies = (
+                original_constraint_strategies + additional_constraint_strategies
+            )
+        try:
+            for facility_id in facility_ids:
+                for rule_strategy in self.facility_rule_strategies:
+                    infeasibility = await rule_strategy.apply_constraints(
+                        problem, lp_vars, data_provider, facility_id
+                    )
+                    if infeasibility is not None:
+                        return self._early_infeasibility(infeasibility, problem)
 
-            for constraint_strategy in self.facility_constraint_strategies:
-                infeasibility = await constraint_strategy.apply_constraints(
-                    problem, lp_vars, data_provider, facility_id
-                )
-                if infeasibility is not None:
-                    return self._early_infeasibility(infeasibility, problem)
+                for constraint_strategy in self.facility_constraint_strategies:
+                    infeasibility = await constraint_strategy.apply_constraints(
+                        problem, lp_vars, data_provider, facility_id
+                    )
+                    if infeasibility is not None:
+                        return self._early_infeasibility(infeasibility, problem)
+        finally:
+            self.facility_constraint_strategies = original_constraint_strategies
 
         for pay_strategy in self.global_pay_strategies:
             await pay_strategy.apply_constraints(problem, lp_vars, data_provider)
