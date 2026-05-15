@@ -6,6 +6,7 @@ from snf_schedule_optimizer.datetime_utils import is_weekend
 from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
     ShiftPayProcessor,
 )
+from snf_schedule_optimizer.models import EmployeeIdType
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IIncentiveManager,
@@ -256,6 +257,80 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
             ot_premium_rate = base_rate * (ot_multiplier - 1.0)
 
             terms.append(pay_vars["ot"] * ot_premium_rate)
+
+        return terms
+
+
+class BiWeeklyPayPeriodOTStrategy(IPayModelStrategy):
+    def __init__(self, threshold: float = 80.0):
+        self.threshold = threshold
+        self._bi_ot_vars: dict[EmployeeIdType, pulp.LpVariable] = {}
+
+    async def create_variables(
+        self,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+    ) -> None:
+        for emp in await data_provider.get_all_employees():
+            var = pulp.LpVariable(
+                f"BiWeekly_OT_Excess_{emp.employee_id}",
+                lowBound=0,
+                cat=pulp.LpContinuous,
+            )
+            self._bi_ot_vars[emp.employee_id] = var
+
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+    ) -> None:
+        for emp_id, bi_var in self._bi_ot_vars.items():
+            assigned_terms = []
+            for shift in data_provider.get_all_shifts():
+                var = lp_holder.get_variable(shift, emp_id)
+                if var is not None:
+                    assigned_terms.append(var * shift.duration_hours)
+
+            if not assigned_terms:
+                continue
+
+            total_assigned = pulp.lpSum(assigned_terms)
+            accumulated = await data_provider.get_accumulated_hours_for_pay_period(
+                emp_id
+            )
+            total = total_assigned + accumulated
+
+            weekly_vars = lp_holder.get_pay_variables(emp_id)
+            weekly_ot_term: pulp.LpVariable | pulp.LpAffineExpression
+            if weekly_vars is not None:
+                weekly_ot_term = weekly_vars["ot"]
+            else:
+                weekly_ot_term = pulp.LpAffineExpression()
+
+            problem += bi_var >= total - self.threshold - weekly_ot_term
+
+    async def get_objective_terms(
+        self,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+    ) -> list[pulp.LpAffineExpression]:
+        terms: list[pulp.LpAffineExpression] = []
+        shifts = data_provider.get_all_shifts()
+        if not shifts:
+            return terms
+        reference_date = shifts[0].shift_start_dt
+
+        for emp_id, bi_var in self._bi_ot_vars.items():
+            comp = await data_provider.get_compensation_for_date(
+                emp_id, reference_date.date()
+            )
+            if not comp:
+                continue
+            base_rate = float(comp.base_rate_effective)
+            ot_multiplier = float(comp.ot_multiplier)
+            premium = base_rate * (ot_multiplier - 1.0)
+            terms.append(bi_var * premium)
 
         return terms
 

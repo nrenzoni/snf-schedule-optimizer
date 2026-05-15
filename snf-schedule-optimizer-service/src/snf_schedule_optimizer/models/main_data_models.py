@@ -174,6 +174,7 @@ class FacilityConfig:
     night_shift_multiplier: float
     tz: str
 
+    bi_weekly_ot_threshold: float = 80.0
     default_hprd_rn: float = 0.5
     default_hprd_lpn: float = 0.0
     default_hprd_cna: float = 2.4

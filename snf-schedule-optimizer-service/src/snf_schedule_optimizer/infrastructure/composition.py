@@ -93,7 +93,10 @@ from snf_schedule_optimizer.optimizer.strategies.constraints import (
     PreceptorRatioConstraintStrategy,
     UnitMinimumStaffingConstraintStrategy,
 )
-from snf_schedule_optimizer.optimizer.strategies.pay import WeeklyVolumePayStrategy
+from snf_schedule_optimizer.optimizer.strategies.pay import (
+    BiWeeklyPayPeriodOTStrategy,
+    WeeklyVolumePayStrategy,
+)
 from snf_schedule_optimizer.optimizer.strategies.penalties import (
     QualityOfLifeStrategy,
     WeekendFairnessPenaltyStrategy,
@@ -134,6 +137,8 @@ from snf_schedule_optimizer.persistence.shift_repo import SQLShiftRepo
 from snf_schedule_optimizer.persistence.staff_compensation_repo import (
     SQLStaffCompensationRepo,
 )
+from snf_schedule_optimizer.reporting.gap_detection import GapDetectionProcessor
+from snf_schedule_optimizer.reporting.pbj_export import PbjReportGenerator
 from snf_schedule_optimizer.resident_acuity_repo import (
     IResidentAcuityPerShiftRepo,
 )
@@ -264,6 +269,8 @@ class ISchedulerContainer(abc.ABC):
     optimizer: AbstractProvider[NurseShiftScheduleOptimizer]
     provider_factory: AbstractProvider[ScenarioDataProviderFactory]
     cost_evaluator: AbstractProvider[ScheduleCostEvaluator]
+    gap_detector: AbstractProvider[GapDetectionProcessor]
+    pbj_generator: AbstractProvider[PbjReportGenerator]
 
 
 def build_scheduler_container(
@@ -368,7 +375,10 @@ def build_scheduler_container(
         weekly_pay_strategy_list = Factory(
             lambda pp: cast(
                 list[IPayModelStrategy],
-                [WeeklyVolumePayStrategy(pp, threshold=40.0)],
+                [
+                    WeeklyVolumePayStrategy(pp, threshold=40.0),
+                    BiWeeklyPayPeriodOTStrategy(threshold=80.0),
+                ],
             ),
             Provide[pay_processor],
         )
@@ -443,6 +453,9 @@ def build_scheduler_container(
             facility_repository=Provide[facility_retriever],
             shift_retriever=Provide[shift_retriever],
         )
+
+        gap_detector = Factory(GapDetectionProcessor)
+        pbj_generator = Factory(PbjReportGenerator)
 
     return SchedulerContainer
 
