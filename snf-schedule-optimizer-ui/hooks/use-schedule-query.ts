@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { formatDateYYYYMMDD } from "@/utils/scheduling-logic";
+import { formatDateYYYYMMDD } from "@/lib/scheduling-logic";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import {
   ScheduleMap,

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import ScheduleListView from "@/components/schedule-list-view";
 import { Toaster } from "@/components/ui/sonner";
+import ErrorBoundary from "@/components/error-boundary";
 import ScenarioAnalyzerDashboard from "@/components/scenario-analyzer-dashboard";
 import ShiftModal from "@/components/modals/shift-modal";
 import { SchedulingConfigModal } from "@/components/modals/scheduling-config-modal";
@@ -29,7 +30,7 @@ import { ScheduleSummaryModal } from "@/components/modals/schedule-summary-modal
 import MlForecastsDashboard from "@/components/ml-forecasts-dashboard";
 import useScheduleQuery from "@/hooks/use-schedule-query";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { getTodayString } from "@/utils/scheduling-logic";
+import { getTodayString } from "@/lib/scheduling-logic";
 import { useScheduling } from "@/hooks/use-scheduling";
 import { useOptimizationRunSync } from "@/hooks/use-optimization-run-sync";
 import NurseDetailsPanel from "@/components/nurse-details-panel";
@@ -377,6 +378,7 @@ export default function DashboardContent({
             {!error ? (
               <div className="grid items-start gap-3 xl:h-full xl:min-h-0 xl:items-stretch 2xl:grid-cols-[minmax(0,1fr)_320px]">
                 <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col">
+                  <ErrorBoundary fallbackTitle="Schedule content error">
                   <TabsContent
                     value="scheduling"
                     className="mt-0 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-hidden"
@@ -521,6 +523,7 @@ export default function DashboardContent({
                       <MlForecastsDashboard />
                     </div>
                   </TabsContent>
+                  </ErrorBoundary>
                 </div>
 
                 <aside className="2xl:flex 2xl:min-h-0 2xl:self-stretch 2xl:items-center">
@@ -557,6 +560,7 @@ export default function DashboardContent({
         </Tabs>
 
         {/* Modals */}
+        <ErrorBoundary fallbackTitle="Modal error">
         <ShiftModal
           selectedDay={selectedDay}
           selectedShift={selectedShift}
@@ -600,6 +604,7 @@ export default function DashboardContent({
         />
 
         <Toaster position="bottom-center" richColors />
+        </ErrorBoundary>
       </div>
     </div>
   );

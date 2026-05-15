@@ -44,7 +44,7 @@ import LoadingOverlay from "../ui/loading-overlay";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { useShallow } from "zustand/react/shallow";
 import { parseAsString, useQueryState } from "nuqs";
-import { formatDateYYYYMMDD, getTodayString } from "@/utils/scheduling-logic";
+import { formatDateYYYYMMDD, getTodayString } from "@/lib/scheduling-logic";
 import { iconButtonVariants, segmentedButtonVariants } from "@/components/ui/styles";
 import { validateShiftMove } from "@/api/scheduling-client";
 import { protoPatchConflictToUI, protoStagedPatchToUI } from "@/lib/proto-mappers";

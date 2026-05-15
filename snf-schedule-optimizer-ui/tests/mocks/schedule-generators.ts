@@ -1,5 +1,5 @@
 import { UIDaySchedule, UINurse, UIShift } from "@/types/scheduling";
-import { SHIFT_NAMES, formatDateYYYYMMDD } from "@/utils/scheduling-logic";
+import { SHIFT_NAMES, formatDateYYYYMMDD } from "@/lib/scheduling-logic";
 
 const createMockNurses = (
   shiftName: string,

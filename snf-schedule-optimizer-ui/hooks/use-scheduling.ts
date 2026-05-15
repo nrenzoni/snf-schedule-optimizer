@@ -14,7 +14,7 @@ import {
   SHIFT_NAMES,
   getToday,
   getTodayString,
-} from "@/utils/scheduling-logic";
+} from "@/lib/scheduling-logic";
 import {
   getScheduleStatus,
   hasBlockingConflicts,

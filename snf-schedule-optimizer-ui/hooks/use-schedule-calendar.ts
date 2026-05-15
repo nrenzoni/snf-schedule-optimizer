@@ -6,7 +6,7 @@ import {
   getToday,
   getTodayString,
   getWindowEnd,
-} from "@/utils/scheduling-logic";
+} from "@/lib/scheduling-logic";
 
 interface UseScheduleCalendarParams {
   effectiveScheduleMap: ScheduleMap;
