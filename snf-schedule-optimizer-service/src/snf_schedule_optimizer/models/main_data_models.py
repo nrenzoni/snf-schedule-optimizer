@@ -408,6 +408,7 @@ class OptimizationRun:
     attempt_count: int = 0
     failure_code: str | None = None
     termination_reason: str | None = None
+    cancel_requested_at: str | None = None
 
 
 @dataclass(frozen=True)

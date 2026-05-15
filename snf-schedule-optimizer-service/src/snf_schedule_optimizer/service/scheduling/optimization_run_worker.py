@@ -221,19 +221,17 @@ class OptimizationRunWorker:
             )
             next_version = (latest_version or 0) + 1
 
-            persisted_schedule = Schedule(
+            persisted_schedule = self.scheduler_facade._build_persisted_schedule(
                 org_id=request.org_id,
                 facility_id=request.facility_id,
                 schedule_id=request.schedule_id,
-                schedule_lineage_id=request.schedule_id,
-                schedule_version=next_version,
-                shift_assignments=result.schedule.shift_assignments,
+                version=next_version,
+                assignments=result.schedule.shift_assignments,
                 start_date=request.start_date,
-                end_date=request.end_date or request.start_date,
-                latest_optimization=result.summary,
-                latest_optimization_stats=result.stats,
-                latest_optimization_financials=result.financials,
-                updated_at=whenever.Instant.now().format_iso(),
+                end_date=request.end_date,
+                summary=result.summary,
+                stats=result.stats,
+                financials=result.financials,
             )
 
             current_run = await self._publish_progress(

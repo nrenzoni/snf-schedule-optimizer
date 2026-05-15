@@ -5,6 +5,7 @@ from typing import Any
 
 import whenever
 
+from snf_schedule_optimizer.domain.hr.interfaces import IStaffCompensationRepo
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
@@ -86,6 +87,7 @@ def _nurse_from_dict(raw: dict[str, Any]) -> NurseProfile:
 
 
 def _config_from_dict(raw: dict[str, Any]) -> FacilityConfig:
+    pay_period_days = raw.get("pay_period", 14)
     return FacilityConfig(
         org_id=raw["org_id"],
         facility_id=raw["facility_id"],
@@ -93,7 +95,7 @@ def _config_from_dict(raw: dict[str, Any]) -> FacilityConfig:
         overtime_threshold_hours_per_week=raw["overtime_threshold_hours_per_week"],
         start_of_work_week_day=whenever.Weekday[raw["start_of_work_week_day"]],
         start_of_work_day_time=whenever.Time.parse_common_iso(raw["start_of_work_day_time"]),
-        pay_period=whenever.DateDelta(days=14),
+        pay_period=whenever.DateDelta(days=int(pay_period_days)),
         weekend_multiplier=raw["weekend_multiplier"],
         night_shift_multiplier=raw["night_shift_multiplier"],
         tz=raw["tz"],
@@ -136,7 +138,7 @@ def _mandates_from_dict(raw: dict[str, Any]) -> MinMandates:
     )
 
 
-class _SnapshotCompensationService:
+class _SnapshotCompensationService(IStaffCompensationRepo):
     def __init__(self, records: dict[DomainPrimaryKeyType, StaffCompensationRecord]):
         self._records = records
 
@@ -154,6 +156,11 @@ class _SnapshotCompensationService:
         check_date: whenever.Date,
     ) -> dict[DomainPrimaryKeyType, StaffCompensationRecord]:
         return dict(self._records)
+
+    async def save_compensation_record(
+        self, org_id: int, record: StaffCompensationRecord
+    ) -> None:
+        pass
 
 
 class SnapshotScenarioDataProvider(IScenarioDataProvider):
@@ -189,7 +196,7 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
     async def get_employee_by_id(self, employee_id: EmployeeIdType) -> Employee | None:
         return self._employees_by_id.get(employee_id)
 
-    def get_compensation_service(self) -> _SnapshotCompensationService:  # type: ignore[override]
+    def get_compensation_service(self) -> _SnapshotCompensationService:
         return self._comp_svc
 
     async def get_compensation_for_date(

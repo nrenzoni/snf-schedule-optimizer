@@ -3,6 +3,10 @@ import time
 
 import whenever
 
+from snf_schedule_optimizer.domain.exceptions import (
+    DataIntegrityError,
+    SecurityError,
+)
 from snf_schedule_optimizer.domain.hr.interfaces import (
     IEmployeeRepo,
     IStaffCompensationRepo,
@@ -69,16 +73,14 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         for fac_id, context in facility_contexts.items():
             # 1. Check Facility Config
             if context.config.org_id != target_org_id:
-                # raise SecurityError(f"Security Alert: Attempted to load facility {fac_id} from wrong org!")
-                raise Exception(
+                raise SecurityError(
                     f"Security Alert: Attempted to load facility {fac_id} from wrong org!"
                 )
 
             # 2. Check Shifts
             for shift in context.shifts:
                 if shift.org_id != target_org_id:
-                    # raise SecurityError(
-                    raise Exception(
+                    raise DataIntegrityError(
                         f"Data Integrity Error: Shift {shift.shift_id} belongs to "
                         f"org {shift.org_id}, but run is for {target_org_id}"
                     )
@@ -87,7 +89,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         for fac_id, context in facility_contexts.items():
             for shift in context.shifts:
                 if shift.facility_id != fac_id:
-                    raise ValueError(
+                    raise DataIntegrityError(
                         f"Data Integrity Error: Shift {shift.shift_id} belongs to "
                         f"{shift.facility_id} but was found in context for {fac_id}"
                     )

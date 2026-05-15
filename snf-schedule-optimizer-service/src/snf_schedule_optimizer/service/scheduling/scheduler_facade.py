@@ -1,6 +1,6 @@
 import copy
 from collections import defaultdict
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import uuid4
 
 import whenever
@@ -224,19 +224,17 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                     schedule_id,
                 )
                 version = (latest_version or 0) + 1
-            persisted_schedule = Schedule(
+            persisted_schedule = self._build_persisted_schedule(
                 org_id=request.org_id,
                 facility_id=request.facility_id,
                 schedule_id=schedule_id,
-                schedule_lineage_id=schedule_id,
-                schedule_version=version,
-                shift_assignments=result.schedule.shift_assignments,
+                version=version,
+                assignments=result.schedule.shift_assignments,
                 start_date=request.start_date,
-                end_date=request.end_date or request.start_date,
-                latest_optimization=result.summary,
-                latest_optimization_stats=result.stats,
-                latest_optimization_financials=result.financials,
-                updated_at=whenever.Instant.now().format_iso(),
+                end_date=request.end_date,
+                summary=result.summary,
+                stats=result.stats,
+                financials=result.financials,
             )
             await self.schedule_retriever.save_schedule(persisted_schedule)
             await self.schedule_retriever.commit()
@@ -599,12 +597,16 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         result: OptimizationOutput,
         employee_id: DomainPrimaryKeyType,
     ) -> str | None:
-        if result.analysis is None:
+        if result.schedule is None or result.analysis is None:
             return None
+        assigned_shift_ids = {
+            shift_id
+            for shift_key, assigned_ids in result.schedule.shift_assignments.items()
+            if employee_id in assigned_ids
+            for shift_id in [shift_key.shift_id]
+        }
         for assignment in result.analysis.assignments:
-            if assignment.shift_id in {
-                patch.to_shift_id for patch in result.patches if patch.to_shift_id is not None
-            }:
+            if assignment.shift_id in assigned_shift_ids:
                 return assignment.employee_name
         return None
 
@@ -741,4 +743,32 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             uncovered_shifts=max(0, len(all_shifts) - covered_shifts),
             completed_at=whenever.Instant.now().format_iso(),
             applied_settings=data_provider.get_optimization_settings(),
+        )
+
+    def _build_persisted_schedule(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
+        schedule_id: int,
+        version: int,
+        assignments: dict[ShiftKey, list[int]],
+        start_date: str,
+        end_date: str | None,
+        summary: OptimizationSummary | None = None,
+        stats: Any | None = None,
+        financials: Any | None = None,
+    ) -> Schedule:
+        return Schedule(
+            org_id=org_id,
+            facility_id=facility_id,
+            schedule_id=schedule_id,
+            schedule_lineage_id=schedule_id,
+            schedule_version=version,
+            shift_assignments=assignments,
+            start_date=start_date,
+            end_date=end_date or start_date,
+            latest_optimization=summary,
+            latest_optimization_stats=stats,
+            latest_optimization_financials=financials,
+            updated_at=whenever.Instant.now().format_iso(),
         )

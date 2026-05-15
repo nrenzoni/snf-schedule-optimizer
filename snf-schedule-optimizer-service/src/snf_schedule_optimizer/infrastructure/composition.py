@@ -74,6 +74,7 @@ from snf_schedule_optimizer.optimizer.interfaces import (
 )
 from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
+    ConsecutiveDaysLimitConstraintStrategy,
     ConsecutiveShiftFatigueStrategy,
     HprdStaffingConstraintStrategy,
     MaxShiftLengthConstraintStrategy,
@@ -368,6 +369,7 @@ def build_scheduler_container(
             lambda: cast(
                 list[IFacilityScopedConstraintStrategy],
                 [
+                    ConsecutiveDaysLimitConstraintStrategy(),
                     ConsecutiveShiftFatigueStrategy(),
                     MaxShiftLengthConstraintStrategy(),
                     MaxWeeklyHoursConstraintStrategy(),

@@ -398,6 +398,11 @@ class SQLScheduleRepo(IScheduleRepo):
             "attempt_count": run.attempt_count,
             "failure_code": run.failure_code,
             "termination_reason": run.termination_reason,
+            "cancel_requested_at": (
+                whenever.Instant.parse_iso(run.cancel_requested_at).py_datetime()
+                if run.cancel_requested_at is not None
+                else None
+            ),
             "settings_json": self._dump_settings(run.settings) if run.settings else None,
             "summary_json": json.dumps(self._summary_to_dict(run.summary)) if run.summary else None,
             "stats_json": json.dumps(self._stats_to_dict(run.stats)) if run.stats else None,
@@ -434,7 +439,8 @@ class SQLScheduleRepo(IScheduleRepo):
                 existing.heartbeat_at = whenever.Instant.parse_iso(run.heartbeat_at).py_datetime()
             if run.lease_expires_at is not None:
                 existing.lease_expires_at = whenever.Instant.parse_iso(run.lease_expires_at).py_datetime()
-            existing.cancel_requested_at = existing.cancel_requested_at
+            if run.cancel_requested_at is not None:
+                existing.cancel_requested_at = whenever.Instant.parse_iso(run.cancel_requested_at).py_datetime()
 
     async def get_optimization_run_by_client_request(
         self,
@@ -874,6 +880,7 @@ class SQLScheduleRepo(IScheduleRepo):
             attempt_count=model.attempt_count,
             failure_code=model.failure_code,
             termination_reason=model.termination_reason,
+            cancel_requested_at=model.cancel_requested_at.isoformat() if model.cancel_requested_at else None,
         )
 
     @staticmethod

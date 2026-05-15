@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections import defaultdict
 from collections.abc import AsyncIterator, Mapping
 from typing import Any, cast
@@ -54,6 +55,8 @@ from snf_schedule_optimizer.service.facility.facility_facade import FacilityFaca
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacadePort,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @safe
@@ -621,7 +624,11 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 ).items():
                     response.affected_schedules[day].CopyFrom(day_schedule)
             except Exception:
-                pass
+                logger.warning(
+                    "Failed to load schedule dependencies for validation response org_id=%s",
+                    result.schedule.org_id,
+                    exc_info=True,
+                )
         return response
 
     async def _map_optimize_response(
