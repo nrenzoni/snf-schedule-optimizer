@@ -29,19 +29,18 @@ export const formatDateYYYYMMDD = (date: Date): string => {
   return [year, month, day].join("-");
 };
 
-// Calculate the end date for the 14-day window (today + 13 days)
-export const getWindowEnd = (today: Date) => {
-  const windowEnd = new Date(today);
-  windowEnd.setDate(today.getDate() + 13);
+export const getToday = (): Date => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+export const getTodayString = (): string => formatDateYYYYMMDD(getToday());
+export const getWindowEnd = (): Date => {
+  const windowEnd = new Date(getToday());
+  windowEnd.setDate(windowEnd.getDate() + 13);
   windowEnd.setHours(23, 59, 59, 999);
   return windowEnd;
 };
-
-const cleanToday = new Date();
-cleanToday.setHours(0, 0, 0, 0);
-export const TODAY = cleanToday;
-export const TODAY_STRING = formatDateYYYYMMDD(TODAY);
-export const FOURTEEN_DAYS_AHEAD = getWindowEnd(TODAY);
 
 // Helper function to create mock nurses for a specific shift
 const createMockNurses = (

@@ -149,7 +149,6 @@ export default function useScheduleQuery(anchorDate: Date) {
     }
   }, [
     query.status,
-    query.isFetching,
     query.data,
     query.error,
     replaceScheduleData,

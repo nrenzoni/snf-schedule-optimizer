@@ -12,8 +12,8 @@ import {
   getStartOfMonth,
   getStartOfWeek,
   SHIFT_NAMES,
-  TODAY,
-  TODAY_STRING,
+  getToday,
+  getTodayString,
 } from "@/utils/scheduling-logic";
 import {
   getScheduleStatus,
@@ -124,7 +124,7 @@ export function useScheduling(): UseSchedulingReturn {
   );
   const [anchorDateStr, setAnchorDateStr] = useQueryState(
     "anchor",
-    parseAsString.withDefault(TODAY_STRING),
+    parseAsString.withDefault(getTodayString()),
   );
   const [selectedShiftId, setSelectedShiftId] = useQueryState("shift");
   const [selectedNurseId, setSelectedNurseId] = useQueryState("nurseId");
@@ -269,7 +269,7 @@ export function useScheduling(): UseSchedulingReturn {
   }, [selectedShift, selectedNurseId]);
 
   const currentDate = useMemo(() => {
-    return isTwoWeekView ? TODAY : currentViewAnchorDate;
+    return isTwoWeekView ? getToday() : currentViewAnchorDate;
   }, [isTwoWeekView, currentViewAnchorDate]);
 
   const closeModal = useCallback(() => {
@@ -282,9 +282,9 @@ export function useScheduling(): UseSchedulingReturn {
     const nextState = !isTwoWeekView;
     await setIsTwoWeekView(nextState);
     if (nextState) {
-      setAnchorDateStr(formatDateYYYYMMDD(TODAY));
+      setAnchorDateStr(formatDateYYYYMMDD(getToday()));
     } else {
-      setAnchorDateStr(formatDateYYYYMMDD(getStartOfMonth(TODAY)));
+      setAnchorDateStr(formatDateYYYYMMDD(getStartOfMonth(getToday())));
     }
   }, [isTwoWeekView, setAnchorDateStr, setIsTwoWeekView]);
 

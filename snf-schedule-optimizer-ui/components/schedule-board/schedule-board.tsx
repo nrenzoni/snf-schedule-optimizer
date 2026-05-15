@@ -44,7 +44,7 @@ import LoadingOverlay from "../ui/loading-overlay";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { useShallow } from "zustand/react/shallow";
 import { parseAsString, useQueryState } from "nuqs";
-import { formatDateYYYYMMDD, TODAY_STRING } from "@/utils/scheduling-logic";
+import { formatDateYYYYMMDD, getTodayString } from "@/utils/scheduling-logic";
 import { iconButtonVariants, segmentedButtonVariants } from "@/components/ui/styles";
 import { validateShiftMove } from "@/api/scheduling-client";
 import { protoPatchConflictToUI, protoStagedPatchToUI } from "@/lib/proto-mappers";
@@ -103,7 +103,7 @@ export default function ScheduleBoard({
   const { stageValidatedPatch } = useStagedScheduleActions();
   const [anchorDateStr, setAnchorDateStr] = useQueryState(
     "anchor",
-    parseAsString.withDefault(TODAY_STRING),
+    parseAsString.withDefault(getTodayString()),
   );
 
   const [viewMode, setViewMode] = useState<ViewMode>("ROLE");

@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { UICalendarDay, ScheduleMap } from "@/types/scheduling";
 import {
   formatDateYYYYMMDD,
-  FOURTEEN_DAYS_AHEAD,
   getStartOfWeek,
-  TODAY,
-  TODAY_STRING,
+  getToday,
+  getTodayString,
+  getWindowEnd,
 } from "@/utils/scheduling-logic";
 
 interface UseScheduleCalendarParams {
@@ -32,7 +32,7 @@ export function useScheduleCalendar({
     }
 
     const startDate = isTwoWeekView
-      ? getStartOfWeek(TODAY)
+      ? getStartOfWeek(getToday())
       : (() => {
           const year = currentViewAnchorDate.getFullYear();
           const month = currentViewAnchorDate.getMonth();
@@ -43,10 +43,8 @@ export function useScheduleCalendar({
 
     const iterationDay = new Date(startDate);
     const days: UICalendarDay[] = [];
-    const todayStart = new Date(TODAY);
-    todayStart.setHours(0, 0, 0, 0);
-    const todayStartMs = todayStart.getTime();
-    const windowEndMs = FOURTEEN_DAYS_AHEAD.getTime();
+    const todayStartMs = getToday().getTime();
+    const windowEndMs = getWindowEnd().getTime();
     const totalDaysToRender = isTwoWeekView ? 14 : 42;
     const contextMonth = currentViewAnchorDate.getMonth();
 
@@ -86,7 +84,7 @@ export function useScheduleCalendar({
         date: dayDate,
         dateString: dayDateString,
         dayOfMonth: dayDate.getDate(),
-        isToday: dayDateString === TODAY_STRING,
+        isToday: dayDateString === getTodayString(),
         isCurrentMonth:
           !isTwoWeekView && dayDate.getMonth() === contextMonth,
         isSelectable,

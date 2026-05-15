@@ -29,7 +29,7 @@ import { ScheduleSummaryModal } from "@/components/modals/schedule-summary-modal
 import MlForecastsDashboard from "@/components/ml-forecasts-dashboard";
 import useScheduleQuery from "@/hooks/use-schedule-query";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
-import { TODAY_STRING } from "@/utils/scheduling-logic";
+import { getTodayString } from "@/utils/scheduling-logic";
 import { useScheduling } from "@/hooks/use-scheduling";
 import { useOptimizationRunSync } from "@/hooks/use-optimization-run-sync";
 import NurseDetailsPanel from "@/components/nurse-details-panel";
@@ -66,7 +66,7 @@ export default function DashboardContent({
   // --- A. URL STATE (Nuqs) ---
   const [anchorDateStr] = useQueryState(
     "anchor",
-    parseAsString.withDefault(TODAY_STRING),
+    parseAsString.withDefault(getTodayString()),
   );
 
   // --- B. DERIVED STATE ---
