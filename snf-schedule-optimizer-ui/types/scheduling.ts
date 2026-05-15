@@ -35,7 +35,7 @@ export interface UIFinancials {
   regularPayCost: number;
 }
 
-export type UIValidationLevel = "ok" | "warning" | "critical" | "stale";
+export type UIValidationLevel = "ok" | "warning" | "critical" | "stale" | "unspecified";
 
 export interface UIPatchConflict {
   patchId: string;
@@ -61,7 +61,7 @@ export interface UIStagedPatch {
   createdAt: string | null;
 }
 
-export type UIOptimizationRunStatus = "queued" | "running" | "completed" | "failed";
+export type UIOptimizationRunStatus = "queued" | "running" | "completed" | "failed" | "unspecified";
 export type UIOptimizationRunStage =
   | "queued"
   | "snapshotting"

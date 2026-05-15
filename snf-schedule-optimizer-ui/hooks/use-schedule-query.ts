@@ -133,15 +133,17 @@ const protoValidationLevelToUI = (
   level: ValidationLevel | undefined,
 ): UIValidationLevel => {
   switch (level) {
+    case ValidationLevel.VALIDATION_OK:
+      return "ok";
     case ValidationLevel.VALIDATION_WARNING:
       return "warning";
     case ValidationLevel.VALIDATION_CRITICAL:
       return "critical";
     case ValidationLevel.VALIDATION_STALE:
       return "stale";
-    case ValidationLevel.VALIDATION_OK:
+    case ValidationLevel.VALIDATION_LEVEL_UNSPECIFIED:
     default:
-      return "ok";
+      return "unspecified";
   }
 };
 
@@ -173,13 +175,15 @@ const protoRunStatusToUI = (status: OptimizationRunStatus): UIOptimizationRun["s
   switch (status) {
     case OptimizationRunStatus.QUEUED:
       return "queued";
+    case OptimizationRunStatus.RUNNING:
+      return "running";
     case OptimizationRunStatus.COMPLETED:
       return "completed";
     case OptimizationRunStatus.FAILED:
       return "failed";
-    case OptimizationRunStatus.RUNNING:
+    case OptimizationRunStatus.UNSPECIFIED:
     default:
-      return "running";
+      return "unspecified";
   }
 };
 

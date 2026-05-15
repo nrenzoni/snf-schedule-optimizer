@@ -398,8 +398,8 @@ export function useScheduling(): UseSchedulingReturn {
     [setSelectedNurseId],
   );
 
-  const removeNurseFromShift = useCallback(async (): Promise<void> => {
-    if (!selectedShift || !selectedNurse) {
+  const removeNurseFromShift = useCallback(async (nurse: UINurse): Promise<void> => {
+    if (!selectedShift) {
       toast.error("Shift removal unavailable", {
         description: "Select a nurse assignment before removing it.",
       });
@@ -407,8 +407,8 @@ export function useScheduling(): UseSchedulingReturn {
     }
 
     await stageValidatedPatch({
-      employeeId: selectedNurse.id,
-      employeeName: selectedNurse.name,
+      employeeId: nurse.id,
+      employeeName: nurse.name,
       fromShiftId: selectedShift.shiftId,
       toShiftId: null,
       payPeriodStart: getStartOfWeek(
@@ -417,7 +417,7 @@ export function useScheduling(): UseSchedulingReturn {
       successTitle: "Shift removal staged",
       successDescription: "Assignment removal will be applied with the next optimization run.",
     });
-  }, [currentViewAnchorDate, selectedDay?.date, selectedNurse, selectedShift, stageValidatedPatch]);
+  }, [currentViewAnchorDate, selectedDay?.date, selectedShift, stageValidatedPatch]);
 
   const stageShiftRemoval = useCallback(
     async (input: {
