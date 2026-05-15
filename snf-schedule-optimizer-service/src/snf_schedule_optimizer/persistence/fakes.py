@@ -487,28 +487,14 @@ class FakeScheduleRepo(IScheduleRepo):
             key: list(employee_ids)
             for key, employee_ids in schedule.shift_assignments.items()
         }
+        sfid = schedule.facility_id or 0
+        key_lookup = {(key.facility_id, key.shift_id): key for key in shift_assignments}
         conflicts: list[PatchConflict] = []
         for patch in patches:
             if patch.from_shift_id == patch.to_shift_id:
                 continue
-            from_key = next(
-                (
-                    key
-                    for key in shift_assignments
-                    if key.facility_id == schedule.facility_id
-                    and key.shift_id == patch.from_shift_id
-                ),
-                None,
-            )
-            to_key = next(
-                (
-                    key
-                    for key in shift_assignments
-                    if key.facility_id == schedule.facility_id
-                    and key.shift_id == patch.to_shift_id
-                ),
-                None,
-            )
+            from_key = key_lookup.get((sfid, patch.from_shift_id or 0))
+            to_key = key_lookup.get((sfid, patch.to_shift_id or 0))
             if patch.from_shift_id is not None and from_key is None:
                 conflicts.append(
                     PatchConflict(
