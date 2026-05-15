@@ -17,6 +17,7 @@ from snf_schedule_optimizer.api import (
     OptimizeScheduleRequest,
     StartOptimizationRunRequest,
 )
+from snf_schedule_optimizer.domain.exceptions import SecurityError
 from snf_schedule_optimizer.generated.scheduling.v1 import (
     scheduling_connect,
     scheduling_pb2,
@@ -152,6 +153,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             return scheduling_pb2.GetMonthlyScheduleResponse()
         org_id, facility_id = org_fac_result.unwrap()
 
+        await self._validate_tenant_access(org_id, facility_id)
+
         scheduler_container = self._build_scheduler_container()
         async with container_context(
             self._scheduler_context(scheduler_container),
@@ -247,6 +250,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         schedule_id = schedule_result.unwrap()
         assert schedule_id is not None
 
+        await self._validate_tenant_access(org_id, facility_id)
+
         scheduler_container = self._build_scheduler_container()
         async with container_context(
             self._scheduler_context(scheduler_container),
@@ -314,6 +319,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 is_success=False,
                 error_details="Facility is required for optimization.",
             )
+
+        await self._validate_tenant_access(org_id, facility_id)
+
         scheduler_container = self._build_scheduler_container()
         async with container_context(
             self._scheduler_context(scheduler_container),
@@ -357,6 +365,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 accepted=False,
                 error_details="Facility is required for optimization.",
             )
+
+        await self._validate_tenant_access(org_id, facility_id)
+
         schedule_result = get_internal_id(
             self.id_obfuscator, request.schedule_id, "Schedule"
         )
@@ -592,6 +603,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         if isinstance(fac_result, Failure):
             return Failure(fac_result.failure())
         facility_id = fac_result.unwrap()
+
+        await self._validate_tenant_access(org_id, facility_id)
 
         patches_result = self._decode_staged_patches(list(request.staged_patches))
         if isinstance(patches_result, Failure):
@@ -1007,6 +1020,30 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         if isinstance(facility_result, Failure):
             return Failure(facility_result.failure())
         return Success((internal_org_id, facility_result.unwrap()))
+
+    async def _validate_tenant_access(
+        self, org_id: int, facility_id: int | None = None
+    ) -> None:
+        facility_container = self._build_facility_container()
+        async with container_context(
+            self._facility_context(facility_container),
+            scope=ContextScopes.REQUEST,
+        ):
+            facility_facade: FacilityFacade = (
+                await facility_container.facility_facade.resolve()
+            )
+            if facility_id is not None:
+                config = await facility_facade.get_facility_config(org_id, facility_id)
+                if config is None:
+                    raise SecurityError(
+                        f"Facility {facility_id} does not belong to organization {org_id}."
+                    )
+            else:
+                org_facilities = await facility_facade.get_all_org_facilities(org_id)
+                if not org_facilities:
+                    raise SecurityError(
+                        f"Organization {org_id} not found or access denied."
+                    )
 
     @staticmethod
     def _unwrap_required_id(result: Result[int | None, str]) -> int:
