@@ -52,6 +52,7 @@ class ShiftPayProcessor:
         shift: Shift,
         current_weekly_hours: float,
         facility_config: FacilityConfig,
+        skip_overtime_computation: bool = False,
     ) -> ShiftCostBreakdown:
         comp_record = await self.compensation_service.get_record_for_date(
             shift.org_id,
@@ -79,7 +80,7 @@ class ShiftPayProcessor:
         # If we have OT, we assume it happens at the END of the shift
         # (Standard accounting practice for split shifts)
         overtime_intervals = []
-        if ot_hours > 0:
+        if not skip_overtime_computation and ot_hours > 0:
             ot_start = shift.shift_end_dt.subtract(
                 seconds=whenever.DateTimeDelta(hours=ot_hours).time_part().in_seconds(),
             )

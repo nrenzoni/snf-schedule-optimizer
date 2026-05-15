@@ -75,10 +75,13 @@ from snf_schedule_optimizer.optimizer.interfaces import (
 from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
 from snf_schedule_optimizer.optimizer.strategies.constraints import (
     ConsecutiveDaysLimitConstraintStrategy,
+    ConsecutiveRnCoverageConstraintStrategy,
     ConsecutiveShiftFatigueStrategy,
     HprdStaffingConstraintStrategy,
+    LicensedNursePerShiftConstraintStrategy,
     MaxShiftLengthConstraintStrategy,
     MaxWeeklyHoursConstraintStrategy,
+    NurseShiftCountLimitStrategy,
 )
 from snf_schedule_optimizer.optimizer.strategies.pay import WeeklyVolumePayStrategy
 from snf_schedule_optimizer.optimizer.strategies.penalties import QualityOfLifeStrategy
@@ -360,7 +363,11 @@ def build_scheduler_container(
         facility_constraint_strategies_list = Factory(
             lambda checker: cast(
                 list[IFacilityScopedConstraintStrategy],
-                [HprdStaffingConstraintStrategy(checker)],
+                [
+                    HprdStaffingConstraintStrategy(checker),
+                    ConsecutiveRnCoverageConstraintStrategy(),
+                    LicensedNursePerShiftConstraintStrategy(),
+                ],
             ),
             Provide[nurse_hard_block_checker],
         )
@@ -373,6 +380,7 @@ def build_scheduler_container(
                     ConsecutiveShiftFatigueStrategy(),
                     MaxShiftLengthConstraintStrategy(),
                     MaxWeeklyHoursConstraintStrategy(),
+                    NurseShiftCountLimitStrategy(),
                 ],
             )
         )

@@ -2,7 +2,7 @@ import pulp
 import whenever
 from pulp import LpProblem
 
-from snf_schedule_optimizer.models import DomainPrimaryKeyType
+from snf_schedule_optimizer.models import DomainPrimaryKeyType, NurseProfile
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
 from snf_schedule_optimizer.optimizer.interfaces import (
     IFacilityScopedConstraintStrategy,
@@ -300,4 +300,128 @@ class MaxWeeklyHoursConstraintStrategy(IFacilityScopedConstraintStrategy):
                     build_lp_variable_name("MaxWeeklyHours", facility_id, emp_id),
                 )
 
+        return None
+
+
+class NurseShiftCountLimitStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        config = data_provider.get_facility_config(facility_id)
+        shifts = data_provider.get_shifts_for_facility(facility_id)
+        if not shifts:
+            return None
+
+        max_nights = config.max_night_shifts_per_month
+        max_weekends = config.max_weekend_shifts_per_month
+
+        if max_nights is None and max_weekends is None:
+            return None
+
+        nurses_by_id: dict[DomainPrimaryKeyType, NurseProfile] = {}
+        for shift in shifts:
+            for nurse in await data_provider.get_nurses_for_shift(shift):
+                nurses_by_id[nurse.employee_id] = nurse
+
+        for emp_id in nurses_by_id:
+            night_vars = []
+            weekend_vars = []
+            for shift in shifts:
+                v = lp_holder.get_variable(shift, emp_id)
+                if v is None:
+                    continue
+                if not shift.day_shift and max_nights is not None:
+                    night_vars.append(v)
+                if shift.day_of_week.value >= 6 and max_weekends is not None:
+                    weekend_vars.append(v)
+
+            if night_vars and max_nights is not None and max_nights > 0:
+                problem += (
+                    pulp.lpSum(night_vars) <= max_nights,
+                    build_lp_variable_name(
+                        "MaxNightShifts", facility_id, emp_id
+                    ),
+                )
+            if weekend_vars and max_weekends is not None and max_weekends > 0:
+                problem += (
+                    pulp.lpSum(weekend_vars) <= max_weekends,
+                    build_lp_variable_name(
+                        "MaxWeekendShifts", facility_id, emp_id
+                    ),
+                )
+
+        return None
+
+
+class ConsecutiveRnCoverageConstraintStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        shifts = sorted(
+            data_provider.get_shifts_for_facility(facility_id),
+            key=lambda s: s.shift_start_dt,
+        )
+        for i in range(len(shifts) - 1):
+            s1, s2 = shifts[i], shifts[i + 1]
+            if s1.shift_start_dt.date() != s2.shift_start_dt.date():
+                continue
+            gap = (s2.shift_start_dt - s1.shift_end_dt).in_hours()
+            if gap > 0.5:
+                continue
+
+            rn_vars = []
+            for s in (s1, s2):
+                for nurse in await data_provider.get_nurses_for_shift(s):
+                    employee = await data_provider.get_employee_by_id(nurse.employee_id)
+                    if not employee or employee.job_title != "RN":
+                        continue
+                    v = lp_holder.get_variable(s, nurse.employee_id)
+                    if v is not None:
+                        rn_vars.append(v)
+
+            if rn_vars:
+                problem += (
+                    pulp.lpSum(rn_vars) >= 1,
+                    f"ConsecRN_{facility_id}_{s1.shift_id}_{s2.shift_id}",
+                )
+        return None
+
+
+class LicensedNursePerShiftConstraintStrategy(IFacilityScopedConstraintStrategy):
+    async def apply_constraints(
+        self,
+        problem: LpProblem,
+        lp_holder: LpNurseShiftVariableHolder,
+        data_provider: IScenarioDataProvider,
+        facility_id: DomainPrimaryKeyType,
+    ) -> InfeasibilityReasonResult | None:
+        shifts = data_provider.get_shifts_for_facility(facility_id)
+        for shift in shifts:
+            licensed_vars = []
+            for nurse in await data_provider.get_nurses_for_shift(shift):
+                employee = await data_provider.get_employee_by_id(nurse.employee_id)
+                if not employee or employee.job_title not in {"RN", "LPN"}:
+                    continue
+                v = lp_holder.get_variable(shift, nurse.employee_id)
+                if v is not None:
+                    licensed_vars.append(v)
+
+            if not licensed_vars:
+                return InfeasibilityReasonResult(
+                    reason=InfeasibilityReason.NO_AVAILABLE_NURSES,
+                    details=f"No licensed nurse (RN/LPN) for shift {shift.shift_id} at facility {facility_id}",
+                )
+
+            problem += (
+                pulp.lpSum(licensed_vars) >= 1,
+                f"Licensed247_{facility_id}_{shift.shift_id}",
+            )
         return None

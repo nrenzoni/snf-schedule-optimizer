@@ -9,6 +9,7 @@ from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
     EmployeeIdType,
+    EmployeeStateSnapshot,
     LookbackPeriod,
     Shift,
     ShiftKey,
@@ -101,6 +102,21 @@ class IEmployeeWorkHistoryService(abc.ABC):
         Preloads accumulated work hours for all requested employees in bulk.
         Uses a single bulk punch query followed by in-memory reconciliation
         to avoid N+1 database queries.
+        """
+        pass
+
+    @abc.abstractmethod
+    async def get_employee_history_states(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee_ids: list[EmployeeIdType],
+        check_date: whenever.Instant,
+        facility_id: DomainPrimaryKeyType | None = None,
+    ) -> dict[EmployeeIdType, EmployeeStateSnapshot]:
+        """
+        Returns pre-populated EmployeeStateSnapshot for each employee
+        including consecutive_days_worked and last_shift_end from
+        pre-window work history.
         """
         pass
 

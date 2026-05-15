@@ -174,10 +174,12 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
         accumulated_hours: dict[DomainPrimaryKeyType, float],
         compensation: dict[DomainPrimaryKeyType, StaffCompensationRecord],
         optimization_settings: OptimizationSettings,
+        employee_states: dict[DomainPrimaryKeyType, EmployeeStateSnapshot] | None = None,
     ):
         self._org_id = org_id
         self._facility_contexts = facility_contexts
         self._employees = employees
+        self._employee_states = employee_states or {}
         self._employees_by_id = {e.employee_id: e for e in employees}
         self._nurses_by_shift = nurses_by_shift
         self._hprd_requirements = hprd_requirements
@@ -250,6 +252,8 @@ class SnapshotScenarioDataProvider(IScenarioDataProvider):
     async def get_employee_states(
         self,
     ) -> dict[DomainPrimaryKeyType, EmployeeStateSnapshot]:
+        if self._employee_states:
+            return self._employee_states
         states: dict[DomainPrimaryKeyType, EmployeeStateSnapshot] = {}
         for emp in self._employees:
             hours = self._accumulated_hours.get(emp.employee_id, 0.0)

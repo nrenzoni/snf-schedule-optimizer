@@ -27,6 +27,7 @@ from snf_schedule_optimizer.ml_output_repo import IMLModelOutputsRepo
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     Employee,
+    EmployeeStateSnapshot,
     EmployeeTimeSettings,
     FacilityConfig,
     FacilityIdType,
@@ -174,8 +175,15 @@ class FakeStaffCompensationRepo(IStaffCompensationRepo):
 
 
 class FakeWorkHistoryService(IEmployeeWorkHistoryService):
-    def __init__(self, accumulated_hours_map: dict[DomainPrimaryKeyType, float]):
+    def __init__(
+        self,
+        accumulated_hours_map: dict[DomainPrimaryKeyType, float],
+        consecutive_days_map: dict[DomainPrimaryKeyType, int] | None = None,
+        last_shift_end_map: dict[DomainPrimaryKeyType, str] | None = None,
+    ):
         self._hours_map = accumulated_hours_map
+        self._consecutive_days_map = consecutive_days_map or {}
+        self._last_shift_end_map = last_shift_end_map or {}
 
     async def get_processed_history_for_period(
         self,
@@ -228,6 +236,24 @@ class FakeWorkHistoryService(IEmployeeWorkHistoryService):
     ) -> list[whenever.Date]:
         return []
 
+    async def get_employee_history_states(
+        self,
+        org_id: DomainPrimaryKeyType,
+        employee_ids: list[DomainPrimaryKeyType],
+        check_date: whenever.Instant,
+        facility_id: DomainPrimaryKeyType | None = None,
+    ) -> dict[DomainPrimaryKeyType, "EmployeeStateSnapshot"]:
+        states: dict[DomainPrimaryKeyType, "EmployeeStateSnapshot"] = {}
+        for eid in employee_ids:
+            states[eid] = EmployeeStateSnapshot(
+                employee_id=eid,
+                worked_hours_week=self._hours_map.get(eid, 0.0),
+                worked_hours_pay_period=self._hours_map.get(eid, 0.0),
+                consecutive_days_worked=self._consecutive_days_map.get(eid, 0),
+                last_shift_end=self._last_shift_end_map.get(eid),
+            )
+        return states
+
 
 class FakeMLModelRepo(IMLModelOutputsRepo):
     def __init__(self, default_model_outputs: MlModelOutputs):
@@ -251,6 +277,7 @@ class FakePreferencePenaltyProcessor(IPreferencePenaltyProcessor):
         nurse: NurseProfile,
         shift: Shift,
         weights: PreferenceWeights,
+        accumulated_hours: float = 0.0,
     ) -> float:
         # Construct a simple composite key to lookup the pre-configured penalty
         key = f"{employee.employee_id}:{shift.shift_id}"

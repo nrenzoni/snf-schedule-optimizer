@@ -24,6 +24,7 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
         nurse: NurseProfile,
         shift: Shift,
         preference_weights: PreferenceWeights,
+        accumulated_hours: float = 0.0,
     ) -> float:
         """
         Calculates the non-financial penalty cost if the assignment violates a soft preference.
@@ -65,38 +66,25 @@ class PreferencePenaltyProcessorImpl(IPreferencePenaltyProcessor):
                         # Ignore invalid preference values
                         pass
 
-        # FIX: The ot_multiplier is not on NurseProfile. Delegate the multiplier check
-        # to the ShiftPayProcessor or assume a standard rate for soft penalty calculation.
-        # Here, we assume the base_rate is enough proxy cost.
-        comp_record = await self.staff_compensation_retriever.get_record_for_date(
-            shift.org_id,
-            employee.employee_id,
-            shift.shift_start_dt.start_of_day().date(),
-        )
-        if comp_record is None:
-            raise ValueError(
-                f"Missing compensation record for {employee.employee_id=}, {shift.shift_start_dt=}"
+        if self._is_overtime_risk(nurse, shift, accumulated_hours):
+            comp_record = await self.staff_compensation_retriever.get_record_for_date(
+                shift.org_id,
+                employee.employee_id,
+                shift.shift_start_dt.start_of_day().date(),
             )
-        if self._is_overtime_risk(nurse, shift.day_shift):
-            # Use nurse.base_rate (which is on NurseProfile now) as a proxy for cost
-            penalty += (
-                preference_weights.ot_avoidance_penalty
-                * comp_record.base_rate_effective
-            )
-
-        # Future implementation: Incorporate penalties for breaking team consistency here
-        #
+            if comp_record is not None:
+                penalty += (
+                    preference_weights.ot_avoidance_penalty
+                    * comp_record.base_rate_effective
+                )
 
         return penalty
 
     @staticmethod
-    def _is_overtime_risk(nurse: NurseProfile, day_shift: int) -> bool:
-        """
-        Predictive check: Determines if assigning this shift will push the nurse into OT.
-        This logic is complex and requires knowledge of past scheduled shifts.
-        """
-        # Placeholder: In a real system, this would query scheduled hours from the DB.
-        # For this structure, we assume an abstract complexity check.
-        # if nurse.scheduled_hours_to_date > 32 and nurse.role != 'Agency':
-        #     return True
-        return False
+    def _is_overtime_risk(
+        nurse: NurseProfile,
+        shift: Shift,
+        accumulated_hours: float,
+    ) -> bool:
+        projected = accumulated_hours + shift.duration_hours
+        return projected > nurse.available_hours_weekly

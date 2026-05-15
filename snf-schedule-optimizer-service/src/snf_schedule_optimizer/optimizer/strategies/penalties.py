@@ -57,8 +57,11 @@ class QualityOfLifeStrategy(IObjectivePenaltyStrategy):
 
                 # 1. Calculate Preference Penalty (The "Soft" Constraints)
                 # (Delegates to your service from Turn 2)
+                accumulated = await data_provider.get_accumulated_hours_for_pay_period(
+                    nurse.employee_id
+                )
                 pref_penalty = await self.preference_processor.calculate_penalty_cost(
-                    employee, nurse, shift, weights
+                    employee, nurse, shift, weights, accumulated_hours=accumulated
                 )
 
                 # 2. Calculate Turnover Risk Penalty

@@ -200,6 +200,7 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
                         shift=shift,
                         current_weekly_hours=0.0,
                         facility_config=config,
+                        skip_overtime_computation=True,
                     )
                 )
 
@@ -249,18 +250,11 @@ class WeeklyVolumePayStrategy(IPayModelStrategy):
             if not comp_record:
                 continue
 
-            # Handle case where no record exists (e.g. inactive employee)
-
             base_rate = float(comp_record.base_rate_effective)
             ot_multiplier = float(comp_record.ot_multiplier)
 
-            # The Premium is (Multiplier - 1.0) * Rate
-            # Example: (1.5 - 1.0) * $30 = $15/hr premium
-            # The Base $30 is already covered by Part A (the shift variable)
             ot_premium_rate = base_rate * (ot_multiplier - 1.0)
 
-            # Reg Bucket cost is 0.0 (covered by Part A)
-            # OT Bucket cost is only the Premium
             terms.append(pay_vars["ot"] * ot_premium_rate)
 
         return terms

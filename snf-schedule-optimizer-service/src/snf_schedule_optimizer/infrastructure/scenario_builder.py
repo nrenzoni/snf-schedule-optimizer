@@ -367,7 +367,7 @@ class ScenarioBuilder:
                 StaffCompensationRecord(
                     employee_id=emp_id,
                     base_rate_effective=base_rate,
-                    ot_multiplier=1.0 if is_agency else 1.5,
+                    ot_multiplier=1.5,
                     is_agency=is_agency,
                     effective_start_date=self.time_cfg.start_date.date(),
                 )

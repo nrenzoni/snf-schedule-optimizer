@@ -87,12 +87,21 @@ class HprdRequirementCalculator(IHprdRequirementCalculator):
                 continue
 
             # Step C: Calculate Required Headcount
-            # Demand = (Target HPRD * Census) / Shift Duration
-            # Example: (0.5 RN_HPRD * 100 Residents) / 8 Hours = 6.25 RNs required
-            required_rn_hours = targets.target_hprd_rn * shift_census * demand_factor
-            required_lpn_hours = targets.target_hprd_lpn * shift_census * demand_factor
-            required_cna_hours = targets.target_hprd_cna * shift_census * demand_factor
-            required_total_hours = targets.target_total_hprd * shift_census * demand_factor
+            # target_hprd_* represents hours per resident per 24-hour day.
+            # Scale by the shift's fraction of the day to get per-shift demand.
+            shift_day_fraction = hours_in_shift / 24.0
+            required_rn_hours = (
+                targets.target_hprd_rn * shift_census * shift_day_fraction * demand_factor
+            )
+            required_lpn_hours = (
+                targets.target_hprd_lpn * shift_census * shift_day_fraction * demand_factor
+            )
+            required_cna_hours = (
+                targets.target_hprd_cna * shift_census * shift_day_fraction * demand_factor
+            )
+            required_total_hours = (
+                targets.target_total_hprd * shift_census * shift_day_fraction * demand_factor
+            )
 
             # Step D: Apply "Bodies on the Floor" Minimums (Min Mandates)
             # We never schedule fewer than the mandated minimum, even if HPRD math allows it.

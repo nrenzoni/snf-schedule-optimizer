@@ -115,7 +115,6 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self._cached_employees_by_id: dict[DomainPrimaryKeyType, Employee] | None = None
         self._cached_hprd_reqs: dict[int, HprdShiftNurseRequirementHolder] = {}
         self._accumulated_hours_cache: dict[DomainPrimaryKeyType, float] = {}
-        self._cached_comp_records: dict[DomainPrimaryKeyType, StaffCompensationRecord] | None = None
         self._work_history_preloaded = False
         self._candidate_eligibility_service = CandidateEligibilityService(
             hard_block_checker=hard_block_checker,
@@ -227,31 +226,16 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
             time.perf_counter() - t0,
         )
 
-    async def _warmup_compensation(self) -> None:
-        if self._cached_comp_records is not None:
-            return
-        t0 = time.perf_counter()
-        self._cached_comp_records = (
-            await self._staff_comp_service.get_all_records_for_org(
-                org_id=self.target_org_id,
-                check_date=self.opt_start.to_tz("UTC").date(),
-            )
-        )
-        logger.info(
-            "Compensation preloaded for %d employees in %.2fs",
-            len(self._cached_comp_records),
-            time.perf_counter() - t0,
-        )
-
     async def get_compensation_for_date(
         self,
         employee_id: DomainPrimaryKeyType,
         check_date: whenever.Date,
     ) -> StaffCompensationRecord | None:
-        if self._cached_comp_records is None:
-            await self._warmup_compensation()
-        assert self._cached_comp_records is not None
-        return self._cached_comp_records.get(employee_id)
+        return await self._staff_comp_service.get_record_for_date(
+            org_id=self.target_org_id,
+            employee_id=employee_id,
+            check_date=check_date,
+        )
 
     def get_facility_ids(self) -> list[FacilityIdType]:
         return list(self._facility_contexts.keys())
@@ -275,18 +259,15 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self,
     ) -> dict[DomainPrimaryKeyType, EmployeeStateSnapshot]:
         employees = await self.get_all_employees()
-        states: dict[DomainPrimaryKeyType, EmployeeStateSnapshot] = {}
-        for emp in employees:
-            hours = await self.get_accumulated_hours_for_pay_period(emp.employee_id)
-            states[emp.employee_id] = EmployeeStateSnapshot(
-                employee_id=emp.employee_id,
-                worked_hours_day=0.0,
-                worked_hours_week=hours,
-                worked_hours_pay_period=hours,
-                consecutive_days_worked=0,
-                last_shift_end=None,
-            )
-        return states
+        employee_ids = [e.employee_id for e in employees]
+        if not employee_ids:
+            return {}
+        return await self._work_history_service.get_employee_history_states(
+            org_id=self.target_org_id,
+            employee_ids=employee_ids,
+            check_date=self.opt_start,
+            facility_id=None,
+        )
 
 
 class ScenarioDataProviderFactory:

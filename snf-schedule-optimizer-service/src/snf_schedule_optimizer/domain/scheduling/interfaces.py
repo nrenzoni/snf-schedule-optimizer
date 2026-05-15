@@ -35,6 +35,7 @@ class IPreferencePenaltyProcessor(abc.ABC):
         nurse: NurseProfile,
         shift: Shift,
         preference_weights: PreferenceWeights,
+        accumulated_hours: float = 0.0,
     ) -> float:
         """
         Calculates the non-financial penalty cost if the assignment violates a soft preference.

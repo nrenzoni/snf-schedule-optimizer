@@ -94,6 +94,7 @@ class NurseProfile:
         list[str] | None
     )  # e.g., 'IV Therapy', 'Wound Care' perhaps turn into provider
     shift_custom_preferences: list[StaffShiftPreference] | None
+    primary_unit_id: DomainPrimaryKeyType | None = None
 
     def __hash__(self) -> int:
         return hash(self.employee_id)
@@ -174,6 +175,9 @@ class FacilityConfig:
     min_rest_hours_between_shifts: float = 10.0
     max_consecutive_work_days: int = 5
     max_total_hours_per_pay_period: float = 80.0
+    agency_ot_multiplier: float = 1.5
+    max_night_shifts_per_month: int | None = None
+    max_weekend_shifts_per_month: int | None = None
 
 
 type DomainPrimaryKeyType = int
