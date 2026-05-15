@@ -1,6 +1,5 @@
 import type { StateCreator } from "zustand";
 import { UIOptimizationRun, UIDraftState } from "@/types/scheduling";
-import { persistDraftState } from "./persistence";
 import { FullSchedulingState } from "./state-types";
 
 export interface RunSlice {
@@ -19,8 +18,7 @@ export const createRunSlice: StateCreator<
   activeRun: null,
 
   setActiveRun: (run) => {
-    set((state) => {
-      persistDraftState(state.draftState, run);
+    set(() => {
       return { activeRun: run };
     });
   },
@@ -36,7 +34,6 @@ export const createRunSlice: StateCreator<
             hasPendingValidation: false,
           }
         : state.draftState;
-      persistDraftState(nextDraft, run);
       return {
         activeRun: run,
         latestOptimization: completed ? run.summary : state.latestOptimization,

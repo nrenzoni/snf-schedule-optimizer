@@ -1,8 +1,14 @@
 import type { StateCreator } from "zustand";
 import { UIDraftState, UIStagedPatch, UIPatchConflict } from "@/types/scheduling";
 import { applyPatchToMap } from "@/lib/scheduling-helpers";
-import { emptyDraftState, persistDraftState, readPersistedState } from "./persistence";
 import { FullSchedulingState } from "./state-types";
+
+const emptyDraftState = (): UIDraftState => ({
+  baseScheduleVersion: 0,
+  patches: [],
+  conflicts: [],
+  hasPendingValidation: false,
+});
 
 export interface DraftSlice {
   draftState: UIDraftState;
@@ -12,7 +18,6 @@ export interface DraftSlice {
   clearDraft: () => void;
   setDraftConflicts: (conflicts: UIPatchConflict[]) => void;
   setHasPendingValidation: (hasPendingValidation: boolean) => void;
-  hydratePersistedDraftState: () => void;
 }
 
 export const createDraftSlice: StateCreator<
@@ -35,7 +40,6 @@ export const createDraftSlice: StateCreator<
         conflicts,
         hasPendingValidation: false,
       };
-      persistDraftState(nextDraft, state.activeRun);
       return {
         draftState: nextDraft,
         effectiveScheduleMap: applyPatchToMap(serverMap, patches),
@@ -55,7 +59,6 @@ export const createDraftSlice: StateCreator<
         patches,
         hasPendingValidation: false,
       };
-      persistDraftState(nextDraft, state.activeRun);
       return {
         draftState: nextDraft,
         effectiveScheduleMap: applyPatchToMap(serverMap, patches),
@@ -73,7 +76,6 @@ export const createDraftSlice: StateCreator<
         conflicts: [],
         hasPendingValidation: false,
       };
-      persistDraftState(nextDraft, state.activeRun);
       return {
         draftState: nextDraft,
         effectiveScheduleMap: new Map(serverMap),
@@ -85,7 +87,6 @@ export const createDraftSlice: StateCreator<
   setDraftConflicts: (conflicts) => {
     set((state) => {
       const nextDraft = { ...state.draftState, conflicts, hasPendingValidation: false };
-      persistDraftState(nextDraft, state.activeRun);
       return { draftState: nextDraft };
     });
   },
@@ -93,25 +94,7 @@ export const createDraftSlice: StateCreator<
   setHasPendingValidation: (hasPendingValidation) => {
     set((state) => {
       const nextDraft = { ...state.draftState, hasPendingValidation };
-      persistDraftState(nextDraft, state.activeRun);
       return { draftState: nextDraft };
-    });
-  },
-
-  hydratePersistedDraftState: () => {
-    set((state) => {
-      if (state.hasHydratedDraftState) return state;
-      const persisted = readPersistedState();
-      const effectiveScheduleMap = applyPatchToMap(
-        state.serverScheduleMap,
-        persisted.draft.patches,
-      );
-      return {
-        draftState: persisted.draft,
-        activeRun: persisted.activeRun as FullSchedulingState["activeRun"],
-        effectiveScheduleMap,
-        hasHydratedDraftState: true,
-      };
     });
   },
 });

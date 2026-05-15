@@ -102,7 +102,6 @@ export default function DashboardContent({
     selectedFacility,
     scheduleCount,
     activeRun,
-    hydratePersistedDraftState,
     hasNewerVersion,
     latestKnownScheduleVersion,
     draftPatchCount,
@@ -116,7 +115,6 @@ export default function DashboardContent({
       selectedFacility: state.selectedFacility,
       scheduleCount: state.effectiveScheduleMap.size,
       activeRun: state.activeRun,
-      hydratePersistedDraftState: state.hydratePersistedDraftState,
       hasNewerVersion: state.hasNewerVersion,
       latestKnownScheduleVersion: state.latestKnownScheduleVersion,
       draftPatchCount: state.draftState.patches.length,
@@ -159,10 +157,6 @@ export default function DashboardContent({
   const optimizeButtonFillWidth = activeRun ? `${Math.max(0, Math.min(100, activeRun.progressPercent))}%` : "0%";
 
   useOptimizationRunSync();
-
-  useEffect(() => {
-    hydratePersistedDraftState();
-  }, [hydratePersistedDraftState]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
