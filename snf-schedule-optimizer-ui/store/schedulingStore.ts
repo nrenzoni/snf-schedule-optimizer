@@ -25,14 +25,14 @@ interface SchedulingState extends ScheduleDataSlice, DraftSlice, RunSlice {
   resetDemoState: () => void;
 }
 
-export const useSchedulingStore = create<SchedulingState>()((...args) => ({
-  ...createScheduleDataSlice(...args),
-  ...createDraftSlice(...args),
-  ...createRunSlice(...args),
+export const useSchedulingStore = create<SchedulingState>()((set, get, ...rest) => ({
+  ...createScheduleDataSlice(set, get, ...rest),
+  ...createDraftSlice(set, get, ...rest),
+  ...createRunSlice(set, get, ...rest),
   hasHydratedDraftState: false,
   resetDemoState: () => {
     clearPersistedState();
-    (args[0] as (partial: Partial<SchedulingState>) => void)({
+    set({
       serverScheduleMap: new Map(),
       effectiveScheduleMap: new Map(),
       isDataLoading: false,
