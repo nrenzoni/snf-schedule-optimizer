@@ -30,7 +30,7 @@ interface BoardHeaderProps {
 
 const VISIBLE_DAY_COUNT = 6;
 
-export default function BoardHeader({
+function BoardHeader({
   visibleDates,
   pageSchedule,
   viewMode,

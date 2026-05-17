@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import React from "react";
 
 // Header Visualization
-export default function GroupSummaryCell({
+function GroupSummaryCell({
   metric,
   isTotal,
   isToday,
