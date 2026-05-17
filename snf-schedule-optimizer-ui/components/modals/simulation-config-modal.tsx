@@ -148,6 +148,7 @@ export default function SimulationConfigModal({
           <button
             onClick={onClose}
             className={iconButtonVariants({ shape: "full", tone: "default" })}
+            aria-label="Close simulation configuration"
           >
             <X size={20} />
           </button>

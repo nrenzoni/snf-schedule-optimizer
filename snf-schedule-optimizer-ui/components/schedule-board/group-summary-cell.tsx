@@ -41,6 +41,7 @@ export default function GroupSummaryCell({
 
   return (
     <div
+      aria-label={`${label}, ${Math.round(filledPct * 100)}% filled`}
       className={cn(
         CELL_WIDTH,
         "group/cell relative flex h-full flex-col justify-end border-r border-border",

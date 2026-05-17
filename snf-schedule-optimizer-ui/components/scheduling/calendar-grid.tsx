@@ -22,7 +22,15 @@ export function CalendarGrid({
         <div
           key={day.dateString}
           data-testid="schedule-day-card"
+          role="button"
+          tabIndex={0}
           onClick={() => day.isSelectable && openShiftDetails(day)}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === " ") && day.isSelectable) {
+              e.preventDefault();
+              openShiftDetails(day);
+            }
+          }}
           className={getContainerClasses(day, selectedDayDateString)}
         >
           {/* Day Number */}

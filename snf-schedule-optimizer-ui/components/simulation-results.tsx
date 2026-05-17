@@ -41,12 +41,13 @@ export default function SimulationResults({
           </p>
         </div>
         <div className="flex space-x-2">
-          <button className={iconButtonVariants({ shape: "full", tone: "default" })}>
+          <button className={iconButtonVariants({ shape: "full", tone: "default" })} aria-label="Download simulation results">
             <Download size={18} />
           </button>
           <button
             onClick={onClear}
             className={iconButtonVariants({ shape: "full", tone: "default" })}
+            aria-label="Clear simulation results"
           >
             <X size={18} />
           </button>

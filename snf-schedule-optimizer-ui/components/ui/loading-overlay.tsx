@@ -6,6 +6,9 @@ export default function LoadingOverlay({ isVisible }: { isVisible: boolean }) {
 
   return (
     <div
+      role="status"
+      aria-live="polite"
+      aria-label="Loading"
       className={cn(
         // 1. Positioning: Cover the entire parent container
         "absolute inset-0 z-50",

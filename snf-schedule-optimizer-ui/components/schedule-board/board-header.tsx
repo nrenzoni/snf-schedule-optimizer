@@ -83,12 +83,14 @@ export default function BoardHeader({
           <button
             onClick={() => setGroupingMode("ROLE")}
             className={segmentedButtonVariants({ size: "sm", active: groupingMode === "ROLE" })}
+            aria-pressed={groupingMode === "ROLE"}
           >
             Role
           </button>
           <button
             onClick={() => setGroupingMode("BUDGET")}
             className={segmentedButtonVariants({ size: "sm", active: groupingMode === "BUDGET" })}
+            aria-pressed={groupingMode === "BUDGET"}
           >
             Budget
           </button>
@@ -98,12 +100,14 @@ export default function BoardHeader({
           <button
             onClick={() => setViewMode("ROLE")}
             className={segmentedButtonVariants({ size: "sm", active: viewMode === "ROLE" })}
+            aria-pressed={viewMode === "ROLE"}
           >
             <Activity size={12} /> HPRD
           </button>
           <button
             onClick={() => setViewMode("BUDGET")}
             className={segmentedButtonVariants({ size: "sm", active: viewMode === "BUDGET" })}
+            aria-pressed={viewMode === "BUDGET"}
           >
             <DollarSign size={12} /> Cost
           </button>

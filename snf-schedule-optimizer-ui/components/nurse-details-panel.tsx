@@ -34,6 +34,7 @@ export default function NurseDetailsPanel({
             <button
               onClick={closeNurseDetails}
               className={iconButtonVariants({ tone: "default" })}
+              aria-label="Close nurse details"
             >
               <svg
                 className="w-5 h-5"
@@ -68,6 +69,7 @@ export default function NurseDetailsPanel({
             <button
               onClick={() => removeNurseFromShift(selectedNurse)}
               className="app-button-danger w-full py-3"
+              aria-label={`Remove ${selectedNurse.name} from shift`}
             >
               Remove from Shift ({selectedNurse.shiftHours} hrs)
             </button>
@@ -75,6 +77,7 @@ export default function NurseDetailsPanel({
             <button
               onClick={addNurseToShift}
               className="app-button-primary w-full py-3"
+              aria-label="Add available nurse to shift"
             >
               Add Available Nurse... (Mock)
             </button>

@@ -33,9 +33,9 @@ export default function ConfirmDialog({
       contentClassName="max-w-md"
       disableClose={isPending}
     >
-      <div className="p-6">
-        <h2 className="app-title text-lg">{title}</h2>
-        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      <div className="p-6" role="dialog" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description">
+        <h2 id="confirm-dialog-title" className="app-title text-lg">{title}</h2>
+        <p id="confirm-dialog-description" className="mt-2 text-sm text-muted-foreground">{description}</p>
         <div className="mt-6 flex justify-end gap-3">
           <button
             type="button"

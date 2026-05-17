@@ -105,9 +105,9 @@ export default function ShiftCard({
       <div className="flex justify-between">
         <span>{shift.role}</span>
         <div className="flex items-center gap-1">
-          {shift.pinned ? <Pin size={10} className="text-primary" /> : null}
-          {shift.warnings?.length ? <TriangleAlert size={10} className="text-amber-600" /> : null}
-          {shift.isAgency && <AlertCircle size={10} className="text-red-600" />}
+          {shift.pinned ? <Pin size={10} className="text-primary" aria-label="Pinned shift" /> : null}
+          {shift.warnings?.length ? <TriangleAlert size={10} className="text-amber-600" aria-label="Shift has warnings" /> : null}
+          {shift.isAgency && <AlertCircle size={10} className="text-red-600" aria-label="Agency shift" />}
         </div>
       </div>
 
@@ -115,9 +115,9 @@ export default function ShiftCard({
         <span>{shift.role}</span>
         {/* Visual Icons for Context */}
         <div className="flex gap-0.5">
-          {shift.isAgency && <AlertCircle size={10} className="text-red-600" />}
+          {shift.isAgency && <AlertCircle size={10} className="text-red-600" aria-label="Agency shift" />}
           {mode === "BUDGET" && shift.isOvertime && !shift.isAgency && (
-            <DollarSign size={10} className="text-amber-600" />
+            <DollarSign size={10} className="text-amber-600" aria-label="Overtime pay" />
           )}
         </div>
       </div>

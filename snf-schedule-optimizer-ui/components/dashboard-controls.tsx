@@ -57,6 +57,7 @@ export default function DashboardControls({
               data-testid="revert-staged-changes"
               onClick={clearDraft}
               className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
+              aria-label="Revert all draft changes"
             >
               Revert {draftPatchCount} staged
             </button>
@@ -68,6 +69,7 @@ export default function DashboardControls({
             }}
             disabled={isRunActive}
             className="app-button-primary relative min-h-9 overflow-hidden whitespace-nowrap px-4 py-2"
+            aria-label="Run schedule optimization"
           >
             {activeRun ? (
               <span
@@ -86,6 +88,7 @@ export default function DashboardControls({
             data-testid="open-schedule-summary"
             onClick={uiStore.openSummaryModal}
             className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
+            aria-label="View optimization summary"
           >
             <ListChecks size={16} />
             Summary
@@ -94,6 +97,7 @@ export default function DashboardControls({
             data-testid="open-scheduling-config"
             onClick={uiStore.openConfigModal}
             className="app-button-secondary min-h-9 whitespace-nowrap px-4 py-2"
+            aria-label="Configure optimization settings"
           >
             <Settings size={16} />
             Configure

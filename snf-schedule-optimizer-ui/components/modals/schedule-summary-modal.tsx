@@ -51,7 +51,7 @@ export function ScheduleSummaryModal({
             <ListChecks size={24} />
             <h3 className="text-xl font-black">Monthly Schedule Summary</h3>
           </div>
-          <button onClick={onClose} className={iconButtonVariants({ tone: "soft" })}>
+          <button onClick={onClose} className={iconButtonVariants({ tone: "soft" })} aria-label="Close summary">
             <X size={20} />
           </button>
         </div>

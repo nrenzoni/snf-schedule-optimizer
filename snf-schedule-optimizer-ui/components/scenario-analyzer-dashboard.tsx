@@ -133,6 +133,7 @@ export default function ScenarioAnalyzerDashboard() {
               data-testid="simulation-wage-impact"
               onClick={() => openSimulation("WAGE_IMPACT")}
               className="group w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40 hover:bg-accent"
+              aria-label="Run wage impact simulation"
             >
               <div className="flex justify-between items-center">
                 <span className="font-medium text-foreground group-hover:text-primary">
@@ -152,6 +153,7 @@ export default function ScenarioAnalyzerDashboard() {
               data-testid="simulation-census-impact"
               onClick={() => openSimulation("CENSUS_IMPACT")}
               className="group w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40 hover:bg-accent"
+              aria-label="Run census volatility simulation"
             >
               <div className="flex justify-between items-center">
                 <span className="font-medium text-foreground group-hover:text-primary">
@@ -171,6 +173,7 @@ export default function ScenarioAnalyzerDashboard() {
               data-testid="simulation-agency-reduction"
               onClick={() => openSimulation("AGENCY_REDUCTION")}
               className="group w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40 hover:bg-accent"
+              aria-label="Run agency reduction simulation"
             >
               <div className="flex justify-between items-center">
                 <span className="font-medium text-foreground group-hover:text-primary">
