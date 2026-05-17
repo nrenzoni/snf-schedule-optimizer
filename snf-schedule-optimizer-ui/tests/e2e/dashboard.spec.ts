@@ -176,7 +176,7 @@ test("optimize flow updates the persisted schedule summary", async ({ page }) =>
   expect(latestRunText).toBeTruthy();
   expect(latestRunText).not.toMatch(/no optimization completed yet/i);
 
-  await expect(page.getByRole("button", { name: /close summary/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close Summary", exact: true })).toBeVisible();
 });
 
 test("persisted active run hydrates without mismatch", async ({ page }) => {
