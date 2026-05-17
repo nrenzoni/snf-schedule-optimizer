@@ -3,7 +3,7 @@ import { UIDraftState, UIStagedPatch, UIPatchConflict } from "@/types/scheduling
 import { applyPatchToMap } from "@/lib/scheduling-helpers";
 import { FullSchedulingState } from "./state-types";
 
-const emptyDraftState = (): UIDraftState => ({
+export const emptyDraftState = (): UIDraftState => ({
   baseScheduleVersion: 0,
   patches: [],
   conflicts: [],
@@ -79,7 +79,6 @@ export const createDraftSlice: StateCreator<
       return {
         draftState: nextDraft,
         effectiveScheduleMap: new Map(serverMap),
-        hasNewerVersion: false,
       };
     });
   },

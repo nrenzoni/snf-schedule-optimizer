@@ -18,9 +18,7 @@ export const createRunSlice: StateCreator<
   activeRun: null,
 
   setActiveRun: (run) => {
-    set(() => {
-      return { activeRun: run };
-    });
+    set({ activeRun: run });
   },
 
   setRunProgress: (run) => {
@@ -36,9 +34,9 @@ export const createRunSlice: StateCreator<
         : state.draftState;
       return {
         activeRun: run,
-        latestOptimization: completed ? run.summary : state.latestOptimization,
-        optimizationStats: completed ? run.stats : state.optimizationStats,
-        optimizationFinancials: completed ? run.financials : state.optimizationFinancials,
+        latestOptimization: completed ? (run.summary ?? state.latestOptimization) : state.latestOptimization,
+        optimizationStats: completed ? (run.stats ?? state.optimizationStats) : state.optimizationStats,
+        optimizationFinancials: completed ? (run.financials ?? state.optimizationFinancials) : state.optimizationFinancials,
         draftState: nextDraft,
       };
     });

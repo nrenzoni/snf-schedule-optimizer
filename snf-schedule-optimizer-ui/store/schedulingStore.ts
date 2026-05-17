@@ -1,16 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { UISchedulerSettings, UIDraftState } from "@/types/scheduling";
+import { UISchedulerSettings } from "@/types/scheduling";
 import { createScheduleDataSlice, ScheduleDataSlice } from "./schedule-data-slice";
-import { createDraftSlice, DraftSlice } from "./draft-slice";
+import { createDraftSlice, DraftSlice, emptyDraftState } from "./draft-slice";
 import { createRunSlice, RunSlice } from "./run-slice";
-
-export const emptyDraftState = (): UIDraftState => ({
-  baseScheduleVersion: 0,
-  patches: [],
-  conflicts: [],
-  hasPendingValidation: false,
-});
 
 export const defaultSchedulerSettings: UISchedulerSettings = {
   useMLForecast: false,

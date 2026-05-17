@@ -3,6 +3,7 @@ import { OrgFacility } from "@/gen/scheduling/v1/scheduling_pb";
 import {
   ScheduleMap,
   UIFinancials,
+  UIOptimizationRun,
   UIOptimizationStats,
   UIOptimizationSummary,
   UISchedulerSettings,
@@ -40,7 +41,7 @@ export interface ScheduleDataSlice {
     latestOptimization: UIOptimizationSummary | null;
     optimizationStats: UIOptimizationStats | null;
     optimizationFinancials: UIFinancials | null;
-    activeRun: import("@/types/scheduling").UIOptimizationRun | null;
+    activeRun: UIOptimizationRun | null;
     updatedAt: string | null;
   }) => void;
   setHasNewerVersion: (hasNewerVersion: boolean, latestKnownScheduleVersion?: number) => void;
@@ -72,7 +73,7 @@ export const createScheduleDataSlice: StateCreator<
       serverScheduleMap: isLoading ? state.serverScheduleMap : map,
       effectiveScheduleMap: isLoading
         ? state.effectiveScheduleMap
-        : applyPatchToMap(map, state.draftState?.patches ?? []),
+        : applyPatchToMap(map, state.draftState.patches ?? []),
       isDataLoading: isLoading,
       dataError: error,
       selectedFacility: facility ?? state.selectedFacility,
@@ -91,23 +92,23 @@ export const createScheduleDataSlice: StateCreator<
   }) => {
     set((state) => {
       const draft = state.draftState;
-      const draftBaseVersion = draft?.baseScheduleVersion ?? 0;
+      const draftBaseVersion = draft.baseScheduleVersion ?? 0;
       const hasNewerVersion =
         draftBaseVersion > 0 &&
         draftBaseVersion !== scheduleVersion &&
-        (draft?.patches ?? []).length > 0;
+        (draft.patches ?? []).length > 0;
       const draftState = hasNewerVersion
         ? draft
         : {
             ...draft,
             baseScheduleVersion:
-              (draft?.patches ?? []).length > 0
-                ? (draft?.baseScheduleVersion || scheduleVersion)
+              (draft.patches ?? []).length > 0
+                ? (draft.baseScheduleVersion || scheduleVersion)
                 : scheduleVersion,
           };
       const effectiveScheduleMap = hasNewerVersion
         ? new Map(map)
-        : applyPatchToMap(map, draftState?.patches ?? []);
+        : applyPatchToMap(map, draftState.patches ?? []);
       return {
         serverScheduleMap: map,
         effectiveScheduleMap,
