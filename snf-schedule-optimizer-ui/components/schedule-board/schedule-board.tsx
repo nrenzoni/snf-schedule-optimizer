@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useId, useMemo, useRef, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import {
   closestCenter,
   defaultDropAnimationSideEffects,
@@ -61,6 +61,69 @@ interface ScheduleBoardProps {
   dragDisabled: boolean;
 }
 
+function useBoardExpansion(units: SimulatedUnit[]) {
+  const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>({});
+  const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({
+    "U1-RN": true,
+  });
+
+  const handleCollapseAll = () => {
+    setExpandedUnits({});
+    setExpandedRoles({});
+  };
+
+  const handleExpandAll = () => {
+    const allUnits = Object.fromEntries(units.map((unit) => [unit.id, true]));
+    setExpandedUnits(allUnits);
+  };
+
+  const toggleUnit = (unitId: string) =>
+    setExpandedUnits((prev) => ({ ...prev, [unitId]: !prev[unitId] }));
+
+  const toggleRole = (key: string) =>
+    setExpandedRoles((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  return {
+    expandedUnits,
+    expandedRoles,
+    handleCollapseAll,
+    handleExpandAll,
+    toggleUnit,
+    toggleRole,
+  };
+}
+
+function useBoardDateNavigation() {
+  const [anchorDateStr, setAnchorDateStr] = useQueryState(
+    "anchor",
+    parseAsString.withDefault(getTodayString()),
+  );
+
+  const [viewMode, setViewMode] = useState<ViewMode>("ROLE");
+  const [groupingMode, setGroupingMode] = useState<"ROLE" | "BUDGET">("ROLE");
+
+  const anchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
+  const visibleStartDate = useMemo(() => subDays(anchorDate, 2), [anchorDate]);
+  const visibleDates = useMemo(
+    () => Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) => addDays(visibleStartDate, index)),
+    [visibleStartDate],
+  );
+
+  const pageSchedule = (dayDelta: number) => {
+    setAnchorDateStr(formatDateYYYYMMDD(addDays(anchorDate, dayDelta)));
+  };
+
+  return {
+    viewMode,
+    setViewMode,
+    groupingMode,
+    setGroupingMode,
+    visibleDates,
+    pageSchedule,
+    anchorDate,
+  };
+}
+
 export default function ScheduleBoard({
   shifts,
   staffList,
@@ -96,15 +159,8 @@ export default function ScheduleBoard({
     })),
   );
   const { stageValidatedPatch } = useStagedScheduleActions();
-  const [anchorDateStr, setAnchorDateStr] = useQueryState(
-    "anchor",
-    parseAsString.withDefault(getTodayString()),
-  );
 
-  const [viewMode, setViewMode] = useState<ViewMode>("ROLE");
-  const [groupingMode, setGroupingMode] = useState<"ROLE" | "BUDGET">("ROLE");
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
-  const isDraggingRef = useRef(false);
 
   const {
     handleDragEnd,
@@ -123,10 +179,17 @@ export default function ScheduleBoard({
     setHasPendingValidation,
   });
 
-  const [expandedUnits, setExpandedUnits] = useState<Record<string, boolean>>({});
-  const [expandedRoles, setExpandedRoles] = useState<Record<string, boolean>>({
-    "U1-RN": true,
-  });
+  const {
+    expandedUnits,
+    expandedRoles,
+    handleCollapseAll,
+    handleExpandAll,
+    toggleUnit,
+    toggleRole,
+  } = useBoardExpansion(units);
+
+  const { viewMode, setViewMode, groupingMode, setGroupingMode, visibleDates, pageSchedule } =
+    useBoardDateNavigation();
 
   const unitGroups = useMemo(() => {
     return units.map((unit) => ({
@@ -143,55 +206,13 @@ export default function ScheduleBoard({
     return map;
   }, [staffList, units]);
 
-  const anchorDate = useMemo(() => new Date(anchorDateStr), [anchorDateStr]);
-  const visibleStartDate = useMemo(() => subDays(anchorDate, 2), [anchorDate]);
-  const visibleDates = useMemo(
-    () => Array.from({ length: VISIBLE_DAY_COUNT }, (_, index) => addDays(visibleStartDate, index)),
-    [visibleStartDate],
-  );
-
   const boardMetrics = useBoardMetrics(
     shifts, units, staffByUnit, visibleDates, viewMode, groupingMode,
   );
 
-  const resolveTargetShiftId = useCallback((unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => {
+  const resolveTargetShiftId = (unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => {
     return targetShiftIds.get(`${unitId}:${dateStr}:${shiftKey}`) ?? null;
-  }, [targetShiftIds]);
-
-  const pageSchedule = useCallback((dayDelta: number) => {
-    setAnchorDateStr(formatDateYYYYMMDD(addDays(anchorDate, dayDelta)));
-  }, [anchorDate, setAnchorDateStr]);
-
-  const handleCollapseAll = useCallback(() => {
-    setExpandedUnits({});
-    setExpandedRoles({});
-  }, []);
-
-  const handleExpandAll = useCallback(() => {
-    const allUnits = Object.fromEntries(units.map((unit) => [unit.id, true]));
-    setExpandedUnits(allUnits);
-  }, [units]);
-
-  const handleUnitToggle = useCallback((unitId: string) => {
-    setExpandedUnits((prev) => ({ ...prev, [unitId]: !prev[unitId] }));
-  }, []);
-
-  const handleRoleToggle = useCallback((key: string) => {
-    setExpandedRoles((prev) => ({ ...prev, [key]: !prev[key] }));
-  }, []);
-
-  const handleDeleteShift = useCallback(async (shift: Shift) => {
-    return stageValidatedPatch({
-      employeeId: shift.staffId,
-      employeeName: shift.employeeName,
-      fromShiftId: shift.shiftId,
-      toShiftId: null,
-      payPeriodStart: startOfWeek(new Date(shift.dateStr), { weekStartsOn: 0 }),
-      successTitle: "Shift removal staged",
-      successDescription:
-        "Assignment removal will be applied with the next optimization run.",
-    });
-  }, [stageValidatedPatch]);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -204,20 +225,11 @@ export default function ScheduleBoard({
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={[restrictToHorizontalAxis]}
-      onDragStart={(e) => {
-        if (isDraggingRef.current) return;
-        isDraggingRef.current = true;
-        setActiveShift(e.active.data.current?.shift);
-      }}
-      onDragEnd={(event) => {
-        void handleDragEnd(event).finally(() => {
-          isDraggingRef.current = false;
-        });
-      }}
+      onDragStart={(e) => setActiveShift(e.active.data.current?.shift)}
+      onDragEnd={(event) => void handleDragEnd(event)}
       onDragCancel={() => {
         setPendingSlotId(null);
         setValidationPreview(null);
-        isDraggingRef.current = false;
       }}
     >
       <div className="app-card relative flex h-full min-h-0 flex-col overflow-hidden xl:min-h-0">
@@ -334,15 +346,26 @@ export default function ScheduleBoard({
                   viewMode={viewMode}
                   groupingMode={groupingMode}
                   isExpanded={expandedUnits[group.unit.id] ?? false}
-                  onToggle={() => handleUnitToggle(group.unit.id)}
+                  onToggle={() => toggleUnit(group.unit.id)}
                   roleState={expandedRoles}
-                  toggleRole={handleRoleToggle}
+                  toggleRole={toggleRole}
                   pendingSlotId={pendingSlotId}
                   validationPreview={validationPreview}
                   dragDisabled={dragDisabled}
                   resolveTargetShiftId={resolveTargetShiftId}
                   boardMetrics={boardMetrics}
-                  onDeleteShift={handleDeleteShift}
+                  onDeleteShift={async (shift) => {
+                    return stageValidatedPatch({
+                      employeeId: shift.staffId,
+                      employeeName: shift.employeeName,
+                      fromShiftId: shift.shiftId,
+                      toShiftId: null,
+                      payPeriodStart: startOfWeek(new Date(shift.dateStr), { weekStartsOn: 0 }),
+                      successTitle: "Shift removal staged",
+                      successDescription:
+                        "Assignment removal will be applied with the next optimization run.",
+                    });
+                  }}
                 />
               ))}
             </motion.div>

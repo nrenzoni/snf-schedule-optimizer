@@ -1,4 +1,6 @@
-import React, { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+"use client";
+
+import React, { ReactNode } from "react";
 import { UICalendarDay, UINurse, UIShift } from "@/types/scheduling";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -6,6 +8,7 @@ import {
   iconButtonVariants,
   selectableCardVariants,
 } from "@/components/ui/styles";
+import useModalTransition from "@/hooks/use-modal-transition";
 
 interface ShiftModalProps {
   selectedDay: UICalendarDay | null;
@@ -17,12 +20,14 @@ interface ShiftModalProps {
   selectShift: (shift: UIShift) => void;
   openNurseDetails: (nurse: UINurse) => void;
 
-  // 2. REMOVE the specific panel props (remove, add, closeDetails)
-  // 3. ADD children prop
   children?: ReactNode;
 }
 
-const TRANSITION_DURATION = 300;
+const modalDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
 
 export default function ShiftModal({
   selectedDay,
@@ -34,77 +39,21 @@ export default function ShiftModal({
   openNurseDetails,
   children,
 }: ShiftModalProps) {
-  const [renderedDay, setRenderedDay] = useState<UICalendarDay | null>(
+  const { renderedDay, isVisible } = useModalTransition({
     selectedDay,
-  );
-  const [isVisible, setIsVisible] = useState(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const frameRef = useRef<number | null>(null);
+    isModalVisible,
+  });
 
-  // Date formatter for the modal header (e.g., 'Nov 25, 2025')
-  const modalDateFormatter = useMemo(
-    () =>
-      new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-    [],
-  );
-
-  useEffect(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
-
-    if (frameRef.current) {
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
-    }
-
-    if (selectedDay && isModalVisible) {
-      frameRef.current = requestAnimationFrame(() => {
-        setRenderedDay(selectedDay);
-        frameRef.current = requestAnimationFrame(() => setIsVisible(true));
-      });
-      return;
-    }
-
-    frameRef.current = requestAnimationFrame(() => setIsVisible(false));
-    closeTimerRef.current = setTimeout(() => {
-      setRenderedDay(null);
-      closeTimerRef.current = null;
-    }, TRANSITION_DURATION);
-
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
-      }
-      if (frameRef.current) {
-        cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-    };
-  }, [isModalVisible, selectedDay]);
-
-  // Return null early if data isn't ready
   if (!renderedDay || !renderedDay.schedule) return null;
 
-  // --- Dynamic Class Control ---
-  // Backdrop fade-in/out
   const backdropClasses = isVisible
     ? "bg-foreground/35 opacity-100 pointer-events-auto"
     : "bg-foreground/0 opacity-0 pointer-events-none";
 
-  // Modal Content zoom/scale (to give depth illusion)
   const contentClasses = isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0";
 
   return (
-    // 1. BACKDROP CONTAINER: Handles the blur and opacity fade of the whole screen
     <div
-      // Use the dynamic classes for fade control
       className={cn(
         "fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out",
         backdropClasses,
@@ -114,7 +63,6 @@ export default function ShiftModal({
       aria-modal="true"
       aria-labelledby="shift-modal-title"
     >
-      {/* 2. MODAL CONTENT: Apply the zoom/scale transition */}
       <div
         onClick={(e) => e.stopPropagation()}
         className={cn(
@@ -122,7 +70,6 @@ export default function ShiftModal({
           contentClasses,
         )}
       >
-        {/* Left Panel (Shift Summary & Nurse List - Level 1) */}
         <div className="flex min-h-0 min-w-0 flex-grow flex-col p-4 md:min-w-[20rem] md:p-6">
           <div className="mb-4 flex items-start justify-between border-b border-slate-200/70 pb-3">
             <h3 id="shift-modal-title" className="app-title text-xl md:text-2xl">
@@ -179,7 +126,6 @@ export default function ShiftModal({
             ))}
           </div>
 
-          {/* Nurse List (Active Shift) */}
           <h4 className="mb-3 border-t border-slate-200/70 pt-3 text-xl font-black text-slate-900">
             Nurses for {selectedShift?.shiftName || "Selected"} Shift
           </h4>
@@ -218,8 +164,6 @@ export default function ShiftModal({
           </div>
         </div>
 
-        {/* 5. Right Panel Slot (Render Children) */}
-        {/* If children exist (i.e. a nurse is selected), we render them here */}
         {children}
       </div>
     </div>

@@ -24,11 +24,168 @@ import { ScheduleQueryError } from "@/hooks/use-schedule-query";
 import DashboardTabs, { moduleOptions, type ModuleOption } from "@/components/dashboard-tabs";
 import DashboardControls from "@/components/dashboard-controls";
 import DashboardMetrics from "@/components/dashboard-metrics";
+import { UIPatchConflict } from "@/types/scheduling";
 
 export const viewOptions = ["list", "timeline"] as const;
 
 interface DashboardShellProps {
   timelineView: React.ReactNode;
+}
+
+function DashboardErrorState({
+  error,
+  onRetry,
+}: {
+  error: Error;
+  onRetry: () => void;
+}) {
+  return (
+    <DashboardEmptyState
+      title={
+        error instanceof ScheduleQueryError &&
+        error.code === "NO_FACILITIES"
+          ? "No facilities available"
+          : error instanceof ScheduleQueryError &&
+              error.code === "MISSING_API_BASE_URL"
+            ? "Backend base URL is not configured"
+          : "Schedule data could not be loaded"
+      }
+      description={error.message}
+      actionLabel="Retry schedule fetch"
+      onAction={onRetry}
+    />
+  );
+}
+
+function DashboardEmptySchedule({
+  onReload,
+}: {
+  onReload: () => void;
+}) {
+  return (
+    <DashboardEmptyState
+      title="No schedule data returned"
+      description="The API responded successfully but did not return any days for the selected month. Try another month or retry the query."
+      actionLabel="Reload month"
+      onAction={onReload}
+    />
+  );
+}
+
+interface DashboardMainLayoutProps {
+  timelineView: React.ReactNode;
+  scheduleCount: number;
+  isLoading: boolean;
+  hasNewerVersion: boolean;
+  latestKnownScheduleVersion: number;
+  draftPatchCount: number;
+  draftConflicts: UIPatchConflict[];
+  clearDraft: () => void;
+  triggerOptimization: (allowOverwrite?: boolean) => Promise<void>;
+  isRunActive: boolean;
+  activeRun: {
+    progressPercent: number;
+    stage?: string;
+    statusMessage?: string;
+  } | null;
+  optimizeButtonFillWidth: string;
+  openSummaryModal: () => void;
+  openConfigModal: () => void;
+  viewMode: (typeof viewOptions)[number];
+  setViewMode: (value: (typeof viewOptions)[number]) => Promise<URLSearchParams>;
+  activeModule: ModuleOption;
+  refetch: () => void;
+}
+
+function DashboardMainLayout({
+  timelineView,
+  scheduleCount,
+  isLoading,
+  hasNewerVersion,
+  latestKnownScheduleVersion,
+  draftPatchCount,
+  draftConflicts,
+  clearDraft,
+  triggerOptimization,
+  isRunActive,
+  activeRun,
+  optimizeButtonFillWidth,
+  openSummaryModal,
+  openConfigModal,
+  viewMode,
+  setViewMode,
+  activeModule,
+  refetch,
+}: DashboardMainLayoutProps) {
+  return (
+    <div className="grid items-start gap-3 xl:h-full xl:min-h-0 xl:items-stretch 2xl:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col">
+        <ErrorBoundary fallbackTitle="Schedule content error">
+        <TabsContent
+          value="scheduling"
+          className="mt-0 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-hidden"
+        >
+          <div className="space-y-2 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:gap-2 xl:space-y-0">
+            {!isLoading && scheduleCount === 0 ? (
+              <DashboardEmptySchedule
+                onReload={() => {
+                  void refetch();
+                }}
+              />
+            ) : null}
+
+            <DashboardControls
+              hasNewerVersion={hasNewerVersion}
+              latestKnownScheduleVersion={latestKnownScheduleVersion}
+              draftPatchCount={draftPatchCount}
+              draftConflicts={draftConflicts}
+              clearDraft={clearDraft}
+              triggerOptimization={triggerOptimization}
+              isRunActive={isRunActive}
+              activeRun={activeRun}
+              optimizeButtonFillWidth={optimizeButtonFillWidth}
+              uiStore={{ openSummaryModal, openConfigModal }}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+            />
+
+            {viewMode === "list" ? (
+              <div className="xl:min-h-0 xl:flex-1 xl:overflow-auto xl:pb-4">
+                <ScheduleListView />
+              </div>
+            ) : (
+              <div className="app-card min-h-[560px] p-2 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
+                <div className="xl:flex xl:h-full xl:min-h-0 xl:flex-col">{timelineView}</div>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="analyzer"
+          className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-auto"
+        >
+          <div className="xl:flex xl:min-h-full xl:flex-col xl:justify-center xl:pb-4">
+            <ScenarioAnalyzerDashboard />
+          </div>
+        </TabsContent>
+
+        <TabsContent
+          value="ml-forecasts"
+          className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-auto"
+        >
+          <div className="xl:flex xl:min-h-full xl:flex-col xl:justify-center xl:pb-4">
+            <MlForecastsDashboard />
+          </div>
+        </TabsContent>
+        </ErrorBoundary>
+      </div>
+
+      <DashboardMetrics
+        activeModule={activeModule}
+      />
+    </div>
+  );
 }
 
 export default function DashboardContent({
@@ -116,10 +273,9 @@ export default function DashboardContent({
 
   const [showPulse, setShowPulse] = useState(true);
 
-  const optimizeButtonFillWidth = useMemo(
-    () => activeRun ? `${Math.max(0, Math.min(100, activeRun.progressPercent))}%` : "0%",
-    [activeRun]
-  );
+  const optimizeButtonFillWidth = activeRun
+    ? `${Math.max(0, Math.min(100, activeRun.progressPercent))}%`
+    : "0%";
 
   useOptimizationRunSync();
 
@@ -146,97 +302,35 @@ export default function DashboardContent({
           />
 
           <div className="min-h-[600px] xl:min-h-0 xl:flex-1 xl:overflow-hidden xl:pb-4">
-            {error && (
-              <DashboardEmptyState
-                title={
-                  error instanceof ScheduleQueryError &&
-                  error.code === "NO_FACILITIES"
-                    ? "No facilities available"
-                    : error instanceof ScheduleQueryError &&
-                        error.code === "MISSING_API_BASE_URL"
-                      ? "Backend base URL is not configured"
-                    : "Schedule data could not be loaded"
-                }
-                description={error.message}
-                actionLabel="Retry schedule fetch"
-                onAction={() => {
+            {error ? (
+              <DashboardErrorState
+                error={error}
+                onRetry={() => {
                   void refetch();
                 }}
               />
+            ) : (
+              <DashboardMainLayout
+                timelineView={timelineView}
+                scheduleCount={scheduleCount}
+                isLoading={isLoading}
+                hasNewerVersion={hasNewerVersion}
+                latestKnownScheduleVersion={latestKnownScheduleVersion}
+                draftPatchCount={draftPatchCount}
+                draftConflicts={draftConflicts}
+                clearDraft={clearDraft}
+                triggerOptimization={triggerOptimization}
+                isRunActive={isRunActive}
+                activeRun={activeRun}
+                optimizeButtonFillWidth={optimizeButtonFillWidth}
+                openSummaryModal={uiStore.openSummaryModal}
+                openConfigModal={uiStore.openConfigModal}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+                activeModule={activeModule}
+                refetch={refetch}
+              />
             )}
-
-            {!error ? (
-              <div className="grid items-start gap-3 xl:h-full xl:min-h-0 xl:items-stretch 2xl:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col">
-                  <ErrorBoundary fallbackTitle="Schedule content error">
-                  <TabsContent
-                    value="scheduling"
-                    className="mt-0 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-hidden"
-                  >
-                    <div className="space-y-2 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:gap-2 xl:space-y-0">
-                      {!error && !isLoading && scheduleCount === 0 ? (
-                        <DashboardEmptyState
-                          title="No schedule data returned"
-                          description="The API responded successfully but did not return any days for the selected month. Try another month or retry the query."
-                          actionLabel="Reload month"
-                          onAction={() => {
-                            void refetch();
-                          }}
-                        />
-                      ) : null}
-
-                      <DashboardControls
-                        hasNewerVersion={hasNewerVersion}
-                        latestKnownScheduleVersion={latestKnownScheduleVersion}
-                        draftPatchCount={draftPatchCount}
-                        draftConflicts={draftConflicts}
-                        clearDraft={clearDraft}
-                        triggerOptimization={triggerOptimization}
-                        isRunActive={isRunActive}
-                        activeRun={activeRun}
-                        optimizeButtonFillWidth={optimizeButtonFillWidth}
-                        uiStore={uiStore}
-                        viewMode={viewMode}
-                        setViewMode={setViewMode}
-                      />
-
-                      {viewMode === "list" ? (
-                        <div className="xl:min-h-0 xl:flex-1 xl:overflow-auto xl:pb-4">
-                          <ScheduleListView />
-                        </div>
-                      ) : (
-                        <div className="app-card min-h-[560px] p-2 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
-                          <div className="xl:flex xl:h-full xl:min-h-0 xl:flex-col">{timelineView}</div>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent
-                    value="analyzer"
-                    className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-auto"
-                  >
-                    <div className="xl:flex xl:min-h-full xl:flex-col xl:justify-center xl:pb-4">
-                      <ScenarioAnalyzerDashboard />
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent
-                    value="ml-forecasts"
-                    className="mt-0 animate-in fade-in slide-in-from-bottom-4 duration-500 xl:flex xl:min-h-0 xl:flex-1 xl:flex-col xl:overflow-auto"
-                  >
-                    <div className="xl:flex xl:min-h-full xl:flex-col xl:justify-center xl:pb-4">
-                      <MlForecastsDashboard />
-                    </div>
-                  </TabsContent>
-                  </ErrorBoundary>
-                </div>
-
-                <DashboardMetrics
-                  activeModule={activeModule}
-                />
-              </div>
-            ) : null}
           </div>
         </Tabs>
 
