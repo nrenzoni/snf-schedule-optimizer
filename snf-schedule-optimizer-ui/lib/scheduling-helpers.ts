@@ -1,5 +1,6 @@
 import { create } from "@bufbuild/protobuf";
-import { StagedSchedulePatchSchema } from "@/gen/scheduling/v1/scheduling_pb";
+import { match } from "ts-pattern";
+import { StagedSchedulePatchSchema, ValidationLevel } from "@/gen/scheduling/v1/scheduling_pb";
 import { ScheduleMap, UINurse, UIStagedPatch } from "@/types/scheduling";
 
 const cloneMap = (map: ScheduleMap): ScheduleMap => new Map(map);
@@ -80,10 +81,19 @@ export const toProtoPatch = (patch: UIStagedPatch) =>
     toShiftId: patch.toShiftId ?? "",
     pinned: patch.pinned,
     warnings: patch.warnings,
+    validationLevel: match(patch.validationLevel)
+      .with("ok", () => ValidationLevel.VALIDATION_OK)
+      .with("warning", () => ValidationLevel.VALIDATION_WARNING)
+      .with("critical", () => ValidationLevel.VALIDATION_CRITICAL)
+      .with("stale", () => ValidationLevel.VALIDATION_STALE)
+      .with("unspecified", () => ValidationLevel.VALIDATION_LEVEL_UNSPECIFIED)
+      .exhaustive(),
     totalCost: patch.totalCost,
     causesOvertime: patch.causesOvertime,
     createdAt: patch.createdAt ?? "",
   });
 
 export const isRunActive = (status: string | null | undefined) =>
-  status === "queued" || status === "running";
+  match(status)
+    .with("queued", "running", () => true)
+    .otherwise(() => false);

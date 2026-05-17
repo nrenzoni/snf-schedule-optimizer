@@ -63,6 +63,7 @@ export interface UIStagedPatch {
 
 export type UIOptimizationRunStatus = "queued" | "running" | "completed" | "failed" | "unspecified";
 export type UIOptimizationRunStage =
+  | "unspecified"
   | "queued"
   | "snapshotting"
   | "indexing"
@@ -132,6 +133,8 @@ export interface UISchedulePayload {
   latestOptimization: UIOptimizationSummary | null;
   optimizationStats?: UIOptimizationStats | null;
   optimizationFinancials?: UIFinancials | null;
+  activeOptimizationRun?: UIOptimizationRun | null;
+  updatedAt?: string | null;
 }
 
 export type ScheduleMap = Map<string, UIDaySchedule>;

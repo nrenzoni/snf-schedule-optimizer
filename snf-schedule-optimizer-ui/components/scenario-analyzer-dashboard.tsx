@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { match } from "ts-pattern";
 import {
   ArrowRight,
   Play,
@@ -7,6 +8,23 @@ import {
 import { ModalType } from "@/types/modal-type";
 import SimulationConfigModal from "@/components/modals/simulation-config-modal";
 import SimulationResults from "@/components/simulation-results";
+
+interface WageImpactParams {
+  wageIncrease: string;
+}
+
+interface CensusImpactParams {
+  censusChange: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface AgencyReductionParams {
+}
+
+type SimulationParams =
+  | WageImpactParams
+  | CensusImpactParams
+  | AgencyReductionParams;
 
 // 2. Define the interface for the modalConfig state
 interface ModalConfig {
@@ -32,24 +50,6 @@ export default function ScenarioAnalyzerDashboard() {
     type: null,
   });
 
-  interface WageImpactParams {
-    wageIncrease: string; // Used as a string and parsed to float inside the function
-  }
-
-  interface CensusImpactParams {
-    censusChange: number; // Used as a number
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-  interface AgencyReductionParams {
-    // Maybe an empty object, or specific props like 'targetReductionPercent: number'
-  }
-
-  type SimulationParams =
-    | WageImpactParams
-    | CensusImpactParams
-    | AgencyReductionParams;
-
   const [simulationResult, setSimulationResult] =
     useState<SimulationResult | null>(null);
 
@@ -59,62 +59,62 @@ export default function ScenarioAnalyzerDashboard() {
     setModalConfig((current) => ({ ...current, isOpen: false }));
 
   const runSimulation = (type: ModalType | null, params: SimulationParams) => {
+    const result: SimulationResult = match(type)
+      .with("WAGE_IMPACT", () => {
+        const wageParams = params as WageImpactParams;
+        const increase = parseFloat(wageParams.wageIncrease);
+        const base = 1200000;
+        const projected = base * (1 + increase / 100);
 
-    // Mock calculation logic for demo purposes
-    let result: SimulationResult = {
-      name: "",
-      metrics: {
-        costImpact: "",
-        projectedTotal: "",
-        variance: "",
-        efficiency: "",
-      },
-      insight: "",
-    };
+        return {
+          name: `Wage Increase Impact (${wageParams.wageIncrease}%)`,
+          metrics: {
+            costImpact: `+${increase}%`,
+            projectedTotal: `$${(projected / 1000000).toFixed(2)}M`,
+            variance: `$${((projected - base) / 1000).toFixed(0)}k`,
+            efficiency: "94.2%",
+          },
+          insight: `Increasing wages by ${wageParams.wageIncrease}% improves retention probability by estimated 12% but exceeds Q4 budget.`,
+        };
+      })
+      .with("CENSUS_IMPACT", () => {
+        const censusParams = params as CensusImpactParams;
 
-    if (type === "WAGE_IMPACT") {
-      const wageParams = params as WageImpactParams;
-      const increase = parseFloat(wageParams.wageIncrease);
-      const base = 1200000;
-      const projected = base * (1 + increase / 100);
-
-      result = {
-        name: `Wage Increase Impact (${wageParams.wageIncrease}%)`,
+        return {
+          name: `Census Drop Analysis (${censusParams.censusChange})`,
+          metrics: {
+            costImpact: "-4%",
+            projectedTotal: "$1.15M",
+            variance: "-$50k",
+            efficiency: "88.5%",
+          },
+          insight: `Dropping census by ${Math.abs(censusParams.censusChange)} residents spikes HPPD to 4.2, suggesting overstaffing unless shifts are cut.`,
+        };
+      })
+      .with("AGENCY_REDUCTION", () => {
+        return {
+          name: "Agency Reduction Plan",
+          metrics: {
+            costImpact: "-8%",
+            projectedTotal: "$1.10M",
+            variance: "-$100k",
+            efficiency: "98.1%",
+          },
+          insight:
+            "Converting 50% of agency usage to internal OT yields significant savings.",
+        };
+      })
+      .with(null, () => ({
+        name: "",
         metrics: {
-          costImpact: `+${increase}%`,
-          projectedTotal: `$${(projected / 1000000).toFixed(2)}M`,
-          variance: `$${((projected - base) / 1000).toFixed(0)}k`,
-          efficiency: "94.2%",
+          costImpact: "",
+          projectedTotal: "",
+          variance: "",
+          efficiency: "",
         },
-        insight: `Increasing wages by ${wageParams.wageIncrease}% improves retention probability by estimated 12% but exceeds Q4 budget.`,
-      };
-    } else if (type === "CENSUS_IMPACT") {
-      // Confirm type locally for safe access
-      const censusParams = params as CensusImpactParams;
-
-      result = {
-        name: `Census Drop Analysis (${censusParams.censusChange})`,
-        metrics: {
-          costImpact: "-4%",
-          projectedTotal: "$1.15M",
-          variance: "-$50k",
-          efficiency: "88.5%",
-        },
-        insight: `Dropping census by ${Math.abs(censusParams.censusChange)} residents spikes HPPD to 4.2, suggesting overstaffing unless shifts are cut.`,
-      };
-    } else if (type === "AGENCY_REDUCTION") {
-      result = {
-        name: "Agency Reduction Plan",
-        metrics: {
-          costImpact: "-8%",
-          projectedTotal: "$1.10M",
-          variance: "-$100k",
-          efficiency: "98.1%",
-        },
-        insight:
-          "Converting 50% of agency usage to internal OT yields significant savings.",
-      };
-    }
+        insight: "",
+      }))
+      .exhaustive();
 
     setSimulationResult(result);
   };

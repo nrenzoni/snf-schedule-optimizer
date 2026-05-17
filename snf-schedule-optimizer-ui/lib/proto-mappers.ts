@@ -1,3 +1,5 @@
+import { create } from "@bufbuild/protobuf";
+import { match } from "ts-pattern";
 import {
   DaySchedule as ProtoDaySchedule,
   FinancialReport,
@@ -5,6 +7,7 @@ import {
   OptimizationRun,
   OptimizationRunStage,
   OptimizationRunStatus,
+  OptimizationSettingsSchema,
   OptimizationStats,
   OptimizationSummary,
   PatchConflict,
@@ -19,6 +22,7 @@ import {
   UIOptimizationStats,
   UIOptimizationSummary,
   UIPatchConflict,
+  UISchedulerSettings,
   UIStagedPatch,
   UIValidationLevel,
   UINurse,
@@ -36,7 +40,11 @@ export const protoNurseToUI = (nurse: ProtoNurse): UINurse => ({
 
 export const protoShiftToUI = (p: ProtoShift): UIShift => ({
   shiftId: p.shiftId,
-  shiftName: p.shiftName as UIShift["shiftName"],
+  shiftName: match(p.shiftName)
+    .with("Morning", () => "Morning" as const)
+    .with("Afternoon", () => "Afternoon" as const)
+    .with("Night", () => "Night" as const)
+    .otherwise(() => "Morning" as const),
   unitId: p.unitId || "unit-unknown",
   unitName: p.unitName || "Unassigned Unit",
   patientCount: p.patientCensus,
@@ -107,21 +115,13 @@ export const protoStatsToUI = (stats?: OptimizationStats): UIOptimizationStats |
 
 export const protoValidationLevelToUI = (
   level: ValidationLevel | undefined,
-): UIValidationLevel => {
-  switch (level) {
-    case ValidationLevel.VALIDATION_OK:
-      return "ok";
-    case ValidationLevel.VALIDATION_WARNING:
-      return "warning";
-    case ValidationLevel.VALIDATION_CRITICAL:
-      return "critical";
-    case ValidationLevel.VALIDATION_STALE:
-      return "stale";
-    case ValidationLevel.VALIDATION_LEVEL_UNSPECIFIED:
-    default:
-      return "unspecified";
-  }
-};
+): UIValidationLevel =>
+  match(level ?? ValidationLevel.VALIDATION_LEVEL_UNSPECIFIED)
+    .with(ValidationLevel.VALIDATION_OK, () => "ok" as const)
+    .with(ValidationLevel.VALIDATION_WARNING, () => "warning" as const)
+    .with(ValidationLevel.VALIDATION_CRITICAL, () => "critical" as const)
+    .with(ValidationLevel.VALIDATION_STALE, () => "stale" as const)
+    .otherwise(() => "unspecified" as const);
 
 export const protoPatchConflictToUI = (conflict: PatchConflict): UIPatchConflict => ({
   patchId: conflict.patchId,
@@ -147,46 +147,26 @@ export const protoStagedPatchToUI = (patch: StagedSchedulePatch): UIStagedPatch 
   createdAt: patch.createdAt || null,
 });
 
-export const protoRunStatusToUI = (status: OptimizationRunStatus): UIOptimizationRun["status"] => {
-  switch (status) {
-    case OptimizationRunStatus.QUEUED:
-      return "queued";
-    case OptimizationRunStatus.RUNNING:
-      return "running";
-    case OptimizationRunStatus.COMPLETED:
-      return "completed";
-    case OptimizationRunStatus.FAILED:
-      return "failed";
-    case OptimizationRunStatus.UNSPECIFIED:
-    default:
-      return "unspecified";
-  }
-};
+export const protoRunStatusToUI = (status: OptimizationRunStatus): UIOptimizationRun["status"] =>
+  match(status)
+    .with(OptimizationRunStatus.QUEUED, () => "queued" as const)
+    .with(OptimizationRunStatus.RUNNING, () => "running" as const)
+    .with(OptimizationRunStatus.COMPLETED, () => "completed" as const)
+    .with(OptimizationRunStatus.FAILED, () => "failed" as const)
+    .otherwise(() => "unspecified" as const);
 
-export const protoRunStageToUI = (stage: OptimizationRunStage): UIOptimizationRun["stage"] => {
-  switch (stage) {
-    case OptimizationRunStage.QUEUED:
-      return "queued";
-    case OptimizationRunStage.SNAPSHOTTING:
-      return "snapshotting";
-    case OptimizationRunStage.INDEXING:
-      return "indexing";
-    case OptimizationRunStage.BUILDING_MODEL:
-      return "building_model";
-    case OptimizationRunStage.SOLVING:
-      return "solving";
-    case OptimizationRunStage.ANALYZING:
-      return "analyzing";
-    case OptimizationRunStage.PUBLISHING:
-      return "publishing";
-    case OptimizationRunStage.COMPLETED:
-      return "completed";
-    case OptimizationRunStage.FAILED:
-      return "failed";
-    default:
-      return "queued";
-  }
-};
+export const protoRunStageToUI = (stage: OptimizationRunStage): UIOptimizationRun["stage"] =>
+  match(stage)
+    .with(OptimizationRunStage.QUEUED, () => "queued" as const)
+    .with(OptimizationRunStage.SNAPSHOTTING, () => "snapshotting" as const)
+    .with(OptimizationRunStage.INDEXING, () => "indexing" as const)
+    .with(OptimizationRunStage.BUILDING_MODEL, () => "building_model" as const)
+    .with(OptimizationRunStage.SOLVING, () => "solving" as const)
+    .with(OptimizationRunStage.ANALYZING, () => "analyzing" as const)
+    .with(OptimizationRunStage.PUBLISHING, () => "publishing" as const)
+    .with(OptimizationRunStage.COMPLETED, () => "completed" as const)
+    .with(OptimizationRunStage.FAILED, () => "failed" as const)
+    .otherwise(() => "unspecified" as const);
 
 export const protoOptimizationRunToUI = (
   run?: OptimizationRun,
@@ -212,3 +192,18 @@ export const protoOptimizationRunToUI = (
     summary: protoSummaryToUI(run.summary),
   };
 };
+
+export const uiSettingsToProto = (settings: UISchedulerSettings) =>
+  create(OptimizationSettingsSchema, {
+    useMlForecast: settings.useMLForecast,
+    useCalloutBuffer: settings.useCalloutBuffer,
+    bufferThreshold: settings.bufferThreshold,
+    minRestPeriod: settings.minRestPeriod,
+    maxShiftLength: settings.maxShiftLength,
+    premiumWeekend: settings.premiumWeekend,
+    premiumHoliday: settings.premiumHoliday,
+    overtimeAvoidancePenalty: settings.overtimeAvoidancePenalty,
+    teamConsistencyPenalty: settings.teamConsistencyPenalty,
+    highRiskShiftPenalty: settings.highRiskShiftPenalty,
+    customPreferencePenalty: settings.customPreferencePenalty,
+  });
