@@ -23,7 +23,9 @@ export const metadata: Metadata = {
   description:
     "Interactive staffing demo for skilled nursing schedule planning, scenario analysis, and forecast review.",
   applicationName: "SNF Schedule Optimizer",
-  metadataBase: new URL("https://snf-schedule-optimizer.local"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  ),
   keywords: [
     "snf",
     "scheduling",

@@ -1,3 +1,7 @@
+"use client";
+
+export { useReportWebVitals } from "next/web-vitals";
+
 export function reportWebVitals(metric: {
   name: string;
   value: number;
