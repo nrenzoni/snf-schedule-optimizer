@@ -16,7 +16,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import TimelineSlot from "@/components/schedule-board/timeline-slot";
 import ShiftCard from "@/components/schedule-board/shift-card";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
-import { useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
+
+const SHIFT_TYPE_KEYS = Object.keys(SHIFT_TYPES) as ShiftTypeKey[];
 
 interface RoleGroupProps {
   unitId: string;
@@ -37,7 +39,7 @@ interface RoleGroupProps {
   onDeleteShift: (shift: Shift) => Promise<boolean>;
 }
 
-export default function RoleGroup({
+function RoleGroup({
   unitId,
   groupKey,
   label,
@@ -58,6 +60,17 @@ export default function RoleGroup({
   void groupingMode;
   const [pendingDelete, setPendingDelete] = useState<Shift | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const isDeletingRef = useRef(false);
+
+  const shiftsByKey = useMemo(() => {
+    const map = new Map<string, Shift[]>();
+    for (const s of shifts) {
+      const key = `${s.rowId}:${s.unitId}:${s.dateStr}:${s.shiftType}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(s);
+    }
+    return map;
+  }, [shifts]);
 
   return (
     <>
@@ -93,7 +106,7 @@ export default function RoleGroup({
               return (
                 <div key={`${groupKey}-${dateStr}`} className="flex w-[216px] min-w-[216px] items-stretch">
                   <div className="flex min-h-full items-stretch">
-                    {(Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map((shiftKey) => {
+                    {SHIFT_TYPE_KEYS.map((shiftKey) => {
                       const key = `${unitId}:${groupKey}::${dateStr}::${shiftKey}`;
                       const metric = boardMetrics.get(key);
                       return (
@@ -142,16 +155,10 @@ export default function RoleGroup({
                       return (
                         <div key={`${staff.rowId}-${dateStr}`} className="flex w-[216px] min-w-[216px] items-stretch">
                           <div className="flex min-h-full items-stretch">
-                            {(Object.keys(SHIFT_TYPES) as ShiftTypeKey[]).map((shiftKey, idx) => {
+                            {SHIFT_TYPE_KEYS.map((shiftKey, idx) => {
                               const slotId = `${staff.rowId}::${dateStr}::${shiftKey}`;
                               const targetShiftId = resolveTargetShiftId(unitId, dateStr, shiftKey);
-                              const slotShifts = shifts.filter(
-                                (s: Shift) =>
-                                  s.rowId === staff.rowId &&
-                                  s.unitId === unitId &&
-                                  s.dateStr === dateStr &&
-                                  s.shiftType === shiftKey,
-                              );
+                              const slotShifts = shiftsByKey.get(`${staff.rowId}:${unitId}:${dateStr}:${shiftKey}`) ?? [];
 
                               return (
                                 <TimelineSlot
@@ -204,9 +211,10 @@ export default function RoleGroup({
         confirmLabel="Delete assignment"
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => {
-          if (!pendingDelete) {
+          if (!pendingDelete || isDeletingRef.current) {
             return;
           }
+          isDeletingRef.current = true;
           setIsDeleting(true);
           void onDeleteShift(pendingDelete)
             .then((didClose) => {
@@ -214,8 +222,12 @@ export default function RoleGroup({
                 setPendingDelete(null);
               }
             })
+            .catch((err) => {
+              console.error("Delete failed", err);
+            })
             .finally(() => {
               setIsDeleting(false);
+              isDeletingRef.current = false;
             });
         }}
         isDestructive
@@ -224,3 +236,5 @@ export default function RoleGroup({
     </>
   );
 }
+
+export default React.memo(RoleGroup);

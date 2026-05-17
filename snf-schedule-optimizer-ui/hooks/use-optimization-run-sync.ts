@@ -77,7 +77,7 @@ export function useOptimizationRunSync() {
 
             setRunProgress(uiRun);
             if (!isRunActive(uiRun.status)) {
-              void refetchSchedule();
+              void refetchSchedule().catch(console.error);
               abortController.abort();
             }
           },

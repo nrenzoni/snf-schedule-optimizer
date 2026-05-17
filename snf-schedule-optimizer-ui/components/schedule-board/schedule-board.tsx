@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useId, useMemo, useState } from "react";
+import React, { useCallback, useId, useMemo, useRef, useState } from "react";
 import {
   closestCenter,
   defaultDropAnimationSideEffects,
@@ -104,6 +104,7 @@ export default function ScheduleBoard({
   const [viewMode, setViewMode] = useState<ViewMode>("ROLE");
   const [groupingMode, setGroupingMode] = useState<"ROLE" | "BUDGET">("ROLE");
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
+  const isDraggingRef = useRef(false);
 
   const {
     handleDragEnd,
@@ -153,23 +154,44 @@ export default function ScheduleBoard({
     shifts, units, staffByUnit, visibleDates, viewMode, groupingMode,
   );
 
-  const resolveTargetShiftId = (unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => {
+  const resolveTargetShiftId = useCallback((unitId: string, dateStr: string, shiftKey: ShiftTypeKey) => {
     return targetShiftIds.get(`${unitId}:${dateStr}:${shiftKey}`) ?? null;
-  };
+  }, [targetShiftIds]);
 
-  const pageSchedule = (dayDelta: number) => {
+  const pageSchedule = useCallback((dayDelta: number) => {
     setAnchorDateStr(formatDateYYYYMMDD(addDays(anchorDate, dayDelta)));
-  };
+  }, [anchorDate, setAnchorDateStr]);
 
-  const handleCollapseAll = () => {
+  const handleCollapseAll = useCallback(() => {
     setExpandedUnits({});
     setExpandedRoles({});
-  };
+  }, []);
 
-  const handleExpandAll = () => {
+  const handleExpandAll = useCallback(() => {
     const allUnits = Object.fromEntries(units.map((unit) => [unit.id, true]));
     setExpandedUnits(allUnits);
-  };
+  }, [units]);
+
+  const handleUnitToggle = useCallback((unitId: string) => {
+    setExpandedUnits((prev) => ({ ...prev, [unitId]: !prev[unitId] }));
+  }, []);
+
+  const handleRoleToggle = useCallback((key: string) => {
+    setExpandedRoles((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const handleDeleteShift = useCallback(async (shift: Shift) => {
+    return stageValidatedPatch({
+      employeeId: shift.staffId,
+      employeeName: shift.employeeName,
+      fromShiftId: shift.shiftId,
+      toShiftId: null,
+      payPeriodStart: startOfWeek(new Date(shift.dateStr), { weekStartsOn: 0 }),
+      successTitle: "Shift removal staged",
+      successDescription:
+        "Assignment removal will be applied with the next optimization run.",
+    });
+  }, [stageValidatedPatch]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -182,11 +204,20 @@ export default function ScheduleBoard({
       sensors={sensors}
       collisionDetection={closestCenter}
       modifiers={[restrictToHorizontalAxis]}
-      onDragStart={(e) => setActiveShift(e.active.data.current?.shift)}
-      onDragEnd={(event) => void handleDragEnd(event)}
+      onDragStart={(e) => {
+        if (isDraggingRef.current) return;
+        isDraggingRef.current = true;
+        setActiveShift(e.active.data.current?.shift);
+      }}
+      onDragEnd={(event) => {
+        void handleDragEnd(event).finally(() => {
+          isDraggingRef.current = false;
+        });
+      }}
       onDragCancel={() => {
         setPendingSlotId(null);
         setValidationPreview(null);
+        isDraggingRef.current = false;
       }}
     >
       <div className="app-card relative flex h-full min-h-0 flex-col overflow-hidden xl:min-h-0">
@@ -303,31 +334,15 @@ export default function ScheduleBoard({
                   viewMode={viewMode}
                   groupingMode={groupingMode}
                   isExpanded={expandedUnits[group.unit.id] ?? false}
-                  onToggle={() =>
-                    setExpandedUnits((prev) => ({
-                      ...prev,
-                      [group.unit.id]: !prev[group.unit.id],
-                    }))
-                  }
+                  onToggle={() => handleUnitToggle(group.unit.id)}
                   roleState={expandedRoles}
-                  toggleRole={(key: string) => setExpandedRoles((prev) => ({ ...prev, [key]: !prev[key] }))}
+                  toggleRole={handleRoleToggle}
                   pendingSlotId={pendingSlotId}
                   validationPreview={validationPreview}
                   dragDisabled={dragDisabled}
                   resolveTargetShiftId={resolveTargetShiftId}
                   boardMetrics={boardMetrics}
-                  onDeleteShift={async (shift) => {
-                    return stageValidatedPatch({
-                      employeeId: shift.staffId,
-                      employeeName: shift.employeeName,
-                      fromShiftId: shift.shiftId,
-                      toShiftId: null,
-                      payPeriodStart: startOfWeek(new Date(shift.dateStr), { weekStartsOn: 0 }),
-                      successTitle: "Shift removal staged",
-                      successDescription:
-                        "Assignment removal will be applied with the next optimization run.",
-                    });
-                  }}
+                  onDeleteShift={handleDeleteShift}
                 />
               ))}
             </motion.div>

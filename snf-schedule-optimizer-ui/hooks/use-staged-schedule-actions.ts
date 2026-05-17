@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 import { useSchedulingStore } from "@/store/schedulingStore";
@@ -27,6 +27,9 @@ export function useStagedScheduleActions() {
       setHasPendingValidation: state.setHasPendingValidation,
     })),
   );
+
+  const patchesRef = useRef(draftState.patches);
+  useEffect(() => { patchesRef.current = draftState.patches; }, [draftState.patches]);
 
   const stageValidatedPatch = useCallback(
     async (input: {
@@ -57,7 +60,7 @@ export function useStagedScheduleActions() {
           toShiftId: input.toShiftId ?? "",
           payPeriodStartTs: BigInt(Math.floor(input.payPeriodStart.getTime() / 1000)),
           scheduleVersion,
-          stagedPatches: draftState.patches.map(toProtoPatch),
+          stagedPatches: patchesRef.current.map(toProtoPatch),
           patchId: createClientUuid(),
         });
 
@@ -105,7 +108,6 @@ export function useStagedScheduleActions() {
     },
     [
       appendDraftPatch,
-      draftState.patches,
       scheduleId,
       scheduleVersion,
       selectedFacility,

@@ -143,7 +143,8 @@ export default function useScheduleQuery(anchorDate: Date) {
         updatedAt: query.data.updatedAt,
       });
     } else if (query.status === "error") {
-      setScheduleData(new Map(), false, query.error as Error, null);
+      const error = query.error instanceof Error ? query.error : query.error ? new Error(String(query.error)) : null;
+      setScheduleData(new Map(), false, error, null);
     } else if (query.status === "pending") {
       setScheduleData(new Map(), true, null, null);
     }
