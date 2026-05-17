@@ -7,7 +7,7 @@ interface DashboardMetricsProps {
   activeModule: ModuleOption;
 }
 
-export default function DashboardMetrics({ activeModule }: DashboardMetricsProps) {
+function DashboardMetrics({ activeModule }: DashboardMetricsProps) {
   const { metrics } = useExecutiveMetrics(activeModule);
 
   return (
@@ -41,3 +41,4 @@ export default function DashboardMetrics({ activeModule }: DashboardMetricsProps
     </aside>
   );
 }
+export default React.memo(DashboardMetrics);

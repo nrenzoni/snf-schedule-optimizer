@@ -116,7 +116,10 @@ export default function DashboardContent({
 
   const [showPulse, setShowPulse] = useState(true);
 
-  const optimizeButtonFillWidth = activeRun ? `${Math.max(0, Math.min(100, activeRun.progressPercent))}%` : "0%";
+  const optimizeButtonFillWidth = useMemo(
+    () => activeRun ? `${Math.max(0, Math.min(100, activeRun.progressPercent))}%` : "0%",
+    [activeRun]
+  );
 
   useOptimizationRunSync();
 

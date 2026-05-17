@@ -116,3 +116,4 @@ export default function BoardHeader({
     </div>
   );
 }
+export default React.memo(BoardHeader);

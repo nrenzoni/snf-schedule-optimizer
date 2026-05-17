@@ -37,82 +37,82 @@ interface ForecastItem {
   details: ForecastDetails;
 }
 
+const FORECASTS: ForecastItem[] = [
+  {
+    id: "hppd",
+    title: "HPPD Forecasting",
+    subtitle: "Next 30 Days",
+    icon: Activity,
+    riskLevel: "Medium",
+    color: "text-primary",
+    bg: "bg-accent",
+    border: "border-primary/40",
+    summary: "Predicted drop in HPPD on weekends starting Nov 20th.",
+    details: {
+      chartLabel: "Hours Per Patient Day (Trend)",
+      stats: [
+        { label: "Current Avg", value: "3.62" },
+        { label: "Predicted Avg", value: "3.41", alert: true },
+        { label: "Variance", value: "-0.21" },
+      ],
+      insight:
+        "Machine learning models detect a recurring staffing gap on Saturday nights. Recommendation: Pre-book 2 PRN shifts for Nov 23 & 30.",
+    },
+  },
+  {
+    id: "turnover",
+    title: "Turnover Risk",
+    subtitle: "Staff Retention AI",
+    icon: Users,
+    riskLevel: "High",
+    color: "text-amber-700",
+    bg: "bg-amber-50",
+    border: "border-amber-300/50",
+    summary: "3 High-Performance RNs flagged for burnout risk.",
+    details: {
+      chartLabel: "Burnout Risk Index",
+      stats: [
+        { label: "At-Risk Staff", value: "3" },
+        { label: "Primary Factor", value: "Overtime" },
+        { label: "Flight Risk", value: "78%", alert: true },
+      ],
+      insight:
+        "Analysis of time-card data shows Nurse J. Doe and M. Smith have worked >60hrs for 4 consecutive weeks. Immediate schedule relief recommended.",
+    },
+  },
+  {
+    id: "safety",
+    title: "Safety & Compliance",
+    subtitle: "Incident Prediction",
+    icon: ShieldAlert,
+    riskLevel: "Low",
+    color: "text-green-600",
+    bg: "bg-accent",
+    border: "border-primary/40",
+    summary: "Labor law compliance is stable. Low injury risk.",
+    details: {
+      chartLabel: "Safety Incident Probability",
+      stats: [
+        { label: "Compliance Score", value: "98%" },
+        { label: "Missed Breaks", value: "12" },
+        { label: "Incident Prob.", value: "<1%" },
+      ],
+      insight:
+        "No major red flags. Minor uptick in missed breaks in Wing C. Suggest auditing break-room logs.",
+    },
+  },
+];
+
 // --- COMPONENT: MlForecastsDashboard ---
 export default function MlForecastsDashboard() {
   const [activeInsight, setActiveInsight] = useState<ForecastItem | null>(null);
-
-  const forecasts: ForecastItem[] = [
-    {
-      id: "hppd",
-      title: "HPPD Forecasting",
-      subtitle: "Next 30 Days",
-      icon: Activity,
-      riskLevel: "Medium",
-      color: "text-primary",
-      bg: "bg-accent",
-      border: "border-primary/40",
-      summary: "Predicted drop in HPPD on weekends starting Nov 20th.",
-      details: {
-        chartLabel: "Hours Per Patient Day (Trend)",
-        stats: [
-          { label: "Current Avg", value: "3.62" },
-          { label: "Predicted Avg", value: "3.41", alert: true },
-          { label: "Variance", value: "-0.21" },
-        ],
-        insight:
-          "Machine learning models detect a recurring staffing gap on Saturday nights. Recommendation: Pre-book 2 PRN shifts for Nov 23 & 30.",
-      },
-    },
-    {
-      id: "turnover",
-      title: "Turnover Risk",
-      subtitle: "Staff Retention AI",
-      icon: Users,
-      riskLevel: "High",
-      color: "text-amber-700",
-      bg: "bg-amber-50",
-      border: "border-amber-300/50",
-      summary: "3 High-Performance RNs flagged for burnout risk.",
-      details: {
-        chartLabel: "Burnout Risk Index",
-        stats: [
-          { label: "At-Risk Staff", value: "3" },
-          { label: "Primary Factor", value: "Overtime" },
-          { label: "Flight Risk", value: "78%", alert: true },
-        ],
-        insight:
-          "Analysis of time-card data shows Nurse J. Doe and M. Smith have worked >60hrs for 4 consecutive weeks. Immediate schedule relief recommended.",
-      },
-    },
-    {
-      id: "safety",
-      title: "Safety & Compliance",
-      subtitle: "Incident Prediction",
-      icon: ShieldAlert,
-      riskLevel: "Low",
-      color: "text-green-600",
-      bg: "bg-accent",
-      border: "border-primary/40",
-      summary: "Labor law compliance is stable. Low injury risk.",
-      details: {
-        chartLabel: "Safety Incident Probability",
-        stats: [
-          { label: "Compliance Score", value: "98%" },
-          { label: "Missed Breaks", value: "12" },
-          { label: "Incident Prob.", value: "<1%" },
-        ],
-        insight:
-          "No major red flags. Minor uptick in missed breaks in Wing C. Suggest auditing break-room logs.",
-      },
-    },
-  ];
 
   return (
     <div className="xl:my-auto">
       <div className="grid gap-3 lg:grid-cols-3">
         {/* Forecast Cards Column */}
         <div className="space-y-2 lg:col-span-1">
-          {forecasts.map((item, idx) => (
+          {FORECASTS.map((item, idx) => (
             <button
               key={item.id}
               data-testid={`forecast-${item.id}`}

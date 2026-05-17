@@ -70,3 +70,4 @@ export default function GroupSummaryCell({
     </div>
   );
 }
+export default React.memo(GroupSummaryCell);

@@ -6,7 +6,7 @@ import { Ban, LoaderCircle, Plus } from "lucide-react";
 import { MoveValidationPreview, TimelineSlotData } from "@/types/scheduler";
 
 // droppable
-export default function TimelineSlot({
+function TimelineSlot({
   id,
   data,
   children,
@@ -104,3 +104,4 @@ export default function TimelineSlot({
     </div>
   );
 }
+export default React.memo(TimelineSlot);

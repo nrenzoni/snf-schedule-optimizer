@@ -45,7 +45,7 @@ interface UnitGroupProps {
   onDeleteShift: (shift: Shift) => Promise<boolean>;
 }
 
-export default function UnitGroup({
+function UnitGroup({
   unit,
   staffMembers,
   shifts,
@@ -184,3 +184,4 @@ export default function UnitGroup({
     </div>
   );
 }
+export default React.memo(UnitGroup);

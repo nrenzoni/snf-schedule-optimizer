@@ -6,6 +6,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { AlertCircle, DollarSign, Pin, Trash2, TriangleAlert } from "lucide-react";
+import { useMemo } from "react";
 import {
   HoverCard,
   HoverCardContent,
@@ -42,11 +43,14 @@ export default function ShiftCard({
   const isInteractive = !isDragging && !isOverlay;
 
   // This creates a subtle diagonal stripe effect for agency staff
-  const agencyStripe = shift.isAgency
-    ? "bg-[image:repeating-linear-gradient(45deg,transparent,transparent_5px,rgba(0,0,0,0.05)_5px,rgba(0,0,0,0.05)_10px)]"
-    : "";
+  const agencyStripe = useMemo(
+    () => shift.isAgency
+      ? "bg-[image:repeating-linear-gradient(45deg,transparent,transparent_5px,rgba(0,0,0,0.05)_5px,rgba(0,0,0,0.05)_10px)]"
+      : "",
+    [shift.isAgency]
+  );
 
-  const getColor = () => {
+  const color = useMemo(() => {
     if (mode === "BUDGET") {
       if (shift.isAgency) return "bg-red-50 border-l-red-500 text-red-700";
       if (shift.isOvertime)
@@ -61,7 +65,7 @@ export default function ShiftCard({
     if (shift.role === "THERAPIST")
       return "bg-amber-50 border-l-amber-400 text-amber-700";
     return "bg-accent border-l-green-600 text-green-600";
-  };
+  }, [shift.isAgency, shift.isOvertime, shift.role, mode]);
 
   const renderContent = () => (
     <motion.div
@@ -78,7 +82,7 @@ export default function ShiftCard({
         className={cn(
         "group relative mx-auto flex h-full min-h-[3.25rem] w-[96%] select-none flex-col justify-center rounded-lg border border-l-4 text-[10px] shadow-none transition-shadow hover:shadow-sm",
         dragDisabled ? "cursor-not-allowed opacity-70" : "cursor-grab active:cursor-grabbing",
-        getColor(),
+        color,
         agencyStripe,
         // Remove 'scale' transforms from here, rely on dnd-kit or framer
         isOverlay &&
