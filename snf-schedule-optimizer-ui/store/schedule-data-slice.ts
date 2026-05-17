@@ -122,7 +122,7 @@ export const createScheduleDataSlice: StateCreator<
         optimizationFinancials,
         hasNewerVersion,
         draftState,
-        activeRun,
+        activeRun: activeRun ?? state.activeRun,
       };
     });
   },
