@@ -57,3 +57,10 @@ class EmployeeModel(SQLABase):
             hire_date=domain.hire_date,
             classification=domain.classification.value,
         )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(EmployeeModel.__table__)

@@ -102,3 +102,10 @@ class StaffCompensationModel(SQLABase):
             union_contract_id=record.union_contract_id,
             pay_grade_or_step=record.pay_grade_or_step,
         )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(StaffCompensationModel.__table__)

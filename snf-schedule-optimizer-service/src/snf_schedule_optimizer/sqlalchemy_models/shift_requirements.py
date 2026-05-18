@@ -30,3 +30,10 @@ class ShiftRequirementsModel(SQLABase):
             target_hprd_cna=float(self.target_hprd_cna),
             target_total_hprd=float(self.target_total_hprd),
         )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(ShiftRequirementsModel.__table__)

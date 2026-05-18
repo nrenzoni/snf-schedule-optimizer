@@ -26,3 +26,10 @@ class ScheduleAssignmentModel(SQLABase):
     facility_id: Mapped[int] = mapped_column(index=True, nullable=False)
     shift_id: Mapped[int] = mapped_column(index=True, nullable=False)
     employee_id: Mapped[int] = mapped_column(index=True, nullable=False)
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(ScheduleAssignmentModel.__table__)

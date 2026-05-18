@@ -43,3 +43,10 @@ class DifferentialRuleModel(SQLABase):
             applicable_job_titles=self.applicable_job_titles,
             contract_id=self.contract_id,
         )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(DifferentialRuleModel.__table__)

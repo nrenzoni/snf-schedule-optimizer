@@ -109,3 +109,10 @@ class FacilityConfigModel(SQLABase):
             max_consecutive_work_days=domain.max_consecutive_work_days,
             max_total_hours_per_pay_period=domain.max_total_hours_per_pay_period,
         )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(FacilityConfigModel.__table__)

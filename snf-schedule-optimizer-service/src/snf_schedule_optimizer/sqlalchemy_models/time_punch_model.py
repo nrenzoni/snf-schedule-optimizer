@@ -96,3 +96,10 @@ class TimePunchModel(SQLABase):
             f"<TimePunchModel(id={self.id}, emp={self.employee_id}, "
             f"type='{self.punch_type}', time='{self.punch_time}')>"
         )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(TimePunchModel.__table__)

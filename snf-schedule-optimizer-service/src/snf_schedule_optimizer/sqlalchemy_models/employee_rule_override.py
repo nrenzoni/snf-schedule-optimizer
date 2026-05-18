@@ -25,3 +25,10 @@ class EmployeeRuleOverrideModel(SQLABase):
     auto_meal_deduction_enabled: Mapped[bool | None] = mapped_column(
         Boolean, nullable=True
     )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(EmployeeRuleOverrideModel.__table__)

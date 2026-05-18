@@ -85,3 +85,10 @@ class ShiftModel(SQLABase):
             unit_id=domain_shift.unit_id,
             is_scheduled=domain_shift.is_scheduled,
         )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(ShiftModel.__table__)

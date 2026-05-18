@@ -33,3 +33,10 @@ class FacilityRulesConfigModel(SQLABase):
     effective_date: Mapped[datetime.date] = mapped_column(Date)
 
     # Note: In a complex system, deduction rules would be in a separate 1:N table.
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(FacilityRulesConfigModel.__table__)

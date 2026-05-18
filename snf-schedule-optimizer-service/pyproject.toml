@@ -127,6 +127,10 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "src/snf_schedule_optimizer/models/__init__.py" = ["F403"]
 "src/snf_schedule_optimizer/persistence/__init__.py" = ["F403"]
+# RLS enable_tenant_isolation imports must follow the class definition
+# because they reference Model.__table__.  E402 is intentional here.
+"src/snf_schedule_optimizer/sqlalchemy_models/*.py" = ["E402"]
+"src/snf_schedule_optimizer/sqlalchemy_models/__init__.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"

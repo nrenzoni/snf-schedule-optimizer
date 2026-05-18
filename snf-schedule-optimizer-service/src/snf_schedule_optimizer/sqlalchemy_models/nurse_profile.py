@@ -85,3 +85,10 @@ class NurseProfileModel(SQLABase):
             is_preceptor=domain.is_preceptor,
             is_charge_nurse=domain.is_charge_nurse,
         )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(NurseProfileModel.__table__)

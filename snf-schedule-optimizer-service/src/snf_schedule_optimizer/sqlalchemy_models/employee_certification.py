@@ -63,3 +63,10 @@ class EmployeeCertificationModel(SQLABase):
             >= check_date_dt
             >= whenever.Date.from_py_date(self.acquired_date)
         )
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(EmployeeCertificationModel.__table__)

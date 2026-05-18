@@ -68,3 +68,10 @@ class OptimizationRunModel(SQLABase):
     summary_json: Mapped[str | None] = mapped_column(String)
     stats_json: Mapped[str | None] = mapped_column(String)
     financials_json: Mapped[str | None] = mapped_column(String)
+
+
+from snf_schedule_optimizer.sqlalchemy_models.rls import (
+    enable_tenant_isolation,
+)
+
+enable_tenant_isolation(OptimizationRunModel.__table__)
