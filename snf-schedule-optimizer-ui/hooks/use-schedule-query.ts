@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatDateYYYYMMDD } from "@/lib/scheduling-logic";
-import { useSchedulingStore } from "@/store/schedulingStore";
 import {
   ScheduleMap,
   UIDaySchedule,
@@ -9,13 +8,11 @@ import {
   UIOptimizationStats,
   UIOptimizationSummary,
 } from "@/types/scheduling";
-import { useShallow } from "zustand/react/shallow";
 import {
   DaySchedule as ProtoDaySchedule,
   OrgFacility,
 } from "@/gen/scheduling/v1/scheduling_pb";
 import { configuredBaseUrl, schedulingClient } from "@/api/scheduling-client";
-import { useEffect } from "react";
 import {
   protoDayToUI,
   protoFinancialsToUI,
@@ -106,13 +103,6 @@ async function fetchScheduleData({
 }
 
 export default function useScheduleQuery(anchorDate: Date) {
-  const { replaceScheduleData, setScheduleData } = useSchedulingStore(
-    useShallow((state) => ({
-      replaceScheduleData: state.replaceScheduleData,
-      setScheduleData: state.setScheduleData,
-    })),
-  );
-
   const startDate = new Date(anchorDate);
   startDate.setDate(startDate.getDate() - 2);
   const endDate = new Date(anchorDate);
@@ -123,44 +113,26 @@ export default function useScheduleQuery(anchorDate: Date) {
     endDate: formatDateYYYYMMDD(endDate),
   };
 
-  const query = useQuery({
+  return useQuery({
     queryKey: ["schedule", queryKey],
     queryFn: () => fetchScheduleData(queryKey),
     staleTime: 5 * 1000,
   });
+}
 
-  useEffect(() => {
-    if (query.status === "success") {
-      replaceScheduleData({
-        map: query.data.scheduleMap,
-        facility: query.data.selectedFacility,
-        scheduleId: query.data.scheduleId,
-        scheduleVersion: query.data.scheduleVersion,
-        latestOptimization: query.data.latestOptimization,
-        optimizationStats: query.data.optimizationStats,
-        optimizationFinancials: query.data.optimizationFinancials,
-        activeRun: query.data.activeRun,
-        updatedAt: query.data.updatedAt,
-      });
-    } else if (query.status === "error") {
-      const error = query.error instanceof Error ? query.error : query.error ? new Error(String(query.error)) : null;
-      setScheduleData(new Map(), false, error, null);
-    } else if (query.status === "pending") {
-      setScheduleData(new Map(), true, null, null);
-    }
-  }, [
-    query.status,
-    query.data,
-    query.error,
-    replaceScheduleData,
-    setScheduleData,
-  ]);
+export function useScheduleData(anchorDate: Date) {
+  const query = useScheduleQuery(anchorDate);
 
   return {
-    data: query.data,
-    isFetching: query.isFetching,
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    ...query,
+    scheduleMap: query.data?.scheduleMap ?? new Map<string, UIDaySchedule>(),
+    selectedFacility: query.data?.selectedFacility ?? null,
+    scheduleId: query.data?.scheduleId ?? null,
+    scheduleVersion: query.data?.scheduleVersion ?? 0,
+    latestOptimization: query.data?.latestOptimization ?? null,
+    optimizationStats: query.data?.optimizationStats ?? null,
+    optimizationFinancials: query.data?.optimizationFinancials ?? null,
+    activeRunRQ: query.data?.activeRun ?? null,
+    updatedAt: query.data?.updatedAt ?? null,
   };
 }

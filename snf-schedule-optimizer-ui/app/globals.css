@@ -209,6 +209,15 @@
 
   .app-modal-surface {
     @apply w-full overflow-hidden rounded-lg border border-border bg-card shadow-md;
+    margin: auto;
+    padding: 0;
+  }
+  dialog.app-modal-surface {
+    border: none;
+  }
+  dialog.app-modal-surface::backdrop {
+    background-color: var(--foreground);
+    opacity: 0.35;
   }
 
   .app-modal-header {

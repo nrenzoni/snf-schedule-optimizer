@@ -1,127 +1,70 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import React, { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface ModalContainerProps {
   isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  // Optional: Pass through custom classes for modal size/styling
   contentClassName?: string;
   disableClose?: boolean;
 }
-
-// Define the duration in ms for transition consistency
-const DEFAULT_TRANSITION_DURATION = 300;
 
 export default function ModalContainer({
   isOpen,
   onClose,
   children,
-  contentClassName = "max-w-xl", // Default size
+  contentClassName = "max-w-xl",
   disableClose = false,
 }: ModalContainerProps) {
-  const [isMounted, setIsMounted] = useState(isOpen);
-  const [isVisible, setIsVisible] = useState(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const frameRef = useRef<number | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const prevOpenRef = useRef(isOpen);
 
   useEffect(() => {
-    if (closeTimerRef.current) {
-      clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = null;
-    }
+    const dialog = dialogRef.current;
+    if (!dialog) return;
 
-    if (frameRef.current) {
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
-    }
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = isOpen;
 
-    if (isOpen) {
-      frameRef.current = requestAnimationFrame(() => {
-        setIsMounted(true);
-        frameRef.current = requestAnimationFrame(() => setIsVisible(true));
-      });
-      return;
-    }
-
-    frameRef.current = requestAnimationFrame(() => setIsVisible(false));
-    closeTimerRef.current = setTimeout(
-      () => {
-        setIsMounted(false);
-        closeTimerRef.current = null;
-      },
-      DEFAULT_TRANSITION_DURATION,
-    );
-
-    return () => {
-      if (closeTimerRef.current) {
-        clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = null;
+    if (isOpen && (wasOpen !== isOpen || !dialog.open)) {
+      if (disableClose) {
+        dialog.showModal();
+        const handler = (e: Event) => {
+          if (e instanceof KeyboardEvent && e.key === "Escape") {
+            e.preventDefault();
+          }
+        };
+        dialog.addEventListener("keydown", handler, { once: false });
+        return () => {
+          dialog.removeEventListener("keydown", handler);
+        };
+      } else {
+        dialog.showModal();
       }
-      if (frameRef.current) {
-        cancelAnimationFrame(frameRef.current);
-        frameRef.current = null;
-      }
-    };
-  }, [isOpen]);
+    } else if (!isOpen && dialog.open) {
+      dialog.close();
+    }
+  }, [isOpen, disableClose]);
 
-  useEffect(() => {
-    if (!isMounted) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!disableClose && event.key === "Escape") {
-        onClose();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [disableClose, isMounted, onClose]);
-
-  if (!isMounted) return null;
-
-  const backdropClasses = isVisible
-    ? "bg-foreground/35 opacity-100"
-    : "pointer-events-none bg-foreground/0 opacity-0";
-  const contentClasses = isVisible
-    ? "scale-100 opacity-100"
-    : "scale-95 opacity-0";
-
-  return createPortal(
-    // 1. BACKDROP CONTAINER: Handles the blur and opacity fade of the whole screen
-    <div
-      // Fixes: Blur, Fade, Full Screen, High Z-Index
+  return (
+    <dialog
+      ref={dialogRef}
+      onClose={() => {
+        if (!disableClose) onClose();
+      }}
       className={cn(
-        "fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-300 ease-out",
-        backdropClasses,
+        "app-modal-surface backdrop:bg-foreground/35 backdrop:backdrop-blur-sm open:animate-in open:fade-in open:zoom-in-95",
+        contentClassName,
       )}
-      onClick={disableClose ? undefined : onClose} // Close on outside click
-      role="dialog"
-      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === dialogRef.current && !disableClose) {
+          onClose();
+        }
+      }}
     >
-      {/* 2. MODAL CONTENT: Handles the content's scale and zoom effect */}
-      <div
-        // Base styling for the content box
-        className={cn(
-          "app-modal-surface transition-all duration-300 ease-out",
-          contentClassName,
-          contentClasses,
-        )}
-        onClick={(e) => e.stopPropagation()} // Prevent click from closing the modal
-      >
-        {children}
-      </div>
-    </div>,
-    document.body,
+      <div className="p-4">{children}</div>
+    </dialog>
   );
 }

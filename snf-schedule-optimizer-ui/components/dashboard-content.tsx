@@ -2,7 +2,7 @@
 
 import { useUIStore } from "@/store/uiStore";
 import { useShallow } from "zustand/react/shallow";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import ScheduleListView from "@/components/schedule-list-view";
 import { Toaster } from "@/components/ui/sonner";
@@ -12,7 +12,7 @@ import ShiftModal from "@/components/modals/shift-modal";
 import { SchedulingConfigModal } from "@/components/modals/scheduling-config-modal";
 import { ScheduleSummaryModal } from "@/components/modals/schedule-summary-modal";
 import MlForecastsDashboard from "@/components/ml-forecasts-dashboard";
-import useScheduleQuery from "@/hooks/use-schedule-query";
+import { useScheduleData } from "@/hooks/use-schedule-query";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { getTodayString } from "@/lib/scheduling-logic";
 import { useScheduling } from "@/hooks/use-scheduling";
@@ -97,6 +97,16 @@ interface DashboardMainLayoutProps {
   refetch: () => void;
 }
 
+function ControlsSkeleton() {
+  return <div className="h-12 animate-pulse rounded bg-muted" />;
+}
+function BoardSkeleton() {
+  return <div className="h-[560px] animate-pulse rounded bg-muted" />;
+}
+function MetricsSkeleton() {
+  return <div className="h-64 animate-pulse rounded bg-muted" />;
+}
+
 function DashboardMainLayout({
   timelineView,
   scheduleCount,
@@ -134,30 +144,34 @@ function DashboardMainLayout({
               />
             ) : null}
 
-            <DashboardControls
-              hasNewerVersion={hasNewerVersion}
-              latestKnownScheduleVersion={latestKnownScheduleVersion}
-              draftPatchCount={draftPatchCount}
-              draftConflicts={draftConflicts}
-              clearDraft={clearDraft}
-              triggerOptimization={triggerOptimization}
-              isRunActive={isRunActive}
-              activeRun={activeRun}
-              optimizeButtonFillWidth={optimizeButtonFillWidth}
-              uiStore={{ openSummaryModal, openConfigModal }}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-            />
+            <Suspense fallback={<ControlsSkeleton />}>
+              <DashboardControls
+                hasNewerVersion={hasNewerVersion}
+                latestKnownScheduleVersion={latestKnownScheduleVersion}
+                draftPatchCount={draftPatchCount}
+                draftConflicts={draftConflicts}
+                clearDraft={clearDraft}
+                triggerOptimization={triggerOptimization}
+                isRunActive={isRunActive}
+                activeRun={activeRun}
+                optimizeButtonFillWidth={optimizeButtonFillWidth}
+                uiStore={{ openSummaryModal, openConfigModal }}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+              />
+            </Suspense>
 
-            {viewMode === "list" ? (
-              <div className="xl:min-h-0 xl:flex-1 xl:overflow-auto xl:pb-4">
-                <ScheduleListView />
-              </div>
-            ) : (
-              <div className="app-card min-h-[560px] p-2 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
-                <div className="xl:flex xl:h-full xl:min-h-0 xl:flex-col">{timelineView}</div>
-              </div>
-            )}
+            <Suspense fallback={<BoardSkeleton />}>
+              {viewMode === "list" ? (
+                <div className="xl:min-h-0 xl:flex-1 xl:overflow-auto xl:pb-4">
+                  <ScheduleListView />
+                </div>
+              ) : (
+                <div className="app-card min-h-[560px] p-2 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
+                  <div className="xl:flex xl:h-full xl:min-h-0 xl:flex-col">{timelineView}</div>
+                </div>
+              )}
+            </Suspense>
           </div>
         </TabsContent>
 
@@ -181,9 +195,9 @@ function DashboardMainLayout({
         </ErrorBoundary>
       </div>
 
-      <DashboardMetrics
-        activeModule={activeModule}
-      />
+      <Suspense fallback={<MetricsSkeleton />}>
+        <DashboardMetrics activeModule={activeModule} />
+      </Suspense>
     </div>
   );
 }
@@ -222,33 +236,68 @@ export default function DashboardContent({
     })),
   );
 
+  const scheduleData = useScheduleData(currentViewAnchorDate);
+
   const {
+    scheduleMap,
     selectedFacility,
-    scheduleCount,
+    latestOptimization,
+    optimizationStats,
+    optimizationFinancials,
+    isLoading,
+    error,
+    refetch,
+  } = scheduleData;
+
+  const scheduleCount = scheduleMap.size;
+
+  const {
     activeRun,
     hasNewerVersion,
     latestKnownScheduleVersion,
     draftPatchCount,
     draftConflicts,
     schedulerSettings,
-    latestOptimization,
-    optimizationStats,
-    optimizationFinancials,
   } = useSchedulingStore(
     useShallow((state) => ({
-      selectedFacility: state.selectedFacility,
-      scheduleCount: state.effectiveScheduleMap.size,
       activeRun: state.activeRun,
       hasNewerVersion: state.hasNewerVersion,
       latestKnownScheduleVersion: state.latestKnownScheduleVersion,
       draftPatchCount: state.draftState.patches.length,
       draftConflicts: state.draftState.conflicts,
       schedulerSettings: state.schedulerSettings,
-      latestOptimization: state.latestOptimization,
-      optimizationStats: state.optimizationStats,
-      optimizationFinancials: state.optimizationFinancials,
     })),
   );
+
+  const replaceScheduleData = useSchedulingStore((s) => s.replaceScheduleData);
+  const setScheduleData = useSchedulingStore((s) => s.setScheduleData);
+
+  useEffect(() => {
+    if (scheduleData.status === "success" && scheduleData.data) {
+      replaceScheduleData({
+        map: scheduleData.data.scheduleMap,
+        facility: scheduleData.data.selectedFacility,
+        scheduleId: scheduleData.data.scheduleId,
+        scheduleVersion: scheduleData.data.scheduleVersion,
+        latestOptimization: scheduleData.data.latestOptimization,
+        optimizationStats: scheduleData.data.optimizationStats,
+        optimizationFinancials: scheduleData.data.optimizationFinancials,
+        activeRun: scheduleData.data.activeRun,
+        updatedAt: scheduleData.data.updatedAt,
+      });
+    } else if (scheduleData.status === "error") {
+      const err = scheduleData.error instanceof Error ? scheduleData.error : scheduleData.error ? new Error(String(scheduleData.error)) : null;
+      setScheduleData(new Map(), false, err, null);
+    } else if (scheduleData.status === "pending") {
+      setScheduleData(new Map(), true, null, null);
+    }
+  }, [
+    scheduleData.status,
+    scheduleData.data,
+    scheduleData.error,
+    replaceScheduleData,
+    setScheduleData,
+  ]);
 
   const {
     selectedDay,
@@ -268,8 +317,6 @@ export default function DashboardContent({
     isRunActive,
     updateSchedulerSettings,
   } = useScheduling();
-
-  const { error, isLoading, refetch } = useScheduleQuery(currentViewAnchorDate);
 
   const [showPulse, setShowPulse] = useState(true);
 
