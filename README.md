@@ -94,18 +94,35 @@ The Postgres database stays on the internal Docker network for this demo.
 
 ## Architecture
 
-```text
-Browser
-  -> Next.js UI (resolved demo host port)
-  -> Python API (resolved demo host port)
-  -> Postgres (internal Docker network only)
+```mermaid
+C4Container
+  title Container diagram — SNF Schedule Optimizer
+
+  Person(user, "Facility Manager", "Reviews and edits schedules via browser")
+
+  System_Boundary(demo, "SNF Schedule Optimizer (Docker)") {
+    Container(ui, "Next.js UI", "React 19 / TypeScript", "Schedule board, scenario analyzer, ML dashboards")
+    Container(api, "Python API", "FastAPI + ConnectRPC", "Scheduling endpoints, what-if validation, reporting")
+    Container(worker, "Optimization Worker", "Python/CBC ILP solver", "Runs constraint-based schedule optimization")
+    Container(db, "PostgreSQL", "PostgreSQL 18", "Stores schedules, employees, shifts, optimization runs")
+    Container(seeder, "Seeder", "One-shot bootstrap", "Creates schema and loads deterministic demo data")
+  }
+
+  Rel(user, ui, "Views/edits schedules", "HTTPS")
+  Rel(ui, api, "ConnectRPC + gRPC-Web", "protobuf")
+  Rel(api, db, "asyncpg", "SQL")
+  Rel(api, worker, "Claims queued runs", "DB lease (shared rows)")
+  Rel(worker, db, "asyncpg", "SQL (read/write)")
+  Rel(seeder, db, "asyncpg", "DDL + seed data")
+
+  UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="2")
 ```
 
 Startup flow:
 
 1. `db` starts and becomes healthy.
-2. `seeder` creates schema and loads deterministic demo data.
-3. `app` starts after seeding completes.
+2. `seeder` creates schema and loads deterministic demo data, then exits.
+3. `app` and `worker` start after seeding completes.
 4. `ui` starts after the API passes health checks.
 
 ## Repo Structure

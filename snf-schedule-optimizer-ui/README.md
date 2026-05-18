@@ -87,6 +87,83 @@ That path runs the UI against the backend and seeded demo data automatically.
 
 For the fastest local edit loop, use the root `justfile` and run the UI on the host with `just dev-ui` instead of rebuilding the demo container on every change.
 
+## Data Flow
+
+```mermaid
+graph TD
+    subgraph API["ConnectRPC Client"]
+        client["scheduling-client.ts"]
+    end
+
+    subgraph Query["TanStack Query"]
+        scheduleQuery["useScheduleQuery"]
+    end
+
+    subgraph Store["Zustand (useSchedulingStore)"]
+        dataSlice["ScheduleDataSlice\nserverScheduleMap\neffectiveScheduleMap\nscheduleVersion"]
+        draftSlice["DraftSlice\npatches[]\nconflicts[]"]
+        runSlice["RunSlice\nactiveRun"]
+        historySlice["RunHistorySlice\ncompletedRuns[]\npendingRunCapture"]
+    end
+
+    subgraph Hooks["React Hooks"]
+        useDrag["useDragValidation"]
+        useTrigger["useOptimizationTrigger"]
+        useSync["useOptimizationRunSync"]
+        useStaged["useStagedScheduleActions"]
+    end
+
+    subgraph UI["Components"]
+        board["ScheduleBoard\n(drag-and-drop grid)"]
+        calendar["Calendar View"]
+        metrics["KPIs / Executive Metrics"]
+    end
+
+    client <-->|"ConnectRPC"| BE["Python API"]
+
+    scheduleQuery -->|"replaceScheduleData"| dataSlice
+    dataSlice -->|"applyPatchToMap"| dataSlice
+    draftSlice -->|"patches applied"| dataSlice
+    runSlice -->|"on complete: clear draft,\nstamp optimization data"| dataSlice
+
+    useDrag -->|"validateShiftMove"| client
+    useDrag -->|"appendDraftPatch"| draftSlice
+    useDrag -->|"setDraftConflicts"| draftSlice
+
+    useTrigger -->|"getScheduleStatus"| client
+    useTrigger -->|"startOptimizationRun"| client
+    useTrigger -->|"setActiveRun"| runSlice
+    useTrigger -->|"setPendingRunCapture"| historySlice
+
+    useSync -->|"streamOptimizationRun (SSE)"| client
+    useSync -->|"setRunProgress"| runSlice
+    useSync -->|"invalidateQueries on complete"| scheduleQuery
+
+    useStaged -->|"validateShiftMove"| client
+    useStaged -->|"appendDraftPatch"| draftSlice
+
+    board -->|"reads effectiveScheduleMap"| dataSlice
+    board -->|"drag drop→"| useDrag
+    board -->|"delete→"| useStaged
+    board -->|"optimize button→"| useTrigger
+    board -->|"progress bar"| runSlice
+    calendar -->|"reads effectiveScheduleMap"| dataSlice
+    metrics -->|"reads effectiveScheduleMap"| dataSlice
+    metrics -->|"reads optimizationFinancials"| dataSlice
+```
+
+### Store Persistence
+
+The scheduling store is persisted to `localStorage` (key `"snf-scheduling-store"`, version 2).
+Only `draftState`, `activeRun`, `completedRuns`, and `pendingRunCapture` survive page reloads.
+Server schedule data and metrics are re-fetched from the API on mount.
+
+### Patch Application
+
+The `effectiveScheduleMap` is always `serverScheduleMap + draftState.patches`, recomputed
+on every store mutation via `applyPatchToMap()`. This means draft edits appear in the UI
+immediately, without waiting for an optimization run.
+
 ## Important UI Areas
 
 - `app/`: route entrypoints
