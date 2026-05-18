@@ -8,6 +8,7 @@ from typing import Protocol
 
 import pulp
 
+from snf_schedule_optimizer.infrastructure.circuit_breaker import CircuitBreaker
 from snf_schedule_optimizer.models import SolverTerminationReason
 
 
@@ -28,8 +29,12 @@ class SolverAdapter(Protocol):
 class CbcSolverAdapter:
     def __init__(self, time_limit_seconds: int = 60) -> None:
         self.time_limit_seconds = time_limit_seconds
+        self._breaker = CircuitBreaker(failure_threshold=3, reset_timeout=120.0)
 
     def solve(self, problem: pulp.LpProblem) -> SolverResult:
+        return self._breaker.call_sync(self._actual_solve, problem)
+
+    def _actual_solve(self, problem: pulp.LpProblem) -> SolverResult:
         solver = self._build_solver()
         start_time = time.perf_counter()
         problem.solve(solver)

@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import cast
 
+import structlog.contextvars
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from hypercorn import Config
@@ -15,12 +16,19 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from starlette.responses import Response
 
 from snf_schedule_optimizer.api.grpc.scheduler_handler import SchedulingServiceHandler
+from snf_schedule_optimizer.api.health import router as health_router
 from snf_schedule_optimizer.generated.scheduling.v1.scheduling_connect import (
     SchedulingServiceASGIApplication,
 )
 from snf_schedule_optimizer.infrastructure.composition import build_infra_container
+from snf_schedule_optimizer.infrastructure.logging import (
+    configure_logging,
+    get_logger,
+)
+from snf_schedule_optimizer.infrastructure.tracing import setup_tracing
 
-logger = logging.getLogger("snf_schedule_optimizer.api")
+configure_logging()
+logger = get_logger(__name__)
 
 
 def _allowed_origins() -> list[str]:
@@ -37,7 +45,7 @@ def _allowed_origins() -> list[str]:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     db_url = os.environ["DATABASE_URL"]
-    read_db_url = os.environ.get("READ_DATABASE_URL", db_url)  # falls back to write DB
+    read_db_url = os.environ.get("READ_DATABASE_URL", db_url)
 
     engine = create_async_engine(
         db_url,
@@ -47,8 +55,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         pool_recycle=3600,
         echo=False,
     )
-    # Read-replica preparation: use separate engine when READ_DATABASE_URL is configured.
-    # Otherwise, read and write share the same engine.
     read_engine = (
         create_async_engine(
             read_db_url,
@@ -62,7 +68,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         else engine
     )
     session_local = async_sessionmaker(bind=engine)
-    read_session_local = async_sessionmaker(bind=read_engine) if read_engine is not engine else session_local
+    read_session_local = (
+        async_sessionmaker(bind=read_engine)
+        if read_engine is not engine
+        else session_local
+    )
 
     infra_container_type = build_infra_container()
 
@@ -78,7 +88,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if not getattr(app.state, "rpc_mounted", False):
         app.mount(
             "/scheduling.v1.SchedulingService",
-            SchedulingServiceASGIApplication(rpc_handler),
+            SchedulingServiceASGIApplication(rpc_handler),  # type: ignore[arg-type]
         )
         app.state.rpc_mounted = True
 
@@ -113,30 +123,34 @@ def create_app() -> FastAPI:
     ) -> Response:
         start = time.perf_counter()
         run_id = request.headers.get("x-e2e-run-id", "-")
+        structlog.contextvars.bind_contextvars(correlation_id=run_id)
 
         try:
             response = await call_next(request)
         except Exception:
             duration_ms = (time.perf_counter() - start) * 1000
-            logger.exception(
-                "request.failed method=%s path=%s run_id=%s duration_ms=%.2f",
-                request.method,
-                request.url.path,
-                run_id,
-                duration_ms,
+            logger.error(
+                "request.failed",
+                method=request.method,
+                path=request.url.path,
+                run_id=run_id,
+                duration_ms=duration_ms,
+                exc_info=True,
             )
             raise
 
         duration_ms = (time.perf_counter() - start) * 1000
         logger.info(
-            "request.completed method=%s path=%s status=%s run_id=%s duration_ms=%.2f",
-            request.method,
-            request.url.path,
-            response.status_code,
-            run_id,
-            duration_ms,
+            "request.completed",
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            run_id=run_id,
+            duration_ms=duration_ms,
         )
         return response
+
+    app.include_router(health_router)
 
     @app.get("/health")
     def health_check() -> dict[str, str]:
@@ -146,6 +160,7 @@ def create_app() -> FastAPI:
 
 
 async def main() -> None:
+    setup_tracing()
     app = create_app()
     config = Config()
     port = os.getenv("PORT", "8000")

@@ -55,6 +55,7 @@ from snf_schedule_optimizer.infrastructure.sqid_converter import (
     DEMO_ID_ALIASES,
     IIdObfuscator,
 )
+from snf_schedule_optimizer.infrastructure.tracing import get_tracer
 from snf_schedule_optimizer.models import OptimizationRun
 from snf_schedule_optimizer.persistence.tenant import set_current_org_id
 from snf_schedule_optimizer.service.facility.facility_facade import FacilityFacade
@@ -63,6 +64,7 @@ from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
 )
 
 logger = logging.getLogger(__name__)
+tracer = get_tracer(__name__)
 
 
 @safe
@@ -183,37 +185,41 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
 
         await self._validate_tenant_access(org_id, facility_id)
 
-        scheduler_container = self._build_scheduler_container()
-        async with container_context(
-            self._scheduler_context(scheduler_container),
-            scope=ContextScopes.REQUEST,
-        ):
-            scheduler_service: WorkforceSchedulerFacadePort = (
-                await scheduler_container.scheduler_service.resolve()
-            )
-            (
-                schedule,
-                shifts,
-                employees,
-                facility_config,
-            ) = await scheduler_service.get_monthly_schedule(
-                org_id=org_id,
-                facility_id=facility_id,
-                start_date=request.start_date,
-            )
-            active_run = None
-            if schedule.schedule_id is not None and schedule.facility_id is not None:
-                status_result = await scheduler_service.get_schedule_status(
-                    org_id=org_id,
-                    facility_id=schedule.facility_id,
-                    schedule_id=schedule.schedule_id,
-                    current_schedule_version=schedule.schedule_version,
+        with tracer.start_as_current_span("get_monthly_schedule") as span:
+            span.set_attribute("org_id", str(org_id))
+            span.set_attribute("facility_id", str(facility_id))
+
+            scheduler_container = self._build_scheduler_container()
+            async with container_context(
+                self._scheduler_context(scheduler_container),
+                scope=ContextScopes.REQUEST,
+            ):
+                scheduler_service: WorkforceSchedulerFacadePort = (
+                    await scheduler_container.scheduler_service.resolve()
                 )
-                status_run = status_result[1]
-                if status_run is not None:
-                    active_run = await scheduler_service.get_optimization_run(
-                        status_run.run_id
+                (
+                    schedule,
+                    shifts,
+                    employees,
+                    facility_config,
+                ) = await scheduler_service.get_monthly_schedule(
+                    org_id=org_id,
+                    facility_id=facility_id,
+                    start_date=request.start_date,
+                )
+                active_run = None
+                if schedule.schedule_id is not None and schedule.facility_id is not None:
+                    status_result = await scheduler_service.get_schedule_status(
+                        org_id=org_id,
+                        facility_id=schedule.facility_id,
+                        schedule_id=schedule.schedule_id,
+                        current_schedule_version=schedule.schedule_version,
                     )
+                    status_run = status_result[1]
+                    if status_run is not None:
+                        active_run = await scheduler_service.get_optimization_run(
+                            status_run.run_id
+                        )
 
         day_schedules = map_monthly_schedule(
             obfuscator=self.id_obfuscator,
@@ -454,29 +460,38 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 error_details=patches_result.failure(),
             )
 
-        scheduler_container = self._build_scheduler_container()
-        async with container_context(
-            self._scheduler_context(scheduler_container),
-            scope=ContextScopes.REQUEST,
-        ):
-            scheduler_service: WorkforceSchedulerFacadePort = (
-                await scheduler_container.scheduler_service.resolve()
-            )
-            result = await scheduler_service.start_optimization_run(
-                StartOptimizationRunRequest(
-                    org_id=org_id,
-                    facility_id=facility_id,
-                    schedule_id=schedule_id,
-                    base_schedule_version=request.base_schedule_version,
-                    start_date=request.start_date,
-                    end_date=request.end_date or request.start_date,
-                    settings=map_settings(request.settings),
-                    staged_patches=patches_result.unwrap(),
-                    persist_result=request.persist_result,
-                    client_request_id=request.client_request_id or None,
-                    allow_overwrite=request.allow_overwrite,
+        with tracer.start_as_current_span("start_optimization_run") as span:
+            span.set_attribute("org_id", str(org_id))
+            span.set_attribute("facility_id", str(facility_id))
+            span.set_attribute("client_request_id", request.client_request_id or "")
+            # Idempotency: client_request_id dedup is enforced in
+            # scheduler_facade.start_optimization_run.
+            # Future: use persistence/idempotency_repo.IdempotencyStore
+            # to cache and replay response payloads.
+
+            scheduler_container = self._build_scheduler_container()
+            async with container_context(
+                self._scheduler_context(scheduler_container),
+                scope=ContextScopes.REQUEST,
+            ):
+                scheduler_service: WorkforceSchedulerFacadePort = (
+                    await scheduler_container.scheduler_service.resolve()
                 )
-            )
+                result = await scheduler_service.start_optimization_run(
+                    StartOptimizationRunRequest(
+                        org_id=org_id,
+                        facility_id=facility_id,
+                        schedule_id=schedule_id,
+                        base_schedule_version=request.base_schedule_version,
+                        start_date=request.start_date,
+                        end_date=request.end_date or request.start_date,
+                        settings=map_settings(request.settings),
+                        staged_patches=patches_result.unwrap(),
+                        persist_result=request.persist_result,
+                        client_request_id=request.client_request_id or None,
+                        allow_overwrite=request.allow_overwrite,
+                    )
+                )
 
         response = scheduling_pb2.StartOptimizationRunResponse(
             accepted=result.is_success,

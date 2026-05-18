@@ -7,6 +7,7 @@ import pulp
 import whenever
 from pulp import LpMinimize, LpProblem
 
+from snf_schedule_optimizer.infrastructure.tracing import get_tracer
 from snf_schedule_optimizer.models import DomainPrimaryKeyType, PreferenceWeights
 from snf_schedule_optimizer.optimizer.context import (
     LpNurseShiftVariableHolder,
@@ -30,6 +31,7 @@ from snf_schedule_optimizer.optimizer.strategies.variables import (
 from snf_schedule_optimizer.solver import CbcSolverAdapter, SolverAdapter
 
 logger = logging.getLogger(__name__)
+tracer = get_tracer(__name__)
 
 
 class NurseShiftScheduleOptimizer:
@@ -61,6 +63,23 @@ class NurseShiftScheduleOptimizer:
         self._extractor = ScheduleExtractor()
 
     async def solve(
+        self,
+        data_provider: IScenarioDataProvider,
+        preference_weights: PreferenceWeights,
+        additional_constraint_strategies: list[IFacilityScopedConstraintStrategy]
+        | None = None,
+    ) -> ScheduleOptimizationResults:
+        org_id = data_provider.get_org_id()
+        facility_ids = data_provider.get_facility_ids()
+        with tracer.start_as_current_span("optimize") as span:
+            span.set_attribute("org_id", str(org_id))
+            for fid in facility_ids:
+                span.set_attribute(f"facility_id.{fid}", str(fid))
+            return await self._do_solve(
+                data_provider, preference_weights, additional_constraint_strategies
+            )
+
+    async def _do_solve(
         self,
         data_provider: IScenarioDataProvider,
         preference_weights: PreferenceWeights,

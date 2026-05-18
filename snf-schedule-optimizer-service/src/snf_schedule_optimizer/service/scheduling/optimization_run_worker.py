@@ -15,6 +15,7 @@ from snf_schedule_optimizer.domain.scheduling.interfaces import (
     IScheduleRepo,
     ScheduleLookupKey,
 )
+from snf_schedule_optimizer.infrastructure.tracing import get_tracer
 from snf_schedule_optimizer.models import (
     Employee,
     FacilityConfig,
@@ -46,6 +47,7 @@ LEASE_SECONDS = 30
 POLL_SECONDS = 1.0
 
 logger = logging.getLogger(__name__)
+tracer = get_tracer(__name__)
 
 
 @dataclass(frozen=True)
@@ -96,6 +98,14 @@ class OptimizationRunWorker:
         return WorkerClaim(run=run, claim_token=claim_token)
 
     async def _execute_claimed_run(self, claim: WorkerClaim) -> None:
+        with tracer.start_as_current_span("execute_claimed_run") as span:
+            span.set_attribute("run_id", claim.run.run_id)
+            span.set_attribute("org_id", str(claim.run.org_id))
+            span.set_attribute("facility_id", str(claim.run.facility_id))
+            span.set_attribute("worker_id", self.worker_id)
+            await self._do_execute_claimed_run(claim)
+
+    async def _do_execute_claimed_run(self, claim: WorkerClaim) -> None:
         heartbeat_task = asyncio.create_task(self._heartbeat_loop(claim))
         current_run = claim.run
         try:

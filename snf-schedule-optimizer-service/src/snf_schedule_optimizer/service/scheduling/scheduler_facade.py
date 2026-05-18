@@ -299,6 +299,10 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             )
 
         if request.client_request_id:
+            # Idempotency enforcement: check if a run for this client_request_id
+            # already exists. Future enhancement: use IdempotencyStore
+            # (see persistence/idempotency_repo.py) to cache the response payload
+            # and return it directly instead of creating a duplicate run.
             existing_run = (
                 await self.schedule_retriever.get_optimization_run_by_client_request(
                     request.org_id,

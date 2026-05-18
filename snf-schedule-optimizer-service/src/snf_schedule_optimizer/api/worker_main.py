@@ -14,13 +14,18 @@ from snf_schedule_optimizer.infrastructure.composition import (
     build_repos_container,
     build_scheduler_container,
 )
+from snf_schedule_optimizer.infrastructure.logging import (
+    configure_logging,
+    get_logger,
+)
 from snf_schedule_optimizer.persistence.schedule_repo import SQLScheduleRepo
 from snf_schedule_optimizer.service.scheduling.optimization_run_worker import (
     POLL_SECONDS,
     OptimizationRunWorker,
 )
 
-logger = logging.getLogger("snf_schedule_optimizer.worker")
+configure_logging()
+logger = get_logger(__name__)
 
 
 def _scheduler_context(
@@ -34,7 +39,7 @@ async def _heartbeat_logger(
     stop_event: asyncio.Event,
 ) -> None:
     while not stop_event.is_set():
-        logger.info("worker heartbeat worker_id=%s", worker_id)
+        logger.info("worker.heartbeat", worker_id=worker_id)
         await asyncio.sleep(60)
 
 
@@ -51,7 +56,7 @@ async def run_worker() -> None:
     heartbeat_task = asyncio.create_task(_heartbeat_logger(worker_id, stop_event))
 
     try:
-        logger.info("optimization worker started worker_id=%s", worker_id)
+        logger.info("optimization.worker.started", worker_id=worker_id)
         while not stop_event.is_set():
             async with container_context(
                 _scheduler_context(scheduler_container),
@@ -71,14 +76,15 @@ async def run_worker() -> None:
                     claimed = await worker.run_once()
                 except Exception:
                     logger.exception(
-                        "optimization worker iteration failed worker_id=%s", worker_id
+                        "optimization.worker.iteration_failed",
+                        worker_id=worker_id,
                     )
                     await schedule_repo.rollback()
                     claimed = False
             if not claimed:
                 await asyncio.sleep(POLL_SECONDS)
     except asyncio.CancelledError:
-        logger.info("optimization worker cancelled worker_id=%s", worker_id)
+        logger.info("optimization.worker.cancelled", worker_id=worker_id)
         raise
     finally:
         stop_event.set()
