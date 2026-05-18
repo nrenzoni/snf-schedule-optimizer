@@ -11,6 +11,7 @@ import ScenarioAnalyzerDashboard from "@/components/scenario-analyzer-dashboard"
 import ShiftModal from "@/components/modals/shift-modal";
 import { SchedulingConfigModal } from "@/components/modals/scheduling-config-modal";
 import { ScheduleSummaryModal } from "@/components/modals/schedule-summary-modal";
+import { OptimizationTreeModal } from "@/components/modals/optimization-tree-modal";
 import MlForecastsDashboard from "@/components/ml-forecasts-dashboard";
 import { useScheduleData } from "@/hooks/use-schedule-query";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
@@ -91,6 +92,9 @@ interface DashboardMainLayoutProps {
   optimizeButtonFillWidth: string;
   openSummaryModal: () => void;
   openConfigModal: () => void;
+  openTreeModal: () => void;
+  hasCompletedRuns: boolean;
+  showResultsGlow: boolean;
   viewMode: (typeof viewOptions)[number];
   setViewMode: (value: (typeof viewOptions)[number]) => Promise<URLSearchParams>;
   activeModule: ModuleOption;
@@ -122,6 +126,9 @@ function DashboardMainLayout({
   optimizeButtonFillWidth,
   openSummaryModal,
   openConfigModal,
+  openTreeModal,
+  hasCompletedRuns,
+  showResultsGlow,
   viewMode,
   setViewMode,
   activeModule,
@@ -155,7 +162,9 @@ function DashboardMainLayout({
                 isRunActive={isRunActive}
                 activeRun={activeRun}
                 optimizeButtonFillWidth={optimizeButtonFillWidth}
-                uiStore={{ openSummaryModal, openConfigModal }}
+                uiStore={{ openSummaryModal, openConfigModal, openTreeModal }}
+                hasCompletedRuns={hasCompletedRuns}
+                showResultsGlow={showResultsGlow}
                 viewMode={viewMode}
                 setViewMode={setViewMode}
               />
@@ -233,6 +242,9 @@ export default function DashboardContent({
       isSummaryModalOpen: state.isSummaryModalOpen,
       closeSummaryModal: state.closeSummaryModal,
       openSummaryModal: state.openSummaryModal,
+      isTreeModalOpen: state.isTreeModalOpen,
+      closeTreeModal: state.closeTreeModal,
+      openTreeModal: state.openTreeModal,
     })),
   );
 
@@ -258,6 +270,7 @@ export default function DashboardContent({
     draftPatchCount,
     draftConflicts,
     schedulerSettings,
+    completedRuns,
   } = useSchedulingStore(
     useShallow((state) => ({
       activeRun: state.activeRun,
@@ -266,6 +279,7 @@ export default function DashboardContent({
       draftPatchCount: state.draftState.patches.length,
       draftConflicts: state.draftState.conflicts,
       schedulerSettings: state.schedulerSettings,
+      completedRuns: state.completedRuns,
     })),
   );
 
@@ -319,6 +333,20 @@ export default function DashboardContent({
   } = useScheduling();
 
   const [showPulse, setShowPulse] = useState(true);
+  const [showResultsGlow, setShowResultsGlow] = useState(false);
+  const lastRunCountRef = React.useRef(completedRuns.length);
+
+  const hasCompletedRuns = completedRuns.length > 0;
+
+  useEffect(() => {
+    if (completedRuns.length > lastRunCountRef.current) {
+      lastRunCountRef.current = completedRuns.length;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowResultsGlow(true);
+      const timer = setTimeout(() => setShowResultsGlow(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [completedRuns.length]);
 
   const optimizeButtonFillWidth = activeRun
     ? `${Math.max(0, Math.min(100, activeRun.progressPercent))}%`
@@ -372,6 +400,9 @@ export default function DashboardContent({
                 optimizeButtonFillWidth={optimizeButtonFillWidth}
                 openSummaryModal={uiStore.openSummaryModal}
                 openConfigModal={uiStore.openConfigModal}
+                openTreeModal={uiStore.openTreeModal}
+                hasCompletedRuns={hasCompletedRuns}
+                showResultsGlow={showResultsGlow}
                 viewMode={viewMode}
                 setViewMode={setViewMode}
                 activeModule={activeModule}
@@ -416,6 +447,12 @@ export default function DashboardContent({
           activeRun={activeRun}
           isOpen={uiStore.isSummaryModalOpen}
           onClose={uiStore.closeSummaryModal}
+        />
+
+        <OptimizationTreeModal
+          isOpen={uiStore.isTreeModalOpen}
+          onClose={uiStore.closeTreeModal}
+          currentScheduleMap={scheduleMap}
         />
 
         <Toaster position="bottom-center" richColors />

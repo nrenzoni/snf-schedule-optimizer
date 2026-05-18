@@ -4,6 +4,7 @@ import { UISchedulerSettings } from "@/types/scheduling";
 import { createScheduleDataSlice, ScheduleDataSlice } from "./schedule-data-slice";
 import { createDraftSlice, DraftSlice, emptyDraftState } from "./draft-slice";
 import { createRunSlice, RunSlice } from "./run-slice";
+import { createRunHistorySlice, RunHistorySlice } from "./run-history-slice";
 
 export const defaultSchedulerSettings: UISchedulerSettings = {
   useMLForecast: false,
@@ -19,7 +20,7 @@ export const defaultSchedulerSettings: UISchedulerSettings = {
   customPreferencePenalty: 1500,
 };
 
-interface SchedulingState extends ScheduleDataSlice, DraftSlice, RunSlice {
+interface SchedulingState extends ScheduleDataSlice, DraftSlice, RunSlice, RunHistorySlice {
   hasHydratedDraftState: boolean;
   resetDemoState: () => void;
 }
@@ -30,6 +31,7 @@ export const useSchedulingStore = create<SchedulingState>()(
       ...createScheduleDataSlice(set, get, ...rest),
       ...createDraftSlice(set, get, ...rest),
       ...createRunSlice(set, get, ...rest),
+      ...createRunHistorySlice(set, get, ...rest),
       hasHydratedDraftState: false,
       resetDemoState: () => {
         useSchedulingStore.persist.clearStorage();
@@ -49,16 +51,20 @@ export const useSchedulingStore = create<SchedulingState>()(
           latestKnownScheduleVersion: 0,
           draftState: emptyDraftState(),
           activeRun: null,
+          pendingRunCapture: null,
+          completedRuns: [],
           hasHydratedDraftState: false,
         });
       },
     }),
     {
       name: "snf-scheduling-store",
-      version: 1,
+      version: 2,
       partialize: (state) => ({
         draftState: state.draftState,
         activeRun: state.activeRun,
+        completedRuns: state.completedRuns,
+        pendingRunCapture: state.pendingRunCapture,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

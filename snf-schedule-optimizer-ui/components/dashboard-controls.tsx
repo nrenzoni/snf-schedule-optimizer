@@ -1,8 +1,9 @@
 import React from "react";
-import { Zap, ListChecks, Settings, LayoutList, GanttChartSquare } from "lucide-react";
+import { Zap, ListChecks, Settings, LayoutList, GanttChartSquare, Network } from "lucide-react";
 import { segmentedButtonVariants } from "@/components/ui/styles";
 import { viewOptions } from "@/components/dashboard-content";
 import { UIPatchConflict } from "@/types/scheduling";
+import { cn } from "@/lib/utils";
 
 interface DashboardControlsProps {
   hasNewerVersion: boolean;
@@ -21,7 +22,10 @@ interface DashboardControlsProps {
   uiStore: {
     openSummaryModal: () => void;
     openConfigModal: () => void;
+    openTreeModal: () => void;
   };
+  hasCompletedRuns: boolean;
+  showResultsGlow: boolean;
   viewMode: (typeof viewOptions)[number];
   setViewMode: (value: (typeof viewOptions)[number]) => Promise<URLSearchParams>;
 }
@@ -37,6 +41,8 @@ export default function DashboardControls({
   activeRun,
   optimizeButtonFillWidth,
   uiStore,
+  hasCompletedRuns,
+  showResultsGlow,
   viewMode,
   setViewMode,
 }: DashboardControlsProps) {
@@ -84,6 +90,20 @@ export default function DashboardControls({
             {activeRun ? <span className="text-xs">{activeRun.progressPercent}%</span> : null}
             </span>
           </button>
+          {hasCompletedRuns && (
+            <button
+              data-testid="open-optimization-tree"
+              onClick={uiStore.openTreeModal}
+              className={cn(
+                "app-button-secondary min-h-9 whitespace-nowrap px-4 py-2",
+                showResultsGlow && "animate-pulse ring-2 ring-primary ring-offset-1",
+              )}
+              aria-label="View optimization results"
+            >
+              <Network size={16} />
+              Results
+            </button>
+          )}
           <button
             data-testid="open-schedule-summary"
             onClick={uiStore.openSummaryModal}

@@ -89,6 +89,20 @@ export interface UIOptimizationRun {
   financials: UIFinancials | null;
   stats: UIOptimizationStats | null;
   summary: UIOptimizationSummary | null;
+  stageTimings: StageTiming[];
+}
+
+export interface StageTiming {
+  stage: UIOptimizationRunStage;
+  durationMs: number;
+}
+
+export interface RunHistoryEntry {
+  run: UIOptimizationRun;
+  preSchedule: Record<string, UIDaySchedule>;
+  postSchedule: Record<string, UIDaySchedule> | null;
+  stagedPatches: UIStagedPatch[];
+  completedAt: string;
 }
 
 export interface UIDraftState {

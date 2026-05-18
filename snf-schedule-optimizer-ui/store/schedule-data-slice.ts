@@ -1,7 +1,9 @@
 import type { StateCreator } from "zustand";
 import { OrgFacility } from "@/gen/scheduling/v1/scheduling_pb";
 import {
+  RunHistoryEntry,
   ScheduleMap,
+  UIDaySchedule,
   UIFinancials,
   UIOptimizationRun,
   UIOptimizationStats,
@@ -11,6 +13,19 @@ import {
 import { defaultSchedulerSettings } from "./schedulingStore";
 import { applyPatchToMap } from "@/lib/scheduling-helpers";
 import { FullSchedulingState } from "./state-types";
+import { MAX_RUN_HISTORY } from "./run-history-slice";
+
+export function scheduleMapToRecord(map: ScheduleMap): Record<string, UIDaySchedule> {
+  const record: Record<string, UIDaySchedule> = {};
+  for (const [key, value] of map.entries()) {
+    record[key] = value;
+  }
+  return record;
+}
+
+export function recordToScheduleMap(record: Record<string, UIDaySchedule>): ScheduleMap {
+  return new Map(Object.entries(record));
+}
 
 export interface ScheduleDataSlice {
   serverScheduleMap: ScheduleMap;
@@ -109,6 +124,27 @@ export const createScheduleDataSlice: StateCreator<
       const effectiveScheduleMap = hasNewerVersion
         ? new Map(map)
         : applyPatchToMap(map, draftState.patches ?? []);
+
+      const nextActiveRun = activeRun ?? state.activeRun;
+      const capture = state.pendingRunCapture;
+      let nextCompletedRuns = state.completedRuns;
+
+      if (capture && nextActiveRun?.status === "completed" && scheduleVersion) {
+        const entry: RunHistoryEntry = {
+          run: nextActiveRun,
+          preSchedule: capture.preSchedule,
+          postSchedule: scheduleMapToRecord(map),
+          stagedPatches: capture.stagedPatches,
+          completedAt: nextActiveRun.completedAt ?? new Date().toISOString(),
+        };
+        const runs = [...nextCompletedRuns, entry];
+        if (runs.length > MAX_RUN_HISTORY) {
+          nextCompletedRuns = runs.slice(runs.length - MAX_RUN_HISTORY);
+        } else {
+          nextCompletedRuns = runs;
+        }
+      }
+
       return {
         serverScheduleMap: map,
         effectiveScheduleMap,
@@ -123,7 +159,9 @@ export const createScheduleDataSlice: StateCreator<
         optimizationFinancials,
         hasNewerVersion,
         draftState,
-        activeRun: activeRun ?? state.activeRun,
+        activeRun: nextActiveRun,
+        pendingRunCapture: capture && nextActiveRun?.status === "completed" ? null : capture,
+        completedRuns: nextCompletedRuns,
       };
     });
   },

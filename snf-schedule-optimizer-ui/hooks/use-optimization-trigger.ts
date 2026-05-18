@@ -18,8 +18,10 @@ import {
 } from "@/lib/proto-mappers";
 import { isRunActive, toProtoPatch } from "@/lib/scheduling-helpers";
 import { createClientUuid } from "@/lib/utils";
+import { scheduleMapToRecord } from "@/store/schedule-data-slice";
 import type { OrgFacility } from "@/gen/scheduling/v1/scheduling_pb";
-import type { UIOptimizationRun } from "@/types/scheduling";
+import type { UIOptimizationRun, ScheduleMap } from "@/types/scheduling";
+import { PendingRunCapture } from "@/store/state-types";
 
 export interface UseOptimizationTriggerReturn {
   triggerOptimization: (allowOverwrite?: boolean) => Promise<void>;
@@ -34,9 +36,11 @@ interface UseOptimizationTriggerProps {
   draftState: UIDraftState;
   activeRun: UIOptimizationRun | null;
   currentViewAnchorDate: Date;
+  effectiveScheduleMap: ScheduleMap;
   setActiveRun: (run: UIOptimizationRun | null) => void;
   setDraftConflicts: (conflicts: UIPatchConflict[]) => void;
   setHasNewerVersion: (hasNewer: boolean, version: number) => void;
+  setPendingRunCapture: (capture: PendingRunCapture | null) => void;
 }
 
 const optimizationSettingsToProto = (settings: UISchedulerSettings): OptimizationSettings => ({
@@ -62,9 +66,11 @@ export function useOptimizationTrigger({
   draftState,
   activeRun,
   currentViewAnchorDate,
+  effectiveScheduleMap,
   setActiveRun,
   setDraftConflicts,
   setHasNewerVersion,
+  setPendingRunCapture,
 }: UseOptimizationTriggerProps): UseOptimizationTriggerReturn {
   const runIsActive = isRunActive(activeRun?.status);
   const isTriggeringRef = useRef(false);
@@ -151,6 +157,11 @@ export function useOptimizationTrigger({
             return;
           }
 
+          setPendingRunCapture({
+            preSchedule: scheduleMapToRecord(effectiveScheduleMap),
+            stagedPatches: [...draftState.patches],
+          });
+
           setActiveRun(uiRun);
           toast.success("Optimization started", {
             description: "Run progress will continue across refreshes.",
@@ -167,6 +178,7 @@ export function useOptimizationTrigger({
     [
       currentViewAnchorDate,
       draftState.patches,
+      effectiveScheduleMap,
       runIsActive,
       scheduleId,
       scheduleVersion,
@@ -175,6 +187,7 @@ export function useOptimizationTrigger({
       setActiveRun,
       setDraftConflicts,
       setHasNewerVersion,
+      setPendingRunCapture,
     ],
   );
 

@@ -5,6 +5,7 @@ import { pollOptimizationRun, streamOptimizationRun } from "@/api/scheduling-cli
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { protoOptimizationRunToUI } from "@/lib/proto-mappers";
 import { isRunActive } from "@/lib/scheduling-helpers";
+import type { StageTiming, UIOptimizationRunStage } from "@/types/scheduling";
 
 export function useOptimizationRunSync() {
   const queryClient = useQueryClient();
@@ -17,6 +18,9 @@ export function useOptimizationRunSync() {
   const runStreamAbortRef = useRef<AbortController | null>(null);
   const activeRunRef = useRef(activeRun);
   const latestSequenceByRunRef = useRef(new Map<string, number>());
+  const stageEntryTimesRef = useRef<Map<string, number>>(new Map());
+  const stageTimingsRef = useRef<StageTiming[]>([]);
+  const lastStageRef = useRef<UIOptimizationRunStage | null>(null);
 
   useEffect(() => {
     activeRunRef.current = activeRun;
@@ -26,22 +30,72 @@ export function useOptimizationRunSync() {
     await queryClient.invalidateQueries({ queryKey: ["schedule"] });
   }, [queryClient]);
 
+  const recordStageTiming = useCallback((newStage: UIOptimizationRunStage) => {
+    const now = Date.now();
+    const prevStage = lastStageRef.current;
+
+    if (prevStage && prevStage !== newStage && stageEntryTimesRef.current.has(prevStage)) {
+      const entryMs = stageEntryTimesRef.current.get(prevStage)!;
+      const durationMs = now - entryMs;
+      stageTimingsRef.current = [
+        ...stageTimingsRef.current,
+        { stage: prevStage, durationMs },
+      ];
+    }
+
+    if (!stageEntryTimesRef.current.has(newStage)) {
+      stageEntryTimesRef.current.set(newStage, now);
+    }
+    lastStageRef.current = newStage;
+  }, []);
+
+  const finalizeStageTimings = useCallback((finalStage: UIOptimizationRunStage) => {
+    const now = Date.now();
+    const prevStage = lastStageRef.current;
+
+    if (prevStage && prevStage !== finalStage && stageEntryTimesRef.current.has(prevStage)) {
+      const entryMs = stageEntryTimesRef.current.get(prevStage)!;
+      stageTimingsRef.current = [
+        ...stageTimingsRef.current,
+        { stage: prevStage, durationMs: now - entryMs },
+      ];
+    }
+
+    if (stageEntryTimesRef.current.has(finalStage)) {
+      const entryMs = stageEntryTimesRef.current.get(finalStage)!;
+      stageTimingsRef.current = [
+        ...stageTimingsRef.current,
+        { stage: finalStage, durationMs: now - entryMs },
+      ];
+    }
+
+    lastStageRef.current = finalStage;
+  }, []);
+
   const pollAndApplyFinalRun = useCallback(async (runId: string) => {
     const latest = await pollOptimizationRun(runId).catch(() => null);
     const uiRun = protoOptimizationRunToUI(latest?.run);
     if (uiRun) {
-      setRunProgress(uiRun);
+      recordStageTiming(uiRun.stage);
+      if (!isRunActive(uiRun.status)) {
+        finalizeStageTimings(uiRun.stage);
+      }
+      setRunProgress({ ...uiRun, stageTimings: uiRun.stageTimings.length > 0 ? uiRun.stageTimings : [...stageTimingsRef.current] });
       if (!isRunActive(uiRun.status)) {
         await refetchSchedule();
       }
     }
-  }, [refetchSchedule, setRunProgress]);
+  }, [refetchSchedule, setRunProgress, recordStageTiming, finalizeStageTimings]);
 
   const syncRunProgress = useCallback(
     async (runId: string) => {
       runStreamAbortRef.current?.abort();
       const abortController = new AbortController();
       runStreamAbortRef.current = abortController;
+
+      stageEntryTimesRef.current = new Map();
+      stageTimingsRef.current = [];
+      lastStageRef.current = null;
 
       try {
         await streamOptimizationRun(
@@ -75,7 +129,17 @@ export function useOptimizationRunSync() {
               latestSequenceByRunRef.current.set(runId, sequence);
             }
 
-            setRunProgress(uiRun);
+            recordStageTiming(uiRun.stage);
+
+            if (!isRunActive(uiRun.status)) {
+              finalizeStageTimings(uiRun.stage);
+            }
+
+            setRunProgress({
+              ...uiRun,
+              stageTimings: [...stageTimingsRef.current],
+            });
+
             if (!isRunActive(uiRun.status)) {
               void refetchSchedule().catch(console.error);
               abortController.abort();
@@ -93,7 +157,7 @@ export function useOptimizationRunSync() {
         await pollAndApplyFinalRun(runId);
       }
     },
-    [refetchSchedule, setRunProgress, pollAndApplyFinalRun],
+    [refetchSchedule, setRunProgress, pollAndApplyFinalRun, recordStageTiming, finalizeStageTimings],
   );
 
   const activeRunId = activeRun?.runId;

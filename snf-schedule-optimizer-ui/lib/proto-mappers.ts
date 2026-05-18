@@ -190,6 +190,7 @@ export const protoOptimizationRunToUI = (
     financials: protoFinancialsToUI(run.financials),
     stats: protoStatsToUI(run.stats),
     summary: protoSummaryToUI(run.summary),
+    stageTimings: [],
   };
 };
 

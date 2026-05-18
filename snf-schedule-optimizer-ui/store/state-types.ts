@@ -1,5 +1,10 @@
 import { OrgFacility } from "@/gen/scheduling/v1/scheduling_pb";
-import { ScheduleMap, UIDraftState, UIFinancials, UIOptimizationRun, UIOptimizationStats, UIOptimizationSummary, UISchedulerSettings } from "@/types/scheduling";
+import { RunHistoryEntry, ScheduleMap, UIDaySchedule, UIDraftState, UIFinancials, UIOptimizationRun, UIOptimizationStats, UIOptimizationSummary, UIStagedPatch, UISchedulerSettings } from "@/types/scheduling";
+
+export interface PendingRunCapture {
+  preSchedule: Record<string, UIDaySchedule>;
+  stagedPatches: UIStagedPatch[];
+}
 
 export interface FullSchedulingState {
   serverScheduleMap: ScheduleMap;
@@ -17,5 +22,7 @@ export interface FullSchedulingState {
   latestKnownScheduleVersion: number;
   draftState: UIDraftState;
   activeRun: UIOptimizationRun | null;
+  pendingRunCapture: PendingRunCapture | null;
+  completedRuns: RunHistoryEntry[];
   hasHydratedDraftState: boolean;
 }

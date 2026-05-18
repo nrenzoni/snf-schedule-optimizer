@@ -62,6 +62,7 @@ export function useScheduling(): UseSchedulingReturn {
     setActiveRun,
     setHasNewerVersion,
     clearDraft,
+    setPendingRunCapture,
   } = useSchedulingStore(
     useShallow((state) => ({
       effectiveScheduleMap: state.effectiveScheduleMap,
@@ -78,6 +79,7 @@ export function useScheduling(): UseSchedulingReturn {
       setActiveRun: state.setActiveRun,
       setHasNewerVersion: state.setHasNewerVersion,
       clearDraft: state.clearDraft,
+      setPendingRunCapture: state.setPendingRunCapture,
     })),
   );
   const { stageValidatedPatch } = useStagedScheduleActions();
@@ -103,9 +105,11 @@ export function useScheduling(): UseSchedulingReturn {
     draftState,
     activeRun,
     currentViewAnchorDate: nav.currentViewAnchorDate,
+    effectiveScheduleMap,
     setActiveRun,
     setDraftConflicts,
     setHasNewerVersion,
+    setPendingRunCapture,
   });
 
   return {
