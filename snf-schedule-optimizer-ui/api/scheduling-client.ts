@@ -1,13 +1,17 @@
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import {
+  BatchRemoveNursesFromShiftsResponse,
+  BatchValidateShiftMovesResponse,
   GetOptimizationRunResponse,
   GetScheduleStatusResponse,
   OptimizationRunEvent,
   PatchConflict,
+  RemoveNurseFromShiftRequest,
   SchedulingService,
   StagedSchedulePatch,
   StartOptimizationRunResponse,
+  ValidateShiftMoveRequest,
   ValidateShiftMoveResponse,
 } from "@/gen/scheduling/v1/scheduling_pb";
 
@@ -97,3 +101,15 @@ export const startOptimizationRun = async (input: {
 };
 
 export const hasBlockingConflicts = (conflicts: PatchConflict[]): boolean => conflicts.length > 0;
+
+export async function batchRemoveNursesFromShifts(request: {
+  removals: RemoveNurseFromShiftRequest[];
+}): Promise<BatchRemoveNursesFromShiftsResponse> {
+  return schedulingClient.batchRemoveNursesFromShifts(request);
+}
+
+export async function batchValidateShiftMoves(request: {
+  moves: ValidateShiftMoveRequest[];
+}): Promise<BatchValidateShiftMovesResponse> {
+  return schedulingClient.batchValidateShiftMoves(request);
+}

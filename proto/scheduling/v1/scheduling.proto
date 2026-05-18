@@ -33,6 +33,12 @@ service SchedulingService {
 
   // Example for future mutation: Removes a nurse from a specific shift.
   rpc RemoveNurseFromShift(RemoveNurseFromShiftRequest) returns (RemoveNurseFromShiftResponse);
+
+  // Batch mutations for removing nurses from multiple shifts in one call.
+  rpc BatchRemoveNursesFromShifts(BatchRemoveNursesFromShiftsRequest) returns (BatchRemoveNursesFromShiftsResponse);
+
+  // Batch validation of multiple shift moves in one call.
+  rpc BatchValidateShiftMoves(BatchValidateShiftMovesRequest) returns (BatchValidateShiftMovesResponse);
 }
 
 
@@ -201,6 +207,25 @@ message RemoveNurseFromShiftResponse {
   string message = 2;
   // Optionally return the updated DaySchedule
   DaySchedule updated_schedule = 3;
+}
+
+message BatchRemoveNursesFromShiftsRequest {
+  repeated RemoveNurseFromShiftRequest removals = 1;
+}
+
+message BatchRemoveNursesFromShiftsResponse {
+  repeated RemoveNurseFromShiftResponse results = 1;
+  int32 success_count = 2;
+  int32 failure_count = 3;
+}
+
+message BatchValidateShiftMovesRequest {
+  repeated ValidateShiftMoveRequest moves = 1;
+}
+
+message BatchValidateShiftMovesResponse {
+  repeated ValidateShiftMoveResponse move_results = 1;
+  int32 total_conflicts = 2;
 }
 
 enum ValidationLevel {

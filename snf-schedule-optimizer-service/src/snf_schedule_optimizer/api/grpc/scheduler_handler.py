@@ -743,6 +743,67 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             message="RemoveNurseFromShift is not implemented in the run-based flow.",
         )
 
+    async def batch_remove_nurses_from_shifts(
+        self,
+        request: scheduling_pb2.BatchRemoveNursesFromShiftsRequest,
+        context: RequestContext[
+            scheduling_pb2.BatchRemoveNursesFromShiftsRequest,
+            scheduling_pb2.BatchRemoveNursesFromShiftsResponse,
+        ],
+    ) -> scheduling_pb2.BatchRemoveNursesFromShiftsResponse:
+        results = []
+        success_count = 0
+        failure_count = 0
+        for removal in request.removals:
+            result = await self.remove_nurse_from_shift(
+                removal,
+                cast(
+                    RequestContext[
+                        scheduling_pb2.RemoveNurseFromShiftRequest,
+                        scheduling_pb2.RemoveNurseFromShiftResponse,
+                    ],
+                    context,
+                ),
+            )
+            results.append(result)
+            if result.success:
+                success_count += 1
+            else:
+                failure_count += 1
+        return scheduling_pb2.BatchRemoveNursesFromShiftsResponse(
+            results=results,
+            success_count=success_count,
+            failure_count=failure_count,
+        )
+
+    async def batch_validate_shift_moves(
+        self,
+        request: scheduling_pb2.BatchValidateShiftMovesRequest,
+        context: RequestContext[
+            scheduling_pb2.BatchValidateShiftMovesRequest,
+            scheduling_pb2.BatchValidateShiftMovesResponse,
+        ],
+    ) -> scheduling_pb2.BatchValidateShiftMovesResponse:
+        move_results = []
+        total_conflicts = 0
+        for move in request.moves:
+            res = await self._validate_shift_move(move)
+            if isinstance(res, Failure):
+                move_result = scheduling_pb2.ValidateShiftMoveResponse(
+                    is_success=False,
+                    is_valid=False,
+                    error_details=res.failure(),
+                )
+            else:
+                move_result = res.unwrap()
+            move_results.append(move_result)
+            if move_result.conflicts:
+                total_conflicts += len(move_result.conflicts)
+        return scheduling_pb2.BatchValidateShiftMovesResponse(
+            move_results=move_results,
+            total_conflicts=total_conflicts,
+        )
+
     def _decode_org_and_facility(
         self, org_id: str, facility_id: str
     ) -> Result[tuple[int, int | None], str]:
