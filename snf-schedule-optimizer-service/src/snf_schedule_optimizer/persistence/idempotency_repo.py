@@ -1,4 +1,5 @@
 """Idempotency key repository for deduplicating mutations."""
+
 from __future__ import annotations
 
 from sqlalchemy import select

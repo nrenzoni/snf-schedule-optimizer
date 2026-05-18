@@ -1,4 +1,5 @@
 """OpenTelemetry tracing setup."""
+
 import logging
 import os
 

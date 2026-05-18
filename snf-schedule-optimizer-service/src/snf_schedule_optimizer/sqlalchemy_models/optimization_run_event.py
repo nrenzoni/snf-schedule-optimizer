@@ -10,9 +10,7 @@ from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 
 class OptimizationRunEventModel(SQLABase):
     __tablename__ = "optimization_run_event"
-    __table_args__ = (
-        Index("ix_opt_run_event_run", "run_id"),
-    )
+    __table_args__ = (Index("ix_opt_run_event_run", "run_id"),)
 
     run_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     sequence: Mapped[int] = mapped_column(Integer, primary_key=True)

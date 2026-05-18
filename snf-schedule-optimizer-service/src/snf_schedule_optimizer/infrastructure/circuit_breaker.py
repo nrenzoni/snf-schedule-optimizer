@@ -1,4 +1,5 @@
 """Circuit breaker pattern for external service calls."""
+
 from __future__ import annotations
 
 import time

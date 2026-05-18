@@ -1,4 +1,5 @@
 """Health check endpoints with dependency checking."""
+
 import os
 import shutil
 import time

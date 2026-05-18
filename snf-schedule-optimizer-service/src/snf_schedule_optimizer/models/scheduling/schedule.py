@@ -38,9 +38,7 @@ class Schedule:
     schedule_lineage_id: DomainPrimaryKeyType | None = None
     schedule_version: int = 1
 
-    shift_assignments: ShiftAssignmentsType = dataclasses.field(
-        default_factory=dict
-    )
+    shift_assignments: ShiftAssignmentsType = dataclasses.field(default_factory=dict)
     start_date: str | None = None
     end_date: str | None = None
     latest_optimization: OptimizationSummary | None = None

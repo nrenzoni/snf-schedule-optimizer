@@ -78,7 +78,9 @@ class TimeOverlapShiftSlicer(IShiftSlicer):
                 # Check if the midpoint falls within the interval's time span
                 if diff_interval.start_dt <= midpoint < diff_interval.end_dt:
                     if diff_interval.rule is None:
-                        raise DataIntegrityError("Expected non-null rule for differential interval")
+                        raise DataIntegrityError(
+                            "Expected non-null rule for differential interval"
+                        )
                     active_diff_rules.add(diff_interval.rule)
 
             # B. Assign Overtime Rules

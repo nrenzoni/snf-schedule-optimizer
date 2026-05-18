@@ -94,7 +94,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         self.engine = engine
         self.session_factory = session_factory
         self.id_obfuscator = id_obfuscator
-        self._repos_container = build_repos_container(self.engine, self.session_factory, read_session_factory)
+        self._repos_container = build_repos_container(
+            self.engine, self.session_factory, read_session_factory
+        )
         self._scheduler_container = build_scheduler_container(self._repos_container)
         self._facility_container = build_facility_container(self._repos_container)
 
@@ -208,7 +210,10 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                     start_date=request.start_date,
                 )
                 active_run = None
-                if schedule.schedule_id is not None and schedule.facility_id is not None:
+                if (
+                    schedule.schedule_id is not None
+                    and schedule.facility_id is not None
+                ):
                     status_result = await scheduler_service.get_schedule_status(
                         org_id=org_id,
                         facility_id=schedule.facility_id,
@@ -268,9 +273,7 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         page_token = request.page_token if request.page_token else None
         if page_token:
             try:
-                effective_start = base64.urlsafe_b64decode(
-                    page_token.encode()
-                ).decode()
+                effective_start = base64.urlsafe_b64decode(page_token.encode()).decode()
             except (ValueError, UnicodeDecodeError):
                 effective_start = request.start_date
         else:
@@ -658,7 +661,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 return Failure(result.failure())
             internal = result.unwrap()
             if internal is None:
-                raise DataIntegrityError(f"Expected non-null value from {label} ID decode")
+                raise DataIntegrityError(
+                    f"Expected non-null value from {label} ID decode"
+                )
             return Success(internal)
 
         def _optional_id(val: str, label: str) -> Result[int | None, str]:

@@ -1,4 +1,5 @@
 """Branded types for domain identifiers to prevent accidental swapping."""
+
 from typing import NewType
 
 EmployeeId = NewType("EmployeeId", int)

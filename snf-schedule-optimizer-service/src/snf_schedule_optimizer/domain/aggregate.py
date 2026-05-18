@@ -1,4 +1,5 @@
 """Aggregate root marker protocol for domain-driven design boundaries."""
+
 from typing import Protocol
 
 

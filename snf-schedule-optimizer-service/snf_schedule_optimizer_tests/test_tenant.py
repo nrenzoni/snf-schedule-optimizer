@@ -1,4 +1,5 @@
 """Unit tests for tenant RLS context management."""
+
 from snf_schedule_optimizer.persistence.tenant import (
     _current_org_id,
     get_current_org_id,

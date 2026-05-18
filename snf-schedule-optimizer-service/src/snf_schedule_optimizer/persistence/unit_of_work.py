@@ -1,4 +1,5 @@
 """Unit of Work pattern for coordinating persistence operations."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

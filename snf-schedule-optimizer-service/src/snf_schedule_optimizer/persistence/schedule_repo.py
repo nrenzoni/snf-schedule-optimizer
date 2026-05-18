@@ -211,9 +211,7 @@ class SQLScheduleRepo(IScheduleRepo):
         effective_start = start_date
         if page_token:
             with suppress(ValueError, UnicodeDecodeError):
-                effective_start = base64.urlsafe_b64decode(
-                    page_token.encode()
-                ).decode()
+                effective_start = base64.urlsafe_b64decode(page_token.encode()).decode()
 
         schedule = await self.get_schedule_for_month(
             org_id=org_id,

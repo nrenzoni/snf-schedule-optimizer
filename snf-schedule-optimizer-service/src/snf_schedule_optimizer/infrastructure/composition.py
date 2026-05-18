@@ -419,19 +419,21 @@ def build_scheduler_container(
             Provide[fairness_strategy],
         )
 
-        penalty_strategies_list: AbstractProvider[list[IObjectivePenaltyStrategy]] = Factory(
-            lambda pp, nr, er, fairness: [
-                QualityOfLifeStrategy(
-                    preference_processor=pp,
-                    nurse_retriever=nr,
-                    employee_retriever=er,
-                ),
-                fairness,
-            ],
-            Provide[penalty_processor],
-            Provide[nurse_retriever],
-            Provide[employee_retriever],
-            Provide[fairness_strategy],
+        penalty_strategies_list: AbstractProvider[list[IObjectivePenaltyStrategy]] = (
+            Factory(
+                lambda pp, nr, er, fairness: [
+                    QualityOfLifeStrategy(
+                        preference_processor=pp,
+                        nurse_retriever=nr,
+                        employee_retriever=er,
+                    ),
+                    fairness,
+                ],
+                Provide[penalty_processor],
+                Provide[nurse_retriever],
+                Provide[employee_retriever],
+                Provide[fairness_strategy],
+            )
         )
 
         optimizer = Factory(
