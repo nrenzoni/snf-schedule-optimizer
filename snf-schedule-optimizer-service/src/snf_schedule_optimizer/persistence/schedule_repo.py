@@ -1,6 +1,9 @@
+import base64
 import json
 from collections import defaultdict
 from collections.abc import Sequence
+from contextlib import suppress
+from datetime import date, timedelta
 from typing import cast
 
 import whenever
@@ -195,6 +198,49 @@ class SQLScheduleRepo(IScheduleRepo):
             else None,
             updated_at=schedule_record.updated_at.isoformat(),
         )
+
+    async def get_schedule_paginated(
+        self,
+        org_id: int,
+        facility_id: int,
+        start_date: str,
+        end_date: str,
+        page_size: int = 31,
+        page_token: str | None = None,
+    ) -> tuple[Schedule | None, str | None, int]:
+        effective_start = start_date
+        if page_token:
+            with suppress(ValueError, UnicodeDecodeError):
+                effective_start = base64.urlsafe_b64decode(
+                    page_token.encode()
+                ).decode()
+
+        schedule = await self.get_schedule_for_month(
+            org_id=org_id,
+            facility_id=facility_id,
+            start_date=effective_start,
+            include_latest_run=True,
+        )
+        if schedule is None:
+            return (None, None, 0)
+
+        begin = date.fromisoformat(start_date)
+        finish = date.fromisoformat(end_date)
+        total_days = (finish - begin).days + 1
+
+        cursor = date.fromisoformat(effective_start)
+        last_page_date = min(
+            cursor + timedelta(days=page_size - 1),
+            finish,
+        )
+        next_page_token: str | None = None
+        if last_page_date < finish:
+            next_date = last_page_date + timedelta(days=1)
+            next_page_token = base64.urlsafe_b64encode(
+                next_date.isoformat().encode()
+            ).decode()
+
+        return (schedule, next_page_token, total_days)
 
     async def save_schedule(self, schedule: Schedule) -> None:
         if schedule.schedule_id is None:

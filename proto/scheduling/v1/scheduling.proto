@@ -51,6 +51,8 @@ message GetMonthlyScheduleRequest {
   optional string facility_id = 2;
   string start_date = 3;
   optional string end_date = 4;
+  int32 page_size = 5;
+  string page_token = 6;
 }
 
 message GetMonthlyScheduleResponse {
@@ -64,6 +66,8 @@ message GetMonthlyScheduleResponse {
   FinancialReport latest_optimization_financials = 7;
   OptimizationRun active_optimization_run = 8;
   string updated_at = 9;
+  string next_page_token = 10;
+  int32 total_days = 11;
 }
 
 message GetScheduleStatusRequest {

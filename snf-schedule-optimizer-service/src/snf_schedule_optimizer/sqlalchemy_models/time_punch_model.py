@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKeyConstraint,
+    Index,
     Integer,
     String,
 )
@@ -44,6 +45,8 @@ class TimePunchModel(SQLABase):
             name="fk_time_punch_shift",
             ondelete="CASCADE",
         ),
+        Index("ix_timepunch_employee", "employee_id"),
+        Index("ix_timepunch_punch_time", "punch_time"),
     )
 
     # --- Core Identity & Time ---

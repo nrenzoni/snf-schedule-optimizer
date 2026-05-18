@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
@@ -10,6 +10,11 @@ from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
 
 class OptimizationRunModel(SQLABase):
     __tablename__ = "optimization_run"
+    __table_args__ = (
+        Index("ix_opt_run_status", "status"),
+        Index("ix_opt_run_org_facility", "org_id", "facility_id"),
+        Index("ix_opt_run_claim", "claim_token"),
+    )
 
     run_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     org_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)

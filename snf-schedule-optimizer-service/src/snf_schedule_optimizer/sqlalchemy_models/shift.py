@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 
 import whenever
-from sqlalchemy import Boolean, Integer
+from sqlalchemy import Boolean, Index, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..models import DomainPrimaryKeyType, Shift
@@ -21,6 +21,10 @@ class ShiftModel(SQLABase):
     """
 
     __tablename__ = "shift"
+    __table_args__ = (
+        Index("ix_shift_org_facility", "org_id", "facility_id"),
+        Index("ix_shift_date_range", "shift_start_dt", "shift_end_dt"),
+    )
 
     # --- Primary Key ---
 

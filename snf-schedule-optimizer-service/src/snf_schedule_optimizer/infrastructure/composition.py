@@ -179,20 +179,28 @@ class IReposContainer(abc.ABC):
 
     db_engine: ClassVar[AbstractProvider[Engine]]
     db_session: ClassVar[AbstractProvider[AsyncSession]]
+    db_read_session: ClassVar[AbstractProvider[AsyncSession]]
 
 
 def build_repos_container(
     engine: AsyncEngine,
     session_factory: async_sessionmaker[AsyncSession],
+    read_session_factory: async_sessionmaker[AsyncSession] | None = None,
 ) -> type["IReposContainer"]:
     async def _make_session() -> AsyncGenerator[AsyncSession, Any]:
         async with session_factory() as sess:
+            yield sess
+
+    async def _make_read_session() -> AsyncGenerator[AsyncSession, Any]:
+        factory = read_session_factory or session_factory
+        async with factory() as sess:
             yield sess
 
     class ReposContainer(BaseContainer, IReposContainer):
         default_scope = ContextScopes.REQUEST
 
         db_session = ContextResource(_make_session)
+        db_read_session = ContextResource(_make_read_session)
 
         shift_retriever = Factory(
             SQLShiftRepo,

@@ -1,4 +1,4 @@
-from sqlalchemy import Integer
+from sqlalchemy import Index, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from snf_schedule_optimizer.sqlalchemy_models.base import SQLABase
@@ -10,6 +10,11 @@ class ScheduleAssignmentModel(SQLABase):
     """
 
     __tablename__ = "schedule_assignment"
+    __table_args__ = (
+        Index("ix_schedule_assign_schedule", "schedule_version_id"),
+        Index("ix_schedule_assign_employee_shift", "employee_id", "shift_id"),
+        Index("ix_schedule_assign_shift", "shift_id"),
+    )
 
     schedule_id: Mapped[int] = mapped_column(primary_key=True)
     assignment_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

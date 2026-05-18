@@ -37,8 +37,32 @@ def _allowed_origins() -> list[str]:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     db_url = os.environ["DATABASE_URL"]
-    engine = create_async_engine(db_url, pool_pre_ping=True)
+    read_db_url = os.environ.get("READ_DATABASE_URL", db_url)  # falls back to write DB
+
+    engine = create_async_engine(
+        db_url,
+        pool_pre_ping=True,
+        pool_size=20,
+        max_overflow=10,
+        pool_recycle=3600,
+        echo=False,
+    )
+    # Read-replica preparation: use separate engine when READ_DATABASE_URL is configured.
+    # Otherwise, read and write share the same engine.
+    read_engine = (
+        create_async_engine(
+            read_db_url,
+            pool_pre_ping=True,
+            pool_size=10,
+            max_overflow=5,
+            pool_recycle=3600,
+            echo=False,
+        )
+        if read_db_url != db_url
+        else engine
+    )
     session_local = async_sessionmaker(bind=engine)
+    read_session_local = async_sessionmaker(bind=read_engine) if read_engine is not engine else session_local
 
     infra_container_type = build_infra_container()
 
@@ -48,6 +72,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         engine,
         session_local,
         id_obfuscator,
+        read_session_factory=read_session_local,
     )
 
     if not getattr(app.state, "rpc_mounted", False):
@@ -58,9 +83,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.rpc_mounted = True
 
     app.state.engine = engine
+    app.state.read_engine = read_engine
     try:
         yield
     finally:
+        if read_engine is not engine:
+            await read_engine.dispose()
         await engine.dispose()
 
 

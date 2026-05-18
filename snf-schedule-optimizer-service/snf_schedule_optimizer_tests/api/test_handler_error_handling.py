@@ -2,7 +2,6 @@
 
 import pytest
 from returns.result import Failure, Success
-from snf_schedule_optimizer.generated.scheduling.v1 import scheduling_pb2
 
 from snf_schedule_optimizer.api.grpc.scheduler_handler import (
     SchedulingServiceHandler,
@@ -12,6 +11,7 @@ from snf_schedule_optimizer.api.grpc.scheduler_mappers import (
     decode_patch,
     decode_staged_patches,
 )
+from snf_schedule_optimizer.generated.scheduling.v1 import scheduling_pb2
 from snf_schedule_optimizer.infrastructure.sqid_converter import IdObfuscator
 
 

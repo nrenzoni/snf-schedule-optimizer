@@ -1,6 +1,8 @@
 import asyncio
+import base64
 import logging
 from collections.abc import AsyncIterator
+from datetime import date, timedelta
 from typing import Any, cast
 
 import whenever
@@ -54,6 +56,7 @@ from snf_schedule_optimizer.infrastructure.sqid_converter import (
     IIdObfuscator,
 )
 from snf_schedule_optimizer.models import OptimizationRun
+from snf_schedule_optimizer.persistence.tenant import set_current_org_id
 from snf_schedule_optimizer.service.facility.facility_facade import FacilityFacade
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacadePort,
@@ -84,11 +87,12 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         engine: AsyncEngine,
         session_factory: async_sessionmaker[AsyncSession],
         id_obfuscator: IIdObfuscator,
+        read_session_factory: async_sessionmaker[AsyncSession] | None = None,
     ):
         self.engine = engine
         self.session_factory = session_factory
         self.id_obfuscator = id_obfuscator
-        self._repos_container = build_repos_container(self.engine, self.session_factory)
+        self._repos_container = build_repos_container(self.engine, self.session_factory, read_session_factory)
         self._scheduler_container = build_scheduler_container(self._repos_container)
         self._facility_container = build_facility_container(self._repos_container)
 
@@ -128,6 +132,7 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 raise SecurityError(
                     f"Facility {facility_id} does not belong to org {org_id}."
                 )
+        set_current_org_id(org_id)
 
     async def get_all_org_facilities(
         self,
@@ -228,6 +233,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             else "",
             schedule_version=schedule.schedule_version,
             updated_at=schedule.updated_at or "",
+            next_page_token="",
+            total_days=0,
         )
         if schedule.latest_optimization is not None:
             response.latest_optimization.CopyFrom(
@@ -250,6 +257,41 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             if day < request.start_date or day > end_date:
                 continue
             response.schedules[day].CopyFrom(day_schedule)
+
+        page_size = request.page_size if request.page_size > 0 else 31
+        page_token = request.page_token if request.page_token else None
+        if page_token:
+            try:
+                effective_start = base64.urlsafe_b64decode(
+                    page_token.encode()
+                ).decode()
+            except (ValueError, UnicodeDecodeError):
+                effective_start = request.start_date
+        else:
+            effective_start = request.start_date
+
+        sorted_days = sorted(day for day in response.schedules)
+        total_days = len(sorted_days)
+
+        effective_days = [d for d in sorted_days if d >= effective_start]
+        visible_days = effective_days[:page_size]
+        page_day_set = set(visible_days)
+
+        for day in list(response.schedules.keys()):
+            if day not in page_day_set:
+                del response.schedules[day]
+
+        next_page_token = ""
+        if len(effective_days) > page_size:
+            last_visible = visible_days[-1]
+            next_date = date.fromisoformat(last_visible) + timedelta(days=1)
+            next_page_token = base64.urlsafe_b64encode(
+                next_date.isoformat().encode()
+            ).decode()
+
+        response.next_page_token = next_page_token
+        response.total_days = total_days
+
         return response
 
     async def get_schedule_status(
