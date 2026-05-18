@@ -27,7 +27,10 @@ from snf_schedule_optimizer.api.grpc.scheduler_mappers import (
     map_summary,
     map_validation_response,
 )
-from snf_schedule_optimizer.domain.exceptions import SecurityError
+from snf_schedule_optimizer.domain.exceptions import (
+    DataIntegrityError,
+    SecurityError,
+)
 from snf_schedule_optimizer.generated.scheduling.v1 import (
     scheduling_connect,
     scheduling_pb2,
@@ -98,12 +101,12 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
     def _scheduler_context(
         self, scheduler_container: type[ISchedulerContainer]
     ) -> SupportsContext[Any]:
-        return cast(SupportsContext[Any], scheduler_container)
+        return scheduler_container  # type: ignore[return-value]
 
     def _facility_context(
         self, facility_container: type[IFacilityContainer]
     ) -> SupportsContext[Any]:
-        return cast(SupportsContext[Any], facility_container)
+        return facility_container  # type: ignore[return-value]
 
     async def _validate_tenant_access(
         self, org_id: int, facility_id: int | None
@@ -269,7 +272,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         if isinstance(schedule_result, Failure):
             return scheduling_pb2.GetScheduleStatusResponse()
         schedule_id = schedule_result.unwrap()
-        assert schedule_id is not None
+        if schedule_id is None:
+            raise DataIntegrityError("Expected non-null value from schedule_id decode")
 
         await self._validate_tenant_access(org_id, facility_id)
 
@@ -396,7 +400,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 error_details=schedule_result.failure(),
             )
         schedule_id = schedule_result.unwrap()
-        assert schedule_id is not None
+        if schedule_id is None:
+            raise DataIntegrityError("Expected non-null value from schedule_id decode")
 
         patches_result = decode_staged_patches(
             self.id_obfuscator, list(request.staged_patches)
@@ -595,7 +600,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             if isinstance(result, Failure):
                 return Failure(result.failure())
             internal = result.unwrap()
-            assert internal is not None
+            if internal is None:
+                raise DataIntegrityError(f"Expected non-null value from {label} ID decode")
             return Success(internal)
 
         def _optional_id(val: str, label: str) -> Result[int | None, str]:
@@ -687,7 +693,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         if isinstance(org_result, Failure):
             return Failure(org_result.failure())
         internal_org_id = org_result.unwrap()
-        assert internal_org_id is not None
+        if internal_org_id is None:
+            raise DataIntegrityError("Expected non-null value from org_id decode")
 
         facility_result = get_internal_id(
             self.id_obfuscator,
@@ -704,7 +711,8 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
         if isinstance(result, Failure):
             raise ValueError(result.failure())
         value = result.unwrap()
-        assert value is not None
+        if value is None:
+            raise DataIntegrityError("Expected non-null value from unwrap_required_id")
         return value
 
     @staticmethod

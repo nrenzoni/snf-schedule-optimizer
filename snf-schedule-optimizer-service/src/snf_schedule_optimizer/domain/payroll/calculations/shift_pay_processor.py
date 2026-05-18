@@ -1,5 +1,6 @@
 import whenever
 
+from snf_schedule_optimizer.domain.exceptions import DataIntegrityError
 from snf_schedule_optimizer.domain.hr.interfaces import IStaffCompensationRepo
 from snf_schedule_optimizer.domain.payroll.calculations.overtime_calculation import (
     ThresholdOvertimeRule,
@@ -159,12 +160,18 @@ class ShiftPayProcessor:
             for diff in segment.applicable_differential_rules:
                 differential = diff.differential
                 if differential.type == DifferentialType.MULTIPLIER:
-                    assert differential.multiplier is not None
+                    if differential.multiplier is None:
+                        raise DataIntegrityError(
+                            f"Differential {differential.name} of type MULTIPLIER has null multiplier"
+                        )
                     seg_diff += (
                         differential.multiplier * hourly_rate * segment.duration_hours
                     )
                 elif differential.type == DifferentialType.FLAT:
-                    assert differential.flat is not None
+                    if differential.flat is None:
+                        raise DataIntegrityError(
+                            f"Differential {differential.name} of type FLAT has null flat"
+                        )
                     seg_diff += float(differential.flat) * segment.duration_hours
 
             base_wage += segment_base

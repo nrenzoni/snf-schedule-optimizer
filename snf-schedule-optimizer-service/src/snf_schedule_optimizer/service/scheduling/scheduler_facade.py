@@ -11,6 +11,7 @@ from snf_schedule_optimizer.api import (
     OptimizeScheduleRequest,
     StartOptimizationRunRequest,
 )
+from snf_schedule_optimizer.domain.exceptions import DataIntegrityError
 from snf_schedule_optimizer.domain.payroll.calculations.schedule_cost_evaluator import (
     ScheduleCostEvaluator,
 )
@@ -270,7 +271,8 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             request.org_id,
             request.schedule_id,
         )
-        assert latest_version is not None
+        if latest_version is None:
+            raise DataIntegrityError("Expected non-null latest_schedule_version")
 
         rebased_schedule = current_schedule
         conflicts: list[PatchConflict] = []
@@ -416,7 +418,8 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             move_request.org_id,
             move_request.schedule_id,
         )
-        assert latest_version is not None
+        if latest_version is None:
+            raise DataIntegrityError("Expected non-null latest_schedule_version")
         if latest_version != move_request.schedule_version:
             return OptimizationOutput(
                 is_success=True,

@@ -15,6 +15,7 @@ from that_depends import container_context
 from that_depends.providers.context_resources import ContextScopes, SupportsContext
 
 from snf_schedule_optimizer.api import OptimizationOutput
+from snf_schedule_optimizer.domain.exceptions import DataIntegrityError
 from snf_schedule_optimizer.generated.scheduling.v1 import scheduling_pb2
 from snf_schedule_optimizer.infrastructure.composition import ISchedulerContainer
 from snf_schedule_optimizer.infrastructure.sqid_converter import (
@@ -367,7 +368,8 @@ def decode_patch(
     if isinstance(employee_id_result, Failure):
         return Failure(employee_id_result.failure())
     employee_id = employee_id_result.unwrap()
-    assert employee_id is not None
+    if employee_id is None:
+        raise DataIntegrityError("Expected non-null value from employee_id decode")
     from_shift_id_result = get_internal_id(
         obfuscator, patch.from_shift_id, "Shift", required=False
     )

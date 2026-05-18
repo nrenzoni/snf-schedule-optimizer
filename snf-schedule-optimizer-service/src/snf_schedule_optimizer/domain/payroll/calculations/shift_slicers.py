@@ -1,5 +1,6 @@
 import whenever
 
+from snf_schedule_optimizer.domain.exceptions import DataIntegrityError
 from snf_schedule_optimizer.domain.payroll.interfaces import (
     IDifferentialRule,
     IOvertimeRule,
@@ -76,7 +77,8 @@ class TimeOverlapShiftSlicer(IShiftSlicer):
             for diff_interval in differential_intervals:
                 # Check if the midpoint falls within the interval's time span
                 if diff_interval.start_dt <= midpoint < diff_interval.end_dt:
-                    assert diff_interval.rule is not None
+                    if diff_interval.rule is None:
+                        raise DataIntegrityError("Expected non-null rule for differential interval")
                     active_diff_rules.add(diff_interval.rule)
 
             # B. Assign Overtime Rules

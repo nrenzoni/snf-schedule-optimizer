@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
@@ -41,8 +42,38 @@ class MoveEmployeeRequest:
 
 
 @dataclass(frozen=True)
+class OptimizationSuccess:
+    schedule: "Schedule"
+    analysis: "ScheduleAnalysisReport | None" = None
+    financials: "ScheduleFinancialReport | None" = None
+    stats: "ScheduleOptimizationStats | None" = None
+    summary: Any | None = None
+    warnings: tuple[str, ...] = ()
+    validation_level: str = "ok"
+    patches: tuple["StagedSchedulePatch", ...] = ()
+    conflicts: tuple["PatchConflict", ...] = ()
+    latest_schedule_version: int | None = None
+    run: Any | None = None
+    is_valid: bool = True
+
+
+@dataclass(frozen=True)
+class OptimizationFailure:
+    error_details: str
+    failure_code: str | None = None
+    warnings: tuple[str, ...] = ()
+    validation_level: str = "error"
+
+
+OptimizationOutcome = OptimizationSuccess | OptimizationFailure
+
+
+@dataclass(frozen=True)
 class OptimizationOutput:
-    """The complete package returned to the client."""
+    """@deprecated: Use OptimizationOutcome discriminated union instead.
+
+    The complete package returned to the client.
+    """
 
     is_success: bool
     schedule: Schedule | None
@@ -58,6 +89,29 @@ class OptimizationOutput:
     conflicts: tuple[PatchConflict, ...] = ()
     latest_schedule_version: int | None = None
     run: OptimizationRun | None = None
+
+    def to_outcome(self) -> OptimizationOutcome:
+        if self.is_success and self.schedule is not None:
+            return OptimizationSuccess(
+                schedule=self.schedule,
+                analysis=self.analysis,
+                financials=self.financials,
+                stats=self.stats,
+                summary=self.summary,
+                warnings=self.warnings,
+                validation_level=self.validation_level,
+                patches=self.patches,
+                conflicts=self.conflicts,
+                latest_schedule_version=self.latest_schedule_version,
+                run=self.run,
+                is_valid=self.is_valid,
+            )
+        return OptimizationFailure(
+            error_details=self.error_details or "",
+            failure_code=getattr(self, "failure_code", None),
+            warnings=self.warnings,
+            validation_level=self.validation_level,
+        )
 
 
 @dataclass(frozen=True)

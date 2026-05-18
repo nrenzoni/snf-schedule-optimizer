@@ -46,41 +46,41 @@ from .constraints import (
 from .constraints import (
     SplitDayType as SplitDayType,
 )
-from .main_data_models import (
-    CrossShiftConstraints as CrossShiftConstraints,
+from .ehr.acuity import (
+    MlModelOutputs as MlModelOutputs,
 )
-from .main_data_models import (
-    Differential as Differential,
+from .ehr.acuity import (
+    PTORequest as PTORequest,
 )
-from .main_data_models import (
-    DifferentialDateInterval as DifferentialDateInterval,
+from .ehr.acuity import (
+    ResidentAcuity as ResidentAcuity,
+)
+from .facility.config import (
+    FacilityConfig as FacilityConfig,
+)
+from .facility.config import (
+    FacilityHrConfig as FacilityHrConfig,
+)
+from .facility.config import (
+    MinMandates as MinMandates,
+)
+from .hr.employee import (
+    Employee as Employee,
+)
+from .hr.employee import (
+    EmployeeCertification as EmployeeCertification,
+)
+from .hr.employee import (
+    NurseProfile as NurseProfile,
+)
+from .hr.employee import (
+    StaffShiftPreference as StaffShiftPreference,
 )
 from .main_data_models import (
     DomainPrimaryKeyType as DomainPrimaryKeyType,
 )
 from .main_data_models import (
-    Employee as Employee,
-)
-from .main_data_models import (
-    EmployeeCertification as EmployeeCertification,
-)
-from .main_data_models import (
     EmployeeIdType as EmployeeIdType,
-)
-from .main_data_models import (
-    EmployeeRuleOverride as EmployeeRuleOverride,
-)
-from .main_data_models import (
-    EmployeeStateSnapshot as EmployeeStateSnapshot,
-)
-from .main_data_models import (
-    EmployeeTimeSettings as EmployeeTimeSettings,
-)
-from .main_data_models import (
-    FacilityConfig as FacilityConfig,
-)
-from .main_data_models import (
-    FacilityHrConfig as FacilityHrConfig,
 )
 from .main_data_models import (
     FacilityIdKey as FacilityIdKey,
@@ -89,94 +89,67 @@ from .main_data_models import (
     FacilityIdType as FacilityIdType,
 )
 from .main_data_models import (
-    FacilityRulesConfig as FacilityRulesConfig,
-)
-from .main_data_models import (
-    LockedAssignment as LockedAssignment,
-)
-from .main_data_models import (
-    MealDeductionRules as MealDeductionRules,
-)
-from .main_data_models import (
-    MinMandates as MinMandates,
-)
-from .main_data_models import (
-    MlModelOutputs as MlModelOutputs,
-)
-from .main_data_models import (
-    NurseProfile as NurseProfile,
-)
-from .main_data_models import (
-    OptimizationRun as OptimizationRun,
-)
-from .main_data_models import (
-    OptimizationRunEvent as OptimizationRunEvent,
-)
-from .main_data_models import (
-    OptimizationSettings as OptimizationSettings,
-)
-from .main_data_models import (
-    OptimizationSnapshot as OptimizationSnapshot,
-)
-from .main_data_models import (
-    OptimizationSummary as OptimizationSummary,
-)
-from .main_data_models import (
-    OvertimeInterval as OvertimeInterval,
-)
-from .main_data_models import (
-    OvertimeTrigger as OvertimeTrigger,
-)
-from .main_data_models import (
-    PatchConflict as PatchConflict,
-)
-from .main_data_models import (
-    PreferenceWeights as PreferenceWeights,
-)
-from .main_data_models import (
-    PTORequest as PTORequest,
-)
-from .main_data_models import (
-    ResidentAcuity as ResidentAcuity,
-)
-from .main_data_models import (
-    Schedule as Schedule,
-)
-from .main_data_models import (
-    Shift as Shift,
-)
-from .main_data_models import (
-    ShiftAssignmentsType as ShiftAssignmentsType,
-)
-from .main_data_models import (
     ShiftIdKey as ShiftIdKey,
 )
-from .main_data_models import (
-    ShiftKey as ShiftKey,
+from .payroll import (
+    Differential as Differential,
 )
-from .main_data_models import (
-    ShiftSpecificRequirements as ShiftSpecificRequirements,
+from .payroll import (
+    DifferentialDateInterval as DifferentialDateInterval,
 )
-from .main_data_models import (
+from .payroll import (
+    OvertimeInterval as OvertimeInterval,
+)
+from .payroll import (
+    OvertimeTrigger as OvertimeTrigger,
+)
+from .payroll import (
     StaffCompensationRecord as StaffCompensationRecord,
 )
-from .main_data_models import (
-    StaffShiftPreference as StaffShiftPreference,
+from .scheduling.optimization import (
+    OptimizationRun as OptimizationRun,
 )
-from .main_data_models import (
+from .scheduling.optimization import (
+    OptimizationRunEvent as OptimizationRunEvent,
+)
+from .scheduling.optimization import (
+    OptimizationSettings as OptimizationSettings,
+)
+from .scheduling.optimization import (
+    OptimizationSnapshot as OptimizationSnapshot,
+)
+from .scheduling.optimization import (
+    OptimizationSummary as OptimizationSummary,
+)
+from .scheduling.optimization import (
+    PatchConflict as PatchConflict,
+)
+from .scheduling.optimization import (
+    PreferenceWeights as PreferenceWeights,
+)
+from .scheduling.optimization import (
     StagedSchedulePatch as StagedSchedulePatch,
 )
-from .main_data_models import (
-    TimePunch as TimePunch,
+from .scheduling.schedule import (
+    LockedAssignment as LockedAssignment,
 )
-from .main_data_models import (
-    WorkedHistoryFact as WorkedHistoryFact,
+from .scheduling.schedule import (
+    Schedule as Schedule,
 )
-from .main_data_models import (
-    WorkedShiftSegment as WorkedShiftSegment,
+from .scheduling.schedule import (
+    ShiftAssignmentsType as ShiftAssignmentsType,
 )
-from .main_data_models import (
-    WorkedTimeBlock as WorkedTimeBlock,
+from .scheduling.shift import (
+    CrossShiftConstraints as CrossShiftConstraints,
+)
+from .scheduling.shift import (
+    Shift as Shift,
+)
+from .scheduling.shift import (
+    ShiftKey as ShiftKey,
+)
+from .scheduling.shift import (
+    ShiftSpecificRequirements as ShiftSpecificRequirements,
 )
 from .test_parameters_data_models import (
     FacilityParameters as FacilityParameters,
@@ -186,4 +159,31 @@ from .test_parameters_data_models import (
 )
 from .test_parameters_data_models import (
     StressTestParameterName as StressTestParameterName,
+)
+from .timekeeping.history import (
+    EmployeeStateSnapshot as EmployeeStateSnapshot,
+)
+from .timekeeping.punch import (
+    TimePunch as TimePunch,
+)
+from .timekeeping.punch import (
+    WorkedHistoryFact as WorkedHistoryFact,
+)
+from .timekeeping.punch import (
+    WorkedShiftSegment as WorkedShiftSegment,
+)
+from .timekeeping.punch import (
+    WorkedTimeBlock as WorkedTimeBlock,
+)
+from .timekeeping.settings import (
+    EmployeeRuleOverride as EmployeeRuleOverride,
+)
+from .timekeeping.settings import (
+    EmployeeTimeSettings as EmployeeTimeSettings,
+)
+from .timekeeping.settings import (
+    FacilityRulesConfig as FacilityRulesConfig,
+)
+from .timekeeping.settings import (
+    MealDeductionRules as MealDeductionRules,
 )

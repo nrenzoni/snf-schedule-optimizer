@@ -1,6 +1,6 @@
 import abc
 from collections.abc import AsyncGenerator
-from typing import Any, ClassVar, cast
+from typing import Any, ClassVar
 
 from sqlalchemy import Engine
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -372,63 +372,54 @@ def build_scheduler_container(
         core_variable_strategy = Factory(CoreVariableGenerationStrategy)
 
         # single-item strategy providers wrapped to produce lists expected by optimizer
-        weekly_pay_strategy_list = Factory(
-            lambda pp: cast(
-                list[IPayModelStrategy],
-                [
-                    WeeklyVolumePayStrategy(pp, threshold=40.0),
-                    BiWeeklyPayPeriodOTStrategy(threshold=80.0),
-                ],
-            ),
+        weekly_pay_strategy_list: AbstractProvider[list[IPayModelStrategy]] = Factory(
+            lambda pp: [
+                WeeklyVolumePayStrategy(pp, threshold=40.0),
+                BiWeeklyPayPeriodOTStrategy(threshold=80.0),
+            ],
             Provide[pay_processor],
         )
-        nurse_hard_block_checker = Factory(NurseHardBlockCheckerImpl)
-        facility_constraint_strategies_list = Factory(
-            lambda checker: cast(
-                list[IFacilityScopedConstraintStrategy],
-                [
-                    HprdStaffingConstraintStrategy(checker),
-                    ConsecutiveRnCoverageConstraintStrategy(),
-                    LicensedNursePerShiftConstraintStrategy(),
-                    UnitMinimumStaffingConstraintStrategy(),
-                    PdpmCategoryConstraintStrategy(),
-                ],
-            ),
+        facility_constraint_strategies_list: AbstractProvider[
+            list[IFacilityScopedConstraintStrategy]
+        ] = Factory(
+            lambda checker: [
+                HprdStaffingConstraintStrategy(checker),
+                ConsecutiveRnCoverageConstraintStrategy(),
+                LicensedNursePerShiftConstraintStrategy(),
+                UnitMinimumStaffingConstraintStrategy(),
+                PdpmCategoryConstraintStrategy(),
+            ],
             Provide[nurse_hard_block_checker],
         )
 
         fairness_strategy = Singleton(WeekendFairnessPenaltyStrategy)
 
-        facility_rule_strategies_list = Factory(
-            lambda fairness: cast(
-                list[IFacilityScopedConstraintStrategy],
-                [
-                    ConsecutiveDaysLimitConstraintStrategy(),
-                    ConsecutiveShiftFatigueStrategy(),
-                    MaxShiftLengthConstraintStrategy(),
-                    MaxWeeklyHoursConstraintStrategy(),
-                    NurseShiftCountLimitStrategy(),
-                    EmploymentClassificationConstraintStrategy(),
-                    FloatLimitConstraintStrategy(),
-                    PreceptorRatioConstraintStrategy(),
-                    fairness,
-                ],
-            ),
+        facility_rule_strategies_list: AbstractProvider[
+            list[IFacilityScopedConstraintStrategy]
+        ] = Factory(
+            lambda fairness: [
+                ConsecutiveDaysLimitConstraintStrategy(),
+                ConsecutiveShiftFatigueStrategy(),
+                MaxShiftLengthConstraintStrategy(),
+                MaxWeeklyHoursConstraintStrategy(),
+                NurseShiftCountLimitStrategy(),
+                EmploymentClassificationConstraintStrategy(),
+                FloatLimitConstraintStrategy(),
+                PreceptorRatioConstraintStrategy(),
+                fairness,
+            ],
             Provide[fairness_strategy],
         )
 
-        penalty_strategies_list = Factory(
-            lambda pp, nr, er, fairness: cast(
-                list[IObjectivePenaltyStrategy],
-                [
-                    QualityOfLifeStrategy(
-                        preference_processor=pp,
-                        nurse_retriever=nr,
-                        employee_retriever=er,
-                    ),
-                    fairness,
-                ],
-            ),
+        penalty_strategies_list: AbstractProvider[list[IObjectivePenaltyStrategy]] = Factory(
+            lambda pp, nr, er, fairness: [
+                QualityOfLifeStrategy(
+                    preference_processor=pp,
+                    nurse_retriever=nr,
+                    employee_retriever=er,
+                ),
+                fairness,
+            ],
             Provide[penalty_processor],
             Provide[nurse_retriever],
             Provide[employee_retriever],
