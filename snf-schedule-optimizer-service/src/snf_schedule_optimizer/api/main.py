@@ -159,9 +159,11 @@ def create_app() -> FastAPI:
     return app
 
 
+app = create_app()
+
+
 async def main() -> None:
     setup_tracing()
-    app = create_app()
     config = Config()
     port = os.getenv("PORT", "8000")
     config.bind = [f"0.0.0.0:{port}"]
