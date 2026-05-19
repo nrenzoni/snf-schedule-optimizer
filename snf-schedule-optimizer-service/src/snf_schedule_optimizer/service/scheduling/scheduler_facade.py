@@ -60,6 +60,7 @@ from snf_schedule_optimizer.service.scheduling.commands import (
     PersistOptimizedScheduleHandler,
     StartOptimizationRunHandler,
 )
+from snf_schedule_optimizer.service.scheduling.queries import ScheduleQueryService
 
 
 class WorkforceSchedulerFacadePort(Protocol):
@@ -132,6 +133,12 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         self._uow_factory = uow_factory
         self._start_run_handler = StartOptimizationRunHandler(uow_factory)
         self._persist_schedule_handler = PersistOptimizedScheduleHandler(uow_factory)
+        self._query_service = ScheduleQueryService(
+            schedule_retriever=schedule_retriever,
+            facility_repository=facility_repository,
+            shift_retriever=shift_retriever,
+            provider_factory=provider_factory,
+        )
 
     def create_data_provider(
         self,
@@ -376,7 +383,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         )
 
     async def get_optimization_run(self, run_id: str) -> OptimizationRun | None:
-        return await self.schedule_retriever.get_optimization_run(run_id)
+        return await self._query_service.get_optimization_run(run_id)
 
     async def get_schedule_status(
         self,
@@ -385,24 +392,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         schedule_id: DomainPrimaryKeyType,
         current_schedule_version: int,
     ) -> tuple[Schedule, OptimizationRun | None, bool]:
-        schedule = await self.schedule_retriever.get_schedule(
-            ScheduleLookupKey(org_id, schedule_id)
+        return await self._query_service.get_schedule_status(
+            org_id, facility_id, schedule_id, current_schedule_version
         )
-        if schedule is None:
-            raise ValueError("Schedule not found.")
-        active_run = await self.schedule_retriever.get_active_optimization_run(
-            org_id,
-            facility_id,
-            schedule_id,
-        )
-        latest_version = await self.schedule_retriever.get_latest_schedule_version(
-            org_id,
-            schedule_id,
-        )
-        has_newer_version = (
-            latest_version or schedule.schedule_version
-        ) > current_schedule_version
-        return schedule, active_run, has_newer_version
 
     async def validate_shift_move(
         self,
@@ -544,48 +536,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         facility_id: DomainPrimaryKeyType | None,
         start_date: str,
     ) -> tuple[Schedule, dict[ShiftKey, Shift], dict[int, Employee], FacilityConfig]:
-        schedule = await self.schedule_retriever.get_schedule_for_month(
-            org_id=org_id,
-            facility_id=facility_id,
-            start_date=start_date,
+        return await self._query_service.get_monthly_schedule(
+            org_id, facility_id, start_date
         )
-        if schedule is None:
-            raise ValueError("No schedule found for the requested month.")
-
-        target_facility_id = (
-            facility_id if facility_id is not None else schedule.facility_id
-        )
-        if target_facility_id is None:
-            raise ValueError("A facility_id is required to load a monthly schedule.")
-
-        configs = await self.facility_repository.get_configs(
-            org_id, [target_facility_id]
-        )
-        if not configs:
-            raise ValueError(
-                f"Facility config not found for facility_id: {target_facility_id}"
-            )
-
-        facility_config = configs[0]
-        timezone_map = {facility_config.facility_id: facility_config.tz}
-
-        shift_keys = [
-            key
-            for key in schedule.shift_assignments
-            if key.facility_id == target_facility_id
-        ]
-        shifts = await self.shift_retriever.get_shifts_by_keys(
-            shift_keys=shift_keys,
-            facility_timezones=timezone_map,
-            org_id=org_id,
-        )
-
-        employees = await self.provider_factory.employee_retriever.get_all_employees(
-            org_id
-        )
-        employee_map = {employee.employee_id: employee for employee in employees}
-
-        return schedule, shifts, employee_map, facility_config
 
     async def _process_results(
         self,
