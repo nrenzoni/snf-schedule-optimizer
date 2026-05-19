@@ -1,4 +1,5 @@
 """Unit tests for ScheduleQueryService."""
+
 from unittest.mock import AsyncMock
 
 import whenever
@@ -22,15 +23,23 @@ class TestScheduleQueryService:
         provider_factory = AsyncMock(spec=ScenarioDataProviderFactory)
 
         expected = OptimizationRun(
-            run_id="r1", org_id=1, facility_id=1, schedule_id=10,
-            schedule_lineage_id=10, base_schedule_version=1,
-            status="completed", stage="completed",
-            progress_percent=100, status_message="done",
+            run_id="r1",
+            org_id=1,
+            facility_id=1,
+            schedule_id=10,
+            schedule_lineage_id=10,
+            base_schedule_version=1,
+            status="completed",
+            stage="completed",
+            progress_percent=100,
+            status_message="done",
             started_at=whenever.Instant.now().format_iso(),
         )
         run_repo.get_optimization_run = AsyncMock(return_value=expected)
 
-        svc = ScheduleQueryService(schedule_repo, run_repo, facility_repo, shift_repo, provider_factory)
+        svc = ScheduleQueryService(
+            schedule_repo, run_repo, facility_repo, shift_repo, provider_factory
+        )
         result = await svc.get_optimization_run("r1")
 
         run_repo.get_optimization_run.assert_awaited_once_with("r1")
@@ -45,7 +54,9 @@ class TestScheduleQueryService:
 
         schedule_repo.get_schedule = AsyncMock(return_value=None)
 
-        svc = ScheduleQueryService(schedule_repo, run_repo, facility_repo, shift_repo, provider_factory)
+        svc = ScheduleQueryService(
+            schedule_repo, run_repo, facility_repo, shift_repo, provider_factory
+        )
         try:
             await svc.get_schedule_status(1, 1, 10, 0)
             raise AssertionError("Expected ValueError")

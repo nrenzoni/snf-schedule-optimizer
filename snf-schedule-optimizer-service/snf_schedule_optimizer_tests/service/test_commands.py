@@ -1,4 +1,5 @@
 """Unit tests for optimization command handlers."""
+
 from unittest.mock import AsyncMock, MagicMock
 
 import whenever
@@ -50,8 +51,12 @@ class TestStartOptimizationRunHandler:
 
         result = await handler.execute(run, event)
 
-        mock_uow.optimization_run_repo.save_optimization_run.assert_awaited_once_with(run)
-        mock_uow.optimization_run_repo.append_optimization_run_event.assert_awaited_once_with(event)
+        mock_uow.optimization_run_repo.save_optimization_run.assert_awaited_once_with(
+            run
+        )
+        mock_uow.optimization_run_repo.append_optimization_run_event.assert_awaited_once_with(
+            event
+        )
         mock_uow.commit.assert_awaited_once()
         assert result is run
 
@@ -98,15 +103,25 @@ class TestCommandHandlerRollback:
 
         handler = StartOptimizationRunHandler(mock_factory)
         run = OptimizationRun(
-            run_id="test-run", org_id=1, facility_id=1, schedule_id=10,
-            schedule_lineage_id=10, base_schedule_version=1,
-            status="queued", stage="queued", progress_percent=0,
+            run_id="test-run",
+            org_id=1,
+            facility_id=1,
+            schedule_id=10,
+            schedule_lineage_id=10,
+            base_schedule_version=1,
+            status="queued",
+            stage="queued",
+            progress_percent=0,
             status_message="queued",
             started_at=whenever.Instant.now().format_iso(),
         )
         event = OptimizationRunEvent(
-            run_id="test-run", sequence=0, status="queued", stage="queued",
-            progress_percent=0, status_message="queued",
+            run_id="test-run",
+            sequence=0,
+            status="queued",
+            stage="queued",
+            progress_percent=0,
+            status_message="queued",
             created_at=whenever.Instant.now().format_iso(),
         )
 
