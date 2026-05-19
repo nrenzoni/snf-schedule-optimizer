@@ -49,6 +49,5 @@ def _inject_tenant_into_session(orm_execute_state: Any) -> None:
         return
 
     session.connection().execute(
-        text("SET LOCAL app.current_org_id = :org_id"),
-        {"org_id": org_id},
+        text(f"SET LOCAL app.current_org_id = {org_id}"),
     )

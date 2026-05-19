@@ -160,7 +160,7 @@ test("optimize flow updates the persisted schedule summary", async ({ page }) =>
   const response = await optimizeResponse;
   expect(response.ok()).toBeTruthy();
   await expect(optimizeButton).toContainText(/optimizing/i);
-  await expect(page.getByText(/run:/i)).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText(/^Run:/)).toBeVisible({ timeout: 10000 });
   await expect(page.getByText(/progress:/i)).toBeVisible({ timeout: 10000 });
 
   await summaryButton.click();
@@ -215,7 +215,7 @@ test("persisted active run hydrates without mismatch", async ({ page }) => {
             summary: null,
           },
         },
-        version: 1,
+        version: 2,
       }),
     );
   });
