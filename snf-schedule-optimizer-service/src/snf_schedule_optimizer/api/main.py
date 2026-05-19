@@ -34,10 +34,7 @@ logger = get_logger(__name__)
 def _allowed_origins() -> list[str]:
     return [
         origin.strip()
-        for origin in os.getenv(
-            "CORS_ALLOW_ORIGINS",
-            "http://localhost:3000,http://127.0.0.1:3000",
-        ).split(",")
+        for origin in os.getenv("CORS_ALLOW_ORIGINS", "").split(",")
         if origin.strip()
     ]
 

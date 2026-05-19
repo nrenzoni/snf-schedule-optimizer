@@ -3,10 +3,10 @@ set shell := ["bash", "-cu"]
 default:
   @just --list
 
-db_url := "postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo"
-api_url := "http://localhost:8000"
-demo_api_url := "http://localhost:8080"
-ui_url := "http://localhost:3000"
+db_url := `echo "${DATABASE_URL_LOCAL:-postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo}"`
+api_url := `echo "${API_URL:-http://localhost:8000}"`
+demo_api_url := `echo "http://localhost:${DEMO_API_PORT:-8080}"`
+ui_url := `echo "${UI_URL:-http://localhost:3000}"`
 e2e_runs := "uv run --project snf-schedule-optimizer-service python tools/e2e/runs.py"
 demo_state_env := "tools/.demo-smoke.env"
 demo_ports := "uv run --project snf-schedule-optimizer-service python -m tools.demo_ports"
@@ -68,16 +68,16 @@ infra-logs:
   docker compose -f compose.dev.yml logs db seeder
 
 infra-check:
-  PGPASSWORD=snf_password psql -h localhost -p 35435 -U snf_user -d snf_optimizer_demo -c 'select 1'
+  PGPASSWORD="${POSTGRES_PASSWORD:-snf_password}" psql -h localhost -p "${DB_HOST_PORT:-35435}" -U "${POSTGRES_USER:-snf_user}" -d "${POSTGRES_DB:-snf_optimizer_demo}" -c 'select 1'
 
 dev-ui:
-  cd snf-schedule-optimizer-ui && NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-{{api_url}}}" NEXT_ALLOWED_DEV_ORIGINS="${NEXT_ALLOWED_DEV_ORIGINS:-}" pnpm dev
+  cd snf-schedule-optimizer-ui && NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}" NEXT_ALLOWED_DEV_ORIGINS="${NEXT_ALLOWED_DEV_ORIGINS:-}" pnpm dev
 
 dev-be:
-  extra_origins="${EXTRA_DEV_ORIGINS:-}"; cors_origins="http://localhost:3000,http://127.0.0.1:3000"; if [[ -n "$extra_origins" ]]; then cors_origins="$cors_origins,$extra_origins"; fi; cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL={{db_url}} CORS_ALLOW_ORIGINS="$cors_origins" uv run uvicorn snf_schedule_optimizer.api.main:app --host 0.0.0.0 --port 8000 --reload
+  extra_origins="${EXTRA_DEV_ORIGINS:-}"; cors_origins="${CORS_ALLOW_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}"; if [[ -n "$extra_origins" ]]; then cors_origins="$cors_origins,$extra_origins"; fi; cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL="${DATABASE_URL_LOCAL:-postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo}" CORS_ALLOW_ORIGINS="$cors_origins" uv run uvicorn snf_schedule_optimizer.api.main:app --host 0.0.0.0 --port "${BACKEND_PORT:-8000}" --reload
 
 dev-worker:
-  cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL={{db_url}} uv run python -m snf_schedule_optimizer.api.worker_main
+  cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL="${DATABASE_URL_LOCAL:-postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo}" uv run python -m snf_schedule_optimizer.api.worker_main
 
 dev:
   @printf 'Run in separate terminals:\n'

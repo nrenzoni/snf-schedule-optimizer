@@ -4,15 +4,15 @@ services:
   db:
     image: postgres:18-alpine
     environment:
-      POSTGRES_USER: snf_user
-      POSTGRES_PASSWORD: snf_password
-      POSTGRES_DB: snf_optimizer_demo
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "35435:5432"
+      - "${DB_HOST_PORT}:5432"
     volumes:
       - pgdata-dev:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U snf_user -d snf_optimizer_demo"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,7 +22,7 @@ services:
       context: .
       dockerfile: snf-schedule-optimizer-service/Dockerfile
     environment:
-      DATABASE_URL: postgresql+asyncpg://snf_user:snf_password@db:5432/snf_optimizer_demo
+      DATABASE_URL: ${DATABASE_URL}
     volumes:
       - ./snf-schedule-optimizer-service/src:/app/src
     depends_on:

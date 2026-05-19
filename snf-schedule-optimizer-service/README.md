@@ -39,12 +39,12 @@ export DATABASE_URL=postgresql+asyncpg://snf_user:snf_password@localhost:35435/s
 
 ```
 
-## Demo Database Path
+## Demo
 
-If you want the backend demo database without running the full stack, use the service-local compose file:
+To run the full demo stack (including the UI), use the root-level compose file:
 
 ```bash
-docker compose -f docker-compose-demo.yml up --build
+docker compose --env-file ../.env -f ../compose.demo.yml up --build
 ```
 
 For the recommended local development workflow, use the repo-root `compose.dev.yml` via `just infra-up` and `just infra-seed`, then run the backend on the host with `just dev-be` and the optimization worker with `just dev-worker`.

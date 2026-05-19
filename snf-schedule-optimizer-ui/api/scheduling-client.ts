@@ -19,7 +19,7 @@ export const configuredBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ??
 const configuredRunId = process.env.NEXT_PUBLIC_E2E_RUN_ID?.trim();
 
 const transport = createConnectTransport({
-  baseUrl: configuredBaseUrl || "http://invalid.localhost",
+  baseUrl: configuredBaseUrl,
   interceptors: [],
   fetch: (input, init) => {
     if (!configuredBaseUrl) {

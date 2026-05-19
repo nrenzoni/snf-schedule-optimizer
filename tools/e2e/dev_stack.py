@@ -13,8 +13,9 @@ ROOT = Path(__file__).resolve().parents[2]
 UI_DIR = ROOT / "snf-schedule-optimizer-ui"
 SERVICE_DIR = ROOT / "snf-schedule-optimizer-service"
 LOCAL_HOST = "127.0.0.1"
-DEV_DATABASE_URL = (
-    "postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo"
+DEV_DATABASE_URL = os.environ.get(
+    "DATABASE_URL_LOCAL",
+    "postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo",
 )
 API_PORT_CANDIDATES = [8000, *range(8100, 8120)]
 UI_PORT_CANDIDATES = [3000, *range(3100, 3120)]

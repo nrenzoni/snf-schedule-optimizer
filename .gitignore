@@ -22,3 +22,4 @@ proto/node_modules/
 proto/package-lock.json
 tools/e2e/artifacts/
 tools/.demo-smoke.env
+.env
