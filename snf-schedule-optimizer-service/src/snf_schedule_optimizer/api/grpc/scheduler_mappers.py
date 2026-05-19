@@ -15,6 +15,7 @@ from that_depends import container_context
 from that_depends.providers.context_resources import ContextScopes, SupportsContext
 
 from snf_schedule_optimizer.api import OptimizationOutput
+from snf_schedule_optimizer.api.grpc._id_utils import get_internal_id
 from snf_schedule_optimizer.domain.exceptions import DataIntegrityError
 from snf_schedule_optimizer.generated.scheduling.v1 import scheduling_pb2
 from snf_schedule_optimizer.infrastructure.composition import ISchedulerContainer
@@ -353,17 +354,10 @@ def map_monthly_schedule(
     }
 
 
-# ---------------------------------------------------------------------------
-# Patch decode functions (need get_internal_id from handler — lazy import)
-# ---------------------------------------------------------------------------
-
-
 def decode_patch(
     obfuscator: IIdObfuscator,
     patch: scheduling_pb2.StagedSchedulePatch,
 ) -> Result[StagedSchedulePatch, str]:
-    from snf_schedule_optimizer.api.grpc.scheduler_handler import get_internal_id
-
     employee_id_result = get_internal_id(obfuscator, patch.employee_id, "Employee")
     if isinstance(employee_id_result, Failure):
         return Failure(employee_id_result.failure())

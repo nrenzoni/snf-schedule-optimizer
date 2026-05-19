@@ -7,7 +7,7 @@ from typing import Any, cast
 
 import whenever
 from connectrpc.request import RequestContext
-from returns.result import Failure, Result, Success, safe
+from returns.result import Failure, Result, Success
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from that_depends import container_context
 from that_depends.providers.context_resources import ContextScopes, SupportsContext
@@ -17,6 +17,7 @@ from snf_schedule_optimizer.api import (
     OptimizeScheduleRequest,
     StartOptimizationRunRequest,
 )
+from snf_schedule_optimizer.api.grpc._id_utils import get_internal_id
 from snf_schedule_optimizer.api.grpc.scheduler_mappers import (
     decode_staged_patches,
     map_conflict,
@@ -65,22 +66,6 @@ from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer(__name__)
-
-
-@safe
-def _decode(obfuscator: IIdObfuscator, val: str) -> int:
-    return int(obfuscator.decode(val))
-
-
-def get_internal_id(
-    obfuscator: IIdObfuscator,
-    val: str,
-    label: str,
-    required: bool = True,
-) -> Result[int | None, str]:
-    if not val:
-        return Success(None) if not required else Failure(f"Missing {label} ID.")
-    return _decode(obfuscator, val).alt(lambda _: f"Invalid {label} ID format.")
 
 
 class SchedulingServiceHandler(scheduling_connect.SchedulingService):

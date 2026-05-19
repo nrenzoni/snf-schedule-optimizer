@@ -7,6 +7,9 @@ import whenever
 from snf_schedule_optimizer.domain.payroll.calculations.shift_pay_processor import (
     ShiftPayProcessor,
 )
+from snf_schedule_optimizer.domain.payroll.calculations.shift_slicers import (
+    TimeOverlapShiftSlicer,
+)
 from snf_schedule_optimizer.models import (
     Employee,
     FacilityConfig,
@@ -56,10 +59,6 @@ async def test_skip_overtime_returns_zero_ot_premium() -> None:
     mock_comp_service.get_record_for_date = AsyncMock(return_value=comp)
     mock_elig = MagicMock()
     mock_elig.get_applicable_rules = AsyncMock(return_value=([], []))
-
-    from snf_schedule_optimizer.domain.payroll.calculations.shift_slicers import (
-        TimeOverlapShiftSlicer,
-    )
 
     processor = ShiftPayProcessor(
         eligibility_service=mock_elig,

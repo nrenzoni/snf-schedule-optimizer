@@ -8,9 +8,11 @@ from snf_schedule_optimizer.domain.exceptions import (
     DataIntegrityError,
     SecurityError,
 )
+from snf_schedule_optimizer.domain.hr.interfaces import IStaffCompensationRepo
 from snf_schedule_optimizer.models import OptimizationRun
 from snf_schedule_optimizer.optimizer.snapshot_provider import (
     _config_from_dict,
+    _SnapshotCompensationService,
 )
 
 
@@ -92,6 +94,7 @@ def test_snapshot_config_pay_period_defaults_to_14_days() -> None:
 
 
 def test_consecutive_days_limit_strategy_is_importable() -> None:
+    # Inline import intentional: this test validates the import path itself.
     from snf_schedule_optimizer.optimizer.strategies.constraints import (
         ConsecutiveDaysLimitConstraintStrategy,
     )
@@ -101,10 +104,5 @@ def test_consecutive_days_limit_strategy_is_importable() -> None:
 
 
 def test_snapshot_compensation_service_implements_interface() -> None:
-    from snf_schedule_optimizer.domain.hr.interfaces import IStaffCompensationRepo
-    from snf_schedule_optimizer.optimizer.snapshot_provider import (
-        _SnapshotCompensationService,
-    )
-
     svc = _SnapshotCompensationService({})
     assert isinstance(svc, IStaffCompensationRepo)

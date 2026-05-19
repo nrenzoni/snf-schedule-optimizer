@@ -1,8 +1,10 @@
 """Unit tests for tenant RLS context management."""
 
+import contextvars
 from unittest.mock import patch
 
 from sqlalchemy import Column, Integer, MetaData, Table
+from sqlalchemy.orm import Session
 
 from snf_schedule_optimizer.persistence.tenant import (
     _TENANT_SET_MARKER,
@@ -29,8 +31,6 @@ class TestTenantContext:
         assert get_current_org_id() == 100
 
     def test_default_raises_lookup_error(self) -> None:
-        import contextvars
-
         ctx: contextvars.ContextVar[int] = contextvars.ContextVar("new_var")
         try:
             ctx.get()
@@ -67,8 +67,6 @@ class TestRlsDdlRegistration:
 class TestSessionAutoInjection:
     def test_marker_added_to_session_info(self) -> None:
         """The _inject_tenant_into_session listener sets a per-session marker."""
-        from sqlalchemy.orm import Session
-
         session = object.__new__(Session)
         session.info = {}
 

@@ -6,6 +6,7 @@ import pulp
 
 from snf_schedule_optimizer.models import (
     LockedAssignment,
+    OptimizationSettings,
     Shift,
 )
 from snf_schedule_optimizer.optimizer.context import LpNurseShiftVariableHolder
@@ -28,8 +29,6 @@ class _FakeDataProvider:
         return None
 
     def get_optimization_settings(self) -> object:
-        from snf_schedule_optimizer.models import OptimizationSettings
-
         return OptimizationSettings()
 
 

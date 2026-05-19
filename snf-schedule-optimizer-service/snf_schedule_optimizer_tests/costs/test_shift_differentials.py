@@ -3,6 +3,14 @@
 import whenever
 
 from snf_schedule_optimizer.models import FacilityConfig
+from snf_schedule_optimizer.optimizer.calculators import (
+    ConfigurableIncentiveManager,
+    StandardLaborBurdenCalculator,
+)
+from snf_schedule_optimizer.optimizer.clocks import IClock
+from snf_schedule_optimizer.optimizer.strategies.pay import (
+    ComprehensiveShiftCostStrategy,
+)
 
 
 def test_facility_config_carries_night_shift_multiplier() -> None:
@@ -26,14 +34,6 @@ def test_facility_config_carries_night_shift_multiplier() -> None:
 
 def test_comprehensive_cost_strategy_accepts_burden_and_incentive_params() -> None:
     """ComprehensiveShiftCostStrategy can be instantiated with burden and incentive deps."""
-    from snf_schedule_optimizer.optimizer.calculators import (
-        ConfigurableIncentiveManager,
-        StandardLaborBurdenCalculator,
-    )
-    from snf_schedule_optimizer.optimizer.clocks import IClock
-    from snf_schedule_optimizer.optimizer.strategies.pay import (
-        ComprehensiveShiftCostStrategy,
-    )
 
     class _FakeClock(IClock):
         def now(self) -> whenever.Instant:

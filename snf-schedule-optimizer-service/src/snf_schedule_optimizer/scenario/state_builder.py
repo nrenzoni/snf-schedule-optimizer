@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
     EmployeeIdType,
@@ -54,7 +56,6 @@ class EmployeeStateSnapshotBuilder:
     def _count_consecutive_days(facts: list[WorkedHistoryFact]) -> int:
         if not facts:
             return 0
-        from datetime import date, timedelta
 
         dates = sorted(
             {date.fromisoformat(f.shift_start[:10]) for f in facts}, reverse=True

@@ -18,6 +18,16 @@ def setup_tracing() -> None:
 
     otlp_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
     if otlp_endpoint:
+        # Inline import intentional: opentelemetry-exporter-otlp-proto-grpc
+        # depends on opentelemetry-proto which requires protobuf>=5.0,<7.0.
+        # This project uses protobuf>=7.34.1 (required by the generated
+        # scheduling_pb2.py which uses runtime_version.ValidateProtobufRuntimeVersion).
+        # The OTLP gRPC exporter cannot be a hard dependency until
+        # opentelemetry-proto supports protobuf>=7.  When that happens:
+        #   1. Add "opentelemetry-exporter-otlp-proto-grpc>=..." to pyproject.toml
+        #   2. Move this import to the top of this file (after
+        #      opentelemetry.sdk.trace.export imports)
+        #   3. Remove this try/except ImportError guard
         try:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore[import-not-found]
                 OTLPSpanExporter,

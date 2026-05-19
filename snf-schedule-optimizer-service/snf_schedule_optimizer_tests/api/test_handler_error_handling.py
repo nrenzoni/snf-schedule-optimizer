@@ -3,9 +3,9 @@
 import pytest
 from returns.result import Failure, Success
 
+from snf_schedule_optimizer.api.grpc._id_utils import get_internal_id
 from snf_schedule_optimizer.api.grpc.scheduler_handler import (
     SchedulingServiceHandler,
-    get_internal_id,
 )
 from snf_schedule_optimizer.api.grpc.scheduler_mappers import (
     decode_patch,
