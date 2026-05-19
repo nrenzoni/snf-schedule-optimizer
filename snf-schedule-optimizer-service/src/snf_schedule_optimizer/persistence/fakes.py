@@ -708,6 +708,106 @@ class FakeScheduleRepo(IScheduleRepo):
         return None
 
 
+class FakeWorkerStore:
+    def __init__(self, schedule_repo: FakeScheduleRepo) -> None:
+        self._repo = schedule_repo
+
+    async def claim_next_queued_optimization_run(
+        self,
+        worker_id: str,
+        claim_token: str,
+        lease_expires_at: str,
+    ) -> OptimizationRun | None:
+        return await self._repo.claim_next_queued_optimization_run(
+            worker_id=worker_id,
+            claim_token=claim_token,
+            lease_expires_at=lease_expires_at,
+        )
+
+    async def renew_optimization_run_lease(
+        self,
+        run_id: str,
+        claim_token: str,
+        heartbeat_at: str,
+        lease_expires_at: str,
+    ) -> bool:
+        return await self._repo.renew_optimization_run_lease(
+            run_id=run_id,
+            claim_token=claim_token,
+            heartbeat_at=heartbeat_at,
+            lease_expires_at=lease_expires_at,
+        )
+
+    async def publish_progress(
+        self,
+        run: OptimizationRun,
+        event: OptimizationRunEvent,
+    ) -> None:
+        await self._repo.save_optimization_run(run)
+        await self._repo.append_optimization_run_event(event)
+
+    async def save_snapshot_with_run(
+        self,
+        snapshot: OptimizationSnapshot,
+        run: OptimizationRun,
+    ) -> None:
+        await self._repo.save_optimization_snapshot(snapshot)
+        await self._repo.save_optimization_run(run)
+
+    async def complete_run(
+        self,
+        run_id: str,
+        claim_token: str,
+        run: OptimizationRun,
+        event: OptimizationRunEvent,
+        result_schedule: Schedule | None = None,
+    ) -> None:
+        await self._repo.save_optimization_run(run)
+        await self._repo.append_optimization_run_event(event)
+        if result_schedule is not None:
+            await self._repo.save_schedule(result_schedule)
+        await self._repo.release_optimization_run_claim(
+            run_id=run_id,
+            claim_token=claim_token,
+            status="completed",
+            stage="completed",
+            status_message="Optimization completed",
+        )
+
+    async def fail_run(
+        self,
+        run_id: str,
+        claim_token: str,
+        stage: str,
+        status_message: str,
+        error_details: str | None,
+        failure_code: str,
+        final_sequence: int,
+    ) -> None:
+        await self._repo.append_optimization_run_event(
+            OptimizationRunEvent(
+                run_id=run_id,
+                sequence=final_sequence,
+                status="failed",
+                stage=stage,
+                progress_percent=100,
+                status_message=status_message,
+                error_details=error_details,
+                metrics={"failure_code": failure_code},
+                created_at=whenever.Instant.now().format_iso(),
+            )
+        )
+        await self._repo.release_optimization_run_claim(
+            run_id=run_id,
+            claim_token=claim_token,
+            status="failed",
+            stage=stage,
+            status_message=status_message,
+            error_details=error_details,
+            failure_code=failure_code,
+        )
+
+
 class FakeFacilityRepo(IFacilityRepo):
     """InMemory implementation of IFacilityRepository for testing."""
 

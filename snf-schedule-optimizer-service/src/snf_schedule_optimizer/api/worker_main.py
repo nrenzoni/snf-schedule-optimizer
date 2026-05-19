@@ -23,6 +23,9 @@ from snf_schedule_optimizer.service.scheduling.optimization_run_worker import (
     POLL_SECONDS,
     OptimizationRunWorker,
 )
+from snf_schedule_optimizer.service.scheduling.optimization_worker_store import (
+    SqlOptimizationWorkerStore,
+)
 
 configure_logging()
 logger = get_logger(__name__)
@@ -67,10 +70,12 @@ async def run_worker() -> None:
                     await scheduler_container.schedule_retriever.resolve(),
                 )
                 scheduler_facade = await scheduler_container.scheduler_service.resolve()
+                worker_store = SqlOptimizationWorkerStore(session_local)
                 worker = OptimizationRunWorker(
                     worker_id=worker_id,
                     schedule_repo=schedule_repo,
                     scheduler_facade=scheduler_facade,
+                    worker_store=worker_store,
                 )
                 try:
                     claimed = await worker.run_once()
@@ -79,7 +84,6 @@ async def run_worker() -> None:
                         "optimization.worker.iteration_failed",
                         worker_id=worker_id,
                     )
-                    await schedule_repo.rollback()
                     claimed = False
             if not claimed:
                 await asyncio.sleep(POLL_SECONDS)

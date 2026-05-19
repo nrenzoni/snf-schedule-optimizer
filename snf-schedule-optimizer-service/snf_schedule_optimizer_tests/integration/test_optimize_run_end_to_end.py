@@ -15,7 +15,7 @@ from snf_schedule_optimizer.models import (
     ShiftKey,
     StaffCompensationRecord,
 )
-from snf_schedule_optimizer.persistence.fakes import FakeScheduleRepo
+from snf_schedule_optimizer.persistence.fakes import FakeScheduleRepo, FakeWorkerStore
 from snf_schedule_optimizer.service.scheduling.optimization_run_worker import (
     OptimizationRunWorker,
 )
@@ -30,6 +30,7 @@ def _build_e2e_fixture() -> tuple[
     OptimizationRunWorker,
     WorkforceSchedulerFacade,
     FakeScheduleRepo,
+    FakeWorkerStore,
 ]:
     ref_date = whenever.ZonedDateTime(2025, 1, 1, 7, tz="America/New_York")
     employees = [
@@ -108,16 +109,18 @@ def _build_e2e_fixture() -> tuple[
         .build_facade()
     )
     schedule_repo = cast(FakeScheduleRepo, facade.schedule_retriever)
+    store = FakeWorkerStore(schedule_repo)
     worker = OptimizationRunWorker(
         worker_id="integration-worker",
         schedule_repo=schedule_repo,
         scheduler_facade=facade,
+        worker_store=store,
     )
-    return worker, facade, schedule_repo
+    return worker, facade, schedule_repo, store
 
 
 async def test_full_e2e_worker_pipeline() -> None:
-    worker, facade, schedule_repo = _build_e2e_fixture()
+    worker, facade, schedule_repo, _store = _build_e2e_fixture()
 
     response = await facade.start_optimization_run(
         StartOptimizationRunRequest(

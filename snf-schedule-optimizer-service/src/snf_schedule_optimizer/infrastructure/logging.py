@@ -15,11 +15,16 @@ def configure_logging(*, json_output: bool | None = None) -> None:
 
     timestamper = structlog.processors.TimeStamper(fmt="iso")
 
+    if json_output:
+        traceback_processor: Any = structlog.processors.dict_tracebacks
+    else:
+        traceback_processor = structlog.processors.format_exc_info
+
     shared_processors: list[Any] = [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         timestamper,
-        structlog.processors.dict_tracebacks,
+        traceback_processor,
     ]
 
     if json_output:

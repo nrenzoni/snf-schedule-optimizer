@@ -1,3 +1,4 @@
+import asyncio
 from typing import cast
 
 import whenever
@@ -7,6 +8,7 @@ from snf_schedule_optimizer.models import (
     Employee,
     FacilityConfig,
     NurseProfile,
+    OptimizationRun,
     OptimizationRunEvent,
     OptimizationSettings,
     Schedule,
@@ -14,7 +16,7 @@ from snf_schedule_optimizer.models import (
     ShiftKey,
     StaffCompensationRecord,
 )
-from snf_schedule_optimizer.persistence.fakes import FakeScheduleRepo
+from snf_schedule_optimizer.persistence.fakes import FakeScheduleRepo, FakeWorkerStore
 from snf_schedule_optimizer.service.scheduling.optimization_run_worker import (
     LEASE_SECONDS,
     OptimizationRunWorker,
@@ -26,10 +28,42 @@ from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
 from .support import OptimizerTestBuilder
 
 
+def _make_test_run(
+    run_id: str,
+    claim_token: str = "test-token",
+    lease_expires_at: str | None = None,
+) -> OptimizationRun:
+    return OptimizationRun(
+        run_id=run_id,
+        org_id=1,
+        facility_id=1,
+        schedule_id=10,
+        schedule_lineage_id=10,
+        base_schedule_version=1,
+        status="running",
+        stage="solving",
+        progress_percent=55,
+        status_message="Solving",
+        client_request_id="test",
+        started_at=whenever.Instant.now().format_iso(),
+        heartbeat_at=whenever.Instant.now().format_iso(),
+        lease_expires_at=lease_expires_at
+        or whenever.Instant.now().add(seconds=30).format_iso(),
+        claimed_by="test-worker",
+        claim_token=claim_token,
+        attempt_count=1,
+        persist_result=True,
+        decision_start_date="2025-01-01",
+        decision_end_date="2025-01-07",
+        settings=OptimizationSettings(),
+    )
+
+
 def _build_worker_fixture() -> tuple[
     OptimizationRunWorker,
     WorkforceSchedulerFacade,
     FakeScheduleRepo,
+    FakeWorkerStore,
 ]:
     ref_date = whenever.ZonedDateTime(2025, 1, 1, tz="America/New_York")
     employees = [
@@ -119,16 +153,18 @@ def _build_worker_fixture() -> tuple[
         .build_facade()
     )
     schedule_repo = cast(FakeScheduleRepo, facade.schedule_retriever)
+    store = FakeWorkerStore(schedule_repo)
     worker = OptimizationRunWorker(
         worker_id="test-worker",
         schedule_repo=schedule_repo,
         scheduler_facade=facade,
+        worker_store=store,
     )
-    return worker, facade, schedule_repo
+    return worker, facade, schedule_repo, store
 
 
 async def test_worker_executes_queued_run_to_completion() -> None:
-    worker, facade, schedule_repo = _build_worker_fixture()
+    worker, facade, schedule_repo, _store = _build_worker_fixture()
 
     response = await facade.start_optimization_run(
         StartOptimizationRunRequest(
@@ -162,7 +198,7 @@ async def test_worker_executes_queued_run_to_completion() -> None:
 
 
 async def test_worker_reclaims_stale_running_run() -> None:
-    worker, facade, schedule_repo = _build_worker_fixture()
+    worker, facade, schedule_repo, _store = _build_worker_fixture()
 
     response = await facade.start_optimization_run(
         StartOptimizationRunRequest(
@@ -198,7 +234,7 @@ async def test_worker_reclaims_stale_running_run() -> None:
 
 
 async def test_worker_reclaim_skips_duplicate_progress_events() -> None:
-    worker, facade, schedule_repo = _build_worker_fixture()
+    worker, facade, schedule_repo, _store = _build_worker_fixture()
 
     response = await facade.start_optimization_run(
         StartOptimizationRunRequest(
@@ -247,7 +283,7 @@ async def test_worker_reclaim_skips_duplicate_progress_events() -> None:
 
 
 async def test_worker_emits_failure_event_when_schedule_missing() -> None:
-    worker, facade, schedule_repo = _build_worker_fixture()
+    worker, facade, schedule_repo, _store = _build_worker_fixture()
 
     response = await facade.start_optimization_run(
         StartOptimizationRunRequest(
@@ -277,3 +313,136 @@ async def test_worker_emits_failure_event_when_schedule_missing() -> None:
     events = await schedule_repo.list_optimization_run_events(run.run_id)
     assert events[-1].status == "failed"
     assert events[-1].metrics == {"failure_code": "worker_error"}
+
+
+async def test_worker_store_fail_persists_failure_event() -> None:
+    _, _, schedule_repo, store = _build_worker_fixture()
+
+    run = _make_test_run("test-run-id", claim_token="test-token")
+    schedule_repo._runs["test-run-id"] = run
+
+    await store.fail_run(
+        run_id="test-run-id",
+        claim_token="test-token",
+        stage="failed",
+        status_message="Simulated failure",
+        error_details="Something went wrong",
+        failure_code="worker_error",
+        final_sequence=99,
+    )
+
+    result = await schedule_repo.get_optimization_run("test-run-id")
+    assert result is not None
+    assert result.status == "failed"
+    assert result.stage == "failed"
+    assert result.error_details == "Something went wrong"
+    assert result.failure_code == "worker_error"
+    assert result.claimed_by is None
+    assert result.claim_token is None
+
+    events = await schedule_repo.list_optimization_run_events("test-run-id")
+    assert events[-1].status == "failed"
+    assert events[-1].metrics == {"failure_code": "worker_error"}
+
+
+async def test_worker_store_claim_returns_none_when_nothing_queued() -> None:
+    _, _, _, store = _build_worker_fixture()
+
+    run = await store.claim_next_queued_optimization_run(
+        worker_id="test-worker",
+        claim_token="token",
+        lease_expires_at=whenever.Instant.now().add(seconds=30).format_iso(),
+    )
+    assert run is None
+
+
+async def test_worker_store_renew_lease_succeeds_with_matching_token() -> None:
+    _, _, schedule_repo, store = _build_worker_fixture()
+
+    run = _make_test_run(
+        "renew-test",
+        claim_token="valid-token",
+        lease_expires_at=whenever.Instant.now().format_iso(),
+    )
+    schedule_repo._runs["renew-test"] = run
+
+    new_lease = whenever.Instant.now().add(seconds=30).format_iso()
+    renewed = await store.renew_optimization_run_lease(
+        run_id="renew-test",
+        claim_token="valid-token",
+        heartbeat_at=whenever.Instant.now().format_iso(),
+        lease_expires_at=new_lease,
+    )
+    assert renewed is True
+
+    updated = schedule_repo._runs["renew-test"]
+    assert updated.lease_expires_at == new_lease
+
+
+async def test_worker_store_renew_lease_fails_with_wrong_token() -> None:
+    _, _, schedule_repo, store = _build_worker_fixture()
+
+    run = _make_test_run(
+        "renew-test",
+        claim_token="valid-token",
+        lease_expires_at=whenever.Instant.now().format_iso(),
+    )
+    schedule_repo._runs["renew-test"] = run
+
+    renewed = await store.renew_optimization_run_lease(
+        run_id="renew-test",
+        claim_token="wrong-token",
+        heartbeat_at=whenever.Instant.now().format_iso(),
+        lease_expires_at=whenever.Instant.now().add(seconds=30).format_iso(),
+    )
+    assert renewed is False
+
+
+async def test_store_and_repo_operations_do_not_conflict() -> None:
+    _, _, schedule_repo, store = _build_worker_fixture()
+
+    run = _make_test_run("concurrent-test", claim_token="concurrent-token")
+    schedule_repo._runs[run.run_id] = run
+
+    async def heartbeat() -> None:
+        for _ in range(5):
+            await store.renew_optimization_run_lease(
+                run_id=run.run_id,
+                claim_token="concurrent-token",
+                heartbeat_at=whenever.Instant.now().format_iso(),
+                lease_expires_at=whenever.Instant.now().add(seconds=30).format_iso(),
+            )
+            await asyncio.sleep(0.001)
+
+    async def progress() -> None:
+        for i in range(5):
+            progress_run = OptimizationRun(
+                **{
+                    **run.__dict__,
+                    "status": "running",
+                    "stage": "solving",
+                    "progress_percent": 55 + i,
+                    "status_message": f"Progress {i}",
+                }
+            )
+            event = OptimizationRunEvent(
+                run_id=run.run_id,
+                sequence=100 + i,
+                status="running",
+                stage="solving",
+                progress_percent=55 + i,
+                status_message=f"Progress {i}",
+                created_at=whenever.Instant.now().format_iso(),
+            )
+            await store.publish_progress(progress_run, event)
+            await asyncio.sleep(0.001)
+
+    await asyncio.gather(heartbeat(), progress())
+
+    final = await schedule_repo.get_optimization_run(run.run_id)
+    assert final is not None
+    assert final.status == "running"
+
+    events = await schedule_repo.list_optimization_run_events(run.run_id)
+    progress_event_count = sum(1 for e in events if e.sequence >= 100)
+    assert progress_event_count == 5

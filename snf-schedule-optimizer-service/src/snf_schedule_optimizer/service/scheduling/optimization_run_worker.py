@@ -39,6 +39,9 @@ from snf_schedule_optimizer.optimizer.interfaces import IScenarioDataProvider
 from snf_schedule_optimizer.optimizer.snapshot_provider import (
     SnapshotScenarioDataProvider,
 )
+from snf_schedule_optimizer.service.scheduling.optimization_worker_store import (
+    IOptimizationWorkerStore,
+)
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacade,
 )
@@ -64,10 +67,12 @@ class OptimizationRunWorker:
         worker_id: str,
         schedule_repo: IScheduleRepo,
         scheduler_facade: WorkforceSchedulerFacade,
+        worker_store: IOptimizationWorkerStore,
     ) -> None:
         self.worker_id = worker_id
         self.schedule_repo = schedule_repo
         self.scheduler_facade = scheduler_facade
+        self._store = worker_store
 
     async def run_forever(self, stop_event: asyncio.Event | None = None) -> None:
         while stop_event is None or not stop_event.is_set():
@@ -89,14 +94,13 @@ class OptimizationRunWorker:
         lease_expires_at = (
             whenever.Instant.now().add(seconds=LEASE_SECONDS).format_iso()
         )
-        run = await self.schedule_repo.claim_next_queued_optimization_run(
+        run = await self._store.claim_next_queued_optimization_run(
             worker_id=self.worker_id,
             claim_token=claim_token,
             lease_expires_at=lease_expires_at,
         )
         if run is None:
             return None
-        await self.schedule_repo.commit()
         return WorkerClaim(run=run, claim_token=claim_token)
 
     async def _execute_claimed_run(self, claim: WorkerClaim) -> None:
@@ -161,15 +165,13 @@ class OptimizationRunWorker:
                 ),
                 timeout=SNAPSHOT_BUILD_TIMEOUT_SECONDS,
             )
-            await self.schedule_repo.save_optimization_snapshot(snapshot)
             current_run = replace(
                 current_run,
                 snapshot_id=snapshot.snapshot_id,
                 policy_start_date=snapshot.policy_start_date,
                 policy_end_date=snapshot.policy_end_date,
             )
-            await self.schedule_repo.save_optimization_run(current_run)
-            await self.schedule_repo.commit()
+            await self._store.save_snapshot_with_run(snapshot, current_run)
 
             snapshot_data_provider = SnapshotScenarioDataProvider.from_snapshot_payload(
                 snapshot.payload
@@ -218,8 +220,9 @@ class OptimizationRunWorker:
             )
 
             if not result.is_success or result.schedule is None:
-                await self._finish_failure(
-                    claim,
+                await self._store.fail_run(
+                    run_id=claim.run.run_id,
+                    claim_token=claim.claim_token,
                     stage="failed",
                     status_message="Optimization failed",
                     error_details=result.error_details,
@@ -268,58 +271,75 @@ class OptimizationRunWorker:
             )
 
             if request.persist_result:
-                await self.schedule_repo.save_schedule(persisted_schedule)
-
-            final_run = replace(
-                current_run,
-                status=OptimizationRunStatus.COMPLETED.value,
-                stage=OptimizationRunStage.COMPLETED.value,
-                progress_percent=100,
-                status_message="Optimization completed",
-                completed_at=whenever.Instant.now().format_iso(),
-                result_schedule_id=(
-                    persisted_schedule.schedule_id if request.persist_result else None
-                ),
-                result_schedule_version=(
-                    persisted_schedule.schedule_version
-                    if request.persist_result
-                    else None
-                ),
-                financials=result.financials,
-                stats=result.stats,
-                summary=result.summary,
-                snapshot_id=snapshot.snapshot_id,
-            )
-            await self.schedule_repo.save_optimization_run(final_run)
-            await self.schedule_repo.append_optimization_run_event(
-                OptimizationRunEvent(
-                    run_id=claim.run.run_id,
-                    sequence=10,
+                final_run = replace(
+                    current_run,
                     status=OptimizationRunStatus.COMPLETED.value,
                     stage=OptimizationRunStage.COMPLETED.value,
                     progress_percent=100,
                     status_message="Optimization completed",
-                    metrics={
-                        "result_schedule_version": persisted_schedule.schedule_version
-                        if request.persist_result
-                        else None
-                    },
-                    created_at=whenever.Instant.now().format_iso(),
+                    completed_at=whenever.Instant.now().format_iso(),
+                    result_schedule_id=persisted_schedule.schedule_id,
+                    result_schedule_version=persisted_schedule.schedule_version,
+                    financials=result.financials,
+                    stats=result.stats,
+                    summary=result.summary,
+                    snapshot_id=snapshot.snapshot_id,
                 )
-            )
-            await self.schedule_repo.release_optimization_run_claim(
-                run_id=claim.run.run_id,
-                claim_token=claim.claim_token,
-                status=OptimizationRunStatus.COMPLETED.value,
-                stage=OptimizationRunStage.COMPLETED.value,
-                status_message="Optimization completed",
-            )
-            await self.schedule_repo.commit()
+                await self._store.complete_run(
+                    run_id=claim.run.run_id,
+                    claim_token=claim.claim_token,
+                    run=final_run,
+                    event=OptimizationRunEvent(
+                        run_id=claim.run.run_id,
+                        sequence=10,
+                        status=OptimizationRunStatus.COMPLETED.value,
+                        stage=OptimizationRunStage.COMPLETED.value,
+                        progress_percent=100,
+                        status_message="Optimization completed",
+                        metrics={
+                            "result_schedule_version": persisted_schedule.schedule_version
+                        },
+                        created_at=whenever.Instant.now().format_iso(),
+                    ),
+                    result_schedule=persisted_schedule,
+                )
+            else:
+                final_run = replace(
+                    current_run,
+                    status=OptimizationRunStatus.COMPLETED.value,
+                    stage=OptimizationRunStage.COMPLETED.value,
+                    progress_percent=100,
+                    status_message="Optimization completed",
+                    completed_at=whenever.Instant.now().format_iso(),
+                    result_schedule_id=None,
+                    result_schedule_version=None,
+                    financials=result.financials,
+                    stats=result.stats,
+                    summary=result.summary,
+                    snapshot_id=snapshot.snapshot_id,
+                )
+                await self._store.complete_run(
+                    run_id=claim.run.run_id,
+                    claim_token=claim.claim_token,
+                    run=final_run,
+                    event=OptimizationRunEvent(
+                        run_id=claim.run.run_id,
+                        sequence=10,
+                        status=OptimizationRunStatus.COMPLETED.value,
+                        stage=OptimizationRunStage.COMPLETED.value,
+                        progress_percent=100,
+                        status_message="Optimization completed",
+                        metrics={
+                            "result_schedule_version": None,
+                        },
+                        created_at=whenever.Instant.now().format_iso(),
+                    ),
+                )
         except Exception as exc:
-            await self.schedule_repo.rollback()
             try:
-                await self._finish_failure(
-                    claim,
+                await self._store.fail_run(
+                    run_id=claim.run.run_id,
+                    claim_token=claim.claim_token,
                     stage=OptimizationRunStage.FAILED.value,
                     status_message="Optimization worker failed",
                     error_details=str(exc),
@@ -327,7 +347,6 @@ class OptimizationRunWorker:
                     final_sequence=99,
                 )
             except Exception:
-                await self.schedule_repo.rollback()
                 logger.exception(
                     "failed to persist optimization run failure run_id=%s",
                     claim.run.run_id,
@@ -355,15 +374,12 @@ class OptimizationRunWorker:
         heartbeat_at: str,
         lease_expires_at: str,
     ) -> bool:
-        renewed = await self.schedule_repo.renew_optimization_run_lease(
+        return await self._store.renew_optimization_run_lease(
             run_id=run_id,
             claim_token=claim_token,
             heartbeat_at=heartbeat_at,
             lease_expires_at=lease_expires_at,
         )
-        if renewed:
-            await self.schedule_repo.commit()
-        return renewed
 
     async def _publish_progress(
         self,
@@ -385,8 +401,8 @@ class OptimizationRunWorker:
             claim_token=claim_token,
             claimed_by=self.worker_id,
         )
-        await self.schedule_repo.save_optimization_run(updated_run)
-        await self.schedule_repo.append_optimization_run_event(
+        await self._store.publish_progress(
+            updated_run,
             OptimizationRunEvent(
                 run_id=run.run_id,
                 sequence=sequence,
@@ -396,43 +412,9 @@ class OptimizationRunWorker:
                 status_message=status_message,
                 metrics=metrics,
                 created_at=whenever.Instant.now().format_iso(),
-            )
+            ),
         )
-        await self.schedule_repo.commit()
         return updated_run
-
-    async def _finish_failure(
-        self,
-        claim: WorkerClaim,
-        stage: str,
-        status_message: str,
-        error_details: str | None,
-        failure_code: str,
-        final_sequence: int,
-    ) -> None:
-        await self.schedule_repo.append_optimization_run_event(
-            OptimizationRunEvent(
-                run_id=claim.run.run_id,
-                sequence=final_sequence,
-                status=OptimizationRunStatus.FAILED.value,
-                stage=stage,
-                progress_percent=100,
-                status_message=status_message,
-                error_details=error_details,
-                metrics={"failure_code": failure_code},
-                created_at=whenever.Instant.now().format_iso(),
-            )
-        )
-        await self.schedule_repo.release_optimization_run_claim(
-            run_id=claim.run.run_id,
-            claim_token=claim.claim_token,
-            status=OptimizationRunStatus.FAILED.value,
-            stage=stage,
-            status_message=status_message,
-            error_details=error_details,
-            failure_code=failure_code,
-        )
-        await self.schedule_repo.commit()
 
     async def _build_snapshot(
         self,
