@@ -158,11 +158,11 @@ export function useOptimizationRunSync() {
 
         await pollAndApplyFinalRun(runId);
       } catch {
-        if (abortController.signal.aborted) {
-          return;
+        // Always reconcile terminal state regardless of abort/error,
+        // but only if the run id hasn't changed (new run didn't start).
+        if (activeRunRef.current?.runId === runId) {
+          await pollAndApplyFinalRun(runId);
         }
-
-        await pollAndApplyFinalRun(runId);
       }
     },
     [refetchSchedule, setRunProgress, pollAndApplyFinalRun, recordStageTiming, finalizeStageTimings],
