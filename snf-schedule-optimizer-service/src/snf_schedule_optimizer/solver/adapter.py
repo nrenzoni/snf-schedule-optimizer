@@ -53,13 +53,17 @@ class CbcSolverAdapter:
     def _build_solver(self) -> pulp.LpSolver:
         cbc_path = os.getenv("CBC_PATH")
         if cbc_path:
-            return pulp.COIN_CMD(timeLimit=self.time_limit_seconds, path=cbc_path)
+            return pulp.COIN_CMD(
+                timeLimit=self.time_limit_seconds, path=cbc_path, msg=False
+            )
 
         detected_cbc = shutil.which("cbc")
         if detected_cbc:
-            return pulp.COIN_CMD(timeLimit=self.time_limit_seconds, path=detected_cbc)
+            return pulp.COIN_CMD(
+                timeLimit=self.time_limit_seconds, path=detected_cbc, msg=False
+            )
 
-        return pulp.PULP_CBC_CMD(timeLimit=self.time_limit_seconds)
+        return pulp.PULP_CBC_CMD(timeLimit=self.time_limit_seconds, msg=False)
 
     @staticmethod
     def _termination_reason(

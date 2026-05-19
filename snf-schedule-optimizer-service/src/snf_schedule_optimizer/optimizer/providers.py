@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 
@@ -116,6 +117,7 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
         self._cached_hprd_reqs: dict[int, HprdShiftNurseRequirementHolder] = {}
         self._accumulated_hours_cache: dict[DomainPrimaryKeyType, float] = {}
         self._work_history_preloaded = False
+        self._work_history_lock = asyncio.Lock()
         self._candidate_eligibility_service = CandidateEligibilityService(
             hard_block_checker=hard_block_checker,
         )
@@ -215,26 +217,29 @@ class ScenarioDataProviderImpl(IScenarioDataProvider):
     async def _warmup_work_history(self) -> None:
         if self._work_history_preloaded:
             return
-        t0 = time.perf_counter()
-        employees = await self.get_all_employees()
-        employee_ids = [e.employee_id for e in employees]
-        if not employee_ids:
+        async with self._work_history_lock:
+            if self._work_history_preloaded:
+                return
+            t0 = time.perf_counter()
+            employees = await self.get_all_employees()
+            employee_ids = [e.employee_id for e in employees]
+            if not employee_ids:
+                self._work_history_preloaded = True
+                return
+            hours_map = await self._work_history_service.preload_all_accumulated_hours(
+                org_id=self.target_org_id,
+                employee_ids=employee_ids,
+                check_date=self.opt_start,
+                pay_period_start=self.pay_period_start,
+                facility_id=None,
+            )
+            self._accumulated_hours_cache.update(hours_map)
             self._work_history_preloaded = True
-            return
-        hours_map = await self._work_history_service.preload_all_accumulated_hours(
-            org_id=self.target_org_id,
-            employee_ids=employee_ids,
-            check_date=self.opt_start,
-            pay_period_start=self.pay_period_start,
-            facility_id=None,
-        )
-        self._accumulated_hours_cache.update(hours_map)
-        self._work_history_preloaded = True
-        logger.info(
-            "Work history preloaded for %d employees in %.2fs",
-            len(hours_map),
-            time.perf_counter() - t0,
-        )
+            logger.info(
+                "Work history preloaded for %d employees in %.2fs",
+                len(hours_map),
+                time.perf_counter() - t0,
+            )
 
     async def get_compensation_for_date(
         self,
