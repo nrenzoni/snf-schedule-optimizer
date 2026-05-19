@@ -1,5 +1,14 @@
 # Agent Workflow
 
+## Justfile Hierarchy
+
+- `justfile`: Thin orchestrator and cross-cutting recipes (infra, demo, e2e, codegen).
+- `snf-schedule-optimizer-ui/justfile`: UI install, lint, typecheck, test, build, dev, check.
+- `snf-schedule-optimizer-service/justfile`: Backend install, lint, format, typecheck, test, dev, dev-worker, check.
+- `proto/justfile`: Protobuf code generation.
+
+Child justfiles are self-contained. Use `just <recipe>` from within a subdirectory or use root-level prefixed commands (`just lint-ui`, `just check-be`) from anywhere.
+
 ## Default Local Dev Loop
 
 - Use `just` as the source of truth for local commands.

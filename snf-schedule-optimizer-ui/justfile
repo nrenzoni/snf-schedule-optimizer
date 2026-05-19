@@ -1,0 +1,21 @@
+set shell := ["bash", "-cu"]
+
+install:
+  pnpm install
+
+lint:
+  pnpm lint
+
+typecheck:
+  pnpm typecheck
+
+test:
+  pnpm test:unit
+
+build:
+  pnpm build
+
+dev:
+  NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}" NEXT_ALLOWED_DEV_ORIGINS="${NEXT_ALLOWED_DEV_ORIGINS:-}" pnpm dev
+
+check: lint typecheck test build

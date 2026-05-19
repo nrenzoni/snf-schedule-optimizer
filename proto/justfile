@@ -1,0 +1,4 @@
+set shell := ["bash", "-cu"]
+
+generate:
+  npm install --no-package-lock && npm run generate && python3 post_generate_fix_imports.py

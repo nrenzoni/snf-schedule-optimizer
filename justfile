@@ -3,57 +3,61 @@ set shell := ["bash", "-cu"]
 default:
   @just --list
 
-db_url := `echo "${DATABASE_URL_LOCAL:-postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo}"`
-api_url := `echo "${API_URL:-http://localhost:8000}"`
-demo_api_url := `echo "http://localhost:${DEMO_API_PORT:-8080}"`
-ui_url := `echo "${UI_URL:-http://localhost:3000}"`
+db_url := "postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo"
+api_url := "http://localhost:8000"
+demo_api_url := "http://localhost:8080"
+ui_url := "http://localhost:3000"
 e2e_runs := "uv run --project snf-schedule-optimizer-service python tools/e2e/runs.py"
 demo_state_env := "tools/.demo-smoke.env"
 demo_ports := "uv run --project snf-schedule-optimizer-service python -m tools.demo_ports"
 
 install: install-ui install-be
 
-check: ci
+check:
+  just check-ui
+  just check-be
+
+ci: check
 
 install-ui:
-  cd snf-schedule-optimizer-ui && pnpm install
+  cd snf-schedule-optimizer-ui && just install
 
 install-be:
-  cd snf-schedule-optimizer-service && uv sync
+  cd snf-schedule-optimizer-service && just install
 
 lint-ui:
-  cd snf-schedule-optimizer-ui && pnpm lint
+  cd snf-schedule-optimizer-ui && just lint
 
 typecheck-ui:
-  cd snf-schedule-optimizer-ui && pnpm typecheck
+  cd snf-schedule-optimizer-ui && just typecheck
 
 test-ui:
-  cd snf-schedule-optimizer-ui && pnpm test:unit
+  cd snf-schedule-optimizer-ui && just test
 
 build-ui:
-  cd snf-schedule-optimizer-ui && pnpm build
+  cd snf-schedule-optimizer-ui && just build
 
 lint-be:
-  cd snf-schedule-optimizer-service && PYTHONPATH=src uv run ruff check .
+  cd snf-schedule-optimizer-service && just lint
 
 auto-fix-format-be:
-    cd snf-schedule-optimizer-service && PYTHONPATH=src uv run ruff check --fix . && PYTHONPATH=src uv run ruff format .
+  cd snf-schedule-optimizer-service && just auto-fix-format
 
 typecheck-be:
-    cd snf-schedule-optimizer-service && PYTHONPATH=src uv run mypy
+  cd snf-schedule-optimizer-service && just typecheck
 
 test-be:
-  cd snf-schedule-optimizer-service && PYTHONPATH=src uv run pytest
+  cd snf-schedule-optimizer-service && just test
 
 proto:
-  cd proto && npm install --no-package-lock && npx buf generate && python3 post_generate_fix_imports.py
+  cd proto && just generate
 
 infra-up:
   docker compose -f compose.dev.yml up -d --remove-orphans db
 
 infra-seed:
-  docker compose -f compose.dev.yml up -d --wait --remove-orphans db
-  cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL="${DATABASE_URL_LOCAL:-postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo}" uv run python -m snf_schedule_optimizer.infrastructure.demo_bootstrap
+  docker compose -f compose.dev.yml up -d --remove-orphans db
+  docker compose -f compose.dev.yml --profile tools run --rm seeder
 
 infra-down:
   docker compose -f compose.dev.yml down --remove-orphans
@@ -68,16 +72,16 @@ infra-logs:
   docker compose -f compose.dev.yml logs db seeder
 
 infra-check:
-  PGPASSWORD="${POSTGRES_PASSWORD:-snf_password}" psql -h localhost -p "${DB_HOST_PORT:-35435}" -U "${POSTGRES_USER:-snf_user}" -d "${POSTGRES_DB:-snf_optimizer_demo}" -c 'select 1'
+  PGPASSWORD=snf_password psql -h localhost -p 35435 -U snf_user -d snf_optimizer_demo -c 'select 1'
 
 dev-ui:
-  cd snf-schedule-optimizer-ui && NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}" NEXT_ALLOWED_DEV_ORIGINS="${NEXT_ALLOWED_DEV_ORIGINS:-}" pnpm dev
+  cd snf-schedule-optimizer-ui && NEXT_PUBLIC_API_BASE_URL="${NEXT_PUBLIC_API_BASE_URL:-{{api_url}}}" NEXT_ALLOWED_DEV_ORIGINS="${NEXT_ALLOWED_DEV_ORIGINS:-}" just dev
 
 dev-be:
-  extra_origins="${EXTRA_DEV_ORIGINS:-}"; cors_origins="${CORS_ALLOW_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}"; if [[ -n "$extra_origins" ]]; then cors_origins="$cors_origins,$extra_origins"; fi; cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL="${DATABASE_URL_LOCAL:-postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo}" CORS_ALLOW_ORIGINS="$cors_origins" uv run uvicorn snf_schedule_optimizer.api.main:app --host 0.0.0.0 --port "${BACKEND_PORT:-8000}" --reload
+  extra_origins="${EXTRA_DEV_ORIGINS:-}"; cors_origins="http://localhost:3000,http://127.0.0.1:3000"; if [[ -n "$extra_origins" ]]; then cors_origins="$cors_origins,$extra_origins"; fi; cd snf-schedule-optimizer-service && DATABASE_URL={{db_url}} CORS_ALLOW_ORIGINS="$cors_origins" just dev
 
 dev-worker:
-  cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL="${DATABASE_URL_LOCAL:-postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo}" uv run python -m snf_schedule_optimizer.api.worker_main
+  cd snf-schedule-optimizer-service && DATABASE_URL={{db_url}} just dev-worker
 
 dev:
   @printf 'Run in separate terminals:\n'
@@ -88,10 +92,10 @@ dev:
   @printf '  just dev-ui\n'
 
 check-ui:
-  cd snf-schedule-optimizer-ui && pnpm lint && pnpm typecheck && pnpm test:unit && pnpm build
+  cd snf-schedule-optimizer-ui && just check
 
 check-be:
-  cd snf-schedule-optimizer-service && PYTHONPATH=src uv run ruff check . && PYTHONPATH=src uv run mypy && PYTHONPATH=src uv run pytest
+  cd snf-schedule-optimizer-service && just check
 
 check-proto:
   just proto && git diff --exit-code -- proto snf-schedule-optimizer-ui/gen snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated
@@ -139,7 +143,3 @@ smoke-demo-check:
   if [[ ! -f {{demo_state_env}} ]]; then printf 'Missing %s. Run just smoke-demo first.\n' {{demo_state_env}}; exit 1; fi
   source {{demo_state_env}} && curl --fail --retry 20 --retry-delay 2 "http://localhost:$DEMO_API_PORT/health"
   source {{demo_state_env}} && sleep 5 && for i in $(seq 1 20); do curl --fail "http://localhost:$DEMO_UI_PORT" && exit 0; sleep 2; done; exit 1
-
-ci:
-  just check-ui
-  just check-be

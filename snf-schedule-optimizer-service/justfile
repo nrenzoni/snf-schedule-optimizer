@@ -1,0 +1,27 @@
+set shell := ["bash", "-cu"]
+set export := true
+
+PYTHONPATH := "src"
+
+install:
+  uv sync
+
+lint:
+  uv run ruff check .
+
+auto-fix-format:
+  uv run ruff check --fix . && uv run ruff format .
+
+typecheck:
+  uv run mypy
+
+test:
+  uv run pytest
+
+dev:
+  uv run uvicorn snf_schedule_optimizer.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+dev-worker:
+  uv run python -m snf_schedule_optimizer.api.worker_main
+
+check: lint typecheck test

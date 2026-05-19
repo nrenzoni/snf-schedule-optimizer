@@ -49,9 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.ui == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.shared == 'true'
-    defaults:
-      run:
-        working-directory: snf-schedule-optimizer-ui
     steps:
       - uses: actions/checkout@v6
 
@@ -65,26 +62,15 @@ jobs:
 
       - name: Install UI dependencies
         run: pnpm install --frozen-lockfile
+        working-directory: snf-schedule-optimizer-ui
 
-      - name: Lint UI
-        run: pnpm lint
-
-      - name: Typecheck UI
-        run: pnpm typecheck
-
-      - name: Run UI unit tests
-        run: pnpm test:unit
-
-      - name: Build UI
-        run: pnpm build
+      - name: Check UI
+        run: just check-ui
 
   backend:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.proto == 'true' || needs.changes.outputs.shared == 'true'
-    defaults:
-      run:
-        working-directory: snf-schedule-optimizer-service
     steps:
       - uses: actions/checkout@v6
 
@@ -99,21 +85,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 
-      - name: Generate backend proto outputs
-        run: npm install --no-package-lock && npx buf generate && python3 post_generate_fix_imports.py
-        working-directory: proto
+      - name: Install backend dependencies
+        run: just install-be
 
-      - name: Sync backend dependencies
-        run: uv sync
+      - name: Generate proto
+        run: just proto
 
-      - name: Ruff check
-        run: PYTHONPATH=src uv run ruff check .
-
-      - name: MyPy
-        run: PYTHONPATH=src uv run mypy
-
-      - name: Pytest
-        run: PYTHONPATH=src uv run pytest
+      - name: Check backend
+        run: just check-be
 
   proto:
     runs-on: ubuntu-latest
@@ -127,8 +106,7 @@ jobs:
           node-version: 24
 
       - name: Generate proto outputs
-        run: npm install --no-package-lock && npx buf generate && python3 post_generate_fix_imports.py
-        working-directory: proto
+        run: just proto
 
       - name: Ensure generated code is committed
         run: git diff --exit-code -- proto snf-schedule-optimizer-ui/gen snf-schedule-optimizer-service/src/snf_schedule_optimizer/generated
