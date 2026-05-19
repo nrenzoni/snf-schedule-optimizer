@@ -23,8 +23,6 @@ services:
       dockerfile: snf-schedule-optimizer-service/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL}
-    volumes:
-      - ./snf-schedule-optimizer-service/src:/app/src
     depends_on:
       db:
         condition: service_healthy

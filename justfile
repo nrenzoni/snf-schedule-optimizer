@@ -52,8 +52,8 @@ infra-up:
   docker compose -f compose.dev.yml up -d --remove-orphans db
 
 infra-seed:
-  docker compose -f compose.dev.yml up -d --remove-orphans db
-  docker compose -f compose.dev.yml --profile tools run --rm seeder
+  docker compose -f compose.dev.yml up -d --wait --remove-orphans db
+  cd snf-schedule-optimizer-service && PYTHONPATH=src DATABASE_URL="${DATABASE_URL_LOCAL:-postgresql+asyncpg://snf_user:snf_password@localhost:35435/snf_optimizer_demo}" uv run python -m snf_schedule_optimizer.infrastructure.demo_bootstrap
 
 infra-down:
   docker compose -f compose.dev.yml down --remove-orphans
