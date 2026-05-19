@@ -60,6 +60,10 @@ jobs:
         with:
           version: 11.1.0
 
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: '1.51.0'
+
       - name: Install UI dependencies
         run: pnpm install --frozen-lockfile
         working-directory: snf-schedule-optimizer-ui
@@ -85,6 +89,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: '1.51.0'
+
       - name: Install backend dependencies
         run: just install-be
 
@@ -105,6 +113,10 @@ jobs:
         with:
           node-version: 24
 
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: '1.51.0'
+
       - name: Generate proto outputs
         run: just proto
 
@@ -119,6 +131,10 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
+
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: '1.51.0'
 
       - name: Build and start demo stack
         run: just smoke-demo
