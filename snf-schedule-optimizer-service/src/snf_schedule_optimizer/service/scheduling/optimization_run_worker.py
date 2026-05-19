@@ -45,6 +45,7 @@ from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
 
 LEASE_SECONDS = 30
 POLL_SECONDS = 1.0
+SNAPSHOT_BUILD_TIMEOUT_SECONDS = 300
 
 logger = logging.getLogger(__name__)
 tracer = get_tracer(__name__)
@@ -148,8 +149,16 @@ class OptimizationRunWorker:
                 optimization_settings=request.settings,
             )
 
-            snapshot = await self._build_snapshot(
-                current_run, request, base_schedule, facility_context, live_provider
+            snapshot, current_run = await asyncio.wait_for(
+                self._build_snapshot(
+                    current_run,
+                    request,
+                    base_schedule,
+                    facility_context,
+                    live_provider,
+                    claim.claim_token,
+                ),
+                timeout=SNAPSHOT_BUILD_TIMEOUT_SECONDS,
             )
             await self.schedule_repo.save_optimization_snapshot(snapshot)
             current_run = replace(
@@ -167,7 +176,7 @@ class OptimizationRunWorker:
 
             current_run = await self._publish_progress(
                 current_run,
-                sequence=2,
+                sequence=5,
                 status=OptimizationRunStatus.RUNNING.value,
                 stage=OptimizationRunStage.INDEXING.value,
                 progress_percent=15,
@@ -178,7 +187,7 @@ class OptimizationRunWorker:
 
             current_run = await self._publish_progress(
                 current_run,
-                sequence=3,
+                sequence=6,
                 status=OptimizationRunStatus.RUNNING.value,
                 stage=OptimizationRunStage.BUILDING_MODEL.value,
                 progress_percent=30,
@@ -188,7 +197,7 @@ class OptimizationRunWorker:
 
             current_run = await self._publish_progress(
                 current_run,
-                sequence=4,
+                sequence=7,
                 status=OptimizationRunStatus.RUNNING.value,
                 stage=OptimizationRunStage.SOLVING.value,
                 progress_percent=55,
@@ -214,13 +223,13 @@ class OptimizationRunWorker:
                     status_message="Optimization failed",
                     error_details=result.error_details,
                     failure_code=OptimizationFailureCode.SOLVER_INFEASIBLE.value,
-                    final_sequence=5,
+                    final_sequence=8,
                 )
                 return
 
             current_run = await self._publish_progress(
                 current_run,
-                sequence=5,
+                sequence=8,
                 status=OptimizationRunStatus.RUNNING.value,
                 stage=OptimizationRunStage.ANALYZING.value,
                 progress_percent=80,
@@ -249,7 +258,7 @@ class OptimizationRunWorker:
 
             current_run = await self._publish_progress(
                 current_run,
-                sequence=6,
+                sequence=9,
                 status=OptimizationRunStatus.RUNNING.value,
                 stage=OptimizationRunStage.PUBLISHING.value,
                 progress_percent=92,
@@ -284,7 +293,7 @@ class OptimizationRunWorker:
             await self.schedule_repo.append_optimization_run_event(
                 OptimizationRunEvent(
                     run_id=claim.run.run_id,
-                    sequence=7,
+                    sequence=10,
                     status=OptimizationRunStatus.COMPLETED.value,
                     stage=OptimizationRunStage.COMPLETED.value,
                     progress_percent=100,
@@ -426,12 +435,13 @@ class OptimizationRunWorker:
 
     async def _build_snapshot(
         self,
-        run: OptimizationRun,
+        current_run: OptimizationRun,
         request: StartOptimizationRunRequest,
         base_schedule: Schedule,
         facility_context: FacilityScenarioContext,
         live_provider: IScenarioDataProvider,
-    ) -> OptimizationSnapshot:
+        claim_token: str,
+    ) -> tuple[OptimizationSnapshot, OptimizationRun]:
         decision_start = request.start_date
         decision_end = request.end_date or request.start_date
         policy_start = (
@@ -472,15 +482,27 @@ class OptimizationRunWorker:
             if key is not None
         ]
 
-        # Warm up all live provider caches before snapshotting
         all_shifts = facility_context.shifts
         all_employees = await live_provider.get_all_employees()
 
+        nurses_tasks = [
+            live_provider.get_nurses_for_shift(shift) for shift in all_shifts
+        ]
+        nurses_results = await asyncio.gather(*nurses_tasks)
         nurses_by_shift: dict[str, list[dict[str, object]]] = {}
-        for shift in all_shifts:
-            nurses = await live_provider.get_nurses_for_shift(shift)
+        for shift, nurses in zip(all_shifts, nurses_results, strict=True):
             key_str = f"{shift.facility_id}:{shift.shift_id}"
             nurses_by_shift[key_str] = [_serialize_nurse(n) for n in nurses]
+
+        current_run = await self._publish_progress(
+            current_run,
+            sequence=2,
+            status=OptimizationRunStatus.RUNNING.value,
+            stage=OptimizationRunStage.SNAPSHOTTING.value,
+            progress_percent=7,
+            status_message="Computing HPRD and work history",
+            claim_token=claim_token,
+        )
 
         hprd_req = await live_provider.get_hprd_requirements_for_facility(
             request.facility_id
@@ -494,16 +516,27 @@ class OptimizationRunWorker:
             if hours:
                 accumulated_hours[str(emp.employee_id)] = hours
 
+        comp_date = facility_context.shifts[0].shift_start_dt.date()
+        comp_tasks = [
+            live_provider.get_compensation_for_date(emp.employee_id, comp_date)
+            for emp in all_employees
+        ]
+        comp_results = await asyncio.gather(*comp_tasks)
         compensation: dict[str, dict[str, object]] = {}
-        for emp in all_employees:
-            comp = await live_provider.get_compensation_for_date(
-                emp.employee_id,
-                facility_context.shifts[0].shift_start_dt.date(),
-            )
+        for emp, comp in zip(all_employees, comp_results, strict=True):
             if comp is not None:
                 compensation[str(emp.employee_id)] = _serialize_compensation(comp)
 
-        # Serialize HPRD requirements
+        current_run = await self._publish_progress(
+            current_run,
+            sequence=3,
+            status=OptimizationRunStatus.RUNNING.value,
+            stage=OptimizationRunStage.SNAPSHOTTING.value,
+            progress_percent=10,
+            status_message="Computing compensation data",
+            claim_token=claim_token,
+        )
+
         hprd_values: list[list[float]] = []
         for shift_id in (s.shift_id for s in all_shifts):
             row = []
@@ -568,19 +601,22 @@ class OptimizationRunWorker:
             "accumulated_hours": accumulated_hours,
             "compensation": compensation,
         }
-        return OptimizationSnapshot(
-            snapshot_id=uuid4().hex,
-            run_id=run.run_id,
-            org_id=run.org_id,
-            facility_id=run.facility_id,
-            schedule_id=run.schedule_id,
-            base_schedule_version=run.base_schedule_version,
-            decision_start_date=decision_start,
-            decision_end_date=decision_end,
-            policy_start_date=policy_start,
-            policy_end_date=policy_end,
-            payload=snapshot_payload,
-            created_at=whenever.Instant.now().format_iso(),
+        return (
+            OptimizationSnapshot(
+                snapshot_id=uuid4().hex,
+                run_id=current_run.run_id,
+                org_id=current_run.org_id,
+                facility_id=current_run.facility_id,
+                schedule_id=current_run.schedule_id,
+                base_schedule_version=current_run.base_schedule_version,
+                decision_start_date=decision_start,
+                decision_end_date=decision_end,
+                policy_start_date=policy_start,
+                policy_end_date=policy_end,
+                payload=snapshot_payload,
+                created_at=whenever.Instant.now().format_iso(),
+            ),
+            current_run,
         )
 
     def _request_from_run(self, run: OptimizationRun) -> StartOptimizationRunRequest:

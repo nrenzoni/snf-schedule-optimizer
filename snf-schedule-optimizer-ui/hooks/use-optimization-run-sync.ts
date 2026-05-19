@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
+import { toast } from "sonner";
 import { pollOptimizationRun, streamOptimizationRun } from "@/api/scheduling-client";
 import { useSchedulingStore } from "@/store/schedulingStore";
 import { protoOptimizationRunToUI } from "@/lib/proto-mappers";
 import { isRunActive } from "@/lib/scheduling-helpers";
 import type { StageTiming, UIOptimizationRunStage } from "@/types/scheduling";
+
+const STALE_PROGRESS_MS = 45_000;
+const STALE_CHECK_INTERVAL_MS = 5_000;
 
 export function useOptimizationRunSync() {
   const queryClient = useQueryClient();
@@ -21,6 +25,8 @@ export function useOptimizationRunSync() {
   const stageEntryTimesRef = useRef<Map<string, number>>(new Map());
   const stageTimingsRef = useRef<StageTiming[]>([]);
   const lastStageRef = useRef<UIOptimizationRunStage | null>(null);
+  const lastProgressTimeRef = useRef(0);
+  const staleToastIdRef = useRef<string | number | null>(null);
 
   useEffect(() => {
     activeRunRef.current = activeRun;
@@ -129,6 +135,8 @@ export function useOptimizationRunSync() {
               latestSequenceByRunRef.current.set(runId, sequence);
             }
 
+            lastProgressTimeRef.current = Date.now();
+
             recordStageTiming(uiRun.stage);
 
             if (!isRunActive(uiRun.status)) {
@@ -172,4 +180,28 @@ export function useOptimizationRunSync() {
       runStreamAbortRef.current?.abort();
     };
   }, [activeRunId, syncRunProgress]);
+
+  useEffect(() => {
+    if (!activeRunId || !isRunActive(activeRunRef.current?.status)) {
+      return;
+    }
+    lastProgressTimeRef.current = Date.now();
+    const interval = setInterval(() => {
+      if (Date.now() - lastProgressTimeRef.current > STALE_PROGRESS_MS) {
+        if (staleToastIdRef.current == null) {
+          staleToastIdRef.current = toast.warning(
+            "Optimization progress appears stalled. Reconnecting...",
+          );
+        }
+        runStreamAbortRef.current?.abort();
+      }
+    }, STALE_CHECK_INTERVAL_MS);
+    return () => {
+      clearInterval(interval);
+      if (staleToastIdRef.current != null) {
+        toast.dismiss(staleToastIdRef.current);
+        staleToastIdRef.current = null;
+      }
+    };
+  }, [activeRunId]);
 }

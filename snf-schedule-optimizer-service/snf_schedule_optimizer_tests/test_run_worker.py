@@ -157,7 +157,7 @@ async def test_worker_executes_queued_run_to_completion() -> None:
     snapshot = await schedule_repo.get_optimization_snapshot(run.snapshot_id)
     assert snapshot is not None
     events = await schedule_repo.list_optimization_run_events(run.run_id)
-    assert [event.sequence for event in events] == [0, 1, 2, 3, 4, 5, 6, 7]
+    assert [event.sequence for event in events] == [0, 1, 2, 3, 5, 6, 7, 8, 9, 10]
     assert events[-1].status == "completed"
 
 
@@ -243,7 +243,7 @@ async def test_worker_reclaim_skips_duplicate_progress_events() -> None:
     assert run.status == "completed"
 
     events = await schedule_repo.list_optimization_run_events(run.run_id)
-    assert [event.sequence for event in events] == [0, 1, 2, 3, 4, 5, 6, 7]
+    assert [event.sequence for event in events] == [0, 1, 2, 3, 5, 6, 7, 8, 9, 10]
 
 
 async def test_worker_emits_failure_event_when_schedule_missing() -> None:
