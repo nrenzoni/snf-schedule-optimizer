@@ -50,9 +50,7 @@ class TestRlsDdlRegistration:
         table = Table("test_table", MetaData(), Column("org_id", Integer))
         with patch("sqlalchemy.event.listen") as mock_listen:
             enable_tenant_isolation(table)
-        ddl_texts = [
-            str(call_args.args[2]) for call_args in mock_listen.call_args_list
-        ]
+        ddl_texts = [str(call_args.args[2]) for call_args in mock_listen.call_args_list]
         assert any("ENABLE ROW LEVEL SECURITY" in t for t in ddl_texts)
         assert any("FORCE ROW LEVEL SECURITY" in t for t in ddl_texts)
         assert any("tenant_isolation" in t for t in ddl_texts)
