@@ -162,7 +162,7 @@ class IReposContainer(abc.ABC):
     This is a *container-level port*, not individual retriever ports.
     """
 
-    # Core scheduling persistence
+    # Core persistence repositories (used for both reads and writes via UoW)
     shift_retriever: ClassVar[AbstractProvider[IShiftRepo]]
     schedule_retriever: ClassVar[AbstractProvider[IScheduleRepo]]
     optimization_run_retriever: ClassVar[AbstractProvider[IOptimizationRunRepo]]
@@ -197,6 +197,17 @@ def build_repos_container(
     session_factory: async_sessionmaker[AsyncSession],
     read_session_factory: async_sessionmaker[AsyncSession] | None = None,
 ) -> type["IReposContainer"]:
+    """Build a DI container for repository providers.
+
+    Session strategy:
+    - db_session: primary write session, used only for read operations (command
+      handlers use UoW with their own sessions for writes)
+    - db_read_session: optional read replica session, preferred for pure queries
+
+    All repository providers use db_session. Read-optimized repos (ScheduleReadRepo)
+    use db_read_session.
+    """
+
     async def _make_session() -> AsyncGenerator[AsyncSession, Any]:
         async with session_factory() as sess:
             yield sess
@@ -293,6 +304,7 @@ class ISchedulerContainer(abc.ABC):
     # Core application facade
     scheduler_service: AbstractProvider[WorkforceSchedulerFacade]
     schedule_retriever: AbstractProvider[IScheduleRepo]
+    shift_retriever: AbstractProvider[IShiftRepo]
     optimization_run_retriever: AbstractProvider[IOptimizationRunRepo]
     schedule_read_repo: AbstractProvider[ScheduleReadRepo]
     uow_factory: AbstractProvider[UnitOfWorkFactory]

@@ -77,6 +77,25 @@ async def test_repos_container_db_session_requires_container_context() -> None:
         raise AssertionError("db_session resolved outside container_context")
 
 
+async def test_repos_container_has_required_providers() -> None:
+    """Verify IReposContainer declares key architectural providers."""
+    from snf_schedule_optimizer.infrastructure.composition import (
+        build_repos_container,
+    )
+
+    session_factory = FakeSessionFactory()
+    repos_container = build_repos_container(
+        cast(AsyncEngine, object()),
+        cast(async_sessionmaker[AsyncSession], session_factory),
+    )
+
+    assert hasattr(repos_container, "uow_factory")
+    assert hasattr(repos_container, "schedule_retriever")
+    assert hasattr(repos_container, "schedule_read_repo")
+    assert hasattr(repos_container, "db_session")
+    assert hasattr(repos_container, "db_read_session")
+
+
 async def test_infra_container_id_obfuscator_resolves() -> None:
     infra_container = build_infra_container()
     await infra_container.id_obfuscator.resolve()
