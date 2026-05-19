@@ -2,16 +2,21 @@ from __future__ import annotations
 
 from typing import Protocol
 
-import whenever
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
 from snf_schedule_optimizer.models import (
     OptimizationRun,
     OptimizationRunEvent,
     OptimizationSnapshot,
     Schedule,
 )
-from snf_schedule_optimizer.persistence.schedule_repo import SQLScheduleRepo
+from snf_schedule_optimizer.persistence.unit_of_work import UnitOfWorkFactory
+from snf_schedule_optimizer.service.scheduling.commands import (
+    ClaimOptimizationRunHandler,
+    CompleteOptimizationRunHandler,
+    FailOptimizationRunHandler,
+    PublishOptimizationProgressHandler,
+    RenewOptimizationRunLeaseHandler,
+    SaveSnapshotWithRunHandler,
+)
 
 
 class IOptimizationWorkerStore(Protocol):
@@ -64,11 +69,13 @@ class IOptimizationWorkerStore(Protocol):
 
 
 class SqlOptimizationWorkerStore:
-    def __init__(
-        self,
-        session_factory: async_sessionmaker[AsyncSession],
-    ) -> None:
-        self._session_factory = session_factory
+    def __init__(self, uow_factory: UnitOfWorkFactory) -> None:
+        self._claim_handler = ClaimOptimizationRunHandler(uow_factory)
+        self._renew_handler = RenewOptimizationRunLeaseHandler(uow_factory)
+        self._publish_handler = PublishOptimizationProgressHandler(uow_factory)
+        self._snapshot_handler = SaveSnapshotWithRunHandler(uow_factory)
+        self._complete_handler = CompleteOptimizationRunHandler(uow_factory)
+        self._fail_handler = FailOptimizationRunHandler(uow_factory)
 
     async def claim_next_queued_optimization_run(
         self,
@@ -76,16 +83,11 @@ class SqlOptimizationWorkerStore:
         claim_token: str,
         lease_expires_at: str,
     ) -> OptimizationRun | None:
-        async with self._session_factory() as session:
-            repo = SQLScheduleRepo(db_session=session)
-            run = await repo.claim_next_queued_optimization_run(
-                worker_id=worker_id,
-                claim_token=claim_token,
-                lease_expires_at=lease_expires_at,
-            )
-            if run is not None:
-                await session.commit()
-            return run
+        return await self._claim_handler.execute(
+            worker_id=worker_id,
+            claim_token=claim_token,
+            lease_expires_at=lease_expires_at,
+        )
 
     async def renew_optimization_run_lease(
         self,
@@ -94,39 +96,26 @@ class SqlOptimizationWorkerStore:
         heartbeat_at: str,
         lease_expires_at: str,
     ) -> bool:
-        async with self._session_factory() as session:
-            repo = SQLScheduleRepo(db_session=session)
-            renewed = await repo.renew_optimization_run_lease(
-                run_id=run_id,
-                claim_token=claim_token,
-                heartbeat_at=heartbeat_at,
-                lease_expires_at=lease_expires_at,
-            )
-            if renewed:
-                await session.commit()
-            return renewed
+        return await self._renew_handler.execute(
+            run_id=run_id,
+            claim_token=claim_token,
+            heartbeat_at=heartbeat_at,
+            lease_expires_at=lease_expires_at,
+        )
 
     async def publish_progress(
         self,
         run: OptimizationRun,
         event: OptimizationRunEvent,
     ) -> None:
-        async with self._session_factory() as session:
-            repo = SQLScheduleRepo(db_session=session)
-            await repo.save_optimization_run(run)
-            await repo.append_optimization_run_event(event)
-            await session.commit()
+        await self._publish_handler.execute(run=run, event=event)
 
     async def save_snapshot_with_run(
         self,
         snapshot: OptimizationSnapshot,
         run: OptimizationRun,
     ) -> None:
-        async with self._session_factory() as session:
-            repo = SQLScheduleRepo(db_session=session)
-            await repo.save_optimization_snapshot(snapshot)
-            await repo.save_optimization_run(run)
-            await session.commit()
+        await self._snapshot_handler.execute(snapshot=snapshot, run=run)
 
     async def complete_run(
         self,
@@ -136,20 +125,13 @@ class SqlOptimizationWorkerStore:
         event: OptimizationRunEvent,
         result_schedule: Schedule | None = None,
     ) -> None:
-        async with self._session_factory() as session:
-            repo = SQLScheduleRepo(db_session=session)
-            await repo.save_optimization_run(run)
-            await repo.append_optimization_run_event(event)
-            if result_schedule is not None:
-                await repo.save_schedule(result_schedule)
-            await repo.release_optimization_run_claim(
-                run_id=run_id,
-                claim_token=claim_token,
-                status="completed",
-                stage="completed",
-                status_message="Optimization completed",
-            )
-            await session.commit()
+        await self._complete_handler.execute(
+            run_id=run_id,
+            claim_token=claim_token,
+            run=run,
+            event=event,
+            result_schedule=result_schedule,
+        )
 
     async def fail_run(
         self,
@@ -161,28 +143,12 @@ class SqlOptimizationWorkerStore:
         failure_code: str,
         final_sequence: int,
     ) -> None:
-        async with self._session_factory() as session:
-            repo = SQLScheduleRepo(db_session=session)
-            await repo.append_optimization_run_event(
-                OptimizationRunEvent(
-                    run_id=run_id,
-                    sequence=final_sequence,
-                    status="failed",
-                    stage=stage,
-                    progress_percent=100,
-                    status_message=status_message,
-                    error_details=error_details,
-                    metrics={"failure_code": failure_code},
-                    created_at=whenever.Instant.now().format_iso(),
-                )
-            )
-            await repo.release_optimization_run_claim(
-                run_id=run_id,
-                claim_token=claim_token,
-                status="failed",
-                stage=stage,
-                status_message=status_message,
-                error_details=error_details,
-                failure_code=failure_code,
-            )
-            await session.commit()
+        await self._fail_handler.execute(
+            run_id=run_id,
+            claim_token=claim_token,
+            stage=stage,
+            status_message=status_message,
+            error_details=error_details,
+            failure_code=failure_code,
+            final_sequence=final_sequence,
+        )

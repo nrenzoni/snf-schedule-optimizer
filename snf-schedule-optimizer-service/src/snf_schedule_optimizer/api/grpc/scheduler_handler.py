@@ -565,7 +565,9 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                     await scheduler_container.scheduler_service.resolve()
                 )
                 run = await scheduler_service.get_optimization_run(request.run_id)
-                optimization_run_repo = await scheduler_container.optimization_run_retriever.resolve()
+                optimization_run_repo = (
+                    await scheduler_container.optimization_run_retriever.resolve()
+                )
                 events = await optimization_run_repo.list_optimization_run_events(
                     request.run_id
                 )
