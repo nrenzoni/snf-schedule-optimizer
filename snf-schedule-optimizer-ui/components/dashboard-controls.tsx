@@ -77,7 +77,7 @@ export default function DashboardControls({
             className="app-button-primary relative min-h-9 overflow-hidden whitespace-nowrap px-4 py-2"
             aria-label="Run schedule optimization"
           >
-            {activeRun ? (
+            {isRunActive && activeRun ? (
               <span
                 aria-hidden="true"
                 className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary/40 via-primary/70 to-emerald-400/80 transition-[width] duration-300"
@@ -87,7 +87,7 @@ export default function DashboardControls({
             <span className="relative z-10 flex items-center gap-2">
             <Zap size={16} />
             <span>{isRunActive ? "Optimizing..." : "Optimize"}</span>
-            {activeRun ? <span className="text-xs">{activeRun.progressPercent}%</span> : null}
+            {isRunActive && activeRun ? <span className="text-xs">{activeRun.progressPercent}%</span> : null}
             </span>
           </button>
           {hasCompletedRuns && (
@@ -147,7 +147,7 @@ export default function DashboardControls({
         </div>
       </div>
 
-      {activeRun ? (
+      {isRunActive && activeRun ? (
         <div className="app-soft-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm text-muted-foreground">
           <div>
             <span className="font-medium text-foreground">Run:</span> {activeRun.stage}

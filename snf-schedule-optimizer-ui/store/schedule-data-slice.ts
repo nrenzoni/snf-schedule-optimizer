@@ -11,7 +11,7 @@ import {
   UISchedulerSettings,
 } from "@/types/scheduling";
 import { defaultSchedulerSettings } from "./schedulingStore";
-import { applyPatchToMap } from "@/lib/scheduling-helpers";
+import { applyPatchToMap, isRunActive } from "@/lib/scheduling-helpers";
 import { FullSchedulingState } from "./state-types";
 import { MAX_RUN_HISTORY } from "./run-history-slice";
 
@@ -126,6 +126,7 @@ export const createScheduleDataSlice: StateCreator<
         : applyPatchToMap(map, draftState.patches ?? []);
 
       const nextActiveRun = activeRun ?? state.activeRun;
+      const terminalActiveRun = (nextActiveRun && !isRunActive(nextActiveRun.status)) ? null : nextActiveRun;
       const capture = state.pendingRunCapture;
       let nextCompletedRuns = state.completedRuns;
 
@@ -159,7 +160,7 @@ export const createScheduleDataSlice: StateCreator<
         optimizationFinancials,
         hasNewerVersion,
         draftState,
-        activeRun: nextActiveRun,
+        activeRun: terminalActiveRun,
         pendingRunCapture: capture && nextActiveRun?.status === "completed" ? null : capture,
         completedRuns: nextCompletedRuns,
       };
