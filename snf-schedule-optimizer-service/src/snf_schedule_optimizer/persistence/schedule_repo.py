@@ -760,8 +760,4 @@ class SQLScheduleRepo(IScheduleRepo):
         model = (await self.db_session.scalars(stmt)).first()
         return map_run(model) if model is not None else None
 
-    async def commit(self) -> None:
-        await self.db_session.commit()
 
-    async def rollback(self) -> None:
-        await self.db_session.rollback()

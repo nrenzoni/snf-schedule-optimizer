@@ -701,13 +701,6 @@ class FakeScheduleRepo(IScheduleRepo):
     ) -> OptimizationSnapshot | None:
         return self._snapshots.get(snapshot_id)
 
-    async def commit(self) -> None:
-        return None
-
-    async def rollback(self) -> None:
-        return None
-
-
 class FakeWorkerStore:
     def __init__(self, schedule_repo: FakeScheduleRepo) -> None:
         self._repo = schedule_repo

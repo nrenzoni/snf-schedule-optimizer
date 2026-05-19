@@ -55,6 +55,11 @@ from snf_schedule_optimizer.optimizer.strategies.fixing import (
     LockedAssignmentConstraintStrategy,
     PinnedScheduleConstraintStrategy,
 )
+from snf_schedule_optimizer.persistence.unit_of_work import UnitOfWorkFactory
+from snf_schedule_optimizer.service.scheduling.commands import (
+    PersistOptimizedScheduleHandler,
+    StartOptimizationRunHandler,
+)
 
 
 class WorkforceSchedulerFacadePort(Protocol):
@@ -116,6 +121,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         schedule_retriever: IScheduleRepo,
         facility_repository: IFacilityRepo,
         shift_retriever: IShiftRepo,
+        uow_factory: UnitOfWorkFactory,
     ):
         self.provider_factory = provider_factory
         self.optimizer = optimizer
@@ -123,6 +129,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         self.schedule_retriever = schedule_retriever
         self.facility_repository = facility_repository
         self.shift_retriever = shift_retriever
+        self._uow_factory = uow_factory
+        self._start_run_handler = StartOptimizationRunHandler(uow_factory)
+        self._persist_schedule_handler = PersistOptimizedScheduleHandler(uow_factory)
 
     def create_data_provider(
         self,
@@ -235,8 +244,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 stats=result.stats,
                 financials=result.financials,
             )
-            await self.schedule_retriever.save_schedule(persisted_schedule)
-            await self.schedule_retriever.commit()
+            await self._persist_schedule_handler.execute(persisted_schedule)
             result = OptimizationOutput(
                 is_success=True,
                 schedule=persisted_schedule,
@@ -345,19 +353,16 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             decision_start_date=request.start_date,
             decision_end_date=request.end_date,
         )
-        await self.schedule_retriever.save_optimization_run(run)
-        await self.schedule_retriever.append_optimization_run_event(
-            OptimizationRunEvent(
-                run_id=run.run_id,
-                sequence=0,
-                status=OptimizationRunStatus.QUEUED.value,
-                stage=OptimizationRunStage.QUEUED.value,
-                progress_percent=0,
-                status_message="Optimization queued",
-                created_at=whenever.Instant.now().format_iso(),
-            )
+        event = OptimizationRunEvent(
+            run_id=run.run_id,
+            sequence=0,
+            status=OptimizationRunStatus.QUEUED.value,
+            stage=OptimizationRunStage.QUEUED.value,
+            progress_percent=0,
+            status_message="Optimization queued",
+            created_at=whenever.Instant.now().format_iso(),
         )
-        await self.schedule_retriever.commit()
+        await self._start_run_handler.execute(run, event)
 
         return OptimizationOutput(
             is_success=True,

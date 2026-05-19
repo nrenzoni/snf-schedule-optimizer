@@ -77,10 +77,15 @@ class IUnitOfWork(ABC):
 class AsyncUnitOfWork(IUnitOfWork):
     """Manages a SQLAlchemy async session + transaction for a single business operation."""
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        schedule_repo: IScheduleRepo | None = None,
+    ):
         self._session_factory = session_factory
         self._session: AsyncSession | None = None
         self._committed = False
+        self._schedule_repo_override = schedule_repo
 
     async def __aenter__(self) -> AsyncUnitOfWork:
         self._session = self._session_factory()
@@ -113,7 +118,7 @@ class AsyncUnitOfWork(IUnitOfWork):
         assert self._session is not None
         s = self._session
         self.shift_repo = SQLShiftRepo(s)
-        self.schedule_repo = SQLScheduleRepo(db_session=s)
+        self.schedule_repo = self._schedule_repo_override or SQLScheduleRepo(db_session=s)
         self.facility_repo = SQLFacilityRepo(session=s)
         self.employee_repo = SQLEmployeeRepo(db_session=s)
         self.nurse_repo = SQLNurseRepo(session=s)
@@ -131,8 +136,16 @@ class AsyncUnitOfWork(IUnitOfWork):
 class UnitOfWorkFactory:
     """Factory that produces AsyncUnitOfWork instances from a session factory."""
 
-    def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+    def __init__(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        schedule_repo: IScheduleRepo | None = None,
+    ):
         self._session_factory = session_factory
+        self._schedule_repo = schedule_repo
 
     def __call__(self) -> AsyncUnitOfWork:
-        return AsyncUnitOfWork(self._session_factory)
+        return AsyncUnitOfWork(
+            self._session_factory,
+            schedule_repo=self._schedule_repo,
+        )

@@ -222,7 +222,6 @@ async def test_worker_reclaims_stale_running_run() -> None:
         .format_iso(),
     )
     assert first_claim is not None
-    await schedule_repo.commit()
 
     claimed = await worker.run_once()
     assert claimed is True
@@ -269,7 +268,6 @@ async def test_worker_reclaim_skips_duplicate_progress_events() -> None:
             created_at=whenever.Instant.now().format_iso(),
         )
     )
-    await schedule_repo.commit()
 
     claimed = await worker.run_once()
     assert claimed is True

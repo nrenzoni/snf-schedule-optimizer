@@ -57,6 +57,7 @@ from snf_schedule_optimizer.persistence.fakes import (
     FakeStaffCompensationRepo,
     FakeWorkHistoryService,
 )
+from snf_schedule_optimizer.persistence.unit_of_work import UnitOfWorkFactory
 from snf_schedule_optimizer.resident_acuity_repo import (
     FakeResidentAcuityPerShiftRepo,
 )
@@ -321,6 +322,14 @@ class OptimizerTestBuilder:
         fake_facility_repo = FakeFacilityRepo(self._facility_configs)
         fake_shift_retriever = FakeShiftRepo(self._shifts)
 
+        mock_session = AsyncMock()
+        mock_session_factory = MagicMock(return_value=mock_session)
+
+        uow_factory = UnitOfWorkFactory(
+            session_factory=mock_session_factory,
+            schedule_repo=fake_schedule_retriever,
+        )
+
         return WorkforceSchedulerFacade(
             provider_factory=self._factory,
             optimizer=optimizer,
@@ -328,4 +337,5 @@ class OptimizerTestBuilder:
             schedule_retriever=fake_schedule_retriever,
             facility_repository=fake_facility_repo,
             shift_retriever=fake_shift_retriever,
+            uow_factory=uow_factory,
         )

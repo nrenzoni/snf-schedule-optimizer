@@ -277,6 +277,7 @@ class ISchedulerContainer(abc.ABC):
     # Core application facade
     scheduler_service: AbstractProvider[WorkforceSchedulerFacade]
     schedule_retriever: AbstractProvider[IScheduleRepo]
+    uow_factory: AbstractProvider[UnitOfWorkFactory]
 
     # (Optional but useful) Expose these if other entrypoints need them
     optimizer: AbstractProvider[NurseShiftScheduleOptimizer]
@@ -293,6 +294,7 @@ def build_scheduler_container(
         # Import retrievers from the other container
         shift_retriever = retrievers.shift_retriever
         schedule_retriever = retrievers.schedule_retriever
+        uow_factory = retrievers.uow_factory
         facility_rule_retriever = retrievers.facility_rule_retriever
         employee_rule_retriever = retrievers.employee_rule_retriever
         differential_rule_retriever = retrievers.differential_rule_retriever
@@ -458,6 +460,7 @@ def build_scheduler_container(
             schedule_retriever=Provide[schedule_retriever],
             facility_repository=Provide[facility_retriever],
             shift_retriever=Provide[shift_retriever],
+            uow_factory=Provide[uow_factory],
         )
 
         gap_detector = Factory(GapDetectionProcessor)
