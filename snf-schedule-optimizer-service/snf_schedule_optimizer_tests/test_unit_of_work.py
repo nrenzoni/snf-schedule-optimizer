@@ -5,13 +5,14 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from snf_schedule_optimizer.persistence.unit_of_work import (
-    SqlAlchemyUnitOfWork,
+    AsyncUnitOfWork,
 )
 
 
 @pytest.fixture
 def mock_session() -> AsyncMock:
     session = AsyncMock()
+    session.begin = AsyncMock()
     session.commit = AsyncMock()
     session.rollback = AsyncMock()
     session.close = AsyncMock()
@@ -25,11 +26,19 @@ def mock_session_factory(mock_session: AsyncMock) -> MagicMock:
     return factory
 
 
-class TestSqlAlchemyUnitOfWork:
+class TestAsyncUnitOfWork:
+    async def test_aenter_begins_transaction(
+        self, mock_session_factory: MagicMock, mock_session: AsyncMock
+    ) -> None:
+        uow = AsyncUnitOfWork(mock_session_factory)
+        async with uow:
+            pass
+        mock_session.begin.assert_awaited_once()
+
     async def test_creates_all_repos_on_entry(
         self, mock_session_factory: MagicMock, mock_session: AsyncMock
     ) -> None:
-        uow = SqlAlchemyUnitOfWork(mock_session_factory)
+        uow = AsyncUnitOfWork(mock_session_factory)
 
         async with uow as ctx:
             assert ctx is uow
@@ -53,37 +62,95 @@ class TestSqlAlchemyUnitOfWork:
     async def test_commit_delegates_to_session(
         self, mock_session_factory: MagicMock, mock_session: AsyncMock
     ) -> None:
-        uow = SqlAlchemyUnitOfWork(mock_session_factory)
+        uow = AsyncUnitOfWork(mock_session_factory)
 
         async with uow:
             await uow.commit()
 
         mock_session.commit.assert_awaited_once()
 
+    async def test_commit_marks_committed(
+        self, mock_session_factory: MagicMock, mock_session: AsyncMock
+    ) -> None:
+        uow = AsyncUnitOfWork(mock_session_factory)
+
+        async with uow:
+            assert not uow._committed
+            await uow.commit()
+            assert uow._committed
+
     async def test_rollback_delegates_to_session(
         self, mock_session_factory: MagicMock, mock_session: AsyncMock
     ) -> None:
-        uow = SqlAlchemyUnitOfWork(mock_session_factory)
+        uow = AsyncUnitOfWork(mock_session_factory)
 
         async with uow:
             await uow.rollback()
+            assert mock_session.rollback.await_count == 1
 
-        mock_session.rollback.assert_awaited_once()
+        assert mock_session.rollback.await_count == 2
 
     async def test_close_on_exit(
         self, mock_session_factory: MagicMock, mock_session: AsyncMock
     ) -> None:
-        uow = SqlAlchemyUnitOfWork(mock_session_factory)
+        uow = AsyncUnitOfWork(mock_session_factory)
 
         async with uow:
             pass
 
         mock_session.close.assert_awaited_once()
 
+    async def test_aexit_rollback_when_not_committed(
+        self, mock_session_factory: MagicMock, mock_session: AsyncMock
+    ) -> None:
+        uow = AsyncUnitOfWork(mock_session_factory)
+
+        async with uow:
+            pass  # no commit
+
+        mock_session.rollback.assert_awaited_once()
+
+    async def test_aexit_no_rollback_when_committed(
+        self, mock_session_factory: MagicMock, mock_session: AsyncMock
+    ) -> None:
+        uow = AsyncUnitOfWork(mock_session_factory)
+
+        async with uow:
+            await uow.commit()
+
+        mock_session.rollback.assert_not_awaited()
+        mock_session.close.assert_awaited_once()
+
+    async def test_aexit_rollback_on_exception(
+        self, mock_session_factory: MagicMock, mock_session: AsyncMock
+    ) -> None:
+        uow = AsyncUnitOfWork(mock_session_factory)
+
+        with pytest.raises(ValueError):
+            async with uow:
+                raise ValueError("boom")
+
+        mock_session.rollback.assert_awaited_once()
+        mock_session.close.assert_awaited_once()
+
+    async def test_close_nulls_session(
+        self, mock_session_factory: MagicMock, mock_session: AsyncMock
+    ) -> None:
+        uow = AsyncUnitOfWork(mock_session_factory)
+
+        async with uow:
+            assert uow._session is not None
+
+        assert uow._session is None
+
     async def test_commit_noop_when_no_session(self) -> None:
-        uow = SqlAlchemyUnitOfWork(MagicMock())
+        uow = AsyncUnitOfWork(MagicMock())
         await uow.commit()
 
     async def test_rollback_noop_when_no_session(self) -> None:
-        uow = SqlAlchemyUnitOfWork(MagicMock())
+        uow = AsyncUnitOfWork(MagicMock())
         await uow.rollback()
+
+    async def test_close_noop_when_no_session(self) -> None:
+        uow = AsyncUnitOfWork(MagicMock())
+        await uow.close()

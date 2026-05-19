@@ -137,6 +137,7 @@ from snf_schedule_optimizer.persistence.shift_repo import SQLShiftRepo
 from snf_schedule_optimizer.persistence.staff_compensation_repo import (
     SQLStaffCompensationRepo,
 )
+from snf_schedule_optimizer.persistence.unit_of_work import UnitOfWorkFactory
 from snf_schedule_optimizer.reporting.gap_detection import GapDetectionProcessor
 from snf_schedule_optimizer.reporting.pbj_export import PbjReportGenerator
 from snf_schedule_optimizer.resident_acuity_repo import (
@@ -176,6 +177,8 @@ class IReposContainer(abc.ABC):
     compensation_retriever: ClassVar[AbstractProvider[IStaffCompensationRepo]]
     shift_req_retriever: ClassVar[AbstractProvider[IShiftRequirementsRepo]]
     acuity_retriever: ClassVar[AbstractProvider[IResidentAcuityPerShiftRepo]]
+
+    uow_factory: ClassVar[AbstractProvider[UnitOfWorkFactory]]
 
     db_engine: ClassVar[AbstractProvider[Engine]]
     db_session: ClassVar[AbstractProvider[AsyncSession]]
@@ -258,6 +261,8 @@ def build_repos_container(
             SQLResidentAcuityPerShiftRepo,
             db_session=Provide[db_session],
         )
+
+        uow_factory = Singleton(UnitOfWorkFactory, session_factory=session_factory)
 
     return ReposContainer
 

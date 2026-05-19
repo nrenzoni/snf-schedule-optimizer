@@ -74,17 +74,40 @@ class IUnitOfWork(ABC):
     async def close(self) -> None: ...
 
 
-class SqlAlchemyUnitOfWork(IUnitOfWork):
+class AsyncUnitOfWork(IUnitOfWork):
+    """Manages a SQLAlchemy async session + transaction for a single business operation."""
+
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
         self._session_factory = session_factory
         self._session: AsyncSession | None = None
-        self._closed = False
+        self._committed = False
 
-    async def _ensure_session(self) -> AsyncSession:
-        if self._session is None:
-            self._session = self._session_factory()
-            self._wire_repos()
-        return self._session
+    async def __aenter__(self) -> AsyncUnitOfWork:
+        self._session = self._session_factory()
+        await self._session.begin()
+        self._wire_repos()
+        return self
+
+    async def commit(self) -> None:
+        if self._session is not None:
+            await self._session.commit()
+            self._committed = True
+
+    async def rollback(self) -> None:
+        if self._session is not None:
+            await self._session.rollback()
+
+    async def close(self) -> None:
+        if self._session is not None:
+            await self._session.close()
+            self._session = None
+
+    async def __aexit__(self, *args: Any) -> None:
+        try:
+            if self._session is not None and not self._committed:
+                await self._session.rollback()
+        finally:
+            await self.close()
 
     def _wire_repos(self) -> None:
         assert self._session is not None
@@ -104,22 +127,12 @@ class SqlAlchemyUnitOfWork(IUnitOfWork):
         self.shift_requirements_repo = SQLShiftRequirementsRepo(db_session=s)
         self.acuity_repo = SQLResidentAcuityPerShiftRepo(db_session=s)
 
-    async def commit(self) -> None:
-        if self._session is not None:
-            await self._session.commit()
 
-    async def rollback(self) -> None:
-        if self._session is not None:
-            await self._session.rollback()
+class UnitOfWorkFactory:
+    """Factory that produces AsyncUnitOfWork instances from a session factory."""
 
-    async def close(self) -> None:
-        if self._session is not None and not self._closed:
-            await self._session.close()
-            self._closed = True
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+        self._session_factory = session_factory
 
-    async def __aenter__(self) -> IUnitOfWork:
-        await self._ensure_session()
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        await self.close()
+    def __call__(self) -> AsyncUnitOfWork:
+        return AsyncUnitOfWork(self._session_factory)
