@@ -70,7 +70,7 @@ class StaffCompensationModel(SQLABase):
     def to_domain(self) -> StaffCompensationRecord:
         return StaffCompensationRecord(
             employee_id=self.employee_id,
-            base_rate_effective=self.base_rate_effective,
+            base_rate_effective=float(self.base_rate_effective),
             ot_multiplier=self.ot_multiplier,
             is_agency=self.is_agency,
             # Map datetime.date from DB to whenever.Instant

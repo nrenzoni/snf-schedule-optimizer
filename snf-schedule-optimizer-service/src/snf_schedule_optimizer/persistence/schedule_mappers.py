@@ -19,6 +19,7 @@ from snf_schedule_optimizer.sqlalchemy_models.optimization_run import (
 from snf_schedule_optimizer.sqlalchemy_models.optimization_run_event import (
     OptimizationRunEventModel,
 )
+from snf_schedule_optimizer.utils.serialization import AppJSONEncoder
 
 
 def incentive_cost(financials: ScheduleFinancialReport | None) -> float | None:
@@ -90,22 +91,24 @@ def patch_from_dict(payload: dict[str, object]) -> StagedSchedulePatch:
     )
 
 
+def _settings_to_dict(settings: OptimizationSettings) -> dict[str, object]:
+    return {
+        "use_ml_forecast": settings.use_ml_forecast,
+        "use_callout_buffer": settings.use_callout_buffer,
+        "buffer_threshold": settings.buffer_threshold,
+        "min_rest_period": settings.min_rest_period,
+        "max_shift_length": settings.max_shift_length,
+        "premium_weekend": settings.premium_weekend,
+        "premium_holiday": settings.premium_holiday,
+        "overtime_avoidance_penalty": settings.overtime_avoidance_penalty,
+        "team_consistency_penalty": settings.team_consistency_penalty,
+        "high_risk_shift_penalty": settings.high_risk_shift_penalty,
+        "custom_preference_penalty": settings.custom_preference_penalty,
+    }
+
+
 def dump_settings(settings: OptimizationSettings) -> str:
-    return json.dumps(
-        {
-            "use_ml_forecast": settings.use_ml_forecast,
-            "use_callout_buffer": settings.use_callout_buffer,
-            "buffer_threshold": settings.buffer_threshold,
-            "min_rest_period": settings.min_rest_period,
-            "max_shift_length": settings.max_shift_length,
-            "premium_weekend": settings.premium_weekend,
-            "premium_holiday": settings.premium_holiday,
-            "overtime_avoidance_penalty": settings.overtime_avoidance_penalty,
-            "team_consistency_penalty": settings.team_consistency_penalty,
-            "high_risk_shift_penalty": settings.high_risk_shift_penalty,
-            "custom_preference_penalty": settings.custom_preference_penalty,
-        }
-    )
+    return json.dumps(_settings_to_dict(settings), cls=AppJSONEncoder)
 
 
 def summary_to_dict(
@@ -119,7 +122,7 @@ def summary_to_dict(
         "covered_shifts": summary.covered_shifts,
         "uncovered_shifts": summary.uncovered_shifts,
         "completed_at": summary.completed_at,
-        "applied_settings": json.loads(dump_settings(summary.applied_settings)),
+        "applied_settings": _settings_to_dict(summary.applied_settings),
     }
 
 

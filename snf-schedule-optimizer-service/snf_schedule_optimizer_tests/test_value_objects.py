@@ -1,11 +1,8 @@
-from decimal import Decimal
-
 import pytest
 
 from snf_schedule_optimizer.domain.value_objects import (
     Hours,
     Money,
-    Percentage,
     StaffCount,
 )
 
@@ -35,12 +32,3 @@ def test_staff_count_negative_raises() -> None:
     with pytest.raises(ValueError):
         StaffCount(count=-1)
 
-
-def test_percentage_valid() -> None:
-    p = Percentage(value=Decimal("0.5"))
-    assert p.value == Decimal("0.5")
-
-
-def test_percentage_out_of_range() -> None:
-    with pytest.raises(ValueError):
-        Percentage(value=Decimal("1.5"))

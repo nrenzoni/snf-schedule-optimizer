@@ -42,6 +42,7 @@ from snf_schedule_optimizer.optimizer.snapshot_provider import (
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacade,
 )
+from snf_schedule_optimizer.utils.serialization import AppJSONEncoder
 
 LEASE_SECONDS = 30
 POLL_SECONDS = 1.0
@@ -577,7 +578,7 @@ class OptimizationRunWorker:
                 "schedule_id": base_schedule.schedule_id,
                 "schedule_version": base_schedule.schedule_version,
                 "shift_assignments": {
-                    json.dumps([key.facility_id, key.shift_id]): value
+                    json.dumps([key.facility_id, key.shift_id], cls=AppJSONEncoder): value
                     for key, value in base_schedule.shift_assignments.items()
                 },
             },

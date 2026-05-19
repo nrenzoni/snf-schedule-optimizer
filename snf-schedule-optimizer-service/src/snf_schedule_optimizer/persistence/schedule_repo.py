@@ -50,6 +50,7 @@ from snf_schedule_optimizer.sqlalchemy_models.schedule_version import (
     ScheduleVersionModel,
 )
 from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
+from snf_schedule_optimizer.utils.serialization import AppJSONEncoder
 
 
 class SQLScheduleRepo(IScheduleRepo):
@@ -446,7 +447,7 @@ class SQLScheduleRepo(IScheduleRepo):
             "status_message": run.status_message,
             "error_details": run.error_details,
             "client_request_id": run.client_request_id,
-            "patches_json": json.dumps([patch_to_dict(patch) for patch in run.patches]),
+            "patches_json": json.dumps([patch_to_dict(patch) for patch in run.patches], cls=AppJSONEncoder),
             "persist_result": run.persist_result,
             "start_date": run.decision_start_date or "1970-01-01",
             "end_date": run.decision_end_date
@@ -466,11 +467,11 @@ class SQLScheduleRepo(IScheduleRepo):
                 else None
             ),
             "settings_json": dump_settings(run.settings) if run.settings else None,
-            "summary_json": json.dumps(summary_to_dict(run.summary))
+            "summary_json": json.dumps(summary_to_dict(run.summary), cls=AppJSONEncoder)
             if run.summary
             else None,
-            "stats_json": json.dumps(stats_to_dict(run.stats)) if run.stats else None,
-            "financials_json": json.dumps(financials_to_dict(run.financials))
+            "stats_json": json.dumps(stats_to_dict(run.stats), cls=AppJSONEncoder) if run.stats else None,
+            "financials_json": json.dumps(financials_to_dict(run.financials), cls=AppJSONEncoder)
             if run.financials
             else None,
         }
@@ -587,7 +588,7 @@ class SQLScheduleRepo(IScheduleRepo):
                 progress_percent=event.progress_percent,
                 status_message=event.status_message,
                 error_details=event.error_details,
-                metrics_json=json.dumps(event.metrics)
+                metrics_json=json.dumps(event.metrics, cls=AppJSONEncoder)
                 if event.metrics is not None
                 else None,
             )
@@ -690,7 +691,7 @@ class SQLScheduleRepo(IScheduleRepo):
         existing = await self.db_session.get(
             OptimizationSnapshotModel, snapshot.snapshot_id
         )
-        payload_json = json.dumps(snapshot.payload)
+        payload_json = json.dumps(snapshot.payload, cls=AppJSONEncoder)
         if existing is None:
             self.db_session.add(
                 OptimizationSnapshotModel(

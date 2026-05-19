@@ -1,7 +1,6 @@
 """Domain value objects with built-in validation."""
 
 from dataclasses import dataclass
-from decimal import Decimal
 
 
 @dataclass(frozen=True)
@@ -46,11 +45,3 @@ class StaffCount:
         if self.count < 0:
             raise ValueError(f"StaffCount cannot be negative: {self.count}")
 
-
-@dataclass(frozen=True)
-class Percentage:
-    value: Decimal
-
-    def __post_init__(self) -> None:
-        if not (Decimal("0.0") <= self.value <= Decimal("1.0")):
-            raise ValueError(f"Percentage must be between 0 and 1: {self.value}")
