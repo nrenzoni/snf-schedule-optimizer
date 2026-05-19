@@ -507,12 +507,10 @@ async def map_validation_response(
         response.patch.CopyFrom(map_patch(id_obfuscator, result.patches[-1]))
     if result.schedule is not None:
         try:
-            deps_result: MonthlyScheduleResult = (
-                await load_schedule_dependencies(
-                    scheduler_container,
-                    result.schedule.org_id,
-                    result.schedule,
-                )
+            deps_result: MonthlyScheduleResult = await load_schedule_dependencies(
+                scheduler_container,
+                result.schedule.org_id,
+                result.schedule,
             )
             schedule = deps_result.schedule
             shifts = deps_result.shifts

@@ -122,6 +122,9 @@ class WorkforceSchedulerFacadePort(Protocol):
 
     async def close(self) -> None: ...
 
+    @property
+    def solver_timeout_seconds(self) -> int: ...
+
 
 class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
     def __init__(
@@ -154,6 +157,10 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             provider_factory=provider_factory,
             schedule_read_repo=schedule_read_repo,
         )
+
+    @property
+    def solver_timeout_seconds(self) -> int:
+        return getattr(self.optimizer.solver_adapter, "time_limit_seconds", 60)
 
     def create_data_provider(
         self,

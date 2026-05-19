@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from contextlib import suppress
 from dataclasses import dataclass, replace
 from typing import Any
@@ -209,16 +210,45 @@ class OptimizationRunWorker:
                 claim_token=claim.claim_token,
             )
 
-            locked_assignments = self._locked_assignments_from_snapshot(snapshot)
-            result = await self.scheduler_facade.optimize_schedule(
-                org_id=request.org_id,
-                facility_contexts=facility_contexts,
-                preference_weights=request.settings.to_preference_weights(),
-                pay_period_start=pay_period_start,
-                optimization_settings=request.settings,
-                locked_assignments=locked_assignments,
-                data_provider=snapshot_data_provider,
-            )
+            solver_seq = 11
+            solver_start = time.perf_counter()
+            timeout = self.scheduler_facade.solver_timeout_seconds
+
+            async def _emit_solve_progress() -> None:
+                nonlocal solver_seq, current_run
+                while True:
+                    await asyncio.sleep(3)
+                    elapsed = time.perf_counter() - solver_start
+                    fraction = min(elapsed / timeout, 0.95)
+                    pct = min(55 + int(fraction * 23), 78)
+                    elapsed_sec = int(elapsed)
+                    current_run = await self._publish_progress(
+                        current_run,
+                        solver_seq,
+                        OptimizationRunStatus.RUNNING.value,
+                        OptimizationRunStage.SOLVING.value,
+                        pct,
+                        f"Solving staffing plan ({elapsed_sec}s / {timeout}s)",
+                        claim.claim_token,
+                    )
+                    solver_seq += 1
+
+            solve_heartbeat = asyncio.create_task(_emit_solve_progress())
+            try:
+                locked_assignments = self._locked_assignments_from_snapshot(snapshot)
+                result = await self.scheduler_facade.optimize_schedule(
+                    org_id=request.org_id,
+                    facility_contexts=facility_contexts,
+                    preference_weights=request.settings.to_preference_weights(),
+                    pay_period_start=pay_period_start,
+                    optimization_settings=request.settings,
+                    locked_assignments=locked_assignments,
+                    data_provider=snapshot_data_provider,
+                )
+            finally:
+                solve_heartbeat.cancel()
+                with suppress(asyncio.CancelledError):
+                    await solve_heartbeat
 
             if not result.is_success or result.schedule is None:
                 await self._store.fail_run(
