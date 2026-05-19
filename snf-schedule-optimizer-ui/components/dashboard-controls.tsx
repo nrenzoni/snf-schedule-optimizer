@@ -19,6 +19,7 @@ interface DashboardControlsProps {
     statusMessage?: string;
   } | null;
   optimizeButtonFillWidth: string;
+  animatedPercent: number;
   uiStore: {
     openSummaryModal: () => void;
     openConfigModal: () => void;
@@ -40,6 +41,7 @@ export default function DashboardControls({
   isRunActive,
   activeRun,
   optimizeButtonFillWidth,
+  animatedPercent,
   uiStore,
   hasCompletedRuns,
   showResultsGlow,
@@ -87,7 +89,7 @@ export default function DashboardControls({
             <span className="relative z-10 flex items-center gap-2">
             <Zap size={16} />
             <span>{isRunActive ? "Optimizing..." : "Optimize"}</span>
-            {isRunActive && activeRun ? <span className="text-xs">{activeRun.progressPercent}%</span> : null}
+            {isRunActive && activeRun ? <span className="text-xs">{Math.round(animatedPercent)}%</span> : null}
             </span>
           </button>
           {hasCompletedRuns && (

@@ -19,6 +19,7 @@ import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
 import { getTodayString } from "@/lib/scheduling-logic";
 import { useScheduling } from "@/hooks/use-scheduling";
 import { useOptimizationRunSync } from "@/hooks/use-optimization-run-sync";
+import { useAnimatedProgress } from "@/hooks/use-animated-progress";
 import NurseDetailsPanel from "@/components/nurse-details-panel";
 import DashboardEmptyState from "@/components/dashboard-empty-state";
 import { useSchedulingStore } from "@/store/schedulingStore";
@@ -95,6 +96,7 @@ interface DashboardMainLayoutProps {
     statusMessage?: string;
   } | null;
   optimizeButtonFillWidth: string;
+  animatedPercent: number;
   openSummaryModal: () => void;
   openConfigModal: () => void;
   openTreeModal: () => void;
@@ -129,6 +131,7 @@ function DashboardMainLayout({
   isRunActive,
   activeRun,
   optimizeButtonFillWidth,
+  animatedPercent,
   openSummaryModal,
   openConfigModal,
   openTreeModal,
@@ -171,6 +174,7 @@ function DashboardMainLayout({
                 isRunActive={isRunActive}
                 activeRun={activeRun}
                 optimizeButtonFillWidth={optimizeButtonFillWidth}
+                animatedPercent={animatedPercent}
                 uiStore={{ openSummaryModal, openConfigModal, openTreeModal }}
                 hasCompletedRuns={hasCompletedRuns}
                 showResultsGlow={showResultsGlow}
@@ -357,8 +361,10 @@ export default function DashboardContent({
     }
   }, [completedRuns.length]);
 
+  const animatedPercent = useAnimatedProgress(activeRun);
+
   const optimizeButtonFillWidth = activeRun
-    ? `${Math.max(0, Math.min(100, activeRun.progressPercent))}%`
+    ? `${Math.max(0, Math.min(100, animatedPercent))}%`
     : "0%";
 
   useOptimizationRunSync();
@@ -407,6 +413,7 @@ export default function DashboardContent({
                 isRunActive={isRunActive}
                 activeRun={activeRun}
                 optimizeButtonFillWidth={optimizeButtonFillWidth}
+                animatedPercent={animatedPercent}
                 openSummaryModal={uiStore.openSummaryModal}
                 openConfigModal={uiStore.openConfigModal}
                 openTreeModal={uiStore.openTreeModal}
