@@ -11,6 +11,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IOptimizationRunRepo,
     IScheduleRepo,
     ScheduleLookupKey,
 )
@@ -53,7 +54,7 @@ from snf_schedule_optimizer.sqlalchemy_models.shift import ShiftModel
 from snf_schedule_optimizer.utils.serialization import AppJSONEncoder
 
 
-class SQLScheduleRepo(IScheduleRepo):
+class SQLScheduleRepo(IScheduleRepo, IOptimizationRunRepo):
     def __init__(self, db_session: AsyncSession):
         self.db_session = db_session
 
@@ -447,7 +448,9 @@ class SQLScheduleRepo(IScheduleRepo):
             "status_message": run.status_message,
             "error_details": run.error_details,
             "client_request_id": run.client_request_id,
-            "patches_json": json.dumps([patch_to_dict(patch) for patch in run.patches], cls=AppJSONEncoder),
+            "patches_json": json.dumps(
+                [patch_to_dict(patch) for patch in run.patches], cls=AppJSONEncoder
+            ),
             "persist_result": run.persist_result,
             "start_date": run.decision_start_date or "1970-01-01",
             "end_date": run.decision_end_date
@@ -470,8 +473,12 @@ class SQLScheduleRepo(IScheduleRepo):
             "summary_json": json.dumps(summary_to_dict(run.summary), cls=AppJSONEncoder)
             if run.summary
             else None,
-            "stats_json": json.dumps(stats_to_dict(run.stats), cls=AppJSONEncoder) if run.stats else None,
-            "financials_json": json.dumps(financials_to_dict(run.financials), cls=AppJSONEncoder)
+            "stats_json": json.dumps(stats_to_dict(run.stats), cls=AppJSONEncoder)
+            if run.stats
+            else None,
+            "financials_json": json.dumps(
+                financials_to_dict(run.financials), cls=AppJSONEncoder
+            )
             if run.financials
             else None,
         }
@@ -759,5 +766,3 @@ class SQLScheduleRepo(IScheduleRepo):
         )
         model = (await self.db_session.scalars(stmt)).first()
         return map_run(model) if model is not None else None
-
-

@@ -13,6 +13,7 @@ from snf_schedule_optimizer.domain.repositories import (
     IShiftRepo,
 )
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IOptimizationRunRepo,
     IPreferencePenaltyProcessor,
     IScheduleRepo,
     IShiftRequirementsRepo,
@@ -421,7 +422,7 @@ class FakeFacilityRulesService(IFacilityRulesService):
         return self.default_meal_rules
 
 
-class FakeScheduleRepo(IScheduleRepo):
+class FakeScheduleRepo(IScheduleRepo, IOptimizationRunRepo):
     """InMemory implementation of IScheduleRetriever for testing."""
 
     def __init__(self, schedules: dict[ScheduleLookupKey, Schedule] | None = None):
@@ -700,6 +701,7 @@ class FakeScheduleRepo(IScheduleRepo):
         self, snapshot_id: str
     ) -> OptimizationSnapshot | None:
         return self._snapshots.get(snapshot_id)
+
 
 class FakeWorkerStore:
     def __init__(self, schedule_repo: FakeScheduleRepo) -> None:

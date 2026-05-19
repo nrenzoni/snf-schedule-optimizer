@@ -10,6 +10,7 @@ from ..support import OptimizerTestBuilder
 async def test_duplicate_client_request_id_returns_same_active_run() -> None:
     facade = OptimizerTestBuilder().build_facade()
     schedule_repo = facade.schedule_retriever
+    run_repo = facade.optimization_run_repo
 
     schedule = Schedule(
         org_id=1,
@@ -44,13 +45,13 @@ async def test_duplicate_client_request_id_returns_same_active_run() -> None:
     assert second.run is not None
     assert second.run.run_id == first.run.run_id
 
-    events = await schedule_repo.list_optimization_run_events(first.run.run_id)
+    events = await run_repo.list_optimization_run_events(first.run.run_id)
     assert len(events) == 1
     assert events[0].sequence == 0
     assert events[0].status == "queued"
     assert events[0].stage == "queued"
 
-    active_run = await schedule_repo.get_active_optimization_run(
+    active_run = await run_repo.get_active_optimization_run(
         org_id=1,
         facility_id=1,
         schedule_id=10,

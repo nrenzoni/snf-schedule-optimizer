@@ -31,4 +31,3 @@ def test_hours_negative_raises() -> None:
 def test_staff_count_negative_raises() -> None:
     with pytest.raises(ValueError):
         StaffCount(count=-1)
-

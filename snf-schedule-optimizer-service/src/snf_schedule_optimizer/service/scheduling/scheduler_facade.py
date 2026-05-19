@@ -17,6 +17,7 @@ from snf_schedule_optimizer.domain.payroll.calculations.schedule_cost_evaluator 
 )
 from snf_schedule_optimizer.domain.repositories import IFacilityRepo, IShiftRepo
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IOptimizationRunRepo,
     IScheduleRepo,
     ScheduleLookupKey,
 )
@@ -120,6 +121,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         optimizer: NurseShiftScheduleOptimizer,
         cost_evaluator: ScheduleCostEvaluator,
         schedule_retriever: IScheduleRepo,
+        optimization_run_repo: IOptimizationRunRepo,
         facility_repository: IFacilityRepo,
         shift_retriever: IShiftRepo,
         uow_factory: UnitOfWorkFactory,
@@ -128,6 +130,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         self.optimizer = optimizer
         self.cost_evaluator = cost_evaluator
         self.schedule_retriever = schedule_retriever
+        self.optimization_run_repo = optimization_run_repo
         self.facility_repository = facility_repository
         self.shift_retriever = shift_retriever
         self._uow_factory = uow_factory
@@ -135,6 +138,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         self._persist_schedule_handler = PersistOptimizedScheduleHandler(uow_factory)
         self._query_service = ScheduleQueryService(
             schedule_retriever=schedule_retriever,
+            optimization_run_repo=optimization_run_repo,
             facility_repository=facility_repository,
             shift_retriever=shift_retriever,
             provider_factory=provider_factory,
@@ -314,12 +318,8 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             )
 
         if request.client_request_id:
-            # Idempotency enforcement: check if a run for this client_request_id
-            # already exists. Future enhancement: use IdempotencyStore
-            # (see persistence/idempotency_repo.py) to cache the response payload
-            # and return it directly instead of creating a duplicate run.
             existing_run = (
-                await self.schedule_retriever.get_optimization_run_by_client_request(
+                await self._query_service.get_optimization_run_by_client_request(
                     request.org_id,
                     request.facility_id,
                     request.schedule_id,

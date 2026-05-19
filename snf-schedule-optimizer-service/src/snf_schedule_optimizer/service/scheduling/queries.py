@@ -2,6 +2,7 @@
 
 from snf_schedule_optimizer.domain.repositories import IFacilityRepo, IShiftRepo
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IOptimizationRunRepo,
     IScheduleRepo,
     ScheduleLookupKey,
 )
@@ -23,17 +24,30 @@ class ScheduleQueryService:
     def __init__(
         self,
         schedule_retriever: IScheduleRepo,
+        optimization_run_repo: IOptimizationRunRepo,
         facility_repository: IFacilityRepo,
         shift_retriever: IShiftRepo,
         provider_factory: ScenarioDataProviderFactory,
     ):
         self._schedule_retriever = schedule_retriever
+        self._optimization_run_repo = optimization_run_repo
         self._facility_repository = facility_repository
         self._shift_retriever = shift_retriever
         self._provider_factory = provider_factory
 
     async def get_optimization_run(self, run_id: str) -> OptimizationRun | None:
-        return await self._schedule_retriever.get_optimization_run(run_id)
+        return await self._optimization_run_repo.get_optimization_run(run_id)
+
+    async def get_optimization_run_by_client_request(
+        self,
+        org_id: DomainPrimaryKeyType,
+        facility_id: DomainPrimaryKeyType,
+        schedule_id: DomainPrimaryKeyType,
+        client_request_id: str,
+    ) -> OptimizationRun | None:
+        return await self._optimization_run_repo.get_optimization_run_by_client_request(
+            org_id, facility_id, schedule_id, client_request_id
+        )
 
     async def get_schedule_status(
         self,
@@ -47,7 +61,7 @@ class ScheduleQueryService:
         )
         if schedule is None:
             raise ValueError("Schedule not found.")
-        active_run = await self._schedule_retriever.get_active_optimization_run(
+        active_run = await self._optimization_run_repo.get_active_optimization_run(
             org_id, facility_id, schedule_id
         )
         latest_version = await self._schedule_retriever.get_latest_schedule_version(
@@ -91,6 +105,8 @@ class ScheduleQueryService:
         shifts = await self._shift_retriever.get_shifts_by_keys(
             shift_keys=shift_keys, facility_timezones=timezone_map, org_id=org_id
         )
-        employees = await self._provider_factory.employee_retriever.get_all_employees(org_id)
+        employees = await self._provider_factory.employee_retriever.get_all_employees(
+            org_id
+        )
         employee_map = {employee.employee_id: employee for employee in employees}
         return schedule, shifts, employee_map, facility_config

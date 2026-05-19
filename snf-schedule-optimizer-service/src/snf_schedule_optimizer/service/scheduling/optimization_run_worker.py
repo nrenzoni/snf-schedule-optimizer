@@ -560,7 +560,9 @@ class OptimizationRunWorker:
                 "schedule_id": base_schedule.schedule_id,
                 "schedule_version": base_schedule.schedule_version,
                 "shift_assignments": {
-                    json.dumps([key.facility_id, key.shift_id], cls=AppJSONEncoder): value
+                    json.dumps(
+                        [key.facility_id, key.shift_id], cls=AppJSONEncoder
+                    ): value
                     for key, value in base_schedule.shift_assignments.items()
                 },
             },

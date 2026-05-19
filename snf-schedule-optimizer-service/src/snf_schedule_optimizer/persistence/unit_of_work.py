@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -20,6 +20,7 @@ from snf_schedule_optimizer.domain.payroll.interfaces import (
 )
 from snf_schedule_optimizer.domain.repositories import IFacilityRepo, IShiftRepo
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IOptimizationRunRepo,
     IScheduleRepo,
     IShiftRequirementsRepo,
 )
@@ -51,6 +52,7 @@ from snf_schedule_optimizer.resident_acuity_repo import IResidentAcuityPerShiftR
 class IUnitOfWork(ABC):
     shift_repo: IShiftRepo
     schedule_repo: IScheduleRepo
+    optimization_run_repo: IOptimizationRunRepo
     facility_repo: IFacilityRepo
     employee_repo: IEmployeeRepo
     nurse_repo: INurseRepo
@@ -118,7 +120,9 @@ class AsyncUnitOfWork(IUnitOfWork):
         assert self._session is not None
         s = self._session
         self.shift_repo = SQLShiftRepo(s)
-        self.schedule_repo = self._schedule_repo_override or SQLScheduleRepo(db_session=s)
+        repo = self._schedule_repo_override or SQLScheduleRepo(db_session=s)
+        self.schedule_repo = repo
+        self.optimization_run_repo = cast(IOptimizationRunRepo, repo)
         self.facility_repo = SQLFacilityRepo(session=s)
         self.employee_repo = SQLEmployeeRepo(db_session=s)
         self.nurse_repo = SQLNurseRepo(session=s)

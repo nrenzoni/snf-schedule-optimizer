@@ -335,6 +335,7 @@ class OptimizerTestBuilder:
             optimizer=optimizer,
             cost_evaluator=evaluator,
             schedule_retriever=fake_schedule_retriever,
+            optimization_run_repo=fake_schedule_retriever,
             facility_repository=fake_facility_repo,
             shift_retriever=fake_shift_retriever,
             uow_factory=uow_factory,

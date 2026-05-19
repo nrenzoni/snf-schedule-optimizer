@@ -44,4 +44,3 @@ class StaffCount:
     def __post_init__(self) -> None:
         if self.count < 0:
             raise ValueError(f"StaffCount cannot be negative: {self.count}")
-

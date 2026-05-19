@@ -44,6 +44,7 @@ class TestAsyncUnitOfWork:
             assert ctx is uow
             assert ctx.shift_repo is not None
             assert ctx.schedule_repo is not None
+            assert ctx.optimization_run_repo is not None
             assert ctx.facility_repo is not None
             assert ctx.employee_repo is not None
             assert ctx.nurse_repo is not None

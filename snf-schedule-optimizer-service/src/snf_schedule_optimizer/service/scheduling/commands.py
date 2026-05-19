@@ -21,8 +21,8 @@ class StartOptimizationRunHandler:
         self, run: OptimizationRun, event: OptimizationRunEvent
     ) -> OptimizationRun:
         async with self._uow_factory() as uow:
-            await uow.schedule_repo.save_optimization_run(run)
-            await uow.schedule_repo.append_optimization_run_event(event)
+            await uow.optimization_run_repo.save_optimization_run(run)
+            await uow.optimization_run_repo.append_optimization_run_event(event)
             await uow.commit()
             return run
 
@@ -48,7 +48,7 @@ class ClaimOptimizationRunHandler:
         lease_expires_at: str,
     ) -> OptimizationRun | None:
         async with self._uow_factory() as uow:
-            run = await uow.schedule_repo.claim_next_queued_optimization_run(
+            run = await uow.optimization_run_repo.claim_next_queued_optimization_run(
                 worker_id=worker_id,
                 claim_token=claim_token,
                 lease_expires_at=lease_expires_at,
@@ -70,7 +70,7 @@ class RenewOptimizationRunLeaseHandler:
         lease_expires_at: str,
     ) -> bool:
         async with self._uow_factory() as uow:
-            renewed = await uow.schedule_repo.renew_optimization_run_lease(
+            renewed = await uow.optimization_run_repo.renew_optimization_run_lease(
                 run_id=run_id,
                 claim_token=claim_token,
                 heartbeat_at=heartbeat_at,
@@ -85,12 +85,10 @@ class PublishOptimizationProgressHandler:
     def __init__(self, uow_factory: UnitOfWorkFactory) -> None:
         self._uow_factory = uow_factory
 
-    async def execute(
-        self, run: OptimizationRun, event: OptimizationRunEvent
-    ) -> None:
+    async def execute(self, run: OptimizationRun, event: OptimizationRunEvent) -> None:
         async with self._uow_factory() as uow:
-            await uow.schedule_repo.save_optimization_run(run)
-            await uow.schedule_repo.append_optimization_run_event(event)
+            await uow.optimization_run_repo.save_optimization_run(run)
+            await uow.optimization_run_repo.append_optimization_run_event(event)
             await uow.commit()
 
 
@@ -102,8 +100,8 @@ class SaveSnapshotWithRunHandler:
         self, snapshot: OptimizationSnapshot, run: OptimizationRun
     ) -> None:
         async with self._uow_factory() as uow:
-            await uow.schedule_repo.save_optimization_snapshot(snapshot)
-            await uow.schedule_repo.save_optimization_run(run)
+            await uow.optimization_run_repo.save_optimization_snapshot(snapshot)
+            await uow.optimization_run_repo.save_optimization_run(run)
             await uow.commit()
 
 
@@ -120,11 +118,11 @@ class CompleteOptimizationRunHandler:
         result_schedule: Schedule | None = None,
     ) -> None:
         async with self._uow_factory() as uow:
-            await uow.schedule_repo.save_optimization_run(run)
-            await uow.schedule_repo.append_optimization_run_event(event)
+            await uow.optimization_run_repo.save_optimization_run(run)
+            await uow.optimization_run_repo.append_optimization_run_event(event)
             if result_schedule is not None:
                 await uow.schedule_repo.save_schedule(result_schedule)
-            await uow.schedule_repo.release_optimization_run_claim(
+            await uow.optimization_run_repo.release_optimization_run_claim(
                 run_id=run_id,
                 claim_token=claim_token,
                 status="completed",
@@ -149,7 +147,7 @@ class FailOptimizationRunHandler:
         final_sequence: int,
     ) -> None:
         async with self._uow_factory() as uow:
-            await uow.schedule_repo.append_optimization_run_event(
+            await uow.optimization_run_repo.append_optimization_run_event(
                 OptimizationRunEvent(
                     run_id=run_id,
                     sequence=final_sequence,
@@ -162,7 +160,7 @@ class FailOptimizationRunHandler:
                     created_at=whenever.Instant.now().format_iso(),
                 )
             )
-            await uow.schedule_repo.release_optimization_run_claim(
+            await uow.optimization_run_repo.release_optimization_run_claim(
                 run_id=run_id,
                 claim_token=claim_token,
                 status="failed",

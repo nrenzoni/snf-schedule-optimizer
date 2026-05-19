@@ -107,6 +107,10 @@ class IScheduleRepo(abc.ABC):
         """Applies staged manual patches to a schedule, returning any conflicts."""
         pass
 
+
+class IOptimizationRunRepo(abc.ABC):
+    """Interface for optimization run, event, snapshot, and lease persistence."""
+
     @abc.abstractmethod
     async def save_optimization_run(self, run: OptimizationRun) -> None:
         """Persists optimization run metadata."""
@@ -197,5 +201,3 @@ class IScheduleRepo(abc.ABC):
     ) -> OptimizationSnapshot | None:
         """Loads a persisted optimization snapshot by ID."""
         pass
-
-

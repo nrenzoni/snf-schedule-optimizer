@@ -11,6 +11,7 @@ from ..support import OptimizerTestBuilder
 async def test_get_optimization_run_returns_run_after_submission() -> None:
     facade = OptimizerTestBuilder().build_facade()
     schedule_repo = facade.schedule_retriever
+    run_repo = facade.optimization_run_repo
 
     schedule = Schedule(
         org_id=1,
@@ -39,7 +40,7 @@ async def test_get_optimization_run_returns_run_after_submission() -> None:
     )
     assert start_response.run is not None
 
-    run = await schedule_repo.get_optimization_run(start_response.run.run_id)
+    run = await run_repo.get_optimization_run(start_response.run.run_id)
     assert run is not None
     assert run.status == "queued"
     assert run.stage == "queued"
@@ -50,14 +51,15 @@ async def test_get_optimization_run_returns_run_after_submission() -> None:
 
 async def test_get_optimization_run_returns_none_for_unknown_id() -> None:
     facade = OptimizerTestBuilder().build_facade()
-    schedule_repo = facade.schedule_retriever
-    run = await schedule_repo.get_optimization_run("nonexistent-run-id")
+    run_repo = facade.optimization_run_repo
+    run = await run_repo.get_optimization_run("nonexistent-run-id")
     assert run is None
 
 
 async def test_get_active_optimization_run_filters_by_org_facility_schedule() -> None:
     facade = OptimizerTestBuilder().build_facade()
     schedule_repo = facade.schedule_retriever
+    run_repo = facade.optimization_run_repo
 
     schedule = Schedule(
         org_id=1,
@@ -86,13 +88,13 @@ async def test_get_active_optimization_run_filters_by_org_facility_schedule() ->
     )
     assert response.run is not None
 
-    active = await schedule_repo.get_active_optimization_run(
+    active = await run_repo.get_active_optimization_run(
         org_id=1, facility_id=1, schedule_id=10
     )
     assert active is not None
     assert active.run_id == response.run.run_id
 
-    missing = await schedule_repo.get_active_optimization_run(
+    missing = await run_repo.get_active_optimization_run(
         org_id=2, facility_id=1, schedule_id=10
     )
     assert missing is None

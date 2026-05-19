@@ -50,6 +50,7 @@ from snf_schedule_optimizer.domain.repositories import (
     IShiftRepo,
 )
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
+    IOptimizationRunRepo,
     IScheduleRepo,
     IShiftRequirementsRepo,
 )
@@ -161,6 +162,7 @@ class IReposContainer(abc.ABC):
     # Core scheduling persistence
     shift_retriever: ClassVar[AbstractProvider[IShiftRepo]]
     schedule_retriever: ClassVar[AbstractProvider[IScheduleRepo]]
+    optimization_run_retriever: ClassVar[AbstractProvider[IOptimizationRunRepo]]
     facility_retriever: ClassVar[AbstractProvider[IFacilityRepo]]
 
     # Workforce & history
@@ -210,6 +212,10 @@ def build_repos_container(
             session=Provide[db_session],
         )
         schedule_retriever = Factory(
+            SQLScheduleRepo,
+            db_session=Provide[db_session],
+        )
+        optimization_run_retriever = Factory(
             SQLScheduleRepo,
             db_session=Provide[db_session],
         )
@@ -277,6 +283,7 @@ class ISchedulerContainer(abc.ABC):
     # Core application facade
     scheduler_service: AbstractProvider[WorkforceSchedulerFacade]
     schedule_retriever: AbstractProvider[IScheduleRepo]
+    optimization_run_retriever: AbstractProvider[IOptimizationRunRepo]
     uow_factory: AbstractProvider[UnitOfWorkFactory]
 
     # (Optional but useful) Expose these if other entrypoints need them
@@ -294,6 +301,7 @@ def build_scheduler_container(
         # Import retrievers from the other container
         shift_retriever = retrievers.shift_retriever
         schedule_retriever = retrievers.schedule_retriever
+        optimization_run_retriever = retrievers.optimization_run_retriever
         uow_factory = retrievers.uow_factory
         facility_rule_retriever = retrievers.facility_rule_retriever
         employee_rule_retriever = retrievers.employee_rule_retriever
@@ -458,6 +466,7 @@ def build_scheduler_container(
             optimizer=Provide[optimizer],
             cost_evaluator=Provide[cost_evaluator],
             schedule_retriever=Provide[schedule_retriever],
+            optimization_run_repo=Provide[optimization_run_retriever],
             facility_repository=Provide[facility_retriever],
             shift_retriever=Provide[shift_retriever],
             uow_factory=Provide[uow_factory],
