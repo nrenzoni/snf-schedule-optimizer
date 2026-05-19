@@ -16,6 +16,9 @@ from snf_schedule_optimizer.models import (
     ShiftKey,
 )
 from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
+from snf_schedule_optimizer.persistence.read_repo.schedule_read_repo import (
+    ScheduleReadRepo,
+)
 
 
 class ScheduleQueryService:
@@ -28,12 +31,14 @@ class ScheduleQueryService:
         facility_repository: IFacilityRepo,
         shift_retriever: IShiftRepo,
         provider_factory: ScenarioDataProviderFactory,
+        schedule_read_repo: ScheduleReadRepo | None = None,
     ):
         self._schedule_retriever = schedule_retriever
         self._optimization_run_repo = optimization_run_repo
         self._facility_repository = facility_repository
         self._shift_retriever = shift_retriever
         self._provider_factory = provider_factory
+        self._schedule_read_repo = schedule_read_repo
 
     async def get_optimization_run(self, run_id: str) -> OptimizationRun | None:
         return await self._optimization_run_repo.get_optimization_run(run_id)

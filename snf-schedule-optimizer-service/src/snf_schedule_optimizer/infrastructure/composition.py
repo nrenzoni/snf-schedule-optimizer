@@ -128,6 +128,9 @@ from snf_schedule_optimizer.persistence.facility_rules_repo import (
 
 # Persistence Implementations
 from snf_schedule_optimizer.persistence.history_repo import SQLRawHistoryRepo
+from snf_schedule_optimizer.persistence.read_repo.schedule_read_repo import (
+    ScheduleReadRepo,
+)
 from snf_schedule_optimizer.persistence.resident_acuity_per_shift_repo import (
     SQLResidentAcuityPerShiftRepo,
 )
@@ -186,6 +189,8 @@ class IReposContainer(abc.ABC):
     db_session: ClassVar[AbstractProvider[AsyncSession]]
     db_read_session: ClassVar[AbstractProvider[AsyncSession]]
 
+    schedule_read_repo: ClassVar[AbstractProvider[ScheduleReadRepo]]
+
 
 def build_repos_container(
     engine: AsyncEngine,
@@ -206,6 +211,11 @@ def build_repos_container(
 
         db_session = ContextResource(_make_session)
         db_read_session = ContextResource(_make_read_session)
+
+        schedule_read_repo = Factory(
+            ScheduleReadRepo,
+            session=Provide[db_read_session],
+        )
 
         shift_retriever = Factory(
             SQLShiftRepo,
@@ -284,6 +294,7 @@ class ISchedulerContainer(abc.ABC):
     scheduler_service: AbstractProvider[WorkforceSchedulerFacade]
     schedule_retriever: AbstractProvider[IScheduleRepo]
     optimization_run_retriever: AbstractProvider[IOptimizationRunRepo]
+    schedule_read_repo: AbstractProvider[ScheduleReadRepo]
     uow_factory: AbstractProvider[UnitOfWorkFactory]
 
     # (Optional but useful) Expose these if other entrypoints need them
@@ -302,6 +313,7 @@ def build_scheduler_container(
         shift_retriever = retrievers.shift_retriever
         schedule_retriever = retrievers.schedule_retriever
         optimization_run_retriever = retrievers.optimization_run_retriever
+        schedule_read_repo = retrievers.schedule_read_repo
         uow_factory = retrievers.uow_factory
         facility_rule_retriever = retrievers.facility_rule_retriever
         employee_rule_retriever = retrievers.employee_rule_retriever
@@ -470,6 +482,7 @@ def build_scheduler_container(
             facility_repository=Provide[facility_retriever],
             shift_retriever=Provide[shift_retriever],
             uow_factory=Provide[uow_factory],
+            schedule_read_repo=Provide[schedule_read_repo],
         )
 
         gap_detector = Factory(GapDetectionProcessor)

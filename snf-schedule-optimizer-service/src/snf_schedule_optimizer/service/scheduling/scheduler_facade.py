@@ -56,6 +56,9 @@ from snf_schedule_optimizer.optimizer.strategies.fixing import (
     LockedAssignmentConstraintStrategy,
     PinnedScheduleConstraintStrategy,
 )
+from snf_schedule_optimizer.persistence.read_repo.schedule_read_repo import (
+    ScheduleReadRepo,
+)
 from snf_schedule_optimizer.persistence.unit_of_work import UnitOfWorkFactory
 from snf_schedule_optimizer.service.scheduling.commands import (
     PersistOptimizedScheduleHandler,
@@ -125,6 +128,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         facility_repository: IFacilityRepo,
         shift_retriever: IShiftRepo,
         uow_factory: UnitOfWorkFactory,
+        schedule_read_repo: ScheduleReadRepo | None = None,
     ):
         self.provider_factory = provider_factory
         self.optimizer = optimizer
@@ -142,6 +146,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             facility_repository=facility_repository,
             shift_retriever=shift_retriever,
             provider_factory=provider_factory,
+            schedule_read_repo=schedule_read_repo,
         )
 
     def create_data_provider(

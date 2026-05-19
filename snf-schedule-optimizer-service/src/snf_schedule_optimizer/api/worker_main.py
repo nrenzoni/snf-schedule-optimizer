@@ -65,9 +65,7 @@ async def run_worker() -> None:
                 _scheduler_context(scheduler_container),
                 scope=ContextScopes.REQUEST,
             ):
-                schedule_repo = (
-                    await scheduler_container.schedule_retriever.resolve()
-                )
+                schedule_repo = await scheduler_container.schedule_retriever.resolve()
                 scheduler_facade = await scheduler_container.scheduler_service.resolve()
                 worker_store = SqlOptimizationWorkerStore(
                     UnitOfWorkFactory(session_local)
