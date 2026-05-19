@@ -79,12 +79,14 @@ export default function DashboardControls({
             className="app-button-primary relative min-h-9 overflow-hidden whitespace-nowrap px-4 py-2"
             aria-label="Run schedule optimization"
           >
-            {isRunActive && activeRun ? (
+            {activeRun ? (
               <span
                 aria-hidden="true"
                 className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary/40 via-primary/70 to-emerald-400/80 transition-[width] duration-300"
                 style={{ width: optimizeButtonFillWidth }}
-              />
+              >
+                <span className="shimmer-overlay" />
+              </span>
             ) : null}
             <span className="relative z-10 flex items-center gap-2">
             <Zap size={16} />
