@@ -1,13 +1,37 @@
 import { useState, useEffect, useRef } from "react";
 import { isRunActive } from "@/lib/scheduling-helpers";
-import type { UIOptimizationRun } from "@/types/scheduling";
+import type { UIOptimizationRun, UIOptimizationRunStage } from "@/types/scheduling";
 
-export function useAnimatedProgress(activeRun: UIOptimizationRun | null): number {
+const STAGE_LABELS: Record<UIOptimizationRunStage, string> = {
+  unspecified: "Preparing",
+  queued: "Queued",
+  snapshotting: "Snapshotting",
+  indexing: "Indexing",
+  building_model: "Building Model",
+  solving: "Solving",
+  analyzing: "Analyzing",
+  publishing: "Publishing",
+  completed: "Completed",
+  failed: "Failed",
+};
+
+export interface AnimatedProgress {
+  percent: number;
+  stage: string;
+  stageElapsed: number;
+}
+
+export function useAnimatedProgress(
+  activeRun: UIOptimizationRun | null,
+): AnimatedProgress {
   const [displayPercent, setDisplayPercent] = useState(0);
   const lastChangeTimeMsRef = useRef(0);
   const lastTargetRef = useRef(0);
   const prevRunIdRef = useRef<string | null>(null);
   const activeRunRef = useRef(activeRun);
+  const stageStartMsRef = useRef(0);
+  const stageRef = useRef<UIOptimizationRunStage>("unspecified");
+  const [stageElapsed, setStageElapsed] = useState(0);
 
   useEffect(() => {
     activeRunRef.current = activeRun;
@@ -18,6 +42,21 @@ export function useAnimatedProgress(activeRun: UIOptimizationRun | null): number
       const run = activeRunRef.current;
       const currentRunId = run?.runId ?? null;
       const active = run !== null && isRunActive(run.status);
+
+      // Track stage elapsed time
+      if (active && run) {
+        if (run.stage !== stageRef.current) {
+          stageRef.current = run.stage;
+          stageStartMsRef.current = performance.now();
+          setStageElapsed(0);
+        } else {
+          setStageElapsed(
+            Math.floor((performance.now() - stageStartMsRef.current) / 1000),
+          );
+        }
+      } else {
+        setStageElapsed(0);
+      }
 
       if (currentRunId !== prevRunIdRef.current) {
         prevRunIdRef.current = currentRunId;
@@ -67,5 +106,10 @@ export function useAnimatedProgress(activeRun: UIOptimizationRun | null): number
     return () => clearInterval(interval);
   }, []);
 
-  return displayPercent;
+  const stage =
+    activeRun && isRunActive(activeRun.status)
+      ? STAGE_LABELS[activeRun.stage] ?? activeRun.stage
+      : "";
+
+  return { percent: displayPercent, stage, stageElapsed };
 }

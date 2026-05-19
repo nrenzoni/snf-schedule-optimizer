@@ -97,6 +97,8 @@ interface DashboardMainLayoutProps {
   } | null;
   optimizeButtonFillWidth: string;
   animatedPercent: number;
+  activeStage: string;
+  stageElapsed: number;
   openSummaryModal: () => void;
   openConfigModal: () => void;
   openTreeModal: () => void;
@@ -132,6 +134,8 @@ function DashboardMainLayout({
   activeRun,
   optimizeButtonFillWidth,
   animatedPercent,
+  activeStage,
+  stageElapsed,
   openSummaryModal,
   openConfigModal,
   openTreeModal,
@@ -175,6 +179,8 @@ function DashboardMainLayout({
                 activeRun={activeRun}
                 optimizeButtonFillWidth={optimizeButtonFillWidth}
                 animatedPercent={animatedPercent}
+                activeStage={activeStage}
+                stageElapsed={stageElapsed}
                 uiStore={{ openSummaryModal, openConfigModal, openTreeModal }}
                 hasCompletedRuns={hasCompletedRuns}
                 showResultsGlow={showResultsGlow}
@@ -361,7 +367,7 @@ export default function DashboardContent({
     }
   }, [completedRuns.length]);
 
-  const animatedPercent = useAnimatedProgress(activeRun);
+  const { percent: animatedPercent, stage: activeStage, stageElapsed } = useAnimatedProgress(activeRun);
 
   const optimizeButtonFillWidth = activeRun
     ? `${Math.max(0, Math.min(100, animatedPercent))}%`
@@ -414,6 +420,8 @@ export default function DashboardContent({
                 activeRun={activeRun}
                 optimizeButtonFillWidth={optimizeButtonFillWidth}
                 animatedPercent={animatedPercent}
+                activeStage={activeStage}
+                stageElapsed={stageElapsed}
                 openSummaryModal={uiStore.openSummaryModal}
                 openConfigModal={uiStore.openConfigModal}
                 openTreeModal={uiStore.openTreeModal}

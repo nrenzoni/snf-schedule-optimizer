@@ -20,6 +20,8 @@ interface DashboardControlsProps {
   } | null;
   optimizeButtonFillWidth: string;
   animatedPercent: number;
+  activeStage: string;
+  stageElapsed: number;
   uiStore: {
     openSummaryModal: () => void;
     openConfigModal: () => void;
@@ -42,6 +44,8 @@ export default function DashboardControls({
   activeRun,
   optimizeButtonFillWidth,
   animatedPercent,
+  activeStage,
+  stageElapsed,
   uiStore,
   hasCompletedRuns,
   showResultsGlow,
@@ -90,8 +94,12 @@ export default function DashboardControls({
             ) : null}
             <span className="relative z-10 flex items-center gap-2">
             <Zap size={16} />
-            <span>{isRunActive ? "Optimizing..." : "Optimize"}</span>
-            {isRunActive && activeRun ? <span className="text-xs">{Math.round(animatedPercent)}%</span> : null}
+            <span>{isRunActive ? "Optimizing... " : "Optimize"}</span>
+            {isRunActive ? (
+              <span className="text-xs">
+                {Math.round(animatedPercent)}%{activeStage ? ` · ${activeStage}` : ""}{stageElapsed > 0 ? ` · ${stageElapsed}s` : ""}
+              </span>
+            ) : null}
             </span>
           </button>
           {hasCompletedRuns && (
@@ -154,11 +162,12 @@ export default function DashboardControls({
       {isRunActive && activeRun ? (
         <div className="app-soft-panel flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm text-muted-foreground">
           <div>
-            <span className="font-medium text-foreground">Run:</span> {activeRun.stage}
-            {activeRun.statusMessage ? ` - ${activeRun.statusMessage}` : null}
+            <span className="font-medium text-foreground">{activeStage}</span>
+            {stageElapsed > 0 ? ` · ${stageElapsed}s elapsed` : ""}
+            {activeRun.statusMessage ? ` · ${activeRun.statusMessage}` : null}
           </div>
           <div>
-            <span className="font-medium text-foreground">Progress:</span> {activeRun.progressPercent}%
+            <span className="font-medium text-foreground">{Math.round(animatedPercent)}%</span>
           </div>
         </div>
       ) : null}
