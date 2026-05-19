@@ -8,11 +8,15 @@ export default function DashboardEmptyState({
   description,
   actionLabel,
   onAction,
+  secondaryActionLabel,
+  secondaryOnAction,
 }: {
   title: string;
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  secondaryActionLabel?: string;
+  secondaryOnAction?: () => void;
 }) {
   return (
     <div className="app-card border-dashed border-indigo-200/80 p-8 text-center">
@@ -29,6 +33,15 @@ export default function DashboardEmptyState({
         >
           <RefreshCcw size={16} />
           {actionLabel}
+        </button>
+      ) : null}
+      {secondaryOnAction && secondaryActionLabel ? (
+        <button
+          type="button"
+          onClick={secondaryOnAction}
+          className="app-button-secondary mt-3"
+        >
+          {secondaryActionLabel}
         </button>
       ) : null}
     </div>

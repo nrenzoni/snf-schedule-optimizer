@@ -65,6 +65,11 @@ infra-down:
 infra-reset:
   docker compose -f compose.dev.yml down -v
 
+demo-reseed seed="42":
+  docker compose -f compose.dev.yml down -v
+  docker compose -f compose.dev.yml up -d --remove-orphans db
+  DEMO_SEED={{seed}} docker compose -f compose.dev.yml --profile tools run --rm seeder
+
 infra-ps:
   docker compose -f compose.dev.yml ps -a
 

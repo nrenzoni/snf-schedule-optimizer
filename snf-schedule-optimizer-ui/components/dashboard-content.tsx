@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useUIStore } from "@/store/uiStore";
 import { useShallow } from "zustand/react/shallow";
 import React, { Suspense, useEffect, useMemo, useState } from "react";
@@ -60,15 +61,19 @@ function DashboardErrorState({
 
 function DashboardEmptySchedule({
   onReload,
+  onJumpToCurrentMonth,
 }: {
   onReload: () => void;
+  onJumpToCurrentMonth: () => void;
 }) {
   return (
     <DashboardEmptyState
-      title="No schedule data returned"
-      description="The API responded successfully but did not return any days for the selected month. Try another month or retry the query."
+      title="No schedule for this month"
+      description="No schedule has been created for this month. Navigate to a different month or return to the current seeded month."
       actionLabel="Reload month"
       onAction={onReload}
+      secondaryActionLabel="Go to current month"
+      secondaryOnAction={onJumpToCurrentMonth}
     />
   );
 }
@@ -134,6 +139,7 @@ function DashboardMainLayout({
   activeModule,
   refetch,
 }: DashboardMainLayoutProps) {
+  const router = useRouter();
   return (
     <div className="grid items-start gap-3 xl:h-full xl:min-h-0 xl:items-stretch 2xl:grid-cols-[minmax(0,1fr)_320px]">
       <div className="min-w-0 xl:flex xl:min-h-0 xl:flex-col">
@@ -147,6 +153,9 @@ function DashboardMainLayout({
               <DashboardEmptySchedule
                 onReload={() => {
                   void refetch();
+                }}
+                onJumpToCurrentMonth={() => {
+                  router.push("/schedule");
                 }}
               />
             ) : null}

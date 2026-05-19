@@ -11,6 +11,7 @@ from uuid import uuid4
 import whenever
 
 from snf_schedule_optimizer.api import StartOptimizationRunRequest
+from snf_schedule_optimizer.domain.exceptions import EntityNotFoundError
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
     IScheduleRepo,
     ScheduleLookupKey,
@@ -131,7 +132,7 @@ class OptimizationRunWorker:
                 include_latest_run=False,
             )
             if base_schedule is None:
-                raise ValueError("Base schedule not found for claimed run.")
+                raise EntityNotFoundError("Base schedule not found for claimed run.")
 
             facility_context = await self.scheduler_facade._build_optimization_context(
                 org_id=request.org_id,

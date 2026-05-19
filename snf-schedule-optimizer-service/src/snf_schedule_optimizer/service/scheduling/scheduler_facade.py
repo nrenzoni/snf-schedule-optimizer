@@ -11,7 +11,12 @@ from snf_schedule_optimizer.api import (
     OptimizeScheduleRequest,
     StartOptimizationRunRequest,
 )
-from snf_schedule_optimizer.domain.exceptions import DataIntegrityError
+from snf_schedule_optimizer.domain.exceptions import (
+    DataIntegrityError,
+    DomainException,
+    EntityNotFoundError,
+    InvalidRequestError,
+)
 from snf_schedule_optimizer.domain.payroll.calculations.schedule_cost_evaluator import (
     ScheduleCostEvaluator,
 )
@@ -23,7 +28,6 @@ from snf_schedule_optimizer.domain.scheduling.interfaces import (
 )
 from snf_schedule_optimizer.models import (
     DomainPrimaryKeyType,
-    Employee,
     FacilityConfig,
     LockedAssignment,
     MinMandates,
@@ -64,7 +68,11 @@ from snf_schedule_optimizer.service.scheduling.commands import (
     PersistOptimizedScheduleHandler,
     StartOptimizationRunHandler,
 )
-from snf_schedule_optimizer.service.scheduling.queries import ScheduleQueryService
+from snf_schedule_optimizer.service.scheduling.queries import (
+    MonthlyScheduleResult,
+    ScheduleQueryService,
+    ScheduleStatusResult,
+)
 
 
 class WorkforceSchedulerFacadePort(Protocol):
@@ -97,7 +105,7 @@ class WorkforceSchedulerFacadePort(Protocol):
         facility_id: DomainPrimaryKeyType,
         schedule_id: DomainPrimaryKeyType,
         current_schedule_version: int,
-    ) -> tuple[Schedule, OptimizationRun | None, bool]: ...
+    ) -> ScheduleStatusResult: ...
 
     async def validate_shift_move(
         self,
@@ -110,9 +118,7 @@ class WorkforceSchedulerFacadePort(Protocol):
         org_id: DomainPrimaryKeyType,
         facility_id: DomainPrimaryKeyType | None,
         start_date: str,
-    ) -> tuple[
-        Schedule, dict[ShiftKey, Shift], dict[int, Employee], FacilityConfig
-    ]: ...
+    ) -> MonthlyScheduleResult: ...
 
     async def close(self) -> None: ...
 
@@ -211,13 +217,24 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         self,
         request: OptimizeScheduleRequest,
     ) -> OptimizationOutput:
-        facility_context = await self._build_optimization_context(
-            org_id=request.org_id,
-            facility_id=request.facility_id,
-            start_date=request.start_date,
-            end_date=request.end_date or request.start_date,
-            optimization_settings=request.settings,
-        )
+        try:
+            facility_context = await self._build_optimization_context(
+                org_id=request.org_id,
+                facility_id=request.facility_id,
+                start_date=request.start_date,
+                end_date=request.end_date or request.start_date,
+                optimization_settings=request.settings,
+            )
+        except DomainException as exc:
+            return OptimizationOutput(
+                is_success=False,
+                schedule=None,
+                analysis=None,
+                financials=None,
+                stats=None,
+                is_valid=False,
+                error_details=str(exc),
+            )
         result = await self.optimize_schedule(
             org_id=request.org_id,
             facility_contexts={request.facility_id: facility_context},
@@ -396,7 +413,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         facility_id: DomainPrimaryKeyType,
         schedule_id: DomainPrimaryKeyType,
         current_schedule_version: int,
-    ) -> tuple[Schedule, OptimizationRun | None, bool]:
+    ) -> ScheduleStatusResult:
         return await self._query_service.get_schedule_status(
             org_id, facility_id, schedule_id, current_schedule_version
         )
@@ -460,13 +477,25 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                     latest_schedule_version=latest_version,
                 )
 
-        facility_contexts = await self._rehydrate_facility_contexts(
-            move_request.org_id,
-            staged_schedule,
-            move_request,
-        )
-        proposed_schedule = copy.deepcopy(staged_schedule)
-        self._apply_move_to_schedule(proposed_schedule, move_request)
+        try:
+            facility_contexts = await self._rehydrate_facility_contexts(
+                move_request.org_id,
+                staged_schedule,
+                move_request,
+            )
+            proposed_schedule = copy.deepcopy(staged_schedule)
+            self._apply_move_to_schedule(proposed_schedule, move_request)
+        except ValueError as exc:
+            return OptimizationOutput(
+                is_success=False,
+                schedule=staged_schedule,
+                analysis=None,
+                financials=None,
+                stats=None,
+                is_valid=False,
+                error_details=str(exc),
+                latest_schedule_version=latest_version,
+            )
 
         result = await self.optimize_schedule(
             org_id=move_request.org_id,
@@ -540,7 +569,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         org_id: DomainPrimaryKeyType,
         facility_id: DomainPrimaryKeyType | None,
         start_date: str,
-    ) -> tuple[Schedule, dict[ShiftKey, Shift], dict[int, Employee], FacilityConfig]:
+    ) -> MonthlyScheduleResult:
         return await self._query_service.get_monthly_schedule(
             org_id, facility_id, start_date
         )
@@ -608,7 +637,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         if request.from_shift_id == request.to_shift_id:
             return
         if not request.from_shift_id and not request.to_shift_id:
-            raise ValueError("Both from_shift_id and to_shift_id cannot be None.")
+            raise InvalidRequestError(
+                "Both from_shift_id and to_shift_id cannot be None."
+            )
 
         if request.from_shift_id:
             from_shift_assigned = next(
@@ -621,7 +652,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 None,
             )
             if from_shift_assigned is None:
-                raise ValueError(
+                raise EntityNotFoundError(
                     f"Shift {request.from_shift_id} not found in schedule."
                 )
             if request.employee_id in from_shift_assigned:
@@ -637,7 +668,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
                 None,
             )
             if to_shift_assigned is None:
-                raise ValueError(f"Shift {request.to_shift_id} not found in schedule.")
+                raise EntityNotFoundError(
+                    f"Shift {request.to_shift_id} not found in schedule."
+                )
             if request.employee_id not in to_shift_assigned:
                 to_shift_assigned.append(request.employee_id)
 
@@ -670,7 +703,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
         contexts: dict[DomainPrimaryKeyType, FacilityScenarioContext] = {}
         for fac_id, shifts in shifts_by_fac.items():
             if fac_id not in config_map:
-                raise ValueError(f"Facility config not found for facility_id: {fac_id}")
+                raise EntityNotFoundError(
+                    f"Facility config not found for facility_id: {fac_id}"
+                )
             contexts[fac_id] = FacilityScenarioContext(
                 facility_id=fac_id,
                 shifts=shifts,
@@ -690,7 +725,7 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
     ) -> FacilityScenarioContext:
         configs = await self.facility_repository.get_configs(org_id, [facility_id])
         if not configs:
-            raise ValueError(
+            raise EntityNotFoundError(
                 f"Facility config not found for facility_id: {facility_id}"
             )
         facility_config = configs[0]
@@ -705,7 +740,9 @@ class WorkforceSchedulerFacade(WorkforceSchedulerFacadePort):
             <= end_date
         ]
         if not relevant_shifts:
-            raise ValueError("No shifts found in the requested optimization window.")
+            raise EntityNotFoundError(
+                "No shifts found in the requested optimization window."
+            )
         return FacilityScenarioContext(
             facility_id=facility_id,
             shifts=relevant_shifts,

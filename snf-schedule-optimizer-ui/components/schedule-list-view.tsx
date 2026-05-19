@@ -1,4 +1,5 @@
 import React from "react";
+import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -27,6 +28,8 @@ const monthYearFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 export default function ScheduleListView() {
+  const router = useRouter();
+
   const {
     currentDate,
     calendarDays,
@@ -129,8 +132,10 @@ export default function ScheduleListView() {
 
         {!dataError && !isAppLoading && scheduleCount === 0 ? (
           <DashboardEmptyState
-            title="No schedules returned"
-            description="The selected period has no schedule data yet. Retry from the dashboard banner or switch to another month."
+            title="No schedule for this month"
+            description="No schedule has been created for this month. Try another month or switch back to a populated month."
+            secondaryActionLabel="Go to current month"
+            secondaryOnAction={() => router.push("/schedule")}
           />
         ) : null}
 

@@ -1,5 +1,11 @@
 """Query services for schedule read operations."""
 
+from typing import NamedTuple
+
+from snf_schedule_optimizer.domain.exceptions import (
+    EntityNotFoundError,
+    InvalidRequestError,
+)
 from snf_schedule_optimizer.domain.repositories import IFacilityRepo, IShiftRepo
 from snf_schedule_optimizer.domain.scheduling.interfaces import (
     IOptimizationRunRepo,
@@ -19,6 +25,19 @@ from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFacto
 from snf_schedule_optimizer.persistence.read_repo.schedule_read_repo import (
     ScheduleReadRepo,
 )
+
+
+class ScheduleStatusResult(NamedTuple):
+    schedule: Schedule | None
+    active_run: OptimizationRun | None
+    has_newer_version: bool
+
+
+class MonthlyScheduleResult(NamedTuple):
+    schedule: Schedule | None
+    shifts: dict[ShiftKey, Shift]
+    employees: dict[int, Employee]
+    facility_config: FacilityConfig | None
 
 
 class ScheduleQueryService:
@@ -60,12 +79,14 @@ class ScheduleQueryService:
         facility_id: DomainPrimaryKeyType,
         schedule_id: DomainPrimaryKeyType,
         current_schedule_version: int,
-    ) -> tuple[Schedule, OptimizationRun | None, bool]:
+    ) -> ScheduleStatusResult:
         schedule = await self._schedule_retriever.get_schedule(
             ScheduleLookupKey(org_id, schedule_id)
         )
         if schedule is None:
-            raise ValueError("Schedule not found.")
+            return ScheduleStatusResult(
+                schedule=None, active_run=None, has_newer_version=False
+            )
         active_run = await self._optimization_run_repo.get_active_optimization_run(
             org_id, facility_id, schedule_id
         )
@@ -75,29 +96,37 @@ class ScheduleQueryService:
         has_newer_version = (
             latest_version or schedule.schedule_version
         ) > current_schedule_version
-        return schedule, active_run, has_newer_version
+        return ScheduleStatusResult(
+            schedule=schedule,
+            active_run=active_run,
+            has_newer_version=has_newer_version,
+        )
 
     async def get_monthly_schedule(
         self,
         org_id: DomainPrimaryKeyType,
         facility_id: DomainPrimaryKeyType | None,
         start_date: str,
-    ) -> tuple[Schedule, dict[ShiftKey, Shift], dict[int, Employee], FacilityConfig]:
+    ) -> MonthlyScheduleResult:
         schedule = await self._schedule_retriever.get_schedule_for_month(
             org_id=org_id, facility_id=facility_id, start_date=start_date
         )
         if schedule is None:
-            raise ValueError("No schedule found for the requested month.")
+            return MonthlyScheduleResult(
+                schedule=None, shifts={}, employees={}, facility_config=None
+            )
         target_facility_id = (
             facility_id if facility_id is not None else schedule.facility_id
         )
         if target_facility_id is None:
-            raise ValueError("A facility_id is required to load a monthly schedule.")
+            raise InvalidRequestError(
+                "A facility_id is required to load a monthly schedule."
+            )
         configs = await self._facility_repository.get_configs(
             org_id, [target_facility_id]
         )
         if not configs:
-            raise ValueError(
+            raise EntityNotFoundError(
                 f"Facility config not found for facility_id: {target_facility_id}"
             )
         facility_config = configs[0]
@@ -114,4 +143,9 @@ class ScheduleQueryService:
             org_id
         )
         employee_map = {employee.employee_id: employee for employee in employees}
-        return schedule, shifts, employee_map, facility_config
+        return MonthlyScheduleResult(
+            schedule=schedule,
+            shifts=shifts,
+            employees=employee_map,
+            facility_config=facility_config,
+        )

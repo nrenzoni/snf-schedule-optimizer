@@ -11,7 +11,10 @@ from snf_schedule_optimizer.domain.scheduling.interfaces import (
 )
 from snf_schedule_optimizer.models import OptimizationRun
 from snf_schedule_optimizer.optimizer.providers import ScenarioDataProviderFactory
-from snf_schedule_optimizer.service.scheduling.queries import ScheduleQueryService
+from snf_schedule_optimizer.service.scheduling.queries import (
+    ScheduleQueryService,
+    ScheduleStatusResult,
+)
 
 
 class TestScheduleQueryService:
@@ -45,7 +48,7 @@ class TestScheduleQueryService:
         run_repo.get_optimization_run.assert_awaited_once_with("r1")
         assert result is expected
 
-    async def test_get_schedule_status_raises_when_schedule_missing(self) -> None:
+    async def test_get_schedule_status_returns_none_when_schedule_missing(self) -> None:
         schedule_repo = AsyncMock(spec=IScheduleRepo)
         run_repo = AsyncMock(spec=IOptimizationRunRepo)
         facility_repo = AsyncMock(spec=IFacilityRepo)
@@ -57,8 +60,7 @@ class TestScheduleQueryService:
         svc = ScheduleQueryService(
             schedule_repo, run_repo, facility_repo, shift_repo, provider_factory
         )
-        try:
-            await svc.get_schedule_status(1, 1, 10, 0)
-            raise AssertionError("Expected ValueError")
-        except ValueError:
-            pass
+        result = await svc.get_schedule_status(1, 1, 10, 0)
+        assert result == ScheduleStatusResult(
+            schedule=None, active_run=None, has_newer_version=False
+        )

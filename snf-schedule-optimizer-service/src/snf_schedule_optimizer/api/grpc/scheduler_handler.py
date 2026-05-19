@@ -60,6 +60,10 @@ from snf_schedule_optimizer.infrastructure.tracing import get_tracer
 from snf_schedule_optimizer.models import OptimizationRun
 from snf_schedule_optimizer.persistence.tenant import set_current_org_id
 from snf_schedule_optimizer.service.facility.facility_facade import FacilityFacade
+from snf_schedule_optimizer.service.scheduling.queries import (
+    MonthlyScheduleResult,
+    ScheduleStatusResult,
+)
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacadePort,
 )
@@ -184,75 +188,100 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
                 scheduler_service: WorkforceSchedulerFacadePort = (
                     await scheduler_container.scheduler_service.resolve()
                 )
-                (
-                    schedule,
-                    shifts,
-                    employees,
-                    facility_config,
-                ) = await scheduler_service.get_monthly_schedule(
-                    org_id=org_id,
-                    facility_id=facility_id,
-                    start_date=request.start_date,
+                monthly_result: MonthlyScheduleResult = (
+                    await scheduler_service.get_monthly_schedule(
+                        org_id=org_id,
+                        facility_id=facility_id,
+                        start_date=request.start_date,
+                    )
                 )
+                schedule = monthly_result.schedule
+                shifts = monthly_result.shifts
+                employees = monthly_result.employees
+                facility_config = monthly_result.facility_config
+
+                if schedule is None or facility_config is None:
+                    return scheduling_pb2.GetMonthlyScheduleResponse(
+                        facility_id=DEMO_ID_ALIASES.get(
+                            facility_id,
+                            self.id_obfuscator.encode(facility_id),
+                        )
+                        if facility_id is not None
+                        else "",
+                        schedule_id="",
+                        schedule_version=0,
+                        updated_at="",
+                        next_page_token="",
+                        total_days=0,
+                    )
+
                 active_run = None
                 if (
                     schedule.schedule_id is not None
                     and schedule.facility_id is not None
                 ):
-                    status_result = await scheduler_service.get_schedule_status(
-                        org_id=org_id,
-                        facility_id=schedule.facility_id,
-                        schedule_id=schedule.schedule_id,
-                        current_schedule_version=schedule.schedule_version,
+                    status_result: ScheduleStatusResult = (
+                        await scheduler_service.get_schedule_status(
+                            org_id=org_id,
+                            facility_id=schedule.facility_id,
+                            schedule_id=schedule.schedule_id,
+                            current_schedule_version=schedule.schedule_version,
+                        )
                     )
-                    status_run = status_result[1]
+                    status_run = (
+                        status_result.active_run
+                        if status_result.schedule is not None
+                        else None
+                    )
                     if status_run is not None:
                         active_run = await scheduler_service.get_optimization_run(
                             status_run.run_id
                         )
 
-        day_schedules = map_monthly_schedule(
-            obfuscator=self.id_obfuscator,
-            schedule=schedule,
-            shifts=shifts,
-            employees=employees,
-            facility_tz=facility_config.tz,
-        )
+                day_schedules = map_monthly_schedule(
+                    obfuscator=self.id_obfuscator,
+                    schedule=schedule,
+                    shifts=shifts,
+                    employees=employees,
+                    facility_tz=facility_config.tz,
+                )
 
-        response = scheduling_pb2.GetMonthlyScheduleResponse(
-            facility_id=DEMO_ID_ALIASES.get(
-                facility_config.facility_id,
-                self.id_obfuscator.encode(facility_config.facility_id),
-            ),
-            schedule_id=self.id_obfuscator.encode(schedule.schedule_id)
-            if schedule.schedule_id is not None
-            else "",
-            schedule_version=schedule.schedule_version,
-            updated_at=schedule.updated_at or "",
-            next_page_token="",
-            total_days=0,
-        )
-        if schedule.latest_optimization is not None:
-            response.latest_optimization.CopyFrom(
-                map_summary(schedule.latest_optimization)
-            )
-        if schedule.latest_optimization_stats is not None:
-            response.latest_optimization_stats.CopyFrom(
-                map_stats_from_values(schedule.latest_optimization_stats)
-            )
-        if schedule.latest_optimization_financials is not None:
-            response.latest_optimization_financials.CopyFrom(
-                map_financials_from_values(schedule.latest_optimization_financials)
-            )
-        if active_run is not None:
-            response.active_optimization_run.CopyFrom(
-                map_run(self.id_obfuscator, active_run)
-            )
-        end_date = request.end_date or request.start_date
-        for day, day_schedule in day_schedules.items():
-            if day < request.start_date or day > end_date:
-                continue
-            response.schedules[day].CopyFrom(day_schedule)
+                response = scheduling_pb2.GetMonthlyScheduleResponse(
+                    facility_id=DEMO_ID_ALIASES.get(
+                        facility_config.facility_id,
+                        self.id_obfuscator.encode(facility_config.facility_id),
+                    ),
+                    schedule_id=self.id_obfuscator.encode(schedule.schedule_id)
+                    if schedule.schedule_id is not None
+                    else "",
+                    schedule_version=schedule.schedule_version,
+                    updated_at=schedule.updated_at or "",
+                    next_page_token="",
+                    total_days=0,
+                )
+                if schedule.latest_optimization is not None:
+                    response.latest_optimization.CopyFrom(
+                        map_summary(schedule.latest_optimization)
+                    )
+                if schedule.latest_optimization_stats is not None:
+                    response.latest_optimization_stats.CopyFrom(
+                        map_stats_from_values(schedule.latest_optimization_stats)
+                    )
+                if schedule.latest_optimization_financials is not None:
+                    response.latest_optimization_financials.CopyFrom(
+                        map_financials_from_values(
+                            schedule.latest_optimization_financials
+                        )
+                    )
+                if active_run is not None:
+                    response.active_optimization_run.CopyFrom(
+                        map_run(self.id_obfuscator, active_run)
+                    )
+                end_date = request.end_date or request.start_date
+                for day, day_schedule in day_schedules.items():
+                    if day < request.start_date or day > end_date:
+                        continue
+                    response.schedules[day].CopyFrom(day_schedule)
 
         page_size = request.page_size if request.page_size > 0 else 31
         page_token = request.page_token if request.page_token else None
@@ -323,16 +352,20 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             )
             if facility_id is None:
                 return scheduling_pb2.GetScheduleStatusResponse()
-            (
-                schedule,
-                active_run,
-                has_newer_version,
-            ) = await scheduler_service.get_schedule_status(
-                org_id=org_id,
-                facility_id=facility_id,
-                schedule_id=schedule_id,
-                current_schedule_version=request.current_schedule_version,
+            status_result: ScheduleStatusResult = (
+                await scheduler_service.get_schedule_status(
+                    org_id=org_id,
+                    facility_id=facility_id,
+                    schedule_id=schedule_id,
+                    current_schedule_version=request.current_schedule_version,
+                )
             )
+            schedule = status_result.schedule
+            active_run = status_result.active_run
+            has_newer_version = status_result.has_newer_version
+
+        if schedule is None:
+            return scheduling_pb2.GetScheduleStatusResponse()
 
         response = scheduling_pb2.GetScheduleStatusResponse(
             schedule_id=request.schedule_id,
@@ -524,26 +557,28 @@ class SchedulingServiceHandler(scheduling_connect.SchedulingService):
             scope=ContextScopes.REQUEST,
         ):
             scheduler_service = await scheduler_container.scheduler_service.resolve()
-            (
-                schedule,
-                shifts,
-                employees,
-                facility_config,
-            ) = await scheduler_service.get_monthly_schedule(
-                org_id=run.org_id,
-                facility_id=run.facility_id,
-                start_date=run.started_at[:10]
-                if run.started_at
-                else whenever.Instant.now().format_iso()[:10],
+            monthly_result: MonthlyScheduleResult = (
+                await scheduler_service.get_monthly_schedule(
+                    org_id=run.org_id,
+                    facility_id=run.facility_id,
+                    start_date=run.started_at[:10]
+                    if run.started_at
+                    else whenever.Instant.now().format_iso()[:10],
+                )
             )
-        for day, day_schedule in map_monthly_schedule(
-            obfuscator=self.id_obfuscator,
-            schedule=schedule,
-            shifts=shifts,
-            employees=employees,
-            facility_tz=facility_config.tz,
-        ).items():
-            response.schedules[day].CopyFrom(day_schedule)
+            schedule = monthly_result.schedule
+            shifts = monthly_result.shifts
+            employees = monthly_result.employees
+            facility_config = monthly_result.facility_config
+        if schedule is not None and facility_config is not None:
+            for day, day_schedule in map_monthly_schedule(
+                obfuscator=self.id_obfuscator,
+                schedule=schedule,
+                shifts=shifts,
+                employees=employees,
+                facility_tz=facility_config.tz,
+            ).items():
+                response.schedules[day].CopyFrom(day_schedule)
         return response
 
     async def stream_optimization_run(

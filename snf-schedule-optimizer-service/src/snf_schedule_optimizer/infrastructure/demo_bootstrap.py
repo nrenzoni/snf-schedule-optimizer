@@ -58,7 +58,8 @@ async def bootstrap() -> None:
                 )
 
                 logger.info("Seeding demo data...")
-                await seeder.seed_from_scenario(seed=42)
+                seed = int(os.environ.get("DEMO_SEED", "42"))
+                await seeder.seed_from_scenario(seed=seed)
                 logger.info("Seeding complete.")
     finally:
         await engine.dispose()

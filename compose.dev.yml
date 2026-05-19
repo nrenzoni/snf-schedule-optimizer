@@ -23,6 +23,7 @@ services:
       dockerfile: snf-schedule-optimizer-service/Dockerfile
     environment:
       DATABASE_URL: ${DATABASE_URL}
+      DEMO_SEED: ${DEMO_SEED:-42}
     depends_on:
       db:
         condition: service_healthy

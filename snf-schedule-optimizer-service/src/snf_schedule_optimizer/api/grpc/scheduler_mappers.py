@@ -25,7 +25,6 @@ from snf_schedule_optimizer.infrastructure.sqid_converter import (
 )
 from snf_schedule_optimizer.models import (
     Employee,
-    FacilityConfig,
     OptimizationRun,
     OptimizationSettings,
     OptimizationSummary,
@@ -34,6 +33,9 @@ from snf_schedule_optimizer.models import (
     Shift,
     ShiftKey,
     StagedSchedulePatch,
+)
+from snf_schedule_optimizer.service.scheduling.queries import (
+    MonthlyScheduleResult,
 )
 from snf_schedule_optimizer.service.scheduling.scheduler_facade import (
     WorkforceSchedulerFacadePort,
@@ -415,7 +417,7 @@ async def load_schedule_dependencies(
     scheduler_container: type[ISchedulerContainer],
     org_id: int,
     schedule: Schedule,
-) -> tuple[Schedule, Mapping[ShiftKey, Shift], Mapping[int, Employee], FacilityConfig]:
+) -> MonthlyScheduleResult:
     async with container_context(
         cast(SupportsContext[Any], scheduler_container),
         scope=ContextScopes.REQUEST,
@@ -441,16 +443,17 @@ async def map_optimize_response(
     )
     if result.schedule is None:
         return response
-    (
-        schedule,
-        shifts,
-        employees,
-        facility_config,
-    ) = await load_schedule_dependencies(
+    deps_result: MonthlyScheduleResult = await load_schedule_dependencies(
         scheduler_container,
         result.schedule.org_id,
         result.schedule,
     )
+    schedule = deps_result.schedule
+    shifts = deps_result.shifts
+    employees = deps_result.employees
+    facility_config = deps_result.facility_config
+    if schedule is None or facility_config is None:
+        return response
     for day, day_schedule in map_monthly_schedule(
         obfuscator=id_obfuscator,
         schedule=schedule,
@@ -504,24 +507,26 @@ async def map_validation_response(
         response.patch.CopyFrom(map_patch(id_obfuscator, result.patches[-1]))
     if result.schedule is not None:
         try:
-            (
-                schedule,
-                shifts,
-                employees,
-                facility_config,
-            ) = await load_schedule_dependencies(
-                scheduler_container,
-                result.schedule.org_id,
-                result.schedule,
+            deps_result: MonthlyScheduleResult = (
+                await load_schedule_dependencies(
+                    scheduler_container,
+                    result.schedule.org_id,
+                    result.schedule,
+                )
             )
-            for day, day_schedule in map_monthly_schedule(
-                obfuscator=id_obfuscator,
-                schedule=schedule,
-                shifts=shifts,
-                employees=employees,
-                facility_tz=facility_config.tz,
-            ).items():
-                response.affected_schedules[day].CopyFrom(day_schedule)
+            schedule = deps_result.schedule
+            shifts = deps_result.shifts
+            employees = deps_result.employees
+            facility_config = deps_result.facility_config
+            if schedule is not None and facility_config is not None:
+                for day, day_schedule in map_monthly_schedule(
+                    obfuscator=id_obfuscator,
+                    schedule=schedule,
+                    shifts=shifts,
+                    employees=employees,
+                    facility_tz=facility_config.tz,
+                ).items():
+                    response.affected_schedules[day].CopyFrom(day_schedule)
         except Exception:
             logger.warning(
                 "Failed to load schedule dependencies for "
